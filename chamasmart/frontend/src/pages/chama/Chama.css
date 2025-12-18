@@ -3,7 +3,7 @@
 .chama-header {
   background: linear-gradient(135deg, #22c55e, #16a34a);
   color: white;
-  padding: 2rem 0;
+  padding: 2.5rem 0;
   margin-bottom: 2rem;
   position: relative;
   overflow: hidden;
@@ -29,14 +29,174 @@
 }
 
 .chama-title {
-  margin: 0;
+  margin: 0 0 1rem 0;
   font-size: 2rem;
   font-weight: 600;
+}
+
+.chama-meta {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .chama-actions {
   display: flex;
   gap: 1rem;
+}
+
+/* Header Content Layout */
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: 2rem;
+}
+
+.chama-title-section {
+  flex: 1;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1.25rem;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+/* Modern Button Styles */
+.btn-modern {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+  min-width: 120px;
+  justify-content: center;
+}
+
+.btn-modern:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-modern .btn-icon {
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-reports {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.btn-reports:hover {
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+}
+
+.btn-manage {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.btn-manage:hover {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.4);
+}
+
+/* Responsive Design for Header */
+@media (max-width: 1024px) {
+  .header-content {
+    gap: 1.5rem;
+  }
+
+  .header-actions {
+    gap: 1rem;
+  }
+
+  .btn-modern {
+    padding: 0.625rem 1rem;
+    font-size: 0.9rem;
+    min-width: 100px;
+  }
+
+  .chama-meta {
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .chama-header {
+    padding: 2rem 0;
+  }
+
+  .header-content {
+    flex-direction: column;
+    gap: 1.5rem;
+    text-align: center;
+  }
+
+  .header-actions {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  .btn-modern {
+    flex: 1;
+    min-width: 140px;
+    padding: 0.75rem 1rem;
+  }
+
+  .chama-meta {
+    justify-content: center;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .btn-modern {
+    width: 100%;
+    min-width: unset;
+    padding: 0.875rem 1rem;
+  }
+
+  .chama-title {
+    font-size: 1.75rem;
+  }
 }
 
 .chama-stats {
