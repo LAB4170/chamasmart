@@ -357,7 +357,7 @@ const getChamaStats = async (req, res) => {
       `SELECT 
          COUNT(DISTINCT cm.user_id) as total_members,
          COALESCE(SUM(c.amount), 0) as total_contributions,
-         c.current_fund,
+         ch.current_fund,
          ch.contribution_amount,
          ch.chama_type
        FROM chamas ch

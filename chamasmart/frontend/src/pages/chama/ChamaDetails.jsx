@@ -24,6 +24,14 @@ const ChamaDetails = () => {
   const fetchChamaData = async () => {
     try {
       setLoading(true);
+      setError("");
+
+      // Check if user is authenticated
+      if (!user) {
+        setError("Please log in to view chama details");
+        navigate("/login");
+        return;
+      }
 
       // Fetch chama details
       const chamaRes = await chamaAPI.getById(id);
@@ -41,8 +49,18 @@ const ChamaDetails = () => {
       const contribRes = await contributionAPI.getAll(id);
       setContributions(contribRes.data.data);
     } catch (err) {
-      setError("Failed to load chama details");
-      console.error(err);
+      console.error("ChamaDetails error:", err);
+
+      if (err.response?.status === 401) {
+        setError("Please log in to view this chama");
+        navigate("/login");
+      } else if (err.response?.status === 403) {
+        setError("You don't have permission to view this chama");
+      } else if (err.response?.status === 404) {
+        setError("Chama not found");
+      } else {
+        setError(err.response?.data?.message || "Failed to load chama details");
+      }
     } finally {
       setLoading(false);
     }

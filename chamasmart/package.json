@@ -1,0 +1,24 @@
+{
+  "name": "chamasmart",
+  "version": "1.0.0",
+  "description": "ChamaSmart - Integrated Chama Management System",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && node server.js",
+    "dev:frontend": "cd frontend && npm run dev",
+    "start": "npm run dev",
+    "setup": "cd backend && node setup-db.js",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [
+    "chama",
+    "savings",
+    "microfinance",
+    "kenya"
+  ],
+  "author": "",
+  "license": "ISC"
+}
