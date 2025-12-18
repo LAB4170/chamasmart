@@ -192,13 +192,21 @@ const ChamaDetails = () => {
               <div className="chama-meta">
                 <span className="chama-type-badge">
                   <span className="badge-icon">
-                    {isROSCA() ? "🔄" : chama.chama_type === "TABLE_BANKING" ? "💰" : chama.chama_type === "ASCA" ? "📈" : "🤝"}
+                    {isROSCA()
+                      ? "🔄"
+                      : chama.chama_type === "TABLE_BANKING"
+                      ? "💰"
+                      : chama.chama_type === "ASCA"
+                      ? "📈"
+                      : "🤝"}
                   </span>
                   {getChamaTypeLabel(chama.chama_type)}
                 </span>
                 <div className="user-role-display">
                   <span className="role-label">Your Role:</span>
-                  <span className={`role-badge role-${getUserRole().toLowerCase()}`}>
+                  <span
+                    className={`role-badge role-${getUserRole().toLowerCase()}`}
+                  >
                     {getUserRole()}
                   </span>
                 </div>
@@ -223,7 +231,9 @@ const ChamaDetails = () => {
                   </button>
                   <button
                     className="btn btn-modern btn-primary"
-                    onClick={() => navigate(`/chamas/${id}/record-contribution`)}
+                    onClick={() =>
+                      navigate(`/chamas/${id}/record-contribution`)
+                    }
                   >
                     <span className="btn-icon">💳</span>
                     Record Payment
@@ -309,7 +319,9 @@ const ChamaDetails = () => {
             Members ({members.length})
           </button>
           <button
-            className={`tab-modern ${activeTab === "contributions" ? "active" : ""}`}
+            className={`tab-modern ${
+              activeTab === "contributions" ? "active" : ""
+            }`}
             onClick={() => setActiveTab("contributions")}
           >
             <span className="tab-icon">💰</span>
@@ -722,16 +734,23 @@ const ChamaDetails = () => {
                   <div className="report-content">
                     <div className="report-stat">
                       <span className="stat-label">Total Collected</span>
-                      <span className="stat-value">{formatCurrency(stats?.total_contributions || 0)}</span>
+                      <span className="stat-value">
+                        {formatCurrency(stats?.total_contributions || 0)}
+                      </span>
                     </div>
                     <div className="report-stat">
                       <span className="stat-label">Current Balance</span>
-                      <span className="stat-value">{formatCurrency(stats?.current_fund || 0)}</span>
+                      <span className="stat-value">
+                        {formatCurrency(stats?.current_fund || 0)}
+                      </span>
                     </div>
                     <div className="report-stat">
                       <span className="stat-label">Average per Member</span>
                       <span className="stat-value">
-                        {formatCurrency((stats?.total_contributions || 0) / Math.max(members.length, 1))}
+                        {formatCurrency(
+                          (stats?.total_contributions || 0) /
+                            Math.max(members.length, 1)
+                        )}
                       </span>
                     </div>
                   </div>
@@ -773,23 +792,37 @@ const ChamaDetails = () => {
                       <div className="trend-stat">
                         <span className="trend-label">This Month</span>
                         <span className="trend-value">
-                          {formatCurrency(contributions
-                            .filter(c => new Date(c.contribution_date).getMonth() === new Date().getMonth())
-                            .reduce((sum, c) => sum + parseFloat(c.amount), 0))}
+                          {formatCurrency(
+                            contributions
+                              .filter(
+                                (c) =>
+                                  new Date(c.contribution_date).getMonth() ===
+                                  new Date().getMonth()
+                              )
+                              .reduce((sum, c) => sum + parseFloat(c.amount), 0)
+                          )}
                         </span>
                       </div>
                       <div className="trend-stat">
                         <span className="trend-label">Last Month</span>
                         <span className="trend-value">
-                          {formatCurrency(contributions
-                            .filter(c => {
-                              const contribDate = new Date(c.contribution_date);
-                              const lastMonth = new Date();
-                              lastMonth.setMonth(lastMonth.getMonth() - 1);
-                              return contribDate.getMonth() === lastMonth.getMonth() &&
-                                     contribDate.getFullYear() === lastMonth.getFullYear();
-                            })
-                            .reduce((sum, c) => sum + parseFloat(c.amount), 0))}
+                          {formatCurrency(
+                            contributions
+                              .filter((c) => {
+                                const contribDate = new Date(
+                                  c.contribution_date
+                                );
+                                const lastMonth = new Date();
+                                lastMonth.setMonth(lastMonth.getMonth() - 1);
+                                return (
+                                  contribDate.getMonth() ===
+                                    lastMonth.getMonth() &&
+                                  contribDate.getFullYear() ===
+                                    lastMonth.getFullYear()
+                                );
+                              })
+                              .reduce((sum, c) => sum + parseFloat(c.amount), 0)
+                          )}
                         </span>
                       </div>
                     </div>
@@ -807,18 +840,31 @@ const ChamaDetails = () => {
                       <div className="cycle-report">
                         <div className="cycle-stat">
                           <span className="stat-label">Current Cycle</span>
-                          <span className="stat-value">{cycle?.cycleNumber || 1}</span>
+                          <span className="stat-value">
+                            {cycle?.cycleNumber || 1}
+                          </span>
                         </div>
                         <div className="cycle-stat">
-                          <span className="stat-label">Completed Recipients</span>
+                          <span className="stat-label">
+                            Completed Recipients
+                          </span>
                           <span className="stat-value">
-                            {roster.filter((_, index) => index < (currentCyclePosition % roster.length)).length}
+                            {
+                              roster.filter(
+                                (_, index) =>
+                                  index < currentCyclePosition % roster.length
+                              ).length
+                            }
                           </span>
                         </div>
                         <div className="cycle-stat">
                           <span className="stat-label">Total Payouts</span>
                           <span className="stat-value">
-                            {formatCurrency((currentCyclePosition % roster.length) * chama.contribution_amount * members.length)}
+                            {formatCurrency(
+                              (currentCyclePosition % roster.length) *
+                                chama.contribution_amount *
+                                members.length
+                            )}
                           </span>
                         </div>
                       </div>
