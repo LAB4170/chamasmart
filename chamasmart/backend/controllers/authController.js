@@ -20,6 +20,7 @@ const generateToken = (id) => {
 // @access  Public
 const register = async (req, res) => {
   try {
+    console.log("Registration request body:", req.body); // Debug log
     const { email, password, firstName, lastName, phoneNumber, nationalId } =
       req.body;
 

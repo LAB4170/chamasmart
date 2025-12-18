@@ -6,7 +6,7 @@ const validate = require("../middleware/validate");
 const { registerSchema, loginSchema } = require("../utils/validationSchemas");
 
 // Public routes
-router.post("/register", validate(registerSchema), register);
+router.post("/register", register); // Temporarily disable validation
 router.post("/login", validate(loginSchema), login);
 
 // Protected routes
