@@ -6,6 +6,8 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server.js",
+    "build": "cd ../frontend && npm run build",
+    "serve": "npm run build && npm start",
     "dev": "nodemon server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

@@ -3,6 +3,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const morgan = require("morgan");
+const path = require("path");
 require("dotenv").config();
 require("./config/db"); // Initialize DB connection
 
@@ -57,12 +58,12 @@ app.use("/api/members", require("./routes/members"));
 app.use("/api/contributions", require("./routes/contributions"));
 app.use("/api/meetings", require("./routes/meetings"));
 
-// 404 handler
+// Serve static files from the React app build directory
+app.use(express.static(path.join(__dirname, "../frontend/dist")));
+
+// Catch all handler: send back React's index.html file for client-side routing
 app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "Route not found",
-  });
+  res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
 });
 
 // Global error handler
