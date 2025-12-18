@@ -9,6 +9,11 @@ import Navbar from "./components/layout/Navbar";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import Dashboard from "./pages/dashboard/Dashboard";
+import CreateChama from "./pages/chama/CreateChama";
+import ChamaDetails from "./pages/chama/ChamaDetails";
+import RecordContribution from "./pages/chama/RecordContribution";
+import AddMember from "./pages/chama/AddMember";
+import MyChamas from "./pages/chama/MyChamas";
 
 // Protected Route wrapper
 const ProtectedRoute = ({ children }) => {
@@ -229,6 +234,46 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chamas"
+              element={
+                <ProtectedRoute>
+                  <MyChamas />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chamas/create"
+              element={
+                <ProtectedRoute>
+                  <CreateChama />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chamas/:id"
+              element={
+                <ProtectedRoute>
+                  <ChamaDetails />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chamas/:id/record-contribution"
+              element={
+                <ProtectedRoute>
+                  <RecordContribution />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chamas/:id/add-member"
+              element={
+                <ProtectedRoute>
+                  <AddMember />
                 </ProtectedRoute>
               }
             />
