@@ -41,8 +41,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check route
-app.get("/", (req, res) => {
+// API Routes
+app.use("/api/auth", require("./routes/auth"));
+app.use("/api/chamas", require("./routes/chamas"));
+app.use("/api/members", require("./routes/members"));
+app.use("/api/contributions", require("./routes/contributions"));
+app.use("/api/meetings", require("./routes/meetings"));
+
+// API Health check route
+app.get("/api/health", (req, res) => {
   res.json({
     success: true,
     message: "ChamaSmart API is running!",
@@ -50,13 +57,6 @@ app.get("/", (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
-
-// API Routes
-app.use("/api/auth", require("./routes/auth"));
-app.use("/api/chamas", require("./routes/chamas"));
-app.use("/api/members", require("./routes/members"));
-app.use("/api/contributions", require("./routes/contributions"));
-app.use("/api/meetings", require("./routes/meetings"));
 
 // Serve static files from the React app build directory
 app.use(express.static(path.join(__dirname, "../frontend/dist")));
