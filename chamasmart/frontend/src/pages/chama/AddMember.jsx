@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { chamaAPI, memberAPI } from "../../services/api";
-import "./Chama.css";
+
 
 const AddMember = () => {
   const { id } = useParams();

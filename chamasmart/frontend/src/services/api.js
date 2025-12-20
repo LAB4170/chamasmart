@@ -55,6 +55,7 @@ export const chamaAPI = {
   getMyChamas: () => api.get("/chamas/user/my-chamas"),
   getMembers: (id) => api.get(`/chamas/${id}/members`),
   getStats: (id) => api.get(`/chamas/${id}/stats`),
+  getPublicChamas: (params) => api.get("/chamas/public", { params }),
 };
 
 // Member API calls
@@ -88,5 +89,45 @@ export const meetingAPI = {
   recordAttendance: (chamaId, id, attendanceData) =>
     api.post(`/meetings/${chamaId}/${id}/attendance`, attendanceData),
 };
+
+// Invite API calls
+export const inviteAPI = {
+  generate: (chamaId, inviteData) => api.post(`/invites/${chamaId}/generate`, inviteData),
+  join: (inviteCode) => api.post('/invites/join', { inviteCode }),
+  getAll: (chamaId) => api.get(`/invites/${chamaId}`),
+  deactivate: (inviteId) => api.delete(`/invites/${inviteId}`),
+};
+
+// Loan API calls
+export const loanAPI = {
+  apply: (chamaId, loanData) => api.post(`/loans/${chamaId}/apply`, loanData),
+  getAll: (chamaId) => api.get(`/loans/${chamaId}`),
+  approve: (loanId, status) => api.put(`/loans/${loanId}/approve`, { status }),
+  repay: (loanId, amount) => api.post(`/loans/${loanId}/repay`, { amount }),
+};
+
+// Payout API calls
+export const payoutAPI = {
+  getEligible: (chamaId) => api.get(`/payouts/${chamaId}/eligible`),
+  process: (chamaId, payoutData) => api.post(`/payouts/${chamaId}/process`, payoutData),
+  getAll: (chamaId) => api.get(`/payouts/${chamaId}`),
+};
+
+// Join Request API calls
+export const joinRequestAPI = {
+  request: (chamaId, message) => api.post(`/join-requests/${chamaId}/request`, { message }),
+  getAll: (chamaId) => api.get(`/join-requests/${chamaId}`),
+  respond: (requestId, status) => api.put(`/join-requests/${requestId}/respond`, { status }),
+  getMyRequests: () => api.get("/join-requests/my-requests"),
+};
+
+// Notification API calls
+export const notificationAPI = {
+  getAll: (limit) => api.get("/notifications", { params: { limit } }),
+  getUnreadCount: () => api.get("/notifications/unread-count"),
+  markAsRead: (id) => api.put(`/notifications/${id}/read`),
+  markAllAsRead: () => api.put("/notifications/read-all"),
+};
+
 
 export default api;

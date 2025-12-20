@@ -1,7 +1,79 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { chamaAPI } from "../../services/api";
-import "./Chama.css";
+import LoadingSkeleton from "../../components/LoadingSkeleton";
+
+const MyChamaCard = memo(({ chama, getChamaTypeLabel, formatCurrency }) => (
+  <Link
+    to={`/chamas/${chama.chama_id}`}
+    className="chama-card"
+  >
+    <div className="chama-card-header">
+      <h3>{chama.chama_name}</h3>
+      <span
+        className={`badge badge-${chama.chama_type === "ROSCA"
+          ? "primary"
+          : chama.chama_type === "ASCA"
+            ? "success"
+            : chama.chama_type === "TABLE_BANKING"
+              ? "warning"
+              : "secondary"
+          }`}
+      >
+        {getChamaTypeLabel(chama.chama_type)}
+      </span>
+    </div>
+
+    <div className="chama-card-body">
+      {chama.description && (
+        <p className="chama-description text-muted">
+          {chama.description.length > 80
+            ? chama.description.substring(0, 80) + "..."
+            : chama.description}
+        </p>
+      )}
+
+      <div className="chama-info">
+        <span className="info-label">Your Role:</span>
+        <span
+          className={`badge badge-${chama.role === "CHAIRPERSON"
+            ? "primary"
+            : chama.role === "TREASURER"
+              ? "success"
+              : chama.role === "SECRETARY"
+                ? "warning"
+                : "secondary"
+            }`}
+        >
+          {chama.role}
+        </span>
+      </div>
+
+      <div className="chama-info">
+        <span className="info-label">Members:</span>
+        <span className="info-value">{chama.total_members}</span>
+      </div>
+
+      <div className="chama-info">
+        <span className="info-label">Contribution:</span>
+        <span className="info-value">
+          {formatCurrency(chama.contribution_amount)}
+        </span>
+      </div>
+
+      <div className="chama-info">
+        <span className="info-label">Your Total:</span>
+        <span className="info-value text-success">
+          {formatCurrency(chama.total_contributions || 0)}
+        </span>
+      </div>
+    </div>
+
+    <div className="chama-card-footer">
+      <span className="text-muted">View Details →</span>
+    </div>
+  </Link>
+));
 
 const MyChamas = () => {
   const [chamas, setChamas] = useState([]);
@@ -26,14 +98,14 @@ const MyChamas = () => {
     }
   };
 
-  const formatCurrency = (amount) => {
+  const formatCurrency = useCallback((amount) => {
     return new Intl.NumberFormat("en-KE", {
       style: "currency",
       currency: "KES",
     }).format(amount);
-  };
+  }, []);
 
-  const getChamaTypeLabel = (type) => {
+  const getChamaTypeLabel = useCallback((type) => {
     const types = {
       ROSCA: "Merry-Go-Round",
       ASCA: "Investment",
@@ -41,23 +113,11 @@ const MyChamas = () => {
       WELFARE: "Welfare",
     };
     return types[type] || type;
-  };
+  }, []);
 
-  const filteredChamas =
-    filter === "ALL" ? chamas : chamas.filter((c) => c.chama_type === filter);
-
-  if (loading) {
-    return (
-      <div className="page">
-        <div className="container">
-          <div className="loading">
-            <div className="spinner"></div>
-            <p>Loading your chamas...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const filteredChamas = useMemo(() => {
+    return filter === "ALL" ? chamas : chamas.filter((c) => c.chama_type === filter);
+  }, [chamas, filter]);
 
   return (
     <div className="page">
@@ -74,7 +134,7 @@ const MyChamas = () => {
 
         {error && <div className="alert alert-error">{error}</div>}
 
-        {/* Filter */}
+        {/* Filter Bar */}
         <div className="filter-bar">
           <button
             className={`filter-btn ${filter === "ALL" ? "active" : ""}`}
@@ -86,8 +146,7 @@ const MyChamas = () => {
             className={`filter-btn ${filter === "ROSCA" ? "active" : ""}`}
             onClick={() => setFilter("ROSCA")}
           >
-            Merry-Go-Round (
-            {chamas.filter((c) => c.chama_type === "ROSCA").length})
+            Merry-Go-Round ({chamas.filter((c) => c.chama_type === "ROSCA").length})
           </button>
           <button
             className={`filter-btn ${filter === "ASCA" ? "active" : ""}`}
@@ -96,13 +155,10 @@ const MyChamas = () => {
             Investment ({chamas.filter((c) => c.chama_type === "ASCA").length})
           </button>
           <button
-            className={`filter-btn ${
-              filter === "TABLE_BANKING" ? "active" : ""
-            }`}
+            className={`filter-btn ${filter === "TABLE_BANKING" ? "active" : ""}`}
             onClick={() => setFilter("TABLE_BANKING")}
           >
-            Table Banking (
-            {chamas.filter((c) => c.chama_type === "TABLE_BANKING").length})
+            Table Banking ({chamas.filter((c) => c.chama_type === "TABLE_BANKING").length})
           </button>
           <button
             className={`filter-btn ${filter === "WELFARE" ? "active" : ""}`}
@@ -112,108 +168,33 @@ const MyChamas = () => {
           </button>
         </div>
 
-        {/* Chamas Grid */}
-        {filteredChamas.length === 0 ? (
-          <div className="card text-center">
+        {/* Content Section */}
+        {loading ? (
+          <div className="chamas-grid">
+            <LoadingSkeleton type="card" count={3} />
+          </div>
+        ) : filteredChamas.length === 0 ? (
+          <div className="card text-center py-5">
+            <div className="mb-4" style={{ fontSize: '3rem' }}>📁</div>
             <h3>No chamas found</h3>
             <p className="text-muted">
               {filter === "ALL"
                 ? "You are not part of any chama yet"
                 : `You don't have any ${getChamaTypeLabel(filter)} chamas`}
             </p>
-            <Link to="/chamas/create" className="btn btn-primary">
+            <Link to="/chamas/create" className="btn btn-primary mt-3">
               Create Your First Chama
             </Link>
           </div>
         ) : (
           <div className="chamas-grid">
             {filteredChamas.map((chama) => (
-              <Link
+              <MyChamaCard
                 key={chama.chama_id}
-                to={`/chamas/${chama.chama_id}`}
-                className="chama-card"
-              >
-                <div className="chama-card-header">
-                  <h3>{chama.chama_name}</h3>
-                  <span
-                    className={`badge badge-${
-                      chama.chama_type === "ROSCA"
-                        ? "primary"
-                        : chama.chama_type === "ASCA"
-                        ? "success"
-                        : chama.chama_type === "TABLE_BANKING"
-                        ? "warning"
-                        : "secondary"
-                    }`}
-                  >
-                    {getChamaTypeLabel(chama.chama_type)}
-                  </span>
-                </div>
-
-                <div className="chama-card-body">
-                  {chama.description && (
-                    <p className="chama-description text-muted">
-                      {chama.description.length > 100
-                        ? chama.description.substring(0, 100) + "..."
-                        : chama.description}
-                    </p>
-                  )}
-
-                  <div className="chama-info">
-                    <span className="info-label">Your Role:</span>
-                    <span
-                      className={`badge badge-${
-                        chama.role === "CHAIRPERSON"
-                          ? "primary"
-                          : chama.role === "TREASURER"
-                          ? "success"
-                          : chama.role === "SECRETARY"
-                          ? "warning"
-                          : "secondary"
-                      }`}
-                    >
-                      {chama.role}
-                    </span>
-                  </div>
-
-                  <div className="chama-info">
-                    <span className="info-label">Members:</span>
-                    <span className="info-value">{chama.total_members}</span>
-                  </div>
-
-                  <div className="chama-info">
-                    <span className="info-label">Contribution:</span>
-                    <span className="info-value">
-                      {formatCurrency(chama.contribution_amount)}
-                    </span>
-                  </div>
-
-                  <div className="chama-info">
-                    <span className="info-label">Your Total:</span>
-                    <span className="info-value text-success">
-                      {formatCurrency(chama.total_contributions || 0)}
-                    </span>
-                  </div>
-
-                  <div className="chama-info">
-                    <span className="info-label">Frequency:</span>
-                    <span className="info-value">
-                      {chama.contribution_frequency}
-                    </span>
-                  </div>
-
-                  {chama.meeting_day && (
-                    <div className="chama-info">
-                      <span className="info-label">Meetings:</span>
-                      <span className="info-value">{chama.meeting_day}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="chama-card-footer">
-                  <span className="text-muted">View Details →</span>
-                </div>
-              </Link>
+                chama={chama}
+                getChamaTypeLabel={getChamaTypeLabel}
+                formatCurrency={formatCurrency}
+              />
             ))}
           </div>
         )}

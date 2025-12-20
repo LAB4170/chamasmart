@@ -1,8 +1,78 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { chamaAPI } from "../../services/api";
-import "./Dashboard.css";
+import LoadingSkeleton from "../../components/LoadingSkeleton";
+
+// Memoized Stat Card component
+const StatCard = memo(({ icon, value, label }) => (
+  <div className="stat-card">
+    <div className="stat-icon">{icon}</div>
+    <div>
+      <h3>{value}</h3>
+      <p>{label}</p>
+    </div>
+  </div>
+));
+
+// Memoized Chama Card for dashboard list
+const DashboardChamaCard = memo(({ chama, getChamaTypeLabel, formatCurrency }) => (
+  <Link
+    to={`/chamas/${chama.chama_id}`}
+    className="chama-card"
+  >
+    <div className="chama-card-header">
+      <h3>{chama.chama_name}</h3>
+      <span
+        className={`badge badge-${chama.chama_type === "ROSCA" ? "primary" : "success"
+          }`}
+      >
+        {getChamaTypeLabel(chama.chama_type)}
+      </span>
+    </div>
+
+    <div className="chama-card-body">
+      <div className="chama-info">
+        <span className="info-label">Your Role:</span>
+        <span className="info-value badge badge-warning">
+          {chama.role}
+        </span>
+      </div>
+
+      <div className="chama-info">
+        <span className="info-label">Members:</span>
+        <span className="info-value">
+          {chama.total_members}
+        </span>
+      </div>
+
+      <div className="chama-info">
+        <span className="info-label">Contribution:</span>
+        <span className="info-value">
+          {formatCurrency(chama.contribution_amount)}
+        </span>
+      </div>
+
+      <div className="chama-info">
+        <span className="info-label">Your Total:</span>
+        <span className="info-value text-success">
+          {formatCurrency(chama.total_contributions || 0)}
+        </span>
+      </div>
+
+      <div className="chama-info">
+        <span className="info-label">Frequency:</span>
+        <span className="info-value">
+          {chama.contribution_frequency}
+        </span>
+      </div>
+    </div>
+
+    <div className="chama-card-footer">
+      <span className="text-muted">View Details →</span>
+    </div>
+  </Link>
+));
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -44,19 +114,6 @@ const Dashboard = () => {
     }).format(amount);
   };
 
-  if (loading) {
-    return (
-      <div className="page">
-        <div className="container">
-          <div className="loading">
-            <div className="spinner"></div>
-            <p>Loading your dashboard...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="page">
       <div className="container">
@@ -74,7 +131,14 @@ const Dashboard = () => {
 
         {error && <div className="alert alert-error">{error}</div>}
 
-        {chamas.length === 0 ? (
+        {loading ? (
+          <div>
+            <div className="stats-grid" style={{ marginBottom: '2rem' }}>
+              <LoadingSkeleton type="card" count={3} />
+            </div>
+            <LoadingSkeleton type="card" count={4} />
+          </div>
+        ) : chamas.length === 0 ? (
           <div className="card text-center">
             <h3>You're not part of any chama yet</h3>
             <p className="text-muted">
@@ -87,42 +151,32 @@ const Dashboard = () => {
         ) : (
           <>
             <div className="stats-grid">
-              <div className="stat-card">
-                <div className="stat-icon">📊</div>
-                <div>
-                  <h3>{chamas.length}</h3>
-                  <p>Active Chamas</p>
-                </div>
-              </div>
+              <StatCard
+                icon="📊"
+                value={chamas.length}
+                label="Active Chamas"
+              />
 
-              <div className="stat-card">
-                <div className="stat-icon">💰</div>
-                <div>
-                  <h3>
-                    {formatCurrency(
-                      chamas.reduce(
-                        (sum, chama) =>
-                          sum + parseFloat(chama.total_contributions || 0),
-                        0
-                      )
-                    )}
-                  </h3>
-                  <p>Total Contributions</p>
-                </div>
-              </div>
+              <StatCard
+                icon="💰"
+                value={formatCurrency(
+                  chamas.reduce(
+                    (sum, chama) =>
+                      sum + parseFloat(chama.total_contributions || 0),
+                    0
+                  )
+                )}
+                label="Total Contributions"
+              />
 
-              <div className="stat-card">
-                <div className="stat-icon">👥</div>
-                <div>
-                  <h3>
-                    {chamas.reduce(
-                      (sum, chama) => sum + parseInt(chama.total_members || 0),
-                      0
-                    )}
-                  </h3>
-                  <p>Total Members</p>
-                </div>
-              </div>
+              <StatCard
+                icon="👥"
+                value={chamas.reduce(
+                  (sum, chama) => sum + parseInt(chama.total_members || 0),
+                  0
+                )}
+                label="Total Members"
+              />
             </div>
 
             <div className="card">
@@ -132,63 +186,12 @@ const Dashboard = () => {
 
               <div className="chamas-grid">
                 {chamas.map((chama) => (
-                  <Link
+                  <DashboardChamaCard
                     key={chama.chama_id}
-                    to={`/chamas/${chama.chama_id}`}
-                    className="chama-card"
-                  >
-                    <div className="chama-card-header">
-                      <h3>{chama.chama_name}</h3>
-                      <span
-                        className={`badge badge-${
-                          chama.chama_type === "ROSCA" ? "primary" : "success"
-                        }`}
-                      >
-                        {getChamaTypeLabel(chama.chama_type)}
-                      </span>
-                    </div>
-
-                    <div className="chama-card-body">
-                      <div className="chama-info">
-                        <span className="info-label">Your Role:</span>
-                        <span className="info-value badge badge-warning">
-                          {chama.role}
-                        </span>
-                      </div>
-
-                      <div className="chama-info">
-                        <span className="info-label">Members:</span>
-                        <span className="info-value">
-                          {chama.total_members}
-                        </span>
-                      </div>
-
-                      <div className="chama-info">
-                        <span className="info-label">Contribution:</span>
-                        <span className="info-value">
-                          {formatCurrency(chama.contribution_amount)}
-                        </span>
-                      </div>
-
-                      <div className="chama-info">
-                        <span className="info-label">Your Total:</span>
-                        <span className="info-value text-success">
-                          {formatCurrency(chama.total_contributions || 0)}
-                        </span>
-                      </div>
-
-                      <div className="chama-info">
-                        <span className="info-label">Frequency:</span>
-                        <span className="info-value">
-                          {chama.contribution_frequency}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="chama-card-footer">
-                      <span className="text-muted">View Details →</span>
-                    </div>
-                  </Link>
+                    chama={chama}
+                    getChamaTypeLabel={getChamaTypeLabel}
+                    formatCurrency={formatCurrency}
+                  />
                 ))}
               </div>
             </div>

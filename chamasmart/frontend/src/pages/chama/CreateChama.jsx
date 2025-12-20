@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { chamaAPI } from "../../services/api";
-import "./Chama.css";
+
 
 const CreateChama = () => {
   const [formData, setFormData] = useState({
@@ -12,6 +12,7 @@ const CreateChama = () => {
     contributionFrequency: "MONTHLY",
     meetingDay: "",
     meetingTime: "",
+    visibility: "PRIVATE",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -106,6 +107,25 @@ const CreateChama = () => {
                 onChange={handleChange}
                 rows="3"
               />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Chama Visibility *</label>
+              <select
+                name="visibility"
+                className="form-select"
+                value={formData.visibility}
+                onChange={handleChange}
+                required
+              >
+                <option value="PRIVATE">Private (Invite-only)</option>
+                <option value="PUBLIC">Public (Discoverable)</option>
+              </select>
+              <small className="text-muted">
+                {formData.visibility === "PUBLIC"
+                  ? "Public chamas can be discovered and joined via request"
+                  : "Private chamas can only be joined via invite codes"}
+              </small>
             </div>
 
             <div className="form-row">

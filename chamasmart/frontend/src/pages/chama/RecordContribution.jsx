@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { chamaAPI, contributionAPI } from "../../services/api";
-import "./Chama.css";
+import LoadingSkeleton from "../../components/LoadingSkeleton";
 
 const RecordContribution = () => {
   const { id } = useParams();
@@ -29,19 +29,18 @@ const RecordContribution = () => {
   const fetchData = async () => {
     try {
       setPageLoading(true);
-
       const [chamaRes, membersRes] = await Promise.all([
         chamaAPI.getById(id),
         chamaAPI.getMembers(id),
       ]);
 
-      setChama(chamaRes.data.data);
+      const chamaData = chamaRes.data.data;
+      setChama(chamaData);
       setMembers(membersRes.data.data);
 
-      // Auto-fill amount with chama's contribution amount
       setFormData((prev) => ({
         ...prev,
-        amount: chamaRes.data.data.contribution_amount,
+        amount: chamaData.contribution_amount,
       }));
     } catch (err) {
       setError("Failed to load chama data");
@@ -52,10 +51,8 @@ const RecordContribution = () => {
   };
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -66,45 +63,29 @@ const RecordContribution = () => {
 
     try {
       await contributionAPI.record(id, formData);
-
       setSuccess("Contribution recorded successfully!");
 
-      // Reset form
-      setFormData({
-        userId: "",
-        amount: chama.contribution_amount,
-        paymentMethod: "MPESA",
-        receiptNumber: "",
-        contributionDate: new Date().toISOString().split("T")[0],
-        notes: "",
-      });
-
-      // Redirect after 2 seconds
       setTimeout(() => {
         navigate(`/chamas/${id}`);
-      }, 2000);
+      }, 1500);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to record contribution");
-    } finally {
       setLoading(false);
     }
   };
 
-  const formatCurrency = (amount) => {
+  const formatCurrency = useCallback((amount) => {
     return new Intl.NumberFormat("en-KE", {
       style: "currency",
       currency: "KES",
     }).format(amount);
-  };
+  }, []);
 
   if (pageLoading) {
     return (
       <div className="page">
         <div className="container">
-          <div className="loading">
-            <div className="spinner"></div>
-            <p>Loading...</p>
-          </div>
+          <LoadingSkeleton type="detail" />
         </div>
       </div>
     );
@@ -127,7 +108,6 @@ const RecordContribution = () => {
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
-
         {success && <div className="alert alert-success">{success}</div>}
 
         <div className="card">
