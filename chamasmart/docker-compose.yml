@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # Database Service
+  postgres:
+    image: postgres:15-alpine
+    container_name: chamasmart_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: chamasmart
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/database_schema.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d chamasmart" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chamasmart_net
+
+  # Backend Service
+  backend:
+    build: ./backend
+    container_name: chamasmart_backend
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: development
+      PORT: 5000
+      DATABASE_URL: postgres://postgres:password@postgres:5432/chamasmart
+      JWT_SECRET: dev_secret_key_123
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:5000/api/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - chamasmart_net
+
+  # Frontend Service
+  frontend:
+    build: ./frontend
+    container_name: chamasmart_frontend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://backend:5000/api
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - chamasmart_net
+
+  # Redis Caching Service
+  redis:
+    image: redis:alpine
+    container_name: chamasmart_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - chamasmart_net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+
+networks:
+  chamasmart_net:
+    driver: bridge
