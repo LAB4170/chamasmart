@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import "./Navbar.css";
+import NotificationBell from "../NotificationBell";
+
 
 const Navbar = () => {
   const { user, logout, isAuthenticated } = useAuth();
@@ -27,7 +28,15 @@ const Navbar = () => {
               <Link to="/chamas" className="nav-link">
                 My Chamas
               </Link>
+              <Link to="/browse-chamas" className="nav-link">
+                Browse Chamas
+              </Link>
+              <Link to="/join-chama" className="nav-link">
+                Join Chama
+              </Link>
+              <NotificationBell />
               <div className="navbar-user">
+
                 <span className="user-name">
                   {user?.firstName} {user?.lastName}
                 </span>

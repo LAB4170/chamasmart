@@ -4,16 +4,33 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { SocketProvider } from "./context/SocketContext";
 import Navbar from "./components/layout/Navbar";
-import Login from "./pages/auth/Login";
-import Register from "./pages/auth/Register";
-import Dashboard from "./pages/dashboard/Dashboard";
-import CreateChama from "./pages/chama/CreateChama";
-import ChamaDetails from "./pages/chama/ChamaDetails";
-import RecordContribution from "./pages/chama/RecordContribution";
-import AddMember from "./pages/chama/AddMember";
-import MyChamas from "./pages/chama/MyChamas";
+
+// Lazy load all pages for better performance
+const Login = lazy(() => import("./pages/auth/Login"));
+const Register = lazy(() => import("./pages/auth/Register"));
+const Dashboard = lazy(() => import("./pages/dashboard/Dashboard"));
+const CreateChama = lazy(() => import("./pages/chama/CreateChama"));
+const ChamaDetails = lazy(() => import("./pages/chama/ChamaDetails"));
+const RecordContribution = lazy(() => import("./pages/chama/RecordContribution"));
+const AddMember = lazy(() => import("./pages/chama/AddMember"));
+const MyChamas = lazy(() => import("./pages/chama/MyChamas"));
+const InviteManagement = lazy(() => import("./pages/chama/InviteManagement"));
+const JoinChama = lazy(() => import("./pages/chama/JoinChama"));
+const LoanManagement = lazy(() => import("./pages/chama/LoanManagement"));
+const ApplyLoan = lazy(() => import("./pages/chama/ApplyLoan"));
+const RepayLoan = lazy(() => import("./pages/chama/RepayLoan"));
+const PayoutManagement = lazy(() => import("./pages/chama/PayoutManagement"));
+const ProcessPayout = lazy(() => import("./pages/chama/ProcessPayout"));
+const BrowseChamas = lazy(() => import("./pages/chama/BrowseChamas"));
+const JoinRequests = lazy(() => import("./pages/chama/JoinRequests"));
+const MyJoinRequests = lazy(() => import("./pages/chama/MyJoinRequests"));
+
+// Loading component
+import LoadingSpinner from "./components/LoadingSpinner";
 
 // Protected Route wrapper
 const ProtectedRoute = ({ children }) => {
@@ -223,66 +240,149 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <div className="app">
-          <Navbar />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/chamas"
-              element={
-                <ProtectedRoute>
-                  <MyChamas />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/chamas/create"
-              element={
-                <ProtectedRoute>
-                  <CreateChama />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/chamas/:id"
-              element={
-                <ProtectedRoute>
-                  <ChamaDetails />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/chamas/:id/record-contribution"
-              element={
-                <ProtectedRoute>
-                  <RecordContribution />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/chamas/:id/add-member"
-              element={
-                <ProtectedRoute>
-                  <AddMember />
-                </ProtectedRoute>
-              }
-            />
-            {/* We'll add more routes for chama details, create chama, etc. */}
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
-        </div>
+        <SocketProvider>
+          <div className="app">
+            <Navbar />
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chamas"
+                element={
+                  <ProtectedRoute>
+                    <MyChamas />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chamas/create"
+                element={
+                  <ProtectedRoute>
+                    <CreateChama />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chamas/:id"
+                element={
+                  <ProtectedRoute>
+                    <ChamaDetails />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chamas/:id/record-contribution"
+                element={
+                  <ProtectedRoute>
+                    <RecordContribution />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chamas/:id/add-member"
+                element={
+                  <ProtectedRoute>
+                    <AddMember />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chamas/:id/invites"
+                element={
+                  <ProtectedRoute>
+                    <InviteManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/join-chama"
+                element={
+                  <ProtectedRoute>
+                    <JoinChama />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chamas/:id/loans"
+                element={
+                  <ProtectedRoute>
+                    <LoanManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chamas/:id/loans/apply"
+                element={
+                  <ProtectedRoute>
+                    <ApplyLoan />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chamas/:id/loans/:loanId/repay"
+                element={
+                  <ProtectedRoute>
+                    <RepayLoan />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chamas/:id/payouts"
+                element={
+                  <ProtectedRoute>
+                    <PayoutManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chamas/:id/payouts/process"
+                element={
+                  <ProtectedRoute>
+                    <ProcessPayout />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/browse-chamas"
+                element={
+                  <ProtectedRoute>
+                    <BrowseChamas />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chamas/:id/join-requests"
+                element={
+                  <ProtectedRoute>
+                    <JoinRequests />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/my-join-requests"
+                element={
+                  <ProtectedRoute>
+                    <MyJoinRequests />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Fallback route */}
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+          </div>
+        </SocketProvider>
       </AuthProvider>
-    </Router>
+    </Router >
   );
 }
 
