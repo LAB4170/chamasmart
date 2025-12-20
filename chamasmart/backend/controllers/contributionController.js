@@ -1,5 +1,21 @@
 const pool = require("../config/db");
 const { isValidAmount, isValidPaymentMethod } = require("../utils/validators");
+const NodeCache = require("node-cache");
+const { getIo } = require("../socket");
+
+// Reuse the same cache if possible, or create a new one. 
+// Note: In a real app, this would be a shared module.
+const cache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
+
+// Helper to clear contribution-related cache
+const clearContributionCache = (chamaId) => {
+  if (chamaId) {
+    cache.del(`contributions_${chamaId}`);
+    // Also clear chama stats as they depend on contributions
+    cache.del(`chama_stats_${chamaId}`);
+    cache.del(`chama_members_${chamaId}`);
+  }
+};
 
 // @desc    Record contribution
 // @route   POST /api/contributions/:chamaId/record
@@ -42,7 +58,7 @@ const recordContribution = async (req, res) => {
 
     // Check if user is a member of the chama
     const memberCheck = await client.query(
-      "SELECT * FROM chama_members WHERE chama_id = $1 AND user_id = $2 AND is_active = true",
+      "SELECT user_id FROM chama_members WHERE chama_id = $1 AND user_id = $2 AND is_active = true",
       [chamaId, userId]
     );
 
@@ -60,7 +76,7 @@ const recordContribution = async (req, res) => {
       `INSERT INTO contributions 
        (chama_id, user_id, amount, payment_method, receipt_number, recorded_by, notes, contribution_date)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING *`,
+       RETURNING contribution_id, amount, payment_method, contribution_date`,
       [
         chamaId,
         userId,
@@ -86,6 +102,20 @@ const recordContribution = async (req, res) => {
     );
 
     await client.query("COMMIT");
+
+    // Clear cache
+    clearContributionCache(chamaId);
+
+    // Emit socket event for real-time updates
+    try {
+      const io = getIo();
+      io.to(`chama_${chamaId}`).emit("contribution_recorded", {
+        chamaId,
+        contribution: result.rows[0]
+      });
+    } catch (err) {
+      console.error("Socket emit error:", err.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -113,14 +143,32 @@ const getChamaContributions = async (req, res) => {
     const { chamaId } = req.params;
     const { startDate, endDate, userId } = req.query;
 
+    // Only cache if no filters are applied
+    const useCache = !startDate && !endDate && !userId;
+    const cacheKey = `contributions_${chamaId}`;
+
+    if (useCache) {
+      const cachedData = cache.get(cacheKey);
+      if (cachedData) {
+        return res.json({
+          success: true,
+          count: cachedData.data.length,
+          totalAmount: cachedData.total,
+          data: cachedData.data,
+          cached: true
+        });
+      }
+    }
+
     let query = `
-      SELECT c.*, 
+      SELECT c.contribution_id, c.user_id, c.amount, c.payment_method, c.receipt_number, 
+             c.recorded_by, c.notes, c.contribution_date, c.created_at,
              u.first_name || ' ' || u.last_name as contributor_name,
              r.first_name || ' ' || r.last_name as recorded_by_name
       FROM contributions c
       INNER JOIN users u ON c.user_id = u.user_id
       LEFT JOIN users r ON c.recorded_by = r.user_id
-      WHERE c.chama_id = $1
+      WHERE c.chama_id = $1 AND c.is_deleted = false
     `;
 
     const params = [chamaId];
@@ -144,7 +192,7 @@ const getChamaContributions = async (req, res) => {
       paramCount++;
     }
 
-    query += " AND c.is_deleted = false ORDER BY c.contribution_date DESC, c.created_at DESC";
+    query += " ORDER BY c.contribution_date DESC, c.created_at DESC";
 
     const result = await pool.query(query, params);
 
@@ -153,6 +201,10 @@ const getChamaContributions = async (req, res) => {
       (sum, contrib) => sum + parseFloat(contrib.amount),
       0
     );
+
+    if (useCache) {
+      cache.set(cacheKey, { data: result.rows, total: total });
+    }
 
     res.json({
       success: true,
@@ -177,13 +229,14 @@ const getContributionById = async (req, res) => {
     const { chamaId, id } = req.params;
 
     const result = await pool.query(
-      `SELECT c.*, 
+      `SELECT c.contribution_id, c.user_id, c.amount, c.payment_method, c.receipt_number, 
+              c.recorded_by, c.notes, c.contribution_date, c.created_at,
               u.first_name || ' ' || u.last_name as contributor_name,
               r.first_name || ' ' || r.last_name as recorded_by_name
        FROM contributions c
        INNER JOIN users u ON c.user_id = u.user_id
        LEFT JOIN users r ON c.recorded_by = r.user_id
-       WHERE c.chama_id = $1 AND c.contribution_id = $2`,
+       WHERE c.chama_id = $1 AND c.contribution_id = $2 AND c.is_deleted = false`,
       [chamaId, id]
     );
 
@@ -218,7 +271,7 @@ const deleteContribution = async (req, res) => {
 
     // Get contribution details first
     const contributionResult = await client.query(
-      "SELECT * FROM contributions WHERE chama_id = $1 AND contribution_id = $2",
+      "SELECT user_id, amount FROM contributions WHERE chama_id = $1 AND contribution_id = $2 AND is_deleted = false",
       [chamaId, id]
     );
 
@@ -252,6 +305,20 @@ const deleteContribution = async (req, res) => {
     );
 
     await client.query("COMMIT");
+
+    // Clear cache
+    clearContributionCache(chamaId);
+
+    // Emit socket event for real-time deletion
+    try {
+      const io = getIo();
+      io.to(`chama_${chamaId}`).emit("contribution_deleted", {
+        chamaId,
+        contributionId: id
+      });
+    } catch (err) {
+      console.error("Socket emit error:", err.message);
+    }
 
     res.json({
       success: true,

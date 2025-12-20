@@ -5,17 +5,20 @@ const registerSchema = Joi.object({
     email: Joi.string().email().required(),
     password: Joi.string()
         .min(8)
-        .pattern(new RegExp("^[a-zA-Z0-9]{3,30}$"))
+        .pattern(new RegExp("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{8,}$"))
         .required()
         .messages({
-            "string.pattern.base": "Password must contain only alphanumeric characters",
+            "string.pattern.base": "Password must contain at least one uppercase letter, one lowercase letter, and one number",
+            "string.min": "Password must be at least 8 characters long"
         }),
     firstName: Joi.string().min(2).max(50).required(),
     lastName: Joi.string().min(2).max(50).required(),
     phoneNumber: Joi.string()
         .pattern(/^(?:\+254|0)?[17]\d{8}$/)
-        .message("Invalid Kenyan phone number")
-        .required(),
+        .required()
+        .messages({
+            "string.pattern.base": "Invalid Kenyan phone number"
+        }),
     nationalId: Joi.string().optional(),
 });
 

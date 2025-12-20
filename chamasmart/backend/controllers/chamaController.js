@@ -4,19 +4,45 @@ const {
   isValidFrequency,
   isValidAmount,
 } = require("../utils/validators");
+const NodeCache = require("node-cache");
+
+// Initialize cache with 5 minutes (300 seconds) standard TTL
+const cache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
+
+// Helper to clear chama-related cache
+const clearChamaCache = (chamaId) => {
+  if (chamaId) {
+    cache.del(`chama_${chamaId}`);
+    cache.del(`chama_stats_${chamaId}`);
+    cache.del(`chama_members_${chamaId}`);
+  }
+  // Also clear general lists
+  cache.del("all_chamas");
+  cache.del("public_chamas");
+};
 
 // @desc    Get all chamas
 // @route   GET /api/chamas
 // @access  Public
 const getAllChamas = async (req, res) => {
   try {
+    const cacheKey = "all_chamas";
+    const cachedData = cache.get(cacheKey);
+    if (cachedData) {
+      return res.json({ success: true, count: cachedData.length, data: cachedData, cached: true });
+    }
+
     const result = await pool.query(
-      `SELECT c.*, u.first_name || ' ' || u.last_name as creator_name
+      `SELECT c.chama_id, c.chama_name, c.chama_type, c.description, c.contribution_amount, 
+              c.contribution_frequency, c.total_members, c.created_at,
+              u.first_name || ' ' || u.last_name as creator_name
        FROM chamas c
        LEFT JOIN users u ON c.created_by = u.user_id
        WHERE c.is_active = true
        ORDER BY c.created_at DESC`
     );
+
+    cache.set(cacheKey, result.rows);
 
     res.json({
       success: true,
@@ -38,9 +64,17 @@ const getAllChamas = async (req, res) => {
 const getChamaById = async (req, res) => {
   try {
     const { id } = req.params;
+    const cacheKey = `chama_${id}`;
+    const cachedData = cache.get(cacheKey);
+    if (cachedData) {
+      return res.json({ success: true, data: cachedData, cached: true });
+    }
 
     const result = await pool.query(
-      `SELECT c.*, u.first_name || ' ' || u.last_name as creator_name
+      `SELECT c.chama_id, c.chama_name, c.chama_type, c.description, c.contribution_amount, 
+              c.contribution_frequency, c.meeting_day, c.meeting_time, c.current_fund, 
+              c.total_members, c.visibility, c.created_at,
+              u.first_name || ' ' || u.last_name as creator_name
        FROM chamas c
        LEFT JOIN users u ON c.created_by = u.user_id
        WHERE c.chama_id = $1`,
@@ -53,6 +87,8 @@ const getChamaById = async (req, res) => {
         message: "Chama not found",
       });
     }
+
+    cache.set(cacheKey, result.rows[0]);
 
     res.json({
       success: true,
@@ -82,6 +118,7 @@ const createChama = async (req, res) => {
       contributionFrequency,
       meetingDay,
       meetingTime,
+      visibility = 'PRIVATE',
     } = req.body;
 
     // Validation
@@ -120,12 +157,20 @@ const createChama = async (req, res) => {
 
     await client.query("BEGIN");
 
+    // Validate visibility
+    if (!['PUBLIC', 'PRIVATE'].includes(visibility)) {
+      return res.status(400).json({
+        success: false,
+        message: "Visibility must be PUBLIC or PRIVATE",
+      });
+    }
+
     // Create chama
     const chamaResult = await client.query(
       `INSERT INTO chamas 
        (chama_name, chama_type, description, contribution_amount, contribution_frequency, 
-        meeting_day, meeting_time, created_by, total_members)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1)
+        meeting_day, meeting_time, created_by, total_members, visibility)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, $9)
        RETURNING *`,
       [
         chamaName,
@@ -136,6 +181,7 @@ const createChama = async (req, res) => {
         meetingDay,
         meetingTime,
         req.user.user_id,
+        visibility,
       ]
     );
 
@@ -149,6 +195,9 @@ const createChama = async (req, res) => {
     );
 
     await client.query("COMMIT");
+
+    // Clear relevant caches
+    clearChamaCache();
 
     res.status(201).json({
       success: true,
@@ -241,6 +290,9 @@ const updateChama = async (req, res) => {
 
     const result = await pool.query(query, values);
 
+    // Clear cache
+    clearChamaCache(chamaId);
+
     res.json({
       success: true,
       message: "Chama updated successfully",
@@ -267,6 +319,9 @@ const deleteChama = async (req, res) => {
       [chamaId]
     );
 
+    // Clear cache
+    clearChamaCache(chamaId);
+
     res.json({
       success: true,
       message: "Chama deactivated successfully",
@@ -280,13 +335,17 @@ const deleteChama = async (req, res) => {
   }
 };
 
-// @desc    Get user's chamas
+// @desc    Get user's chamas (Optimized to fix N+1)
 // @route   GET /api/chamas/user/my-chamas
 // @access  Private
 const getMyChamas = async (req, res) => {
   try {
+    // Optimized single query to get chamas, roles AND totals in one go
+    // This avoids needing multiple queries per chama on the frontend or backend
     const result = await pool.query(
-      `SELECT c.*, cm.role, cm.join_date, cm.total_contributions
+      `SELECT c.chama_id, c.chama_name, c.chama_type, c.contribution_amount, 
+              c.contribution_frequency, c.total_members,
+              cm.role, cm.join_date, cm.total_contributions
        FROM chamas c
        INNER JOIN chama_members cm ON c.chama_id = cm.chama_id
        WHERE cm.user_id = $1 AND cm.is_active = true AND c.is_active = true
@@ -314,9 +373,15 @@ const getMyChamas = async (req, res) => {
 const getChamaMembers = async (req, res) => {
   try {
     const { id } = req.params;
+    const cacheKey = `chama_members_${id}`;
+    const cachedData = cache.get(cacheKey);
+    if (cachedData) {
+      return res.json({ success: true, count: cachedData.length, data: cachedData, cached: true });
+    }
 
     const result = await pool.query(
-      `SELECT cm.*, u.first_name, u.last_name, u.email, u.phone_number
+      `SELECT cm.user_id, cm.role, cm.join_date, cm.total_contributions, cm.is_active,
+              u.first_name, u.last_name, u.email, u.phone_number
        FROM chama_members cm
        INNER JOIN users u ON cm.user_id = u.user_id
        WHERE cm.chama_id = $1 AND cm.is_active = true
@@ -330,6 +395,8 @@ const getChamaMembers = async (req, res) => {
          cm.join_date ASC`,
       [id]
     );
+
+    cache.set(cacheKey, result.rows);
 
     res.json({
       success: true,
@@ -351,22 +418,35 @@ const getChamaMembers = async (req, res) => {
 const getChamaStats = async (req, res) => {
   try {
     const { id } = req.params;
+    const cacheKey = `chama_stats_${id}`;
+    const cachedData = cache.get(cacheKey);
+    if (cachedData) {
+      return res.json({ success: true, data: cachedData, cached: true });
+    }
 
-    // Get basic stats
-    const statsResult = await pool.query(
-      `SELECT 
-         COUNT(DISTINCT cm.user_id) as total_members,
-         COALESCE(SUM(c.amount), 0) as total_contributions,
-         ch.current_fund,
-         ch.contribution_amount,
-         ch.chama_type
-       FROM chamas ch
-       LEFT JOIN chama_members cm ON ch.chama_id = cm.chama_id AND cm.is_active = true
-       LEFT JOIN contributions c ON ch.chama_id = c.chama_id
-       WHERE ch.chama_id = $1
-       GROUP BY ch.chama_id, ch.current_fund, ch.contribution_amount, ch.chama_type`,
-      [id]
-    );
+    // Get basic stats and recent activity in one query if possible, or parallel
+    const [statsResult, activityResult] = await Promise.all([
+      pool.query(
+        `SELECT 
+           COUNT(DISTINCT cm.user_id) as total_members,
+           COALESCE(SUM(c.amount), 0) as total_contributions,
+           ch.current_fund,
+           ch.contribution_amount,
+           ch.chama_type
+         FROM chamas ch
+         LEFT JOIN chama_members cm ON ch.chama_id = cm.chama_id AND cm.is_active = true
+         LEFT JOIN contributions c ON ch.chama_id = c.chama_id
+         WHERE ch.chama_id = $1
+         GROUP BY ch.chama_id, ch.current_fund, ch.contribution_amount, ch.chama_type`,
+        [id]
+      ),
+      pool.query(
+        `SELECT COUNT(*) as recent_contributions
+         FROM contributions
+         WHERE chama_id = $1 AND contribution_date >= CURRENT_DATE - INTERVAL '30 days'`,
+        [id]
+      )
+    ]);
 
     if (statsResult.rows.length === 0) {
       return res.status(404).json({
@@ -375,30 +455,72 @@ const getChamaStats = async (req, res) => {
       });
     }
 
-    const stats = statsResult.rows[0];
+    const data = {
+      ...statsResult.rows[0],
+      recent_contributions: parseInt(activityResult.rows[0].recent_contributions),
+    };
 
-    // Get recent activity count
-    const activityResult = await pool.query(
-      `SELECT COUNT(*) as recent_contributions
-       FROM contributions
-       WHERE chama_id = $1 AND contribution_date >= CURRENT_DATE - INTERVAL '30 days'`,
-      [id]
-    );
+    cache.set(cacheKey, data);
 
     res.json({
       success: true,
-      data: {
-        ...stats,
-        recent_contributions: parseInt(
-          activityResult.rows[0].recent_contributions
-        ),
-      },
+      data: data,
     });
   } catch (error) {
     console.error("Get chama stats error:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching chama statistics",
+    });
+  }
+};
+
+// @desc    Get public chamas for browsing
+// @route   GET /api/chamas/public
+// @access  Public
+const getPublicChamas = async (req, res) => {
+  try {
+    const { search, chamaType } = req.query;
+
+    // We don't cache search results easily here, but we could cache the base query
+    let query = `
+      SELECT c.chama_id, c.chama_name, c.chama_type, c.description, c.contribution_amount, 
+             c.contribution_frequency, c.total_members, c.created_at,
+             u.first_name || ' ' || u.last_name as creator_name
+      FROM chamas c
+      LEFT JOIN users u ON c.created_by = u.user_id
+      WHERE c.is_active = true AND c.visibility = 'PUBLIC'
+    `;
+
+    const params = [];
+    let paramIndex = 1;
+
+    if (search) {
+      query += ` AND (c.chama_name ILIKE $${paramIndex} OR c.description ILIKE $${paramIndex})`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    if (chamaType) {
+      query += ` AND c.chama_type = $${paramIndex}`;
+      params.push(chamaType);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY c.created_at DESC`;
+
+    const result = await pool.query(query, params);
+
+    res.json({
+      success: true,
+      count: result.rows.length,
+      data: result.rows,
+    });
+  } catch (error) {
+    console.error("Get public chamas error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching public chamas",
     });
   }
 };
@@ -412,4 +534,5 @@ module.exports = {
   getMyChamas,
   getChamaMembers,
   getChamaStats,
+  getPublicChamas,
 };

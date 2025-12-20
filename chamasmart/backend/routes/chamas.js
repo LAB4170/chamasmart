@@ -9,16 +9,20 @@ const {
   getMyChamas,
   getChamaMembers,
   getChamaStats,
+  getPublicChamas,
 } = require("../controllers/chamaController");
 const { protect, isOfficial } = require("../middleware/auth");
 
 // Public routes (view chamas)
 router.get("/", getAllChamas);
-router.get("/:id", getChamaById);
+router.get("/public", getPublicChamas);
 
-// Protected routes
+// Protected routes - SPECIFIC routes MUST come before parameterized routes
 router.post("/", protect, createChama);
 router.get("/user/my-chamas", protect, getMyChamas);
+
+// Parameterized routes - these come AFTER specific routes
+router.get("/:id", getChamaById);
 router.get("/:id/members", protect, getChamaMembers);
 router.get("/:id/stats", protect, getChamaStats);
 

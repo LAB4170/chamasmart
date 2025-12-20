@@ -12,6 +12,7 @@ const addMember = async (req, res) => {
     const { userId, role = "MEMBER" } = req.body;
 
     if (!userId) {
+      console.error("❌ AddMember: User ID is missing from body");
       return res.status(400).json({
         success: false,
         message: "User ID is required",
@@ -19,6 +20,7 @@ const addMember = async (req, res) => {
     }
 
     if (!isValidRole(role)) {
+      console.error(`❌ AddMember: Invalid role '${role}'`);
       return res.status(400).json({
         success: false,
         message: "Invalid role",
@@ -32,6 +34,7 @@ const addMember = async (req, res) => {
     );
 
     if (userExists.rows.length === 0) {
+      console.error(`❌ AddMember: User with ID ${userId} not found in DB`);
       return res.status(404).json({
         success: false,
         message: "User not found",
@@ -45,6 +48,7 @@ const addMember = async (req, res) => {
     );
 
     if (memberExists.rows.length > 0) {
+      console.error(`❌ AddMember: User ${userId} is already a member of Chama ${chamaId}`);
       return res.status(400).json({
         success: false,
         message: "User is already a member of this chama",
