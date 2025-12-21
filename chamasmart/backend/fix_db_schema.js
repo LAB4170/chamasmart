@@ -6,17 +6,28 @@ const fixSchema = async () => {
     console.log("Checking and fixing database schema...");
     await client.query('BEGIN');
 
-    // 1. Ensure chamas table has total_members
+    // 2. Ensure chamas table has required refined columns
     await client.query(`
       DO $$ 
       BEGIN 
+        -- Increase meeting_day length
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='chamas' AND column_name='meeting_day') THEN 
+          ALTER TABLE chamas ALTER COLUMN meeting_day TYPE VARCHAR(255);
+        END IF;
+
+        -- Add visibility if missing
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='chamas' AND column_name='visibility') THEN 
+          ALTER TABLE chamas ADD COLUMN visibility VARCHAR(20) DEFAULT 'PRIVATE'; 
+        END IF; 
+
+        -- Add total_members if missing
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='chamas' AND column_name='total_members') THEN 
           ALTER TABLE chamas ADD COLUMN total_members INTEGER DEFAULT 0; 
         END IF; 
       END $$;
     `);
 
-    // 2. Ensure chama_members has rotation_position
+    // 3. Ensure chama_members has rotation_position
     await client.query(`
       DO $$ 
       BEGIN 
