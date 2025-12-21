@@ -7,6 +7,7 @@ import LoadingSkeleton from "../../components/LoadingSkeleton";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { FixedSizeList as List } from "react-window";
 
 // --- Memoized Sub-components ---
 
@@ -125,7 +126,6 @@ const StatsSection = memo(({ stats, isROSCA, chama, members, formatCurrency }) =
   </div>
 ));
 
-import { FixedSizeList as List } from "react-window";
 
 const MembersTab = memo(({ members, isOfficial, isROSCA, roster, getMemberStatus, onNavigate, formatCurrency, formatDate, chamaId, activeUsers = [] }) => {
   const Row = ({ index, style }) => {
@@ -235,7 +235,9 @@ const ChamaDetails = () => {
 
   useEffect(() => {
     fetchChamaData();
+  }, [id]);
 
+  useEffect(() => {
     // Socket.io real-time updates
     if (socket && id) {
       socket.emit("join_chama", id);
@@ -952,7 +954,7 @@ const ChamaDetails = () => {
                 </div>
 
                 {/* ROSCA Specific Reports */}
-                {isROSCA() && (
+                {isROSCA && (
                   <div className="report-card">
                     <div className="report-header">
                       <div className="report-icon">🔄</div>

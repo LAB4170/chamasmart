@@ -536,6 +536,189 @@ button:focus,
   }
 }
 
+/* Modern Form Refinement */
+.container-sm {
+  max-width: 800px;
+}
+
+.form-section {
+  padding: 1.5rem 0;
+}
+
+.section-header-modern {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  padding: 0 1.5rem 1rem;
+}
+
+.section-number {
+  background: var(--primary-light);
+  color: var(--primary);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.section-header-modern h3 {
+  margin-bottom: 0.25rem;
+  font-size: 1.25rem;
+}
+
+.section-header-modern p {
+  font-size: 0.9rem;
+  margin-bottom: 0;
+  max-width: 500px;
+}
+
+.section-divider {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 0;
+}
+
+.selection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.selection-card {
+  padding: 1.25rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: var(--white);
+}
+
+.selection-card:hover {
+  border-color: var(--primary-light);
+  background: #f8fafc;
+}
+
+.selection-card.active {
+  border-color: var(--primary);
+  background: #f0f7ff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+}
+
+.selection-card.compact {
+  flex-direction: row;
+  align-items: center;
+  padding: 1rem;
+}
+
+.selection-icon {
+  font-size: 1.75rem;
+}
+
+.selection-icon.small {
+  font-size: 1.25rem;
+}
+
+.selection-name {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--dark);
+}
+
+.selection-desc {
+  font-size: 0.8rem;
+  color: var(--gray);
+}
+
+.selection-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: var(--primary);
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-prefix {
+  position: absolute;
+  left: 1rem;
+  color: var(--gray);
+  font-weight: 600;
+  font-size: 0.9rem;
+  background: var(--light-gray);
+  height: calc(100% - 4px);
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  left: 2px;
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+
+.pl-12 {
+  padding-left: 3.5rem !important;
+}
+
+.form-actions-modern {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.bg-light {
+  background-color: #f8fafc;
+}
+
+.spinner-sm {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+}
+
+@media (max-width: 640px) {
+  .selection-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section-header-modern {
+    padding: 0 1rem 1rem;
+    gap: 1rem;
+  }
+
+  .form-actions-modern {
+    flex-direction: column-reverse;
+  }
+
+  .form-actions-modern .btn {
+    width: 100%;
+  }
+}
+
 /* Landing Page Styles */
 .home-page {
   min-height: 100vh;
@@ -3316,7 +3499,6 @@ button:focus,
 .skeleton-image {
   height: 150px;
   width: 100%;
-  @extend .skeleton-base;
   background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite linear;
@@ -3326,7 +3508,6 @@ button:focus,
 .skeleton-title {
   height: 1.5rem;
   width: 70%;
-  @extend .skeleton-base;
   background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite linear;
@@ -3336,7 +3517,6 @@ button:focus,
 .skeleton-text {
   height: 1rem;
   width: 100%;
-  @extend .skeleton-base;
   background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite linear;
@@ -3353,7 +3533,6 @@ button:focus,
 .skeleton-cell {
   height: 1.25rem;
   flex: 1;
-  @extend .skeleton-base;
   background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite linear;
@@ -3368,7 +3547,6 @@ button:focus,
   height: 3rem;
   width: 40%;
   margin-bottom: 2rem;
-  @extend .skeleton-base;
   background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite linear;
@@ -3378,7 +3556,6 @@ button:focus,
 .skeleton-block {
   height: 5rem;
   margin-bottom: 1.5rem;
-  @extend .skeleton-base;
   background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite linear;
@@ -3507,5 +3684,204 @@ button:focus,
 
   100% {
     box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+/* Meeting Schedule Refinements */
+.meeting-type-toggle {
+  display: flex;
+  gap: 1px;
+  background: var(--border);
+  padding: 4px;
+  border-radius: var(--radius-lg);
+  width: fit-content;
+}
+
+.toggle-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  background: transparent;
+  color: var(--gray);
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: calc(var(--radius-lg) - 2px);
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+
+.toggle-btn:hover {
+  color: var(--primary);
+}
+
+.toggle-btn.active {
+  background: var(--white);
+  color: var(--primary);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 2fr;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .form-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* My Chamas Page Styling */
+.filter-bar {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  overflow-x: auto;
+  padding: 4px;
+  scrollbar-width: none;
+}
+
+.filter-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-btn {
+  padding: 0.6rem 1.25rem;
+  border: 1px solid var(--border);
+  background: var(--white);
+  color: var(--gray);
+  border-radius: 100px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.filter-btn.active {
+  background: var(--primary);
+  color: var(--white);
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.chamas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 2rem;
+}
+
+.chama-card {
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  text-decoration: none;
+  color: inherit;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.chama-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-xl);
+  border-color: var(--primary-light);
+}
+
+.chama-card-header {
+  padding: 1.5rem;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: var(--white);
+  position: relative;
+}
+
+.chama-card-header h3 {
+  margin: 0;
+  color: var(--white);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.chama-type-badge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  backdrop-filter: blur(4px);
+}
+
+.chama-card-body {
+  padding: 1.5rem;
+  flex: 1;
+}
+
+.chama-description {
+  font-size: 0.9rem;
+  margin-bottom: 1.25rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  height: 2.8rem;
+}
+
+.chama-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #f8f9fa;
+}
+
+.chama-info:last-of-type {
+  border-bottom: none;
+}
+
+.info-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--gray-light);
+  font-weight: 600;
+}
+
+.info-value {
+  font-weight: 600;
+  color: var(--dark);
+}
+
+.chama-card-footer {
+  padding: 1rem 1.5rem;
+  background: #fafbfc;
+  border-top: 1px solid var(--border);
+  text-align: right;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--primary);
+  transition: var(--transition-fast);
+}
+
+.chama-card:hover .chama-card-footer {
+  background: var(--primary-light);
+}
+
+@media (max-width: 640px) {
+  .chamas-grid {
+    grid-template-columns: 1fr;
   }
 }

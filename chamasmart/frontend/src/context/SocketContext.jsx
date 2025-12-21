@@ -6,7 +6,9 @@ const SocketContext = createContext();
 
 export const useSocket = () => {
     const context = useContext(SocketContext);
-    if (!context) {
+    // undefined means we are outside the provider. 
+    // null means we are inside but the socket isn't connected yet.
+    if (context === undefined) {
         throw new Error('useSocket must be used within a SocketProvider');
     }
     return context;

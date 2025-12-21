@@ -1,3 +1,5 @@
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { notificationAPI } from "../services/api";
 import { useSocket } from "../context/SocketContext";
 
@@ -10,7 +12,9 @@ const NotificationBell = () => {
 
     useEffect(() => {
         fetchUnreadCount();
+    }, []);
 
+    useEffect(() => {
         // Listen for real-time notifications
         if (socket) {
             socket.on("new_notification", (notification) => {

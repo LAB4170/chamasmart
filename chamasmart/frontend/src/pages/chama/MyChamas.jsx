@@ -9,40 +9,27 @@ const MyChamaCard = memo(({ chama, getChamaTypeLabel, formatCurrency }) => (
     className="chama-card"
   >
     <div className="chama-card-header">
-      <h3>{chama.chama_name}</h3>
-      <span
-        className={`badge badge-${chama.chama_type === "ROSCA"
-          ? "primary"
-          : chama.chama_type === "ASCA"
-            ? "success"
-            : chama.chama_type === "TABLE_BANKING"
-              ? "warning"
-              : "secondary"
-          }`}
-      >
+      <div className="chama-type-badge">
         {getChamaTypeLabel(chama.chama_type)}
-      </span>
+      </div>
+      <h3>{chama.chama_name}</h3>
     </div>
 
     <div className="chama-card-body">
       {chama.description && (
         <p className="chama-description text-muted">
-          {chama.description.length > 80
-            ? chama.description.substring(0, 80) + "..."
-            : chama.description}
+          {chama.description}
         </p>
       )}
 
       <div className="chama-info">
-        <span className="info-label">Your Role:</span>
+        <span className="info-label">Your Role</span>
         <span
           className={`badge badge-${chama.role === "CHAIRPERSON"
             ? "primary"
             : chama.role === "TREASURER"
               ? "success"
-              : chama.role === "SECRETARY"
-                ? "warning"
-                : "secondary"
+              : "secondary"
             }`}
         >
           {chama.role}
@@ -50,27 +37,27 @@ const MyChamaCard = memo(({ chama, getChamaTypeLabel, formatCurrency }) => (
       </div>
 
       <div className="chama-info">
-        <span className="info-label">Members:</span>
+        <span className="info-label">Members</span>
         <span className="info-value">{chama.total_members}</span>
       </div>
 
       <div className="chama-info">
-        <span className="info-label">Contribution:</span>
+        <span className="info-label">Contribution</span>
         <span className="info-value">
           {formatCurrency(chama.contribution_amount)}
         </span>
       </div>
 
       <div className="chama-info">
-        <span className="info-label">Your Total:</span>
-        <span className="info-value text-success">
+        <span className="info-label">Total Saved</span>
+        <span className="info-value text-success" style={{ fontWeight: '700' }}>
           {formatCurrency(chama.total_contributions || 0)}
         </span>
       </div>
     </div>
 
     <div className="chama-card-footer">
-      <span className="text-muted">View Details →</span>
+      Go to Group →
     </div>
   </Link>
 ));
@@ -119,16 +106,24 @@ const MyChamas = () => {
     return filter === "ALL" ? chamas : chamas.filter((c) => c.chama_type === filter);
   }, [chamas, filter]);
 
+  const categories = [
+    { id: "ALL", label: "All", icon: "🏢" },
+    { id: "ROSCA", label: "Merry-Go-Round", icon: "🔄" },
+    { id: "ASCA", label: "Investment", icon: "📈" },
+    { id: "TABLE_BANKING", label: "Table Banking", icon: "🏦" },
+    { id: "WELFARE", label: "Welfare", icon: "🤝" },
+  ];
+
   return (
     <div className="page">
       <div className="container">
-        <div className="page-header">
+        <div className="page-header" style={{ marginBottom: '2.5rem' }}>
           <div>
-            <h1>My Chamas</h1>
-            <p className="text-muted">All your chama memberships</p>
+            <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>My Chamas</h1>
+            <p className="text-muted" style={{ fontSize: '1.1rem' }}>Manage your memberships and track your growth.</p>
           </div>
-          <Link to="/chamas/create" className="btn btn-primary">
-            + Create New Chama
+          <Link to="/chamas/create" className="btn btn-primary btn-lg">
+            ✨ Create New Chama
           </Link>
         </div>
 
@@ -136,36 +131,16 @@ const MyChamas = () => {
 
         {/* Filter Bar */}
         <div className="filter-bar">
-          <button
-            className={`filter-btn ${filter === "ALL" ? "active" : ""}`}
-            onClick={() => setFilter("ALL")}
-          >
-            All ({chamas.length})
-          </button>
-          <button
-            className={`filter-btn ${filter === "ROSCA" ? "active" : ""}`}
-            onClick={() => setFilter("ROSCA")}
-          >
-            Merry-Go-Round ({chamas.filter((c) => c.chama_type === "ROSCA").length})
-          </button>
-          <button
-            className={`filter-btn ${filter === "ASCA" ? "active" : ""}`}
-            onClick={() => setFilter("ASCA")}
-          >
-            Investment ({chamas.filter((c) => c.chama_type === "ASCA").length})
-          </button>
-          <button
-            className={`filter-btn ${filter === "TABLE_BANKING" ? "active" : ""}`}
-            onClick={() => setFilter("TABLE_BANKING")}
-          >
-            Table Banking ({chamas.filter((c) => c.chama_type === "TABLE_BANKING").length})
-          </button>
-          <button
-            className={`filter-btn ${filter === "WELFARE" ? "active" : ""}`}
-            onClick={() => setFilter("WELFARE")}
-          >
-            Welfare ({chamas.filter((c) => c.chama_type === "WELFARE").length})
-          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              className={`filter-btn ${filter === cat.id ? "active" : ""}`}
+              onClick={() => setFilter(cat.id)}
+            >
+              <span>{cat.icon}</span>
+              {cat.label} ({cat.id === "ALL" ? chamas.length : chamas.filter((c) => c.chama_type === cat.id).length})
+            </button>
+          ))}
         </div>
 
         {/* Content Section */}
@@ -174,17 +149,22 @@ const MyChamas = () => {
             <LoadingSkeleton type="card" count={3} />
           </div>
         ) : filteredChamas.length === 0 ? (
-          <div className="card text-center py-5">
-            <div className="mb-4" style={{ fontSize: '3rem' }}>📁</div>
-            <h3>No chamas found</h3>
-            <p className="text-muted">
+          <div className="card text-center" style={{ padding: '4rem 2rem' }}>
+            <div className="mb-4" style={{ fontSize: '4rem' }}>🏜️</div>
+            <h2>No chamas found</h2>
+            <p className="text-muted" style={{ fontSize: '1.1rem', maxWidth: '500px', margin: '1rem auto' }}>
               {filter === "ALL"
-                ? "You are not part of any chama yet"
-                : `You don't have any ${getChamaTypeLabel(filter)} chamas`}
+                ? "You haven't joined any groups yet. Start your financial journey today!"
+                : `You don't have any ${getChamaTypeLabel(filter)} chamas yet.`}
             </p>
-            <Link to="/chamas/create" className="btn btn-primary mt-3">
-              Create Your First Chama
-            </Link>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '2rem' }}>
+              <Link to="/chamas/create" className="btn btn-primary">
+                Start a Chama
+              </Link>
+              <Link to="/browse-chamas" className="btn btn-outline">
+                Browse Groups
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="chamas-grid">

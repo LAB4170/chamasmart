@@ -16,7 +16,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.10.1",
-    "react-window": "^2.2.3",
+    "react-window": "^1.8.10",
     "socket.io-client": "^4.8.1",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz"
   },
