@@ -130,4 +130,20 @@ export const notificationAPI = {
 };
 
 
+// ROSCA API calls
+export const roscaAPI = {
+  getCycles: (chamaId) => api.get(`/rosca/chama/${chamaId}/cycles`),
+  createCycle: (cycleData) => api.post(`/rosca/chama/${cycleData.chama_id}/cycles`, cycleData),
+  getRoster: (cycleId) => api.get(`/rosca/cycles/${cycleId}/roster`),
+  requestSwap: (cycleId, swapData) => api.post(`/rosca/cycles/${cycleId}/swap-request`, swapData),
+  getSwapRequests: () => api.get('/rosca/swap-requests'),
+  respondToSwap: (requestId, action) => api.put(`/rosca/swap-requests/${requestId}/respond`, { action }),
+  processPayout: (cycleId, payoutData) => api.post(`/rosca/cycles/${cycleId}/payout`, payoutData),
+};
+
+// User API calls
+export const userAPI = {
+  search: (query) => api.get('/users/search', { params: { query } }),
+};
+
 export default api;

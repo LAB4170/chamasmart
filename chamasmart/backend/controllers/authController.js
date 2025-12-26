@@ -126,6 +126,7 @@ const register = async (req, res) => {
 // @route   POST /api/auth/login
 // @access  Public
 const login = async (req, res) => {
+  console.log('Login attempt with data:', { email: req.body.email });
   try {
     const { email, password } = req.body;
 
@@ -138,9 +139,11 @@ const login = async (req, res) => {
     }
 
     // Check if user exists
+    console.log('Querying database for user:', email.toLowerCase());
     const result = await pool.query("SELECT * FROM users WHERE email = $1", [
       email.toLowerCase(),
     ]);
+    console.log('Database query result:', { rowCount: result.rows.length });
 
     if (result.rows.length === 0) {
       return res.status(401).json({
@@ -152,7 +155,9 @@ const login = async (req, res) => {
     const user = result.rows[0];
 
     // Check password
+    console.log('Checking password for user ID:', user.user_id);
     const isMatch = await bcrypt.compare(password, user.password_hash);
+    console.log('Password match result:', isMatch);
 
     if (!isMatch) {
       return res.status(401).json({
@@ -179,11 +184,16 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Login error:", error);
+    console.error('Login error details:', {
+      error: error.message,
+      stack: error.stack,
+      email: req.body.email,
+      timestamp: new Date().toISOString()
+    });
     res.status(500).json({
       success: false,
-      message: "Error logging in",
-      error: error.message,
+      message: "Error logging in: " + error.message,
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     });
   }
 };

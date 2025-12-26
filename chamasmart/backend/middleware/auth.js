@@ -49,6 +49,63 @@ const protect = async (req, res, next) => {
   }
 };
 
+// Generic Authorize Middleware (Role based)
+const authorize = (...roles) => {
+  return async (req, res, next) => {
+    try {
+      // If we don't have a chamaId, we can't strictly check chama-specific roles via middleware
+      // unless we do complex lookups. For now, rely on Controller for non-chamaId routes.
+      if (!req.params.chamaId) {
+        return next();
+      }
+
+      const { chamaId } = req.params;
+      const userId = req.user.user_id;
+
+      const result = await pool.query(
+        "SELECT role FROM chama_members WHERE chama_id = $1 AND user_id = $2 AND is_active = true",
+        [chamaId, userId]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: "You are not a member of this chama",
+        });
+      }
+
+      const userRole = result.rows[0].role;
+
+      // If roles includes 'MEMBER', any valid member passes
+      if (roles.includes('MEMBER')) {
+        req.memberRole = userRole;
+        return next();
+      }
+
+      // 'ADMIN' is often a shorthand for Officials
+      if (roles.includes('ADMIN')) {
+        if (["CHAIRPERSON", "SECRETARY", "TREASURER"].includes(userRole)) {
+          req.memberRole = userRole;
+          return next();
+        }
+      }
+
+      if (!roles.includes(userRole)) {
+        return res.status(403).json({
+          success: false,
+          message: `User role ${userRole} is not authorized to access this route`,
+        });
+      }
+
+      req.memberRole = userRole;
+      next();
+    } catch (error) {
+      console.error("Authorization error:", error);
+      res.status(500).json({ success: false, message: "Authorization failed" });
+    }
+  };
+};
+
 // Check if user is a chama official (Chairperson, Secretary, or Treasurer)
 const isOfficial = async (req, res, next) => {
   try {
@@ -114,4 +171,4 @@ const isTreasurer = async (req, res, next) => {
   }
 };
 
-module.exports = { protect, isOfficial, isTreasurer };
+module.exports = { protect, isOfficial, isTreasurer, authorize };

@@ -4,6 +4,9 @@ import { chamaAPI, contributionAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { useSocket } from "../../context/SocketContext";
 import LoadingSkeleton from "../../components/LoadingSkeleton";
+import CreateCycleModal from "../../components/CreateCycleModal";
+import SwapRequestModal from "../../components/SwapRequestModal";
+import { roscaAPI } from "../../services/api";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -221,10 +224,19 @@ const ChamaDetails = () => {
   const [error, setError] = useState("");
   const [activeUsers, setActiveUsers] = useState([]);
 
-  // ROSCA-specific state
-  const [cycle, setCycle] = useState(null);
+  const [cycles, setCycles] = useState([]);
+  const [activeCycle, setActiveCycle] = useState(null);
   const [roster, setRoster] = useState([]);
   const [currentCyclePosition, setCurrentCyclePosition] = useState(0);
+  const [showCreateCycleModal, setShowCreateCycleModal] = useState(false);
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const [swapTarget, setSwapTarget] = useState(null);
+  const [swapRequests, setSwapRequests] = useState({ incoming: [], outgoing: [] });
+  // Constitution State
+  const [constitutionForm, setConstitutionForm] = useState({
+    late_payment: { enabled: false, amount: 0, grace_period_days: 1 }
+  });
+  const [constitutionText, setConstitutionText] = useState("");
 
   // Filters
   const [filters, setFilters] = useState({
@@ -288,17 +300,37 @@ const ChamaDetails = () => {
       setMembers(membersData);
       setStats(statsRes.data.data);
 
+      if (chamaData.constitution_config) {
+        setConstitutionForm(prev => ({
+          ...prev,
+          ...chamaData.constitution_config
+        }));
+      }
+      setConstitutionText(chamaData.description || "");
+
       if (chamaData.chama_type === "ROSCA") {
-        const sortedMembers = [...membersData].sort(
-          (a, b) => new Date(a.join_date) - new Date(b.join_date)
-        );
-        setRoster(sortedMembers);
-        setCycle({
-          cycleNumber: 1,
-          totalCycles: sortedMembers.length,
-          currentPosition: 0,
-          status: "ACTIVE",
-        });
+        try {
+          const cyclesRes = await roscaAPI.getCycles(id);
+          setCycles(cyclesRes.data.data);
+
+          // Find active or latest cycle
+          const active = cyclesRes.data.data.find(c => c.status === 'ACTIVE' || c.status === 'PENDING');
+          if (active) {
+            setActiveCycle(active);
+            const rosterRes = await roscaAPI.getRoster(active.cycle_id);
+            setRoster(rosterRes.data.data);
+
+            // Calculate progress
+            const paidCount = rosterRes.data.data.filter(r => r.status === 'PAID').length;
+            setCurrentCyclePosition(paidCount);
+
+            // Fetch swap requests
+            const swapRes = await roscaAPI.getSwapRequests();
+            setSwapRequests(swapRes.data.data);
+          }
+        } catch (cycleErr) {
+          console.error("Failed to load cycles:", cycleErr);
+        }
       }
     } catch (err) {
       console.error("ChamaDetails error:", err);
@@ -384,9 +416,10 @@ const ChamaDetails = () => {
   }, [isROSCA, roster, currentCyclePosition]);
 
   const getCycleProgress = useCallback(() => {
-    if (!isROSCA || !cycle) return 0;
-    return ((currentCyclePosition % roster.length) / roster.length) * 100;
-  }, [isROSCA, cycle, roster, currentCyclePosition]);
+    if (!isROSCA || !activeCycle || !roster.length) return 0;
+    const paidCount = roster.filter(r => r.status === 'PAID').length;
+    return (paidCount / roster.length) * 100;
+  }, [isROSCA, activeCycle, roster]);
 
   const getMemberStatus = useCallback((member) => {
     if (!isROSCA) return "MEMBER";
@@ -418,6 +451,32 @@ const ChamaDetails = () => {
     });
 
     doc.save(`${chama.chama_name}_Report.pdf`);
+  };
+
+  const handleUpdateConstitution = async (e) => {
+    e.preventDefault();
+    try {
+      await chamaAPI.update(id, {
+        constitution_config: constitutionForm,
+        description: constitutionText
+      });
+      alert("Constitution updated successfully!");
+      fetchChamaData();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update constitution");
+    }
+  };
+
+  const handleSwapResponse = async (requestId, action) => {
+    try {
+      await roscaAPI.respondToSwap(requestId, action);
+      alert(`Swap request ${action.toLowerCase()}ed`);
+      fetchChamaData(); // Refresh to see new order
+    } catch (err) {
+      console.error(err);
+      alert("Failed to process request");
+    }
   };
 
   const handleExportExcel = () => {
@@ -574,21 +633,70 @@ const ChamaDetails = () => {
             <div className="card">
               <div className="card-header flex-between">
                 <h3>ROSCA Cycle Progress</h3>
-                {officialStatus && (
+                {officialStatus && !activeCycle && (
                   <div className="cycle-actions">
-                    <button className="btn btn-sm btn-success">
-                      Start Next Cycle
+                    <button
+                      className="btn btn-sm btn-success"
+                      onClick={() => setShowCreateCycleModal(true)}
+                    >
+                      Start New Cycle
                     </button>
                   </div>
                 )}
               </div>
 
-              {cycle && (
+              {!activeCycle && (
+                <div className="p-4 text-center text-muted">
+                  <p>No active cycle running.</p>
+                  {officialStatus && <p>Click "Start New Cycle" to begin.</p>}
+                </div>
+              )}
+
+              {activeCycle && (
                 <div className="rosca-cycle">
+                  {/* Swap Requests Section */}
+                  {(swapRequests.incoming.length > 0 || swapRequests.outgoing.length > 0) && (
+                    <div className="swap-requests-section mb-4">
+                      {swapRequests.incoming.length > 0 && (
+                        <div className="alert alert-info">
+                          <h4>🔔 Incoming Swap Requests</h4>
+                          {swapRequests.incoming.map(req => (
+                            <div key={req.request_id} className="swap-request-card flex-between mt-2 p-2 bg-white rounded">
+                              <div>
+                                <strong>{req.requester_first_name} {req.requester_last_name}</strong> wants to swap with you.
+                                <div className="text-sm text-muted">Reason: "{req.reason}"</div>
+                              </div>
+                              <div className="flex-gap">
+                                <button
+                                  className="btn btn-sm btn-success"
+                                  onClick={() => handleSwapResponse(req.request_id, 'APPROVED')}
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  className="btn btn-sm btn-danger"
+                                  onClick={() => handleSwapResponse(req.request_id, 'REJECTED')}
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {swapRequests.outgoing.map(req => (
+                        <div key={req.request_id} className="alert alert-secondary mt-2">
+                          ⏳ Pending swap request with <strong>{req.target_first_name} {req.target_last_name}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="cycle-info">
                     <div className="cycle-stat">
-                      <span className="stat-label">Current Cycle</span>
-                      <span className="stat-value">{cycle.cycleNumber}</span>
+                      <span className="stat-label">Cycle Name</span>
+                      <span className="stat-value">{activeCycle.cycle_name}</span>
                     </div>
                     <div className="cycle-stat">
                       <span className="stat-label">Progress</span>
@@ -629,7 +737,7 @@ const ChamaDetails = () => {
                           <p>
                             Receives{" "}
                             {formatCurrency(
-                              chama.contribution_amount * members.length
+                              activeCycle.contribution_amount * members.length
                             )}
                           </p>
                           <span className="badge badge-success">
@@ -637,7 +745,22 @@ const ChamaDetails = () => {
                           </span>
                         </div>
                         {officialStatus && (
-                          <button className="btn btn-success">
+                          <button
+                            className="btn btn-success"
+                            onClick={() => {
+                              if (window.confirm(`Confirm payout of ${formatCurrency(activeCycle.contribution_amount * members.length)} to ${getCurrentRecipient().first_name}?`)) {
+                                roscaAPI.processPayout(activeCycle.cycle_id, {
+                                  position: roster.find(r => r.user_id === getCurrentRecipient().user_id).position,
+                                  payment_proof: "MANUAL_DISBURSEMENT"
+                                }).then(() => {
+                                  alert("Payout processed successfully!");
+                                  fetchChamaData();
+                                }).catch(err => {
+                                  alert(err.response?.data?.message || "Payout failed");
+                                });
+                              }
+                            }}
+                          >
                             Disburse Funds
                           </button>
                         )}
@@ -650,6 +773,12 @@ const ChamaDetails = () => {
                     <div className="timeline">
                       {roster.map((member, index) => {
                         const status = getMemberStatus(member);
+                        const isCurrentUser = member.user_id === user?.id;
+                        const isFutureSlot = status === "WAITING";
+
+                        // Can only request swap with future slots, and not with self
+                        const canRequestSwap = !isCurrentUser && isFutureSlot && roster.find(r => r.user_id === user?.id)?.status === "WAITING";
+
                         return (
                           <div
                             key={member.user_id}
@@ -663,8 +792,22 @@ const ChamaDetails = () => {
                               {status === "WAITING" && <span>⏳</span>}
                             </div>
                             <div className="timeline-content">
-                              <div className="member-name">
-                                {member.first_name} {member.last_name}
+                              <div className="flex-between">
+                                <div className="member-name">
+                                  {member.first_name} {member.last_name}
+                                  {isCurrentUser && <span className="badge badge-sm badge-outline ml-2">You</span>}
+                                </div>
+                                {canRequestSwap && (
+                                  <button
+                                    className="btn btn-xs btn-outline"
+                                    onClick={() => {
+                                      setSwapTarget(member);
+                                      setShowSwapModal(true);
+                                    }}
+                                  >
+                                    ⇄ Swap
+                                  </button>
+                                )}
                               </div>
                               <div className="member-position">
                                 Position {index + 1} •{" "}
@@ -674,7 +817,7 @@ const ChamaDetails = () => {
                                 <div className="payout-amount">
                                   Receives{" "}
                                   {formatCurrency(
-                                    chama.contribution_amount * members.length
+                                    activeCycle.contribution_amount * members.length
                                   )}
                                 </div>
                               )}
@@ -998,9 +1141,112 @@ const ChamaDetails = () => {
               </div>
             </div>
           )}
+
+
+          {activeTab === "constitution" && officialStatus && (
+            <div className="card">
+              <div className="card-header">
+                <h3>Chama Constitution & Rules</h3>
+                <p className="text-muted">Define the automated rules and penalties for your group.</p>
+              </div>
+              <form onSubmit={handleUpdateConstitution} className="p-4">
+
+                <div className="form-group mb-4">
+                  <label className="form-label">Full Constitution / Group Description</label>
+                  <textarea
+                    className="form-input"
+                    rows="10"
+                    value={constitutionText}
+                    onChange={(e) => setConstitutionText(e.target.value)}
+                    placeholder="Enter the full text of your constitution, bylaws, and rules here..."
+                    style={{ resize: 'vertical', minHeight: '150px' }}
+                  ></textarea>
+                </div>
+
+                <div className="settings-section mb-4">
+                  <h4 className="flex-between">
+                    <span>Late Payment Penalties</span>
+                    <label className="switch">
+                      <input
+                        type="checkbox"
+                        checked={constitutionForm.late_payment?.enabled}
+                        onChange={(e) => setConstitutionForm(prev => ({
+                          ...prev,
+                          late_payment: { ...prev.late_payment, enabled: e.target.checked }
+                        }))}
+                      />
+                      <span className="slider round"></span>
+                    </label>
+                  </h4>
+
+                  {constitutionForm.late_payment?.enabled && (
+                    <div className="grid-2 mt-2">
+                      <div className="form-group">
+                        <label>Penalty Amount (KES)</label>
+                        <input
+                          type="number"
+                          className="form-input"
+                          value={constitutionForm.late_payment.amount}
+                          onChange={(e) => setConstitutionForm(prev => ({
+                            ...prev,
+                            late_payment: { ...prev.late_payment, amount: parseFloat(e.target.value) }
+                          }))}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Grace Period (Days)</label>
+                        <input
+                          type="number"
+                          className="form-input"
+                          value={constitutionForm.late_payment.grace_period_days}
+                          onChange={(e) => setConstitutionForm(prev => ({
+                            ...prev,
+                            late_payment: { ...prev.late_payment, grace_period_days: parseInt(e.target.value) }
+                          }))}
+                        />
+                        <small className="text-muted">Days after deadline before penalty applies.</small>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-actions">
+                  <button type="submit" className="btn btn-primary">Save Constitution</button>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
-      </div>
-    </div>
+
+        {
+          showCreateCycleModal && (
+            <CreateCycleModal
+              chama={chama}
+              onClose={() => setShowCreateCycleModal(false)}
+              onSuccess={() => {
+                fetchChamaData();
+              }}
+            />
+          )
+        }
+
+        {
+          showSwapModal && swapTarget && (
+            <SwapRequestModal
+              cycle={activeCycle}
+              targetMember={swapTarget}
+              onClose={() => {
+                setShowSwapModal(false);
+                setSwapTarget(null);
+              }}
+              onSuccess={() => {
+                alert("Swap request sent successfully!");
+              }}
+            />
+          )
+        }
+      </div >
+    </div >
   );
 };
 

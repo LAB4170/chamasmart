@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { chamaAPI, memberAPI } from "../../services/api";
+import { chamaAPI, memberAPI, userAPI } from "../../services/api";
 
 
 const AddMember = () => {
@@ -12,10 +12,13 @@ const AddMember = () => {
     userId: "",
     role: "MEMBER",
   });
-  const [userSearch, setUserSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [foundUser, setFoundUser] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [searchError, setSearchError] = useState("");
 
   useEffect(() => {
     fetchChama();
@@ -37,13 +40,36 @@ const AddMember = () => {
     });
   };
 
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    setSearching(true);
+    setSearchError("");
+    setFoundUser(null);
+    setFormData(prev => ({ ...prev, userId: "" }));
+
+    try {
+      const response = await userAPI.search(searchQuery);
+      setFoundUser(response.data.data);
+      setFormData(prev => ({ ...prev, userId: response.data.data.user_id }));
+    } catch (err) {
+      const msg = err.response?.status === 404
+        ? "User not found. Ensure they have registered with ChamaSmart."
+        : "Error searching user.";
+      setSearchError(msg);
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
 
     if (!formData.userId) {
-      setError("Please enter a user ID");
+      setError("Please search and select a user first");
       return;
     }
 
@@ -52,14 +78,12 @@ const AddMember = () => {
     try {
       await memberAPI.add(id, formData);
 
-      setSuccess("Member added successfully!");
+      setSuccess(`Successfully added ${foundUser.first_name} to the chama!`);
 
       // Reset form
-      setFormData({
-        userId: "",
-        role: "MEMBER",
-      });
-      setUserSearch("");
+      setFormData({ userId: "", role: "MEMBER" });
+      setSearchQuery("");
+      setFoundUser(null);
 
       // Redirect after 2 seconds
       setTimeout(() => {
@@ -89,32 +113,54 @@ const AddMember = () => {
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
-
         {success && <div className="alert alert-success">{success}</div>}
 
         <div className="card">
           <div className="alert alert-info">
-            <strong>Note:</strong> You need the user's ID to add them. The user
-            must have a ChamaSmart account.
+            <strong>Check User:</strong> Search for the user by email or phone number to verify their identity before adding.
           </div>
 
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label">User ID *</label>
+          <div className="form-group mb-4">
+            <label className="form-label">Find User (Email or Phone)</label>
+            <div style={{ display: 'flex', gap: '10px' }}>
               <input
-                type="number"
-                name="userId"
+                type="text"
                 className="form-input"
-                placeholder="Enter user ID (e.g., 1)"
-                value={formData.userId}
-                onChange={handleChange}
-                required
+                placeholder="Enter email e.g. john@example.com"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
               />
-              <small className="text-muted">
-                Ask the member to check their profile for their user ID
-              </small>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleSearch}
+                disabled={searching || !searchQuery}
+              >
+                {searching ? "Searching..." : "Search"}
+              </button>
             </div>
+            {searchError && <small className="text-danger">{searchError}</small>}
+          </div>
 
+          {foundUser && (
+            <div className="user-card-preview p-3 mb-4" style={{ background: '#f8f9fa', borderRadius: '8px', border: '1px solid #e9ecef' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div className="avatar-placeholder" style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#4f46e5', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                  {foundUser.first_name[0]}{foundUser.last_name[0]}
+                </div>
+                <div>
+                  <h4 style={{ margin: 0 }}>{foundUser.first_name} {foundUser.last_name}</h4>
+                  <small className="text-muted">{foundUser.email} • {foundUser.phone_number}</small>
+                </div>
+                <div style={{ marginLeft: 'auto', color: 'green', fontWeight: 'bold' }}>
+                  ✓ Verified
+                </div>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label className="form-label">Assign Role *</label>
               <select
@@ -129,9 +175,6 @@ const AddMember = () => {
                 <option value="SECRETARY">Secretary</option>
                 <option value="TREASURER">Treasurer</option>
               </select>
-              <small className="text-muted">
-                You can change roles later from the chama management page
-              </small>
             </div>
 
             <div className="form-actions">
@@ -143,11 +186,11 @@ const AddMember = () => {
                 Cancel
               </button>
               <button
-                type="submit"
+                type="submit" // Form submit triggers handleSubmit which calls memberAPI.add
                 className="btn btn-primary"
-                disabled={loading}
+                disabled={loading || !formData.userId}
               >
-                {loading ? "Adding Member..." : "Add Member"}
+                {loading ? "Adding..." : "Add Member"}
               </button>
             </div>
           </form>

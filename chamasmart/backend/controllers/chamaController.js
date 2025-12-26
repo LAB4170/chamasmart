@@ -73,7 +73,8 @@ const getChamaById = async (req, res) => {
     const result = await pool.query(
       `SELECT c.chama_id, c.chama_name, c.chama_type, c.description, c.contribution_amount, 
               c.contribution_frequency, c.meeting_day, c.meeting_time, c.current_fund, 
-              c.total_members, c.visibility, c.created_at,
+              c.contribution_frequency, c.meeting_day, c.meeting_time, c.current_fund, 
+              c.total_members, c.visibility, c.created_at, c.constitution_config,
               u.first_name || ' ' || u.last_name as creator_name
        FROM chamas c
        LEFT JOIN users u ON c.created_by = u.user_id
@@ -230,6 +231,7 @@ const updateChama = async (req, res) => {
       contributionFrequency,
       meetingDay,
       meetingTime,
+      constitution_config,
     } = req.body;
 
     // Build dynamic update query
@@ -272,6 +274,10 @@ const updateChama = async (req, res) => {
     if (meetingTime) {
       updates.push(`meeting_time = $${paramCount++}`);
       values.push(meetingTime);
+    }
+    if (constitution_config) {
+      updates.push(`constitution_config = $${paramCount++}`);
+      values.push(constitution_config); // Pass as JSON object, pg handles it
     }
 
     if (updates.length === 0) {

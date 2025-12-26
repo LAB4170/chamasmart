@@ -3885,3 +3885,100 @@ button:focus,
     grid-template-columns: 1fr;
   }
 }
+/* ROSCA Cycle Timeline */
+.timeline {
+  position: relative;
+  padding: 1rem 0;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 20px;
+  width: 2px;
+  background: var(--border);
+}
+
+.timeline-item {
+  position: relative;
+  padding-left: 50px;
+  margin-bottom: 1.5rem;
+}
+
+.timeline-marker {
+  position: absolute;
+  left: 10px;
+  top: 0;
+  width: 22px;
+  height: 22px;
+  background: var(--white);
+  border: 2px solid var(--gray-light);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.timeline-item.completed .timeline-marker {
+  background: var(--success);
+  border-color: var(--success);
+  color: white;
+  font-size: 0.8rem;
+}
+
+.timeline-item.current_recipient .timeline-marker {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  width: 30px;
+  height: 30px;
+  left: 6px;
+  top: -5px;
+}
+
+.timeline-item.waiting .timeline-marker {
+  background: var(--light-gray);
+  border-color: var(--gray);
+}
+
+.timeline-content {
+  background: var(--white);
+  padding: 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.timeline-item.current_recipient .timeline-content {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.member-name {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  color: var(--dark);
+  display: flex;
+  align-items: center;
+}
+
+.member-position {
+  font-size: 0.85rem;
+  color: var(--gray);
+}
+
+.payout-amount {
+  margin-top: 0.5rem;
+  font-weight: 600;
+  color: var(--success);
+  font-size: 0.9rem;
+}
+
+/* Swap Requests */
+.swap-request-card {
+  border: 1px solid var(--border);
+}
+

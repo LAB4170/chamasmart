@@ -58,6 +58,8 @@ app.use("/api/meetings", require("./routes/meetings"));
 app.use("/api/invites", require("./routes/invites"));
 app.use("/api/loans", require("./routes/loans"));
 app.use("/api/payouts", require("./routes/payouts"));
+app.use("/api/rosca", require("./routes/roscaRoutes"));
+app.use("/api/users", require("./routes/users"));
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -135,6 +137,15 @@ const socket = require("./socket");
 
 // Initialize Socket.io
 socket.init(server);
+
+// Initialize Scheduler (Safely)
+try {
+  const { initScheduler } = require('./scheduler');
+  initScheduler();
+  console.log('✅ Penalty Scheduler initialized');
+} catch (schedulerErr) {
+  console.error('❌ Failed to initialize scheduler:', schedulerErr.message);
+}
 
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
