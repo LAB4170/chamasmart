@@ -4,12 +4,16 @@ const {
     generateInvite,
     joinWithInvite,
     getChamaInvites,
-    deactivateInvite
+    deactivateInvite,
+    sendInvite
 } = require('../controllers/inviteController');
 const { protect, isOfficial } = require('../middleware/auth');
 
 // Generate invite (Officials only)
 router.post('/:chamaId/generate', protect, isOfficial, generateInvite);
+
+// Send invite via email (Officials only)
+router.post('/:chamaId/send', protect, isOfficial, sendInvite);
 
 // Join with invite code (Any logged-in user)
 router.post('/join', protect, joinWithInvite);

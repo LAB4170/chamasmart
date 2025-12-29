@@ -96,6 +96,7 @@ export const inviteAPI = {
   join: (inviteCode) => api.post('/invites/join', { inviteCode }),
   getAll: (chamaId) => api.get(`/invites/${chamaId}`),
   deactivate: (inviteId) => api.delete(`/invites/${inviteId}`),
+  send: (chamaId, email) => api.post(`/invites/${chamaId}/send`, { email }),
 };
 
 // Loan API calls

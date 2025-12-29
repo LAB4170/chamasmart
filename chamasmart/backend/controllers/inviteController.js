@@ -17,7 +17,7 @@ const generateInvite = async (req, res) => {
     // Generate unique code
     let inviteCode;
     let isUnique = false;
-    
+
     while (!isUnique) {
       inviteCode = generateInviteCode();
       const exists = await pool.query(
@@ -60,7 +60,7 @@ const generateInvite = async (req, res) => {
 // @access  Private
 const joinWithInvite = async (req, res) => {
   const client = await pool.connect();
-  
+
   try {
     const { inviteCode, role = 'MEMBER' } = req.body;
     const userId = req.user.user_id;
@@ -250,9 +250,78 @@ const deactivateInvite = async (req, res) => {
   }
 };
 
+const { sendInviteEmail } = require('../utils/emailService');
+
+// @desc    Send email invitation
+// @route   POST /api/invites/:chamaId/send
+// @access  Private (Officials only)
+const sendInvite = async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const { chamaId } = req.params;
+    const { email } = req.body;
+    const inviterName = `${req.user.first_name} ${req.user.last_name}`;
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    // Check if user already exists
+    const userCheck = await client.query('SELECT user_id FROM users WHERE email = $1', [email]);
+    if (userCheck.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'This user is already registered on ChamaSmart. Search for them by email to add them directly.',
+        isRegistered: true
+      });
+    }
+
+    // Generate Invite Code (reuse logic or create new one specific for this email)
+    // For simplicity, we generate a general use one or one-time use
+    const inviteCode = generateInviteCode();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
+
+    await client.query(
+      `INSERT INTO chama_invites (chama_id, invite_code, created_by, max_uses, expires_at)
+       VALUES ($1, $2, $3, 1, $4)`,
+      [chamaId, inviteCode, req.user.user_id, expiresAt]
+    );
+
+    // Get Chama Name
+    const chamaRes = await client.query('SELECT chama_name FROM chamas WHERE chama_id = $1', [chamaId]);
+    const chamaName = chamaRes.rows[0].chama_name;
+
+    // Send Email
+    // Construct Link: For local dev, frontend is at localhost:5173
+    // In prod, use env var.
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const inviteLink = `${frontendUrl}/join?code=${inviteCode}`;
+
+    await sendInviteEmail(email, inviteLink, chamaName, inviterName);
+
+    res.json({
+      success: true,
+      message: `Invitation sent to ${email}`
+    });
+
+  } catch (error) {
+    console.error('Send invite error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send invitation',
+      error: error.message
+    });
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   generateInvite,
   joinWithInvite,
   getChamaInvites,
-  deactivateInvite
+  deactivateInvite,
+  sendInvite
 };

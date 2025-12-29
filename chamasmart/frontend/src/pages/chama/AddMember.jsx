@@ -1,6 +1,7 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { chamaAPI, memberAPI, userAPI } from "../../services/api";
+import { chamaAPI, memberAPI, userAPI, inviteAPI } from "../../services/api";
 
 
 const AddMember = () => {
@@ -16,9 +17,11 @@ const AddMember = () => {
   const [foundUser, setFoundUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [inviteLoading, setInviteLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [searchError, setSearchError] = useState("");
+  const [showInviteOption, setShowInviteOption] = useState(false);
 
   useEffect(() => {
     fetchChama();
@@ -47,6 +50,7 @@ const AddMember = () => {
     setSearching(true);
     setSearchError("");
     setFoundUser(null);
+    setShowInviteOption(false);
     setFormData(prev => ({ ...prev, userId: "" }));
 
     try {
@@ -55,11 +59,33 @@ const AddMember = () => {
       setFormData(prev => ({ ...prev, userId: response.data.data.user_id }));
     } catch (err) {
       const msg = err.response?.status === 404
-        ? "User not found. Ensure they have registered with ChamaSmart."
+        ? "User not found."
         : "Error searching user.";
       setSearchError(msg);
+      if (err.response?.status === 404) {
+        setShowInviteOption(true);
+      }
     } finally {
       setSearching(false);
+    }
+  };
+
+  const handleInvite = async () => {
+    if (!searchQuery.includes('@')) {
+      alert("Please enter a valid email address to send an invitation.");
+      return;
+    }
+
+    setInviteLoading(true);
+    try {
+      await inviteAPI.send(id, searchQuery);
+      setSuccess("Invitation sent to " + searchQuery + "!");
+      setSearchError("");
+      setShowInviteOption(false);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to send invitation");
+    } finally {
+      setInviteLoading(false);
     }
   };
 
@@ -78,7 +104,7 @@ const AddMember = () => {
     try {
       await memberAPI.add(id, formData);
 
-      setSuccess(`Successfully added ${foundUser.first_name} to the chama!`);
+      setSuccess("Successfully added " + foundUser.first_name + " to the chama!");
 
       // Reset form
       setFormData({ userId: "", role: "MEMBER" });
@@ -87,7 +113,7 @@ const AddMember = () => {
 
       // Redirect after 2 seconds
       setTimeout(() => {
-        navigate(`/chamas/${id}`);
+        navigate("/chamas/" + id);
       }, 2000);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to add member");
@@ -106,7 +132,7 @@ const AddMember = () => {
           </div>
           <button
             className="btn btn-outline btn-sm"
-            onClick={() => navigate(`/chamas/${id}`)}
+            onClick={() => navigate("/chamas/" + id)}
           >
             ← Back to Chama
           </button>
@@ -140,7 +166,24 @@ const AddMember = () => {
                 {searching ? "Searching..." : "Search"}
               </button>
             </div>
-            {searchError && <small className="text-danger">{searchError}</small>}
+            {searchError && (
+              <div style={{ marginTop: '10px' }}>
+                <small className="text-danger d-block mb-2">{searchError}</small>
+                {showInviteOption && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span className="text-muted">User not on ChamaSmart?</span>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline"
+                      onClick={handleInvite}
+                      disabled={inviteLoading}
+                    >
+                      {inviteLoading ? "Sending Invite..." : "Invite " + searchQuery + " via Email"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {foundUser && (
@@ -181,7 +224,7 @@ const AddMember = () => {
               <button
                 type="button"
                 className="btn btn-outline"
-                onClick={() => navigate(`/chamas/${id}`)}
+                onClick={() => navigate("/chamas/" + id)}
               >
                 Cancel
               </button>
