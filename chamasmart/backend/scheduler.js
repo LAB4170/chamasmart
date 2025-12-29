@@ -1,11 +1,12 @@
 const cron = require('node-cron');
 const pool = require('./config/db');
 const { v4: uuidv4 } = require('uuid');
+const logger = require('./utils/logger');
 
 const initScheduler = () => {
     // Run every day at midnight
     cron.schedule('0 0 * * *', async () => {
-        console.log('Running daily penalty check...');
+        logger.info('Running daily penalty check...');
         await checkAndApplyPenalties();
     });
 
@@ -72,18 +73,24 @@ const checkAndApplyPenalties = async () => {
             // ... Implementation to be fleshed out ...
             // For now, logging to ensure it runs without crashing
             if (cycles.rows.length > 0) {
-                // console.log(`Checking penalties for ${cycles.rows.length} cycles`);
+                logger.debug(`Checking penalties for ${cycles.rows.length} cycles`);
             }
 
             await client.query('COMMIT');
         } catch (dbError) {
             await client.query('ROLLBACK');
-            console.error('Database error in penalty scheduler:', dbError.message);
+            logger.error('Database error in penalty scheduler', {
+                error: dbError.message,
+                stack: dbError.stack,
+            });
         } finally {
             client.release();
         }
     } catch (fatalError) {
-        console.error('FATAL error in penalty scheduler (Connection/System):', fatalError.message);
+        logger.error('FATAL error in penalty scheduler (Connection/System)', {
+            error: fatalError.message,
+            stack: fatalError.stack,
+        });
     }
 };
 

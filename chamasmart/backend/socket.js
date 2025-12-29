@@ -1,15 +1,17 @@
 const socketIo = require("socket.io");
 const jwt = require("jsonwebtoken");
+const { socketCorsOptions } = require("./config/cors");
+const logger = require("./utils/logger");
 
 let io;
 
 module.exports = {
     init: (httpServer) => {
         io = socketIo(httpServer, {
-            cors: {
-                origin: "*", // Adjust for production
-                methods: ["GET", "POST"]
-            }
+            cors: socketCorsOptions,
+            transports: ['websocket', 'polling'],
+            pingTimeout: 60000,
+            pingInterval: 25000,
         });
 
         // JWT Authentication Middleware for Socket.io
@@ -29,39 +31,51 @@ module.exports = {
             }
         });
 
-        console.log("WebSocket initialized with JWT security");
+        logger.info("WebSocket initialized with JWT security and CORS protection");
 
         const activeUsers = new Set();
 
         io.on("connection", (socket) => {
             const userId = socket.userId;
-            console.log(`New client connected: ${socket.id} (User: ${userId})`);
+            logger.debug(`New client connected`, { socketId: socket.id, userId });
 
             if (userId) {
                 socket.join(`user_${userId}`);
                 activeUsers.add(userId);
                 io.emit("presence_update", Array.from(activeUsers));
-                console.log(`User ${userId} joined their personal room. Active: ${activeUsers.size}`);
+                logger.debug(`User joined personal room`, {
+                    userId,
+                    activeUsersCount: activeUsers.size
+                });
             }
 
             // Basic authentication could be added here via middleware
 
             socket.on("join_chama", (chamaId) => {
                 socket.join(`chama_${chamaId}`);
-                console.log(`Client ${socket.id} joined chama group: ${chamaId}`);
+                logger.debug(`Client joined chama group`, {
+                    socketId: socket.id,
+                    chamaId
+                });
             });
 
             socket.on("leave_chama", (chamaId) => {
                 socket.leave(`chama_${chamaId}`);
-                console.log(`Client ${socket.id} left chama group: ${chamaId}`);
+                logger.debug(`Client left chama group`, {
+                    socketId: socket.id,
+                    chamaId
+                });
             });
 
             socket.on("disconnect", () => {
-                console.log(`Client disconnected: ${socket.id}`);
+                logger.debug(`Client disconnected`, { socketId: socket.id });
                 if (userId) {
                     activeUsers.delete(userId);
                     io.emit("presence_update", Array.from(activeUsers));
-                    console.log(`User ${userId} disconnected. Active: ${activeUsers.size}`);
+                    logger.debug(`User disconnected`, {
+                        userId,
+                        activeUsersCount: activeUsers.size
+                    });
                 }
             });
         });

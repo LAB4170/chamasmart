@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "C:\\Users\\lewis\\Desktop\\chamasmart\\backend\\logs\\.9a3006e815453e48c26d4c0bee6e7a2c88020ee4-audit.json",
+    "files": [
+        {
+            "date": 1767018935652,
+            "name": "C:\\Users\\lewis\\Desktop\\chamasmart\\backend\\logs\\exceptions-2025-12-29.log",
+            "hash": "43e9a98cb5a88460b5399b38cce9759f4cc4bd27cea199945c603e6f500cd858"
+        }
+    ],
+    "hashType": "sha256"
+}

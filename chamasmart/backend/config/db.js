@@ -1,6 +1,8 @@
 const { Pool } = require("pg");
 require("dotenv").config();
 
+const logger = require("../utils/logger");
+
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
@@ -15,18 +17,57 @@ const pool = new Pool({
 // Test connection on startup
 pool.connect((err, client, release) => {
   if (err) {
-    console.error("⚠️ Error connecting to PostgreSQL (will retry):", err.message);
-    // Do not exit process, allow pool to retry internally or requests to fail gracefully
+    logger.error("Error connecting to PostgreSQL (will retry)", {
+      error: err.message,
+      host: process.env.DB_HOST,
+      database: process.env.DB_NAME,
+    });
     return;
   }
-  console.log("✅ PostgreSQL connected successfully");
+  logger.info("PostgreSQL connected successfully", {
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    maxConnections: 20,
+  });
   release();
 });
 
 // Handle pool errors
 pool.on("error", (err) => {
-  console.error("❌ Unexpected error on idle PostgreSQL client", err);
+  logger.error("Unexpected error on idle PostgreSQL client", {
+    error: err.message,
+    stack: err.stack,
+  });
   process.exit(-1);
 });
+
+// Instrumented query method for metrics
+const originalQuery = pool.query.bind(pool);
+pool.query = async (...args) => {
+  const start = Date.now();
+  const queryText = typeof args[0] === 'string' ? args[0] : args[0].text;
+
+  try {
+    const result = await originalQuery(...args);
+    const duration = Date.now() - start;
+
+    // Log slow queries
+    if (duration > 1000) {
+      logger.warn('Slow database query detected', {
+        query: queryText.substring(0, 200),
+        duration: `${duration}ms`,
+        rowCount: result.rowCount,
+      });
+    }
+
+    return result;
+  } catch (error) {
+    logger.error('Database query error', {
+      query: queryText.substring(0, 200),
+      error: error.message,
+    });
+    throw error;
+  }
+};
 
 module.exports = pool;

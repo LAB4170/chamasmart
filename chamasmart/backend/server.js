@@ -2,9 +2,19 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
-const morgan = require("morgan");
 const path = require("path");
 require("dotenv").config();
+
+// Import new logging and security modules
+const logger = require("./utils/logger");
+const { requestLogger } = require("./middleware/requestLogger");
+const { corsOptions } = require("./config/cors");
+const {
+  metricsMiddleware,
+  metricsEndpoint,
+  healthCheckEndpoint,
+  readinessCheckEndpoint
+} = require("./middleware/metrics");
 require("./config/db"); // Initialize DB connection
 
 const app = express();
@@ -31,23 +41,19 @@ const authLimiter = rateLimit({
 });
 app.use("/api/auth", authLimiter);
 
-// Logging
-if (process.env.NODE_ENV === "development") {
-  app.use(morgan("dev"));
-}
+// Logging with Winston
+app.use(requestLogger);
 
 // Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Debug logging middleware
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
-  next();
-});
+// Metrics middleware
+app.use(metricsMiddleware);
+
+// REMOVED: Insecure debug logging that exposed sensitive data
+// Logging is now handled by requestLogger middleware with sanitization
 
 // API Routes
 app.use("/api/auth", require("./routes/auth"));
@@ -61,23 +67,13 @@ app.use("/api/payouts", require("./routes/payouts"));
 app.use("/api/rosca", require("./routes/roscaRoutes"));
 app.use("/api/users", require("./routes/users"));
 
-// Health check endpoint
-app.get("/api/health", (req, res) => {
-  res.status(200).json({ status: "UP", message: "Server is healthy" });
-});
+// Health and readiness endpoints
+app.get("/api/health", healthCheckEndpoint);
+app.get("/api/ready", readinessCheckEndpoint);
+app.get("/metrics", metricsEndpoint);
+
 app.use("/api/join-requests", require("./routes/joinRequests"));
 app.use("/api/notifications", require("./routes/notifications"));
-
-
-// API Health check route
-app.get("/api/health", (req, res) => {
-  res.json({
-    success: true,
-    message: "ChamaSmart API is running!",
-    version: "1.0.0",
-    timestamp: new Date().toISOString(),
-  });
-});
 
 // Serve static files from the React app build directory
 // Serve static files from the React app build directory
@@ -97,35 +93,50 @@ if (process.env.NODE_ENV === "production") {
 }
 
 // Global error handler
-// Global error handler
 app.use((err, req, res, next) => {
-  console.error("❌ Global Error Handler:", err.stack);
+  // Log error with context
+  logger.logError(err, {
+    method: req.method,
+    url: req.url,
+    userId: req.user?.user_id,
+    ip: req.ip,
+  });
 
-  // Try to log to file, but don't crash if it fails
-  try {
-    const logPath = path.join(__dirname, 'global_errors.txt');
-    require('fs').appendFileSync(logPath, `[${new Date().toISOString()}] Global Error: ${err.stack}\n`);
-  } catch (logErr) {
-    console.error("Failed to write to log file:", logErr.message);
-  }
-
-  res.status(err.status || 500).json({
+  // Send appropriate response
+  const statusCode = err.status || err.statusCode || 500;
+  const response = {
     success: false,
     message: err.message || "Internal server error",
-    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
-  });
+  };
+
+  // Include stack trace only in development
+  if (process.env.NODE_ENV === "development") {
+    response.stack = err.stack;
+  }
+
+  res.status(statusCode).json(response);
 });
 
 // Handle unhandled promise rejections
-process.on("unhandledRejection", (err) => {
-  console.error("❌ Unhandled Rejection:", err);
-  // Optional: process.exit(1);
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error("Unhandled Rejection", {
+    reason: reason instanceof Error ? reason.message : reason,
+    stack: reason instanceof Error ? reason.stack : undefined,
+    promise: promise.toString(),
+  });
 });
 
 // Handle uncaught exceptions
 process.on("uncaughtException", (err) => {
-  console.error("❌ Uncaught Exception:", err);
-  // Optional: process.exit(1);
+  logger.error("Uncaught Exception - shutting down", {
+    error: err.message,
+    stack: err.stack,
+  });
+
+  // Give logger time to write, then exit
+  setTimeout(() => {
+    process.exit(1);
+  }, 1000);
 });
 
 // Start server
@@ -142,41 +153,48 @@ socket.init(server);
 try {
   const { initScheduler } = require('./scheduler');
   initScheduler();
-  console.log('✅ Penalty Scheduler initialized');
+  logger.info('Penalty Scheduler initialized');
 } catch (schedulerErr) {
-  console.error('❌ Failed to initialize scheduler:', schedulerErr.message);
+  logger.error('Failed to initialize scheduler', { error: schedulerErr.message });
 }
 
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📍 Environment: ${process.env.NODE_ENV}`);
-  console.log(`🔗 API URL: http://localhost:${PORT}`);
+  logger.info('Server started', {
+    port: PORT,
+    environment: process.env.NODE_ENV,
+    nodeVersion: process.version,
+    pid: process.pid,
+  });
+
+  logger.info(`API URL: http://localhost:${PORT}`);
+  logger.info(`Metrics available at: http://localhost:${PORT}/metrics`);
+  logger.info(`Health check at: http://localhost:${PORT}/api/health`);
 });
 
 // Graceful shutdown logic
 const shutdown = async (signal) => {
-  console.log(`\nReceived ${signal}. Starting graceful shutdown...`);
+  logger.info(`Received ${signal}. Starting graceful shutdown...`);
 
   // Close HTTP server (and Socket.io connections)
   server.close(() => {
-    console.log("HTTP server closed.");
+    logger.info("HTTP server closed");
   });
 
   try {
     // Close Redis connection
     if (redis && typeof redis.quit === 'function') {
       await redis.quit();
-      console.log("Redis connection closed.");
+      logger.info("Redis connection closed");
     }
 
     // Close database pool
     await pool.end();
-    console.log("PostgreSQL pool has ended.");
+    logger.info("PostgreSQL pool has ended");
 
-    console.log("Graceful shutdown complete. Exiting.");
+    logger.info("Graceful shutdown complete. Exiting.");
     process.exit(0);
   } catch (err) {
-    console.error("Error during shutdown:", err.message);
+    logger.error("Error during shutdown", { error: err.message });
     process.exit(1);
   }
 };
