@@ -23,10 +23,13 @@
     "bcryptjs": "^3.0.3",
     "bull": "^4.16.5",
     "cors": "^2.8.5",
+    "crypto-js": "^4.2.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^7.1.5",
-    "helmet": "^7.1.0",
+    "helmet": "^7.2.0",
+    "hpp": "^0.2.3",
     "ioredis": "^5.8.2",
     "joi": "^17.9.2",
     "jsonwebtoken": "^9.0.3",
@@ -41,7 +44,8 @@
     "socket.io": "^4.8.1",
     "socket.io-redis": "^6.1.1",
     "winston": "^3.19.0",
-    "winston-daily-rotate-file": "^5.0.0"
+    "winston-daily-rotate-file": "^5.0.0",
+    "xss-clean": "^0.1.4"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
