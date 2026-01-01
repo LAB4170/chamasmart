@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const pool = require("../config/db");
+const logger = require("../utils/logger");
 const {
   isValidEmail,
   isValidPhone,
@@ -17,8 +18,8 @@ const generateToken = (id) => {
 
 
 const register = async (req, res) => {
+  const isDev = process.env.NODE_ENV !== "production";
   try {
-    console.log("Registration request body:", req.body); // Debug log
     const { email, password, firstName, lastName, phoneNumber, nationalId } =
       req.body;
 
@@ -111,11 +112,20 @@ const register = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Register error:", error);
+    logger.logError(error, {
+      context: "auth_register",
+      email: req.body?.email,
+    });
+
+    const isDev = process.env.NODE_ENV !== "production";
+    const message = isDev
+      ? `Error registering user: ${error.message}`
+      : "Internal server error";
+
     res.status(500).json({
       success: false,
-      message: "Error registering user: " + error.message,
-      error: error.message,
+      message,
+      ...(isDev && { error: error.message }),
     });
   }
 };
@@ -124,7 +134,7 @@ const register = async (req, res) => {
 // @route   POST /api/auth/login
 // @access  Public
 const login = async (req, res) => {
-  console.log('Login attempt with data:', { email: req.body.email });
+  const isDev = process.env.NODE_ENV !== "production";
   try {
     const { email, password } = req.body;
 
@@ -153,9 +163,7 @@ const login = async (req, res) => {
     const user = result.rows[0];
 
     // Check password
-    console.log('Checking password for user ID:', user.user_id);
     const isMatch = await bcrypt.compare(password, user.password_hash);
-    console.log('Password match result:', isMatch);
 
     if (!isMatch) {
       return res.status(401).json({
@@ -182,16 +190,19 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Login error details:', {
-      error: error.message,
-      stack: error.stack,
-      email: req.body.email,
-      timestamp: new Date().toISOString()
+    logger.logError(error, {
+      context: "auth_login",
+      email: req.body?.email,
     });
+
+    const message = isDev
+      ? `Error logging in: ${error.message}`
+      : "Internal server error";
+
     res.status(500).json({
       success: false,
-      message: "Error logging in: " + error.message,
-      error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      message,
+      ...(isDev && { error: error.stack }),
     });
   }
 };

@@ -38,7 +38,6 @@ pool.on("error", (err) => {
     error: err.message,
     stack: err.stack,
   });
-  process.exit(-1);
 });
 
 // Instrumented query method for metrics

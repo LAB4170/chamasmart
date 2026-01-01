@@ -188,15 +188,15 @@ const Home = () => {
 
             <div className="feature-card">
               <div className="feature-icon">🔒</div>
-              <h3>Bank-Level Security</h3>
+              <h3>Strong Security Practices</h3>
               <p>
-                Your financial data is protected with enterprise-grade security.
-                Rest assured that your chama's information is safe and secure.
+                Your financial data is protected with secure authentication,
+                role-based access control, and detailed logging and monitoring.
               </p>
               <ul className="feature-list">
-                <li>End-to-end encryption</li>
-                <li>Secure data storage</li>
-                <li>Regular security audits</li>
+                <li>JWT-based authentication</li>
+                <li>Role-based access control</li>
+                <li>Sanitized logging and metrics</li>
               </ul>
             </div>
 

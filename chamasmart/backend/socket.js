@@ -54,14 +54,15 @@ module.exports = {
 
         // JWT Authentication Middleware for Socket.io
         io.use((socket, next) => {
-            const token = socket.handshake.auth.token || socket.handshake.headers.authorization;
+            const token =
+                socket.handshake.auth.token || socket.handshake.headers.authorization;
 
             if (!token) {
                 logger.warn("Socket connection without token", {
                     socketId: socket.id,
                     ip: socket.handshake.address,
                 });
-                return next();
+                return next(new Error("Authentication error"));
             }
 
             try {
@@ -96,17 +97,27 @@ module.exports = {
                 metrics.socketConnections.inc();
             }
 
+            if (!userId) {
+                logger.warn("Unauthenticated socket connection rejected", {
+                    socketId: socket.id,
+                    ip: socket.handshake.address,
+                });
+                if (metrics?.socketConnections) {
+                    metrics.socketConnections.dec();
+                }
+                socket.disconnect(true);
+                return;
+            }
+
             logger.debug(`New client connected`, { socketId: socket.id, userId });
 
-            if (userId) {
-                socket.join(`user_${userId}`);
-                activeUsers.add(userId);
-                io.emit("presence_update", Array.from(activeUsers));
-                logger.debug(`User joined personal room`, {
-                    userId,
-                    activeUsersCount: activeUsers.size
-                });
-            }
+            socket.join(`user_${userId}`);
+            activeUsers.add(userId);
+            io.emit("presence_update", Array.from(activeUsers));
+            logger.debug(`User joined personal room`, {
+                userId,
+                activeUsersCount: activeUsers.size
+            });
 
             // Join chama room
             socket.on("join_chama", (chamaId) => {

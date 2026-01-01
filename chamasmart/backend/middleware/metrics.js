@@ -141,6 +141,31 @@ const metricsMiddleware = (req, res, next) => {
 // Metrics endpoint handler
 const metricsEndpoint = async (req, res) => {
     try {
+        const requiredToken = process.env.METRICS_AUTH_TOKEN;
+        const isProduction = process.env.NODE_ENV === 'production';
+
+        // Optional protection: when METRICS_AUTH_TOKEN is set in production,
+        // require clients to provide it via the X-Metrics-Token header.
+        if (isProduction && requiredToken) {
+            const providedToken = req.headers['x-metrics-token'];
+
+            if (!providedToken || providedToken !== requiredToken) {
+                if (logger.logSecurityEvent) {
+                    logger.logSecurityEvent('METRICS_UNAUTHORIZED_ACCESS', {
+                        ip: req.ip,
+                        userAgent: req.get('user-agent'),
+                    });
+                } else {
+                    logger.warn('Unauthorized access to /metrics', {
+                        ip: req.ip,
+                        userAgent: req.get('user-agent'),
+                    });
+                }
+
+                return res.status(403).end('Forbidden');
+            }
+        }
+
         res.set('Content-Type', register.contentType);
         const metrics = await register.metrics();
         res.end(metrics);

@@ -1,5 +1,6 @@
 const Redis = require("ioredis");
 require("dotenv").config();
+const logger = require("../utils/logger");
 
 let redis;
 
@@ -7,14 +8,14 @@ if (process.env.REDIS_URL) {
     redis = new Redis(process.env.REDIS_URL);
 
     redis.on("connect", () => {
-        console.log("✅ Redis connected successfully");
+        logger.info("Redis connected successfully");
     });
 
     redis.on("error", (err) => {
-        console.error("❌ Redis connection error:", err);
+        logger.error("Redis connection error", { error: err.message });
     });
 } else {
-    console.warn("⚠️ REDIS_URL not found, falling back to in-memory cache (NodeCache)");
+    logger.warn("REDIS_URL not found, falling back to in-memory cache (NodeCache)");
     // Fallback logic could go here, or we just export null/dummy
     const NodeCache = require("node-cache");
     const nodeCache = new NodeCache({ stdTTL: 300 });

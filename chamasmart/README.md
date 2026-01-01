@@ -98,6 +98,10 @@ DB_PORT=5432
 JWT_SECRET=your_jwt_secret
 JWT_EXPIRE=7d
 NODE_ENV=development
+# Optional: protect /metrics in production with a shared token
+# When set (and NODE_ENV=production), requests to /metrics must send:
+#   X-Metrics-Token: $METRICS_AUTH_TOKEN
+METRICS_AUTH_TOKEN=
 ```
 
 ### Database Schema
@@ -114,6 +118,21 @@ The application uses PostgreSQL with the following main tables:
 - `loan_repayments` - Loan repayment tracking
 
 ## 🛠️ Development
+
+### Running focused backend tests
+
+From the project root you can run only the security-related backend tests:
+
+```bash
+# Metrics endpoint protection tests
+npm test -- backend/tests/metrics.test.js
+
+# Auth error-handling tests (production vs non-production)
+npm test -- backend/tests/authErrors.test.js
+
+# Socket.io auth tests (unauthenticated connections are rejected)
+npm test -- backend/tests/socketAuth.test.js
+```
 
 ### Project Structure
 
