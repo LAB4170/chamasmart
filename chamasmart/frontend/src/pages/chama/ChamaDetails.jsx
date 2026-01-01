@@ -577,6 +577,15 @@ const ChamaDetails = () => {
                 <div className="info-item"><span className="info-label">Contribution</span><span className="info-value">{formatCurrency(chama.contribution_amount)}</span></div>
                 <div className="info-item"><span className="info-label">Frequency</span><span className="info-value">{chama.contribution_frequency}</span></div>
                 <div className="info-item"><span className="info-label">Created</span><span className="info-value">{formatDate(chama.created_at)}</span></div>
+                <div className="info-item">
+                  <span className="info-label">Invite Code</span>
+                  <span className="info-value">
+                    <span className="badge badge-primary" style={{ fontSize: '1rem', letterSpacing: '1px' }}>
+                      {chama.invite_code || "N/A"}
+                    </span>
+                  </span>
+                </div>
+                <div className="info-item"><span className="info-label">Visibility</span><span className="info-value">{chama.visibility}</span></div>
               </div>
               {chama.description && (
                 <div className="mt-3">
@@ -745,24 +754,44 @@ const ChamaDetails = () => {
                           </span>
                         </div>
                         {officialStatus && (
-                          <button
-                            className="btn btn-success"
-                            onClick={() => {
-                              if (window.confirm(`Confirm payout of ${formatCurrency(activeCycle.contribution_amount * members.length)} to ${getCurrentRecipient().first_name}?`)) {
-                                roscaAPI.processPayout(activeCycle.cycle_id, {
-                                  position: roster.find(r => r.user_id === getCurrentRecipient().user_id).position,
-                                  payment_proof: "MANUAL_DISBURSEMENT"
-                                }).then(() => {
-                                  alert("Payout processed successfully!");
-                                  fetchChamaData();
-                                }).catch(err => {
-                                  alert(err.response?.data?.message || "Payout failed");
-                                });
-                              }
-                            }}
-                          >
-                            Disburse Funds
-                          </button>
+                          <div className="flex-gap">
+                            <button
+                              className="btn btn-success"
+                              onClick={() => {
+                                if (window.confirm(`Confirm payout of ${formatCurrency(activeCycle.contribution_amount * members.length)} to ${getCurrentRecipient().first_name}?`)) {
+                                  roscaAPI.processPayout(activeCycle.cycle_id, {
+                                    position: roster.find(r => r.user_id === getCurrentRecipient().user_id).position,
+                                    payment_proof: "MANUAL_DISBURSEMENT"
+                                  }).then(() => {
+                                    alert("Payout processed successfully!");
+                                    fetchChamaData();
+                                  }).catch(err => {
+                                    alert(err.response?.data?.message || "Payout failed");
+                                  });
+                                }
+                              }}
+                            >
+                              Disburse Funds
+                            </button>
+                            <button
+                              className="btn btn-danger btn-outline ml-2"
+                              onClick={() => {
+                                if (window.confirm("Are you sure you want to delete this cycle? This action cannot be undone and will remove all roster and payment history for this cycle.")) {
+                                  roscaAPI.deleteCycle(activeCycle.cycle_id)
+                                    .then(() => {
+                                      alert("Cycle deleted successfully.");
+                                      fetchChamaData();
+                                    })
+                                    .catch(err => {
+                                      console.error(err);
+                                      alert(err.response?.data?.message || "Failed to delete cycle");
+                                    });
+                                }
+                              }}
+                            >
+                              🗑️ Delete Cycle
+                            </button>
+                          </div>
                         )}
                       </div>
                     )}
@@ -1108,7 +1137,7 @@ const ChamaDetails = () => {
                         <div className="cycle-stat">
                           <span className="stat-label">Current Cycle</span>
                           <span className="stat-value">
-                            {cycle?.cycleNumber || 1}
+                            {activeCycle?.cycle_number || activeCycle?.cycleNumber || 1}
                           </span>
                         </div>
                         <div className="cycle-stat">

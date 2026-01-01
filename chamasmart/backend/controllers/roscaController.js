@@ -31,7 +31,7 @@ const createCycle = async (req, res) => {
         // Check if user is admin/treasurer of the chama
         const chamaCheck = await client.query(
             `SELECT 1 FROM chama_members 
-             WHERE chama_id = $1 AND user_id = $2 AND (role = 'ADMIN' OR role = 'TREASURER')`,
+             WHERE chama_id = $1 AND user_id = $2 AND role IN ('CHAIRPERSON', 'TREASURER', 'SECRETARY')`,
             [chama_id, userId]
         );
 
@@ -688,6 +688,68 @@ const getSwapRequests = async (req, res) => {
     }
 };
 
+
+
+/**
+ * @desc    Delete a ROSCA cycle
+ * @route   DELETE /api/rosca/cycles/:cycleId
+ * @access  Private (Admin/Officials)
+ */
+const deleteCycle = async (req, res) => {
+    const client = await pool.connect();
+    const { cycleId } = req.params;
+    const userId = req.user.user_id;
+
+    try {
+        await client.query('BEGIN');
+
+        // Verify cycle exists
+        const cycleResult = await client.query(
+            "SELECT * FROM rosca_cycles WHERE cycle_id = $1",
+            [cycleId]
+        );
+
+        if (cycleResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: 'Cycle not found' });
+        }
+
+        const cycle = cycleResult.rows[0];
+
+        // Check authorization (Officials of the chama)
+        const authCheck = await client.query(
+            `SELECT 1 FROM chama_members 
+             WHERE chama_id = $1 AND user_id = $2 AND role IN ('CHAIRPERSON', 'TREASURER', 'SECRETARY')`,
+            [cycle.chama_id, userId]
+        );
+
+        if (authCheck.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ success: false, message: 'Not authorized to delete this cycle' });
+        }
+
+        // Delete related data (CASCADE usually handles this, but explicit for safety)
+        await client.query("DELETE FROM rosca_swap_requests WHERE cycle_id = $1", [cycleId]);
+        await client.query("DELETE FROM rosca_roster WHERE cycle_id = $1", [cycleId]);
+        await client.query("DELETE FROM rosca_cycles WHERE cycle_id = $1", [cycleId]);
+
+        await client.query('COMMIT');
+
+        // Clear caches
+        cache.del(`rosca_cycles_${cycle.chama_id}`);
+        cache.del(`rosca_roster_${cycleId}`);
+
+        res.json({ success: true, message: 'Cycle deleted successfully' });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Delete cycle error:', error);
+        res.status(500).json({ success: false, message: 'Error deleting cycle' });
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
     createCycle,
     getChamaCycles,
@@ -695,5 +757,6 @@ module.exports = {
     processPayout,
     requestPositionSwap,
     respondToSwapRequest,
-    getSwapRequests
+    getSwapRequests,
+    deleteCycle
 };

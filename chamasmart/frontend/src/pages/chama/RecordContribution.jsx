@@ -110,6 +110,11 @@ const RecordContribution = () => {
         {error && <div className="alert alert-error">{error}</div>}
         {success && <div className="alert alert-success">{success}</div>}
 
+        <div className="alert alert-info mb-4">
+          <strong>How this works:</strong> Use this form to manually record a payment (cash, M-Pesa, etc.) received from a member.
+          This will update their total contribution balance and appear in the financial reports.
+        </div>
+
         <div className="card">
           <form onSubmit={handleSubmit}>
             <div className="form-group">

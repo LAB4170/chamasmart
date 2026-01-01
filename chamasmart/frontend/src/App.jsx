@@ -16,6 +16,7 @@ const Dashboard = lazy(() => import("./pages/dashboard/Dashboard"));
 const CreateChama = lazy(() => import("./pages/chama/CreateChama"));
 const ChamaDetails = lazy(() => import("./pages/chama/ChamaDetails"));
 const RecordContribution = lazy(() => import("./pages/chama/RecordContribution"));
+const ManageChama = lazy(() => import("./pages/chama/ManageChama"));
 const AddMember = lazy(() => import("./pages/chama/AddMember"));
 const MyChamas = lazy(() => import("./pages/chama/MyChamas"));
 const InviteManagement = lazy(() => import("./pages/chama/InviteManagement"));
@@ -373,6 +374,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <MyJoinRequests />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chamas/:id/manage"
+                  element={
+                    <ProtectedRoute>
+                      <ManageChama />
                     </ProtectedRoute>
                   }
                 />

@@ -19,6 +19,8 @@ router.route('/chama/:chamaId/cycles')
     .get(authorize('MEMBER'), getChamaCycles)
     .post(authorize('ADMIN', 'TREASURER'), createCycle);
 
+router.delete('/cycles/:cycleId', authorize('ADMIN', 'TREASURER'), require('../controllers/roscaController').deleteCycle);
+
 // Cycle roster
 router.get('/cycles/:cycleId/roster', authorize('MEMBER'), getCycleRoster);
 
@@ -32,8 +34,8 @@ router.route('/cycles/:cycleId/swap-request')
 router.route('/swap-requests')
     .get(authorize('MEMBER'), getSwapRequests);
 
-router.put('/swap-requests/:requestId/respond', 
-    authorize('MEMBER'), 
+router.put('/swap-requests/:requestId/respond',
+    authorize('MEMBER'),
     respondToSwapRequest
 );
 

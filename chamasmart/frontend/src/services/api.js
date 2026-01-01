@@ -140,6 +140,7 @@ export const roscaAPI = {
   getSwapRequests: () => api.get('/rosca/swap-requests'),
   respondToSwap: (requestId, action) => api.put(`/rosca/swap-requests/${requestId}/respond`, { action }),
   processPayout: (cycleId, payoutData) => api.post(`/rosca/cycles/${cycleId}/payout`, payoutData),
+  deleteCycle: (cycleId) => api.delete(`/rosca/cycles/${cycleId}`),
 };
 
 // User API calls

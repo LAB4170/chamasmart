@@ -14,6 +14,6 @@ router.get('/my-requests', protect, getMyRequests);
 
 // Official routes
 router.get('/:chamaId', protect, isOfficial, getJoinRequests);
-router.put('/:requestId/respond', protect, isOfficial, respondToRequest);
+router.put('/:requestId/respond', protect, respondToRequest);
 
 module.exports = router;

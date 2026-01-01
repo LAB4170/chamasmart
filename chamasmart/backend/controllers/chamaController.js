@@ -166,12 +166,15 @@ const createChama = async (req, res) => {
       });
     }
 
+    // Generate simple 6-char invite code
+    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
     // Create chama
     const chamaResult = await client.query(
       `INSERT INTO chamas 
        (chama_name, chama_type, description, contribution_amount, contribution_frequency, 
-        meeting_day, meeting_time, created_by, total_members, visibility)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, $9)
+        meeting_day, meeting_time, created_by, total_members, visibility, invite_code)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, $9, $10)
        RETURNING *`,
       [
         chamaName,
@@ -183,6 +186,7 @@ const createChama = async (req, res) => {
         meetingTime,
         req.user.user_id,
         visibility,
+        inviteCode
       ]
     );
 
@@ -231,6 +235,7 @@ const updateChama = async (req, res) => {
       contributionFrequency,
       meetingDay,
       meetingTime,
+      visibility,
       constitution_config,
     } = req.body;
 
@@ -275,6 +280,16 @@ const updateChama = async (req, res) => {
       updates.push(`meeting_time = $${paramCount++}`);
       values.push(meetingTime);
     }
+    if (visibility) {
+      if (!['PUBLIC', 'PRIVATE'].includes(visibility)) {
+        return res.status(400).json({
+          success: false,
+          message: "Visibility must be PUBLIC or PRIVATE",
+        });
+      }
+      updates.push(`visibility = $${paramCount++}`);
+      values.push(visibility);
+    }
     if (constitution_config) {
       updates.push(`constitution_config = $${paramCount++}`);
       values.push(constitution_config); // Pass as JSON object, pg handles it
@@ -287,7 +302,6 @@ const updateChama = async (req, res) => {
       });
     }
 
-    updates.push(`updated_at = CURRENT_TIMESTAMP`);
     values.push(chamaId);
 
     const query = `UPDATE chamas SET ${updates.join(
