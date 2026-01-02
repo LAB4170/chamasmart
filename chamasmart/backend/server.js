@@ -59,6 +59,15 @@ const roscaLimiter = rateLimit({
 });
 app.use("/api/rosca", roscaLimiter);
 
+// Loans-specific rate limiting (protect lending engine from abuse)
+const loansLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // 60 requests/min per IP for /api/loans
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api/loans", loansLimiter);
+
 // Logging with Winston
 app.use(requestLogger);
 

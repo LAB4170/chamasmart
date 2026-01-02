@@ -110,10 +110,22 @@ export const inviteAPI = {
 
 // Loan API calls
 export const loanAPI = {
+  // Core flows
   apply: (chamaId, loanData) => api.post(`/loans/${chamaId}/apply`, loanData),
   getAll: (chamaId) => api.get(`/loans/${chamaId}`),
   approve: (loanId, status) => api.put(`/loans/${loanId}/approve`, { status }),
-  repay: (loanId, amount) => api.post(`/loans/${loanId}/repay`, { amount }),
+  repay: (loanId, payload) => api.post(`/loans/${loanId}/repay`, payload),
+
+  // Table Banking configuration
+  getConfig: (chamaId) => api.get(`/loans/${chamaId}/config`),
+  updateConfig: (chamaId, config) => api.put(`/loans/${chamaId}/config`, config),
+
+  // Guarantor flows
+  getGuarantors: (loanId) => api.get(`/loans/${loanId}/guarantors`),
+  respondGuarantor: (loanId, decision) =>
+    api.post(`/loans/${loanId}/guarantors/respond`, { decision }),
+  getMyGuarantees: () => api.get('/loans/my/guarantees'),
+  exportReport: (chamaId) => api.get(`/loans/${chamaId}/report`, { responseType: 'blob' }),
 };
 
 // Payout API calls

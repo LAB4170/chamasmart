@@ -30,6 +30,7 @@ const ProcessPayout = lazy(() => import("./pages/chama/ProcessPayout"));
 const BrowseChamas = lazy(() => import("./pages/chama/BrowseChamas"));
 const JoinRequests = lazy(() => import("./pages/chama/JoinRequests"));
 const MyJoinRequests = lazy(() => import("./pages/chama/MyJoinRequests"));
+const MyGuarantees = lazy(() => import("./pages/loans/MyGuarantees"));
 
 // Loading component
 import LoadingSpinner from "./components/LoadingSpinner";
@@ -376,6 +377,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <MyJoinRequests />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/my-guarantees"
+                  element={
+                    <ProtectedRoute>
+                      <MyGuarantees />
                     </ProtectedRoute>
                   }
                 />

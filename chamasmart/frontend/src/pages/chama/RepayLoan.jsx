@@ -46,8 +46,15 @@ const RepayLoan = () => {
         setLoading(true);
 
         try {
-            const response = await loanAPI.repay(loanId, amount);
-            setSuccess(`Repayment recorded successfully! Loan status: ${response.data.loanStatus}`);
+            const response = await loanAPI.repay(loanId, { amount });
+            const status = response.data.status || response.data.loanStatus;
+            const components = response.data.components || {};
+            setSuccess(
+                `Repayment recorded successfully! Loan status: ${status}. ` +
+                (components.principal || components.interest || components.penalty
+                    ? `Breakdown - Principal: KES ${Number(components.principal || 0).toFixed(2)}, Interest: KES ${Number(components.interest || 0).toFixed(2)}, Penalty: KES ${Number(components.penalty || 0).toFixed(2)}.`
+                    : "")
+            );
 
             setTimeout(() => {
                 navigate(`/chamas/${id}/loans`);
@@ -194,6 +201,9 @@ const RepayLoan = () => {
                             />
                             <small className="text-muted">
                                 Maximum: {formatCurrency(getRemainingAmount())}
+                            </small>
+                            <small className="text-muted" style={{ display: 'block', marginTop: '0.25rem' }}>
+                                Repayments are allocated to penalties, then interest, then principal.
                             </small>
                         </div>
 

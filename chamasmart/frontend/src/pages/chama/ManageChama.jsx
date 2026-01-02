@@ -15,8 +15,11 @@ const ManageChama = () => {
         meetingDay: "",
         meetingTime: "",
     });
+    const [loanConfig, setLoanConfig] = useState(null);
+    const [chamaType, setChamaType] = useState(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [savingLoanConfig, setSavingLoanConfig] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
 
@@ -28,6 +31,25 @@ const ManageChama = () => {
         try {
             const response = await chamaAPI.getById(id);
             const data = response.data.data;
+
+            setChamaType(data.chama_type);
+            if (data.constitution_config && data.constitution_config.loan) {
+                setLoanConfig({
+                    interest_rate: data.constitution_config.loan.interest_rate ?? 10,
+                    interest_type: data.constitution_config.loan.interest_type ?? "FLAT",
+                    loan_multiplier: data.constitution_config.loan.loan_multiplier ?? 3,
+                    max_repayment_months: data.constitution_config.loan.max_repayment_months ?? 6,
+                    max_concurrent_loans: data.constitution_config.loan.max_concurrent_loans ?? 1,
+                });
+            } else {
+                setLoanConfig({
+                    interest_rate: 10,
+                    interest_type: "FLAT",
+                    loan_multiplier: 3,
+                    max_repayment_months: 6,
+                    max_concurrent_loans: 1,
+                });
+            }
 
             // Parse meeting string: "1st Saturday (Physical) at Westlands"
             let type = "PHYSICAL";
@@ -96,6 +118,34 @@ const ManageChama = () => {
             setError(err.response?.data?.message || "Failed to update chama");
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleLoanConfigChange = (e) => {
+        if (!loanConfig) return;
+        setLoanConfig({
+            ...loanConfig,
+            [e.target.name]: e.target.name === 'interest_rate' || e.target.name === 'loan_multiplier'
+                ? parseFloat(e.target.value || 0)
+                : e.target.name === 'max_repayment_months' || e.target.name === 'max_concurrent_loans'
+                    ? parseInt(e.target.value || 0, 10)
+                    : e.target.value,
+        });
+    };
+
+    const handleSaveLoanConfig = async (e) => {
+        e.preventDefault();
+        if (!loanConfig) return;
+        setSavingLoanConfig(true);
+        setError("");
+        setSuccess("");
+        try {
+            await loanAPI.updateConfig(id, loanConfig);
+            setSuccess("Loan configuration updated successfully!");
+        } catch (err) {
+            setError(err.response?.data?.message || "Failed to update loan configuration");
+        } finally {
+            setSavingLoanConfig(false);
         }
     };
 
@@ -258,6 +308,105 @@ const ManageChama = () => {
                         </div>
                     </form>
                 </div>
+
+                {chamaType === 'TABLE_BANKING' && loanConfig && (
+                    <div className="container container-sm" style={{ marginTop: '2rem' }}>
+                        <div className="card">
+                            <div className="card-header">
+                                <h2>Table Banking Loan Settings</h2>
+                                <p className="text-muted text-sm">
+                                    Configure interest, limits, and concurrency for this chama's lending engine.
+                                </p>
+                            </div>
+                            <form onSubmit={handleSaveLoanConfig}>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label className="form-label">Interest Type</label>
+                                        <select
+                                            name="interest_type"
+                                            className="form-select"
+                                            value={loanConfig.interest_type}
+                                            onChange={handleLoanConfigChange}
+                                        >
+                                            <option value="FLAT">Flat Rate</option>
+                                            <option value="REDUCING">Reducing Balance (per month)</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Interest Rate (%)</label>
+                                        <input
+                                            type="number"
+                                            name="interest_rate"
+                                            className="form-input"
+                                            min="0.1"
+                                            max="100"
+                                            step="0.1"
+                                            value={loanConfig.interest_rate}
+                                            onChange={handleLoanConfigChange}
+                                            required
+                                        />
+                                        <small className="text-muted">
+                                            For FLAT, this is total % over the loan; for REDUCING, monthly % rate.
+                                        </small>
+                                    </div>
+                                </div>
+
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label className="form-label">Loan Multiplier (x Savings)</label>
+                                        <input
+                                            type="number"
+                                            name="loan_multiplier"
+                                            className="form-input"
+                                            min="1"
+                                            max="10"
+                                            step="0.1"
+                                            value={loanConfig.loan_multiplier}
+                                            onChange={handleLoanConfigChange}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Max Repayment Period (months)</label>
+                                        <input
+                                            type="number"
+                                            name="max_repayment_months"
+                                            className="form-input"
+                                            min="1"
+                                            max="60"
+                                            value={loanConfig.max_repayment_months}
+                                            onChange={handleLoanConfigChange}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Max Concurrent Loans per Member</label>
+                                        <input
+                                            type="number"
+                                            name="max_concurrent_loans"
+                                            className="form-input"
+                                            min="1"
+                                            max="5"
+                                            value={loanConfig.max_concurrent_loans}
+                                            onChange={handleLoanConfigChange}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="form-actions mt-4">
+                                    <button
+                                        type="submit"
+                                        className="btn btn-primary"
+                                        disabled={savingLoanConfig}
+                                    >
+                                        {savingLoanConfig ? "Saving..." : "Save Loan Settings"}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

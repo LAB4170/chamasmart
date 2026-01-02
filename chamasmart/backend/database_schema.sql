@@ -103,14 +103,48 @@ CREATE TABLE IF NOT EXISTS loans (
     borrower_id INTEGER REFERENCES users(user_id),
     loan_amount DECIMAL(15, 2) NOT NULL,
     interest_rate DECIMAL(5, 2) NOT NULL,
+    interest_type VARCHAR(20) DEFAULT 'FLAT' CHECK (interest_type IN ('FLAT','REDUCING')),
+    loan_multiplier DECIMAL(10, 2),
     total_repayable DECIMAL(15, 2) NOT NULL,
     amount_paid DECIMAL(15, 2) DEFAULT 0.00,
+    principal_outstanding DECIMAL(15, 2),
+    interest_outstanding DECIMAL(15, 2),
+    penalty_outstanding DECIMAL(15, 2) DEFAULT 0.00,
+    guarantor_coverage DECIMAL(15, 2) DEFAULT 0.00,
     loan_date DATE NOT NULL DEFAULT CURRENT_DATE,
     due_date DATE NOT NULL,
-    status VARCHAR(20) DEFAULT 'ACTIVE' CHECK (status IN ('PENDING', 'ACTIVE', 'PAID', 'DEFAULTED')),
+    term_months INTEGER,
+    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING','PENDING_GUARANTOR','PENDING_APPROVAL','ACTIVE','PAID','COMPLETED','DEFAULTED','CANCELLED')),
     approved_by INTEGER REFERENCES users(user_id),
     purpose TEXT,
+    metadata JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Loan Guarantors Table
+CREATE TABLE IF NOT EXISTS loan_guarantors (
+    id SERIAL PRIMARY KEY,
+    loan_id INTEGER NOT NULL REFERENCES loans(loan_id) ON DELETE CASCADE,
+    guarantor_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    guaranteed_amount DECIMAL(15, 2) NOT NULL,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('PENDING','ACCEPTED','REJECTED')) DEFAULT 'PENDING',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    responded_at TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT unique_loan_guarantor UNIQUE (loan_id, guarantor_id)
+);
+
+-- Loan Installments Table
+CREATE TABLE IF NOT EXISTS loan_installments (
+    id SERIAL PRIMARY KEY,
+    loan_id INTEGER NOT NULL REFERENCES loans(loan_id) ON DELETE CASCADE,
+    due_date DATE NOT NULL,
+    amount DECIMAL(15, 2) NOT NULL,
+    principal_amount DECIMAL(15, 2) NOT NULL,
+    interest_amount DECIMAL(15, 2) NOT NULL,
+    penalty_amount DECIMAL(15, 2) DEFAULT 0.00,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('PENDING','PAID','OVERDUE')) DEFAULT 'PENDING',
+    paid_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Loan Repayments Table
@@ -121,6 +155,10 @@ CREATE TABLE IF NOT EXISTS loan_repayments (
     repayment_date DATE NOT NULL DEFAULT CURRENT_DATE,
     payment_method VARCHAR(50),
     recorded_by INTEGER REFERENCES users(user_id),
+    principal_component DECIMAL(15, 2) DEFAULT 0,
+    interest_component DECIMAL(15, 2) DEFAULT 0,
+    penalty_component DECIMAL(15, 2) DEFAULT 0,
+    source VARCHAR(20) DEFAULT 'CASH' CHECK (source IN ('MPESA','CASH','BANK')),
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -140,6 +178,10 @@ CREATE INDEX IF NOT EXISTS idx_meeting_attendance_meeting_id ON meeting_attendan
 CREATE INDEX IF NOT EXISTS idx_payouts_chama_id ON payouts(chama_id);
 CREATE INDEX IF NOT EXISTS idx_loans_chama_id ON loans(chama_id);
 CREATE INDEX IF NOT EXISTS idx_loan_repayments_loan_id ON loan_repayments(loan_id);
+CREATE INDEX IF NOT EXISTS idx_loan_guarantors_loan ON loan_guarantors(loan_id);
+CREATE INDEX IF NOT EXISTS idx_loan_guarantors_guarantor ON loan_guarantors(guarantor_id, status);
+CREATE INDEX IF NOT EXISTS idx_loan_installments_loan ON loan_installments(loan_id);
+CREATE INDEX IF NOT EXISTS idx_loan_installments_due_status ON loan_installments(due_date, status);
 
 -- Chama Invites Table
 CREATE TABLE IF NOT EXISTS chama_invites (

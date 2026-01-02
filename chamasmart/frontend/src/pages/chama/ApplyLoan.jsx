@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { loanAPI, chamaAPI } from "../../services/api";
 
@@ -7,29 +7,36 @@ const ApplyLoan = () => {
     const navigate = useNavigate();
 
     const [chama, setChama] = useState(null);
+    const [loanConfig, setLoanConfig] = useState(null);
     const [formData, setFormData] = useState({
         amount: "",
         purpose: "",
-        repaymentDate: "",
+        termMonths: "",
     });
     const [loading, setLoading] = useState(false);
     const [pageLoading, setPageLoading] = useState(true);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
 
-    const interestRate = 10; // Default 10%
-
     useEffect(() => {
-        fetchChama();
+        fetchInitialData();
     }, [id]);
 
-    const fetchChama = async () => {
+    const fetchInitialData = async () => {
         try {
             setPageLoading(true);
-            const response = await chamaAPI.getById(id);
-            setChama(response.data.data);
+            const [chamaRes, configRes] = await Promise.all([
+                chamaAPI.getById(id),
+                loanAPI.getConfig(id),
+            ]);
+            setChama(chamaRes.data.data);
+            setLoanConfig(configRes.data.data);
+            setFormData((prev) => ({
+                ...prev,
+                termMonths: String(configRes.data.data.max_repayment_months || 6),
+            }));
         } catch (err) {
-            setError("Failed to load chama data");
+            setError(err.response?.data?.message || "Failed to load loan configuration");
             console.error(err);
         } finally {
             setPageLoading(false);
@@ -43,10 +50,75 @@ const ApplyLoan = () => {
         });
     };
 
-    const calculateTotal = () => {
-        if (!formData.amount) return 0;
-        return parseFloat(formData.amount) * (1 + interestRate / 100);
-    };
+    const numericAmount = useMemo(
+        () => (formData.amount ? parseFloat(formData.amount) : 0),
+        [formData.amount]
+    );
+    const term = useMemo(
+        () => (formData.termMonths ? parseInt(formData.termMonths, 10) : 0),
+        [formData.termMonths]
+    );
+
+    const schedule = useMemo(() => {
+        if (!loanConfig || !numericAmount || !term || term <= 0) return [];
+
+        const type = loanConfig.interest_type || "FLAT";
+        const rate = (loanConfig.interest_rate || 0) / 100;
+        const items = [];
+
+        if (type === "REDUCING") {
+            const monthlyRate = rate;
+            let monthlyPayment;
+            if (monthlyRate > 0) {
+                const r = monthlyRate;
+                const n = term;
+                const pow = Math.pow(1 + r, n);
+                monthlyPayment = (numericAmount * r * pow) / (pow - 1);
+            } else {
+                monthlyPayment = numericAmount / term;
+            }
+
+            let remainingPrincipal = numericAmount;
+            for (let i = 1; i <= term; i++) {
+                const interestRaw = remainingPrincipal * monthlyRate;
+                let interestAmt = Number(interestRaw.toFixed(2));
+                let principalAmt = Number((monthlyPayment - interestAmt).toFixed(2));
+                if (i === term) {
+                    principalAmt = Number(remainingPrincipal.toFixed(2));
+                    monthlyPayment = principalAmt + interestAmt;
+                }
+                remainingPrincipal = Math.max(0, remainingPrincipal - principalAmt);
+                items.push({
+                    month: i,
+                    principal: principalAmt,
+                    interest: interestAmt,
+                    total: Number(monthlyPayment.toFixed(2)),
+                });
+            }
+        } else {
+            const totalInterest = numericAmount * rate;
+            const principalPerMonth = numericAmount / term;
+            const interestPerMonth = totalInterest / term;
+            for (let i = 1; i <= term; i++) {
+                const principal = Number(principalPerMonth.toFixed(2));
+                const interest = Number(interestPerMonth.toFixed(2));
+                items.push({
+                    month: i,
+                    principal,
+                    interest,
+                    total: principal + interest,
+                });
+            }
+        }
+
+        return items;
+    }, [loanConfig, numericAmount, term]);
+
+    const totalInterest = useMemo(
+        () => schedule.reduce((sum, s) => sum + s.interest, 0),
+        [schedule]
+    );
+    const totalRepayable = numericAmount + totalInterest;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -55,7 +127,11 @@ const ApplyLoan = () => {
         setLoading(true);
 
         try {
-            await loanAPI.apply(id, formData);
+            await loanAPI.apply(id, {
+                amount: numericAmount,
+                purpose: formData.purpose,
+                termMonths: term,
+            });
             setSuccess("Loan application submitted successfully!");
 
             setTimeout(() => {
@@ -72,7 +148,7 @@ const ApplyLoan = () => {
         return new Intl.NumberFormat("en-KE", {
             style: "currency",
             currency: "KES",
-        }).format(amount);
+        }).format(amount || 0);
     };
 
     if (pageLoading) {
@@ -143,44 +219,82 @@ const ApplyLoan = () => {
                         </div>
 
                         <div className="form-group">
-                            <label className="form-label">Repayment Date *</label>
+                            <label className="form-label">Repayment Duration (Months) *</label>
                             <input
-                                type="date"
-                                name="repaymentDate"
+                                type="number"
+                                name="termMonths"
                                 className="form-input"
-                                value={formData.repaymentDate}
+                                min="1"
+                                max={loanConfig?.max_repayment_months || 60}
+                                value={formData.termMonths}
                                 onChange={handleChange}
-                                min={new Date().toISOString().split("T")[0]}
                                 required
                             />
+                            {loanConfig && (
+                                <small className="text-muted">
+                                    Max allowed: {loanConfig.max_repayment_months} months
+                                </small>
+                            )}
                         </div>
 
                         {/* Loan Summary */}
-                        {formData.amount && (
+                        {numericAmount > 0 && term > 0 && loanConfig && (
                             <div className="card" style={{ backgroundColor: "#f8f9fa", marginTop: "1rem" }}>
                                 <h4>Loan Summary</h4>
                                 <div className="info-grid">
                                     <div className="info-item">
                                         <span className="info-label">Loan Amount</span>
-                                        <span className="info-value">{formatCurrency(formData.amount)}</span>
+                                        <span className="info-value">{formatCurrency(numericAmount)}</span>
+                                    </div>
+                                    <div className="info-item">
+                                        <span className="info-label">Interest Type</span>
+                                        <span className="info-value">{loanConfig.interest_type}</span>
                                     </div>
                                     <div className="info-item">
                                         <span className="info-label">Interest Rate</span>
-                                        <span className="info-value">{interestRate}%</span>
+                                        <span className="info-value">{loanConfig.interest_rate}%</span>
                                     </div>
                                     <div className="info-item">
                                         <span className="info-label">Interest Amount</span>
                                         <span className="info-value">
-                                            {formatCurrency(parseFloat(formData.amount) * (interestRate / 100))}
+                                            {formatCurrency(totalInterest)}
                                         </span>
                                     </div>
                                     <div className="info-item">
                                         <span className="info-label">Total Repayable</span>
                                         <span className="info-value text-success">
-                                            <strong>{formatCurrency(calculateTotal())}</strong>
+                                            <strong>{formatCurrency(totalRepayable)}</strong>
                                         </span>
                                     </div>
                                 </div>
+
+                                {schedule.length > 0 && (
+                                    <div style={{ marginTop: "1rem" }}>
+                                        <h5>Repayment Schedule (Monthly)</h5>
+                                        <div className="table-responsive">
+                                            <table className="table table-sm">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Month</th>
+                                                        <th>Principal</th>
+                                                        <th>Interest</th>
+                                                        <th>Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {schedule.map((row) => (
+                                                        <tr key={row.month}>
+                                                            <td>{row.month}</td>
+                                                            <td>{formatCurrency(row.principal)}</td>
+                                                            <td>{formatCurrency(row.interest)}</td>
+                                                            <td>{formatCurrency(row.total)}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 

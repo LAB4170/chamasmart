@@ -34,6 +34,9 @@ const Navbar = () => {
               <Link to="/join-chama" className="nav-link">
                 Join Chama
               </Link>
+              <Link to="/my-guarantees" className="nav-link">
+                My Guarantees
+              </Link>
               <NotificationBell />
               <div className="navbar-user">
 
