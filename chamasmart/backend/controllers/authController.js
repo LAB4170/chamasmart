@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const pool = require("../config/db");
 const logger = require("../utils/logger");
 const {
@@ -8,6 +9,7 @@ const {
   normalizePhone,
   isStrongPassword,
 } = require("../utils/validators");
+const nodemailer = require("nodemailer");
 
 // Generate JWT token
 const generateToken = (id) => {
@@ -16,6 +18,61 @@ const generateToken = (id) => {
   });
 };
 
+// Generate a numeric OTP code (e.g. 6 digits)
+const generateOtpCode = (length = 6) => {
+  const digits = "0123456789";
+  let code = "";
+  for (let i = 0; i < length; i++) {
+    const idx = crypto.randomInt(0, digits.length);
+    code += digits[idx];
+  }
+  return code;
+};
+
+// Very simple email transporter; expects SMTP config via env variables
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587,
+  secure: process.env.SMTP_SECURE === "true",
+  auth: process.env.SMTP_USER
+    ? {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      }
+    : undefined,
+});
+
+const sendEmailVerification = async (toEmail, token) => {
+  if (!process.env.SMTP_HOST) {
+    logger.warn("SMTP not configured; skipping email verification send", {
+      context: "auth_sendEmailVerification",
+    });
+    return;
+  }
+
+  const verifyUrl = `${process.env.FRONTEND_BASE_URL || "http://localhost:5173"}/verify-email?token=${encodeURIComponent(
+    token
+  )}`;
+
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM || "no-reply@chamasmart.app",
+    to: toEmail,
+    subject: "Verify your ChamaSmart email",
+    text: `Please verify your email by clicking the link: ${verifyUrl}`,
+    html: `<p>Please verify your email by clicking the link below:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p>`,
+  });
+};
+
+// Placeholder for phone OTP delivery (integrate with SMS provider in production)
+const sendPhoneVerificationCode = async (phoneNumber, code) => {
+  logger.info("Phone verification code generated", {
+    context: "auth_sendPhoneVerificationCode",
+    phoneNumber,
+    // Do NOT log the actual code in production logs; this is for debugging only
+    debug: process.env.NODE_ENV !== "production" ? { code } : undefined,
+  });
+  // TODO: Integrate with SMS/WhatsApp provider (e.g. Africa's Talking, Twilio)
+};
 
 const register = async (req, res) => {
   const isDev = process.env.NODE_ENV !== "production";
@@ -93,12 +150,61 @@ const register = async (req, res) => {
 
     const user = result.rows[0];
 
-    // Generate token
+    // Generate and store email verification token (24h expiry)
+    const emailToken = crypto.randomBytes(24).toString("hex");
+    const emailExpiryHours = parseInt(
+      process.env.EMAIL_VERIFICATION_EXPIRY_HOURS || "24",
+      10
+    );
+
+    await pool.query(
+      `UPDATE users
+       SET email_verification_token = $1,
+           email_verification_expires_at = NOW() + ($2 || ' hours')::INTERVAL,
+           email_verification_last_sent_at = NOW()
+       WHERE user_id = $3`,
+      [emailToken, emailExpiryHours.toString(), user.user_id]
+    );
+
+    // Generate and store phone verification OTP (10 min expiry by default)
+    const phoneCode = generateOtpCode(6);
+    const phoneExpiryMinutes = parseInt(
+      process.env.PHONE_VERIFICATION_EXPIRY_MINUTES || "10",
+      10
+    );
+
+    await pool.query(
+      `UPDATE users
+       SET phone_verification_code = $1,
+           phone_verification_expires_at = NOW() + ($2 || ' minutes')::INTERVAL,
+           phone_verification_attempts = 0,
+           phone_verification_last_sent_at = NOW()
+       WHERE user_id = $3`,
+      [phoneCode, phoneExpiryMinutes.toString(), user.user_id]
+    );
+
+    // Fire-and-forget send of verification channels (errors logged but do not break registration)
+    try {
+      await sendEmailVerification(user.email, emailToken);
+    } catch (sendErr) {
+      logger.logError(sendErr, { context: "auth_sendEmailVerification", email: user.email });
+    }
+
+    try {
+      await sendPhoneVerificationCode(normalizedPhone, phoneCode);
+    } catch (sendErr) {
+      logger.logError(sendErr, {
+        context: "auth_sendPhoneVerificationCode",
+        phoneNumber: normalizedPhone,
+      });
+    }
+
+    // Generate token (we still allow login immediately, but user is marked unverified)
     const token = generateToken(user.user_id);
 
     res.status(201).json({
       success: true,
-      message: "User registered successfully",
+      message: "User registered successfully. Please verify your email and phone.",
       data: {
         user: {
           id: user.user_id,
@@ -107,6 +213,8 @@ const register = async (req, res) => {
           lastName: user.last_name,
           phoneNumber: user.phone_number,
           createdAt: user.created_at,
+          emailVerified: false,
+          phoneVerified: false,
         },
         token,
       },
@@ -172,6 +280,20 @@ const login = async (req, res) => {
       });
     }
 
+    // Require verified email before login when configured (default: true in production)
+    const requireVerifiedEmail =
+      process.env.REQUIRE_VERIFIED_EMAIL === "true" ||
+      (process.env.NODE_ENV === "production" &&
+        process.env.REQUIRE_VERIFIED_EMAIL !== "false");
+
+    if (requireVerifiedEmail && user.email_verified === false) {
+      return res.status(403).json({
+        success: false,
+        message: "Please verify your email address before logging in",
+        code: "EMAIL_NOT_VERIFIED",
+      });
+    }
+
     // Generate token
     const token = generateToken(user.user_id);
 
@@ -225,7 +347,7 @@ const getMe = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get me error:", error);
+    logger.logError(error, { context: "auth_getMe", userId: req.user?.user_id });
     res.status(500).json({
       success: false,
       message: "Error fetching user data",
@@ -233,4 +355,277 @@ const getMe = async (req, res) => {
   }
 };
 
-module.exports = { register, login, getMe };
+// @desc    Verify email using token
+// @route   POST /api/auth/verify-email
+// @access  Public (token-based)
+const verifyEmail = async (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ success: false, message: "Verification token is required" });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT user_id, email_verification_expires_at, email_verified
+       FROM users
+       WHERE email_verification_token = $1`,
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ success: false, message: "Invalid or expired verification token" });
+    }
+
+    const user = result.rows[0];
+
+    if (user.email_verified) {
+      return res.json({ success: true, message: "Email already verified" });
+    }
+
+    if (user.email_verification_expires_at && new Date(user.email_verification_expires_at) < new Date()) {
+      return res.status(400).json({ success: false, message: "Verification token has expired" });
+    }
+
+    await pool.query(
+      `UPDATE users
+       SET email_verified = TRUE,
+           email_verification_token = NULL,
+           email_verification_expires_at = NULL
+       WHERE user_id = $1`,
+      [user.user_id]
+    );
+
+    return res.json({ success: true, message: "Email verified successfully" });
+  } catch (error) {
+    logger.logError(error, { context: "auth_verifyEmail" });
+    return res.status(500).json({ success: false, message: "Error verifying email" });
+  }
+};
+
+// @desc    Resend email verification token (with cooldown)
+// @route   POST /api/auth/resend-email-verification
+// @access  Private
+const resendEmailVerification = async (req, res) => {
+  const userId = req.user.user_id;
+
+  try {
+    const result = await pool.query(
+      `SELECT email, email_verified, email_verification_last_sent_at
+       FROM users
+       WHERE user_id = $1`,
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const user = result.rows[0];
+
+    if (user.email_verified) {
+      return res.json({ success: true, message: "Email already verified" });
+    }
+
+    const cooldownMinutes = parseInt(
+      process.env.EMAIL_VERIFICATION_RESEND_COOLDOWN_MINUTES || "5",
+      10
+    );
+
+    if (user.email_verification_last_sent_at) {
+      const lastSent = new Date(user.email_verification_last_sent_at);
+      const cutoff = new Date(Date.now() - cooldownMinutes * 60 * 1000);
+      if (lastSent > cutoff) {
+        return res.status(429).json({
+          success: false,
+          message: `Please wait ${cooldownMinutes} minutes before requesting another verification email`,
+        });
+      }
+    }
+
+    const emailToken = crypto.randomBytes(24).toString("hex");
+    const emailExpiryHours = parseInt(
+      process.env.EMAIL_VERIFICATION_EXPIRY_HOURS || "24",
+      10
+    );
+
+    await pool.query(
+      `UPDATE users
+       SET email_verification_token = $1,
+           email_verification_expires_at = NOW() + ($2 || ' hours')::INTERVAL,
+           email_verification_last_sent_at = NOW()
+       WHERE user_id = $3`,
+      [emailToken, emailExpiryHours.toString(), userId]
+    );
+
+    try {
+      await sendEmailVerification(user.email, emailToken);
+    } catch (sendErr) {
+      logger.logError(sendErr, {
+        context: "auth_resendEmailVerification",
+        email: user.email,
+      });
+    }
+
+    return res.json({ success: true, message: "Verification email resent" });
+  } catch (error) {
+    logger.logError(error, { context: "auth_resendEmailVerification", userId });
+    return res
+      .status(500)
+      .json({ success: false, message: "Error resending verification email" });
+  }
+};
+
+// @desc    Verify phone using OTP code
+// @route   POST /api/auth/verify-phone
+// @access  Private (requires auth)
+const verifyPhone = async (req, res) => {
+  const { code } = req.body;
+  const userId = req.user.user_id;
+
+  if (!code) {
+    return res.status(400).json({ success: false, message: "Verification code is required" });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT phone_verification_code, phone_verification_expires_at, phone_verification_attempts, phone_verified
+       FROM users
+       WHERE user_id = $1`,
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const user = result.rows[0];
+
+    if (user.phone_verified) {
+      return res.json({ success: true, message: "Phone number already verified" });
+    }
+
+    if (!user.phone_verification_code || !user.phone_verification_expires_at) {
+      return res.status(400).json({ success: false, message: "No active verification code. Please request a new one." });
+    }
+
+    const now = new Date();
+    if (new Date(user.phone_verification_expires_at) < now) {
+      return res.status(400).json({ success: false, message: "Verification code has expired" });
+    }
+
+    if (user.phone_verification_attempts >= 5) {
+      return res.status(429).json({ success: false, message: "Too many incorrect attempts. Please request a new code." });
+    }
+
+    if (code !== user.phone_verification_code) {
+      await pool.query(
+        `UPDATE users
+         SET phone_verification_attempts = phone_verification_attempts + 1
+         WHERE user_id = $1`,
+        [userId]
+      );
+
+      return res.status(400).json({ success: false, message: "Invalid verification code" });
+    }
+
+    await pool.query(
+      `UPDATE users
+       SET phone_verified = TRUE,
+           phone_verification_code = NULL,
+           phone_verification_expires_at = NULL,
+           phone_verification_attempts = 0
+       WHERE user_id = $1`,
+      [userId]
+    );
+
+    return res.json({ success: true, message: "Phone number verified successfully" });
+  } catch (error) {
+    logger.logError(error, { context: "auth_verifyPhone", userId });
+    return res.status(500).json({ success: false, message: "Error verifying phone number" });
+  }
+};
+
+// @desc    Resend phone verification OTP (with cooldown)
+// @route   POST /api/auth/resend-phone-verification
+// @access  Private
+const resendPhoneVerification = async (req, res) => {
+  const userId = req.user.user_id;
+
+  try {
+    const result = await pool.query(
+      `SELECT phone_number, phone_verified, phone_verification_last_sent_at
+       FROM users
+       WHERE user_id = $1`,
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const user = result.rows[0];
+
+    if (user.phone_verified) {
+      return res.json({ success: true, message: "Phone number already verified" });
+    }
+
+    const cooldownMinutes = parseInt(
+      process.env.PHONE_VERIFICATION_RESEND_COOLDOWN_MINUTES || "2",
+      10
+    );
+
+    if (user.phone_verification_last_sent_at) {
+      const lastSent = new Date(user.phone_verification_last_sent_at);
+      const cutoff = new Date(Date.now() - cooldownMinutes * 60 * 1000);
+      if (lastSent > cutoff) {
+        return res.status(429).json({
+          success: false,
+          message: `Please wait ${cooldownMinutes} minutes before requesting another SMS code`,
+        });
+      }
+    }
+
+    const phoneCode = generateOtpCode(6);
+    const phoneExpiryMinutes = parseInt(
+      process.env.PHONE_VERIFICATION_EXPIRY_MINUTES || "10",
+      10
+    );
+
+    await pool.query(
+      `UPDATE users
+       SET phone_verification_code = $1,
+           phone_verification_expires_at = NOW() + ($2 || ' minutes')::INTERVAL,
+           phone_verification_attempts = 0,
+           phone_verification_last_sent_at = NOW()
+       WHERE user_id = $3`,
+      [phoneCode, phoneExpiryMinutes.toString(), userId]
+    );
+
+    try {
+      await sendPhoneVerificationCode(user.phone_number, phoneCode);
+    } catch (sendErr) {
+      logger.logError(sendErr, {
+        context: "auth_resendPhoneVerification",
+        phoneNumber: user.phone_number,
+      });
+    }
+
+    return res.json({ success: true, message: "Verification SMS resent" });
+  } catch (error) {
+    logger.logError(error, { context: "auth_resendPhoneVerification", userId });
+    return res
+      .status(500)
+      .json({ success: false, message: "Error resending phone verification code" });
+  }
+};
+
+module.exports = {
+  register,
+  login,
+  getMe,
+  verifyEmail,
+  verifyPhone,
+  resendEmailVerification,
+  resendPhoneVerification,
+};

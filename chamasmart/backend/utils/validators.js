@@ -4,10 +4,10 @@ const isValidEmail = (email) => {
   return emailRegex.test(email);
 };
 
-// Phone number validation (Kenyan format)
+// Phone number validation (Kenyan mobile format)
 const isValidPhone = (phone) => {
-  // Accepts: +254712345678, 0712345678, 712345678
-  const phoneRegex = /^(\+?254|0)?[17]\d{8}$/;
+  // Accepts: +254712345678, 0712345678, 712345678, +254112345678, 0112345678, 112345678
+  const phoneRegex = /^(?:\+?254|0)?[17]\d{8}$/;
   return phoneRegex.test(phone);
 };
 

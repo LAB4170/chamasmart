@@ -33,6 +33,10 @@ const Login = () => {
       navigate("/dashboard");
     } else {
       setError(result.error);
+      if (result.unverified) {
+        // Redirect unverified users to the account verification screen
+        navigate("/verify-account");
+      }
     }
 
     setLoading(false);

@@ -39,9 +39,70 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem("user", JSON.stringify(newUser));
       setUser(newUser);
 
-      return { success: true };
+      // Surface verification flags so the UI can route to a verify screen
+      return {
+        success: true,
+        user: newUser,
+        token,
+      };
     } catch (err) {
       const message = err.response?.data?.message || "Registration failed";
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const verifyEmail = async (token) => {
+    try {
+      setError(null);
+      const response = await authAPI.verifyEmail({ token });
+      return { success: true, message: response.data.message };
+    } catch (err) {
+      const message = err.response?.data?.message || "Email verification failed";
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const verifyPhone = async (code) => {
+    try {
+      setError(null);
+      const response = await authAPI.verifyPhone({ code });
+      // Optionally update local user state to mark phone as verified
+      if (user) {
+        const updated = { ...user, phoneVerified: true };
+        setUser(updated);
+        localStorage.setItem("user", JSON.stringify(updated));
+      }
+      return { success: true, message: response.data.message };
+    } catch (err) {
+      const message = err.response?.data?.message || "Phone verification failed";
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const resendEmailVerification = async () => {
+    try {
+      setError(null);
+      const response = await authAPI.resendEmailVerification();
+      return { success: true, message: response.data.message };
+    } catch (err) {
+      const message =
+        err.response?.data?.message || "Failed to resend verification email";
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const resendPhoneVerification = async () => {
+    try {
+      setError(null);
+      const response = await authAPI.resendPhoneVerification();
+      return { success: true, message: response.data.message };
+    } catch (err) {
+      const message =
+        err.response?.data?.message || "Failed to resend phone code";
       setError(message);
       return { success: false, error: message };
     }
@@ -61,9 +122,14 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true };
     } catch (err) {
-      const message = err.response?.data?.message || "Login failed";
+      const status = err.response?.status;
+      const apiMessage = err.response?.data?.message;
+      const code = err.response?.data?.code;
+      const message = apiMessage || "Login failed";
+      const unverified = status === 403 && code === "EMAIL_NOT_VERIFIED";
+
       setError(message);
-      return { success: false, error: message };
+      return { success: false, error: message, unverified };
     }
   };
 
@@ -82,6 +148,10 @@ export const AuthProvider = ({ children }) => {
     register,
     login,
     logout,
+    verifyEmail,
+    verifyPhone,
+    resendEmailVerification,
+    resendPhoneVerification,
     isAuthenticated: !!user,
   };
 

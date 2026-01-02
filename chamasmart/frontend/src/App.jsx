@@ -12,6 +12,7 @@ import Navbar from "./components/layout/Navbar";
 // Lazy load all pages for better performance
 const Login = lazy(() => import("./pages/auth/Login"));
 const Register = lazy(() => import("./pages/auth/Register"));
+const VerifyEmailPhone = lazy(() => import("./pages/auth/VerifyEmailPhone"));
 const Dashboard = lazy(() => import("./pages/dashboard/Dashboard"));
 const CreateChama = lazy(() => import("./pages/chama/CreateChama"));
 const ChamaDetails = lazy(() => import("./pages/chama/ChamaDetails"));
@@ -249,6 +250,7 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/verify-account" element={<VerifyEmailPhone />} />
                 <Route
                   path="/dashboard"
                   element={

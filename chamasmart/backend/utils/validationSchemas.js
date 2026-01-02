@@ -14,7 +14,7 @@ const registerSchema = Joi.object({
     firstName: Joi.string().min(2).max(50).required(),
     lastName: Joi.string().min(2).max(50).required(),
     phoneNumber: Joi.string()
-        .pattern(/^(?:\+254|0)?[17]\d{8}$/)
+        .pattern(/^(?:\+?254|0)?[17]\d{8}$/)
         .required()
         .messages({
             "string.pattern.base": "Invalid Kenyan phone number"

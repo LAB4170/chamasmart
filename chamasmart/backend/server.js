@@ -50,6 +50,15 @@ const ascaLimiter = rateLimit({
 });
 app.use("/api/asca", ascaLimiter);
 
+// ROSCA-specific rate limiting (protect merry-go-round endpoints)
+const roscaLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // 60 requests/min per IP for /api/rosca
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api/rosca", roscaLimiter);
+
 // Logging with Winston
 app.use(requestLogger);
 

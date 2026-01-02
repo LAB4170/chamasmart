@@ -48,6 +48,10 @@ export const authAPI = {
   register: (userData) => api.post("/auth/register", userData),
   login: (credentials) => api.post("/auth/login", credentials),
   getMe: () => api.get("/auth/me"),
+  verifyEmail: (payload) => api.post("/auth/verify-email", payload),
+  verifyPhone: (payload) => api.post("/auth/verify-phone", payload),
+  resendEmailVerification: () => api.post("/auth/resend-email-verification"),
+  resendPhoneVerification: () => api.post("/auth/resend-phone-verification"),
 };
 
 // Chama API calls

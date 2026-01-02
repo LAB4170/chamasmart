@@ -71,7 +71,8 @@ const Register = () => {
     });
 
     if (result.success) {
-      navigate("/dashboard");
+      // After registration, redirect user to account verification screen
+      navigate("/verify-account");
     } else {
       setError(result.error);
     }
