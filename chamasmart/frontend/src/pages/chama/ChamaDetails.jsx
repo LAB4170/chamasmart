@@ -523,24 +523,27 @@ const ChamaDetails = () => {
       <div className="page">
         <div className="container">
           <div className="alert alert-error">{error || "Chama not found"}</div>
-          <button className="btn btn-outline" onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
+          <button className="btn btn-outline" onClick={() => navigate("/dashboard")}>
+            Back to Dashboard
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="page">
-      <div className="container">
-        <ChamaHeader
-          chama={chama}
-          userRole={userRole}
-          isROSCA={isROSCA}
-          getChamaTypeLabel={getChamaTypeLabel}
-          onNavigate={navigate}
-          onTabChange={setActiveTab}
-          isOfficial={officialStatus}
-        />
+    <>
+      <div className="page">
+        <div className="container">
+          <ChamaHeader
+            chama={chama}
+            userRole={userRole}
+            isROSCA={isROSCA}
+            getChamaTypeLabel={getChamaTypeLabel}
+            onNavigate={navigate}
+            onTabChange={setActiveTab}
+            isOfficial={officialStatus}
+          />
 
         {stats && (
           <StatsSection
@@ -649,64 +652,26 @@ const ChamaDetails = () => {
                   </div>
                 </div>
               )}
-+
-+              {chama.chama_type === "ASCA" && ascaEquity && (
-+                <div className="mt-3">
-+                  <h4>My Equity in This ASCA</h4>
-+                  <div className="equity-grid">
-+                    <div className="equity-card">
-+                      <div className="equity-label">Total Contributions</div>
-+                      <div className="equity-value">{formatCurrency(ascaEquity.totalAmount)}</div>
-+                    </div>
-+                    <div className="equity-card">
-+                      <div className="equity-label">Total Shares</div>
-+                      <div className="equity-value">{ascaEquity.totalShares.toFixed(2)}</div>
-+                    </div>
-+                    <div className="equity-card">
-+                      <div className="equity-label">Current Share Value</div>
-+                      <div className="equity-value">{formatCurrency(ascaEquity.currentSharePrice || 0)}</div>
-+                    </div>
-+                    <div className="equity-card">
-+                      <div className="equity-label">Estimated Value</div>
-+                      <div className="equity-value highlight">{formatCurrency(ascaEquity.estimatedValue || 0)}</div>
-+                    </div>
-+                  </div>
-+                </div>
-+              )}
-                  <div className="rosca-explanation">
-                    <div className="explanation-item">
-                      <div className="explanation-icon">🔄</div>
-                      <div>
-                        <h5>Cycle Rotation</h5>
-                        <p>
-                          Each member takes turns receiving the full pot amount
-                          while others contribute.
-                        </p>
-                      </div>
+
+              {chama.chama_type === "ASCA" && ascaEquity && (
+                <div className="mt-3">
+                  <h4>My Equity in This ASCA</h4>
+                  <div className="equity-grid">
+                    <div className="equity-card">
+                      <div className="equity-label">Total Contributions</div>
+                      <div className="equity-value">{formatCurrency(ascaEquity.totalAmount)}</div>
                     </div>
-                    <div className="explanation-item">
-                      <div className="explanation-icon">⏰</div>
-                      <div>
-                        <h5>Regular Contributions</h5>
-                        <p>
-                          Members contribute{" "}
-                          {formatCurrency(chama.contribution_amount)}{" "}
-                          {chama.contribution_frequency?.toLowerCase()}.
-                        </p>
-                      </div>
+                    <div className="equity-card">
+                      <div className="equity-label">Total Shares</div>
+                      <div className="equity-value">{ascaEquity.totalShares.toFixed(2)}</div>
                     </div>
-                    <div className="explanation-item">
-                      <div className="explanation-icon">🎯</div>
-                      <div>
-                        <h5>Guaranteed Returns</h5>
-                        <p>
-                          Each member receives{" "}
-                          {formatCurrency(
-                            chama.contribution_amount * members.length
-                          )}{" "}
-                          when their turn comes.
-                        </p>
-                      </div>
+                    <div className="equity-card">
+                      <div className="equity-label">Current Share Value</div>
+                      <div className="equity-value">{formatCurrency(ascaEquity.currentSharePrice || 0)}</div>
+                    </div>
+                    <div className="equity-card">
+                      <div className="equity-label">Estimated Value</div>
+                      <div className="equity-value highlight">{formatCurrency(ascaEquity.estimatedValue || 0)}</div>
                     </div>
                   </div>
                 </div>
@@ -1322,36 +1287,32 @@ const ChamaDetails = () => {
             </div>
           )}
         </div>
+      </div>
 
-        {
-          showCreateCycleModal && (
-            <CreateCycleModal
-              chama={chama}
-              onClose={() => setShowCreateCycleModal(false)}
-              onSuccess={() => {
-                fetchChamaData();
-              }}
-            />
-          )
-        }
+    {showCreateCycleModal && (
+      <CreateCycleModal
+          chama={chama}
+          onClose={() => setShowCreateCycleModal(false)}
+          onSuccess={() => {
+            fetchChamaData();
+          }}
+        />
+      )}
 
-        {
-          showSwapModal && swapTarget && (
-            <SwapRequestModal
-              cycle={activeCycle}
-              targetMember={swapTarget}
-              onClose={() => {
-                setShowSwapModal(false);
-                setSwapTarget(null);
-              }}
-              onSuccess={() => {
-                alert("Swap request sent successfully!");
-              }}
-            />
-          )
-        }
-      </div >
-    </div >
+    {showSwapModal && swapTarget && (
+      <SwapRequestModal
+          cycle={activeCycle}
+          targetMember={swapTarget}
+          onClose={() => {
+            setShowSwapModal(false);
+            setSwapTarget(null);
+          }}
+          onSuccess={() => {
+            alert("Swap request sent successfully!");
+          }}
+        />
+      )}
+    </>
   );
 };
 
