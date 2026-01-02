@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS chamas (
     meeting_time TIME,
     total_members INTEGER DEFAULT 0,
     current_fund DECIMAL(15, 2) DEFAULT 0.00,
+    share_price DECIMAL(10, 2), -- Optional, primarily for ASCA share calculations
     created_by INTEGER REFERENCES users(user_id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT TRUE
@@ -156,3 +157,54 @@ CREATE TABLE IF NOT EXISTS chama_invites (
 CREATE INDEX IF NOT EXISTS idx_invite_code ON chama_invites(invite_code);
 CREATE INDEX IF NOT EXISTS idx_chama_invites ON chama_invites(chama_id);
 
+-- ASCA / Investment tables
+-- Share contributions ledger (per member, per chama)
+CREATE TABLE IF NOT EXISTS asca_share_contributions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
+    chama_id INTEGER REFERENCES chamas(chama_id) ON DELETE CASCADE,
+    amount DECIMAL(15, 2) NOT NULL,
+    number_of_shares DECIMAL(15, 4) NOT NULL,
+    transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_asca_share_contrib_user ON asca_share_contributions(user_id);
+CREATE INDEX IF NOT EXISTS idx_asca_share_contrib_chama ON asca_share_contributions(chama_id);
+
+-- Governance: proposals & votes (can be used for ASCA investment decisions)
+CREATE TABLE IF NOT EXISTS proposals (
+    id SERIAL PRIMARY KEY,
+    chama_id INTEGER REFERENCES chamas(chama_id) ON DELETE CASCADE,
+    created_by INTEGER REFERENCES users(user_id),
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    amount_required DECIMAL(15, 2),
+    deadline TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'active' -- 'approved', 'rejected'
+);
+
+CREATE TABLE IF NOT EXISTS votes (
+    id SERIAL PRIMARY KEY,
+    proposal_id INTEGER REFERENCES proposals(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
+    vote_choice VARCHAR(10) CHECK (vote_choice IN ('YES', 'NO', 'ABSTAIN')),
+    voted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(proposal_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_proposals_chama ON proposals(chama_id);
+CREATE INDEX IF NOT EXISTS idx_votes_proposal ON votes(proposal_id);
+
+-- Asset registry for group-owned assets
+CREATE TABLE IF NOT EXISTS assets (
+    id SERIAL PRIMARY KEY,
+    chama_id INTEGER REFERENCES chamas(chama_id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    purchase_price DECIMAL(15, 2),
+    purchase_date DATE,
+    current_valuation DECIMAL(15, 2),
+    document_url TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_assets_chama ON assets(chama_id);

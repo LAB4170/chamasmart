@@ -148,6 +148,17 @@ export const roscaAPI = {
   deleteCycle: (cycleId) => api.delete(`/rosca/cycles/${cycleId}`),
 };
 
+// ASCA API calls
+export const ascaAPI = {
+  buyShares: (chamaId, payload) => api.post(`/asca/${chamaId}/buy-shares`, payload),
+  getEquity: (chamaId) => api.get(`/asca/${chamaId}/equity`),
+  getProposals: (chamaId) => api.get(`/asca/${chamaId}/proposals`),
+  createProposal: (chamaId, payload) => api.post(`/asca/${chamaId}/proposals`, payload),
+  voteOnProposal: (proposalId, choice) => api.post(`/asca/proposals/${proposalId}/vote`, { choice }),
+  getAssets: (chamaId) => api.get(`/asca/${chamaId}/assets`),
+  createAsset: (chamaId, payload) => api.post(`/asca/${chamaId}/assets`, payload),
+};
+
 // User API calls
 export const userAPI = {
   search: (query) => api.get('/users/search', { params: { query } }),

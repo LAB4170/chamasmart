@@ -1,6 +1,6 @@
 import { useState, useEffect, memo, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { chamaAPI, contributionAPI } from "../../services/api";
+import { chamaAPI, contributionAPI, ascaAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { useSocket } from "../../context/SocketContext";
 import LoadingSkeleton from "../../components/LoadingSkeleton";
@@ -237,6 +237,8 @@ const ChamaDetails = () => {
     late_payment: { enabled: false, amount: 0, grace_period_days: 1 }
   });
   const [constitutionText, setConstitutionText] = useState("");
+  // ASCA equity state
+  const [ascaEquity, setAscaEquity] = useState(null);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -299,6 +301,18 @@ const ChamaDetails = () => {
       setChama(chamaData);
       setMembers(membersData);
       setStats(statsRes.data.data);
+
+      // Load ASCA equity if this is an ASCA chama
+      if (chamaData.chama_type === "ASCA") {
+        try {
+          const equityRes = await ascaAPI.getEquity(id);
+          setAscaEquity(equityRes.data.data);
+        } catch (equityErr) {
+          console.error("Failed to load ASCA equity:", equityErr);
+        }
+      } else {
+        setAscaEquity(null);
+      }
 
       if (chamaData.constitution_config) {
         setConstitutionForm(prev => ({
@@ -597,6 +611,68 @@ const ChamaDetails = () => {
               {isROSCA && (
                 <div className="mt-3">
                   <h4>How ROSCA Works</h4>
+                  <div className="rosca-explanation">
+                    <div className="explanation-item">
+                      <div className="explanation-icon">🔄</div>
+                      <div>
+                        <h5>Cycle Rotation</h5>
+                        <p>
+                          Each member takes turns receiving the full pot amount
+                          while others contribute.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="explanation-item">
+                      <div className="explanation-icon">⏰</div>
+                      <div>
+                        <h5>Regular Contributions</h5>
+                        <p>
+                          Members contribute{" "}
+                          {formatCurrency(chama.contribution_amount)}{" "}
+                          {chama.contribution_frequency?.toLowerCase()}.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="explanation-item">
+                      <div className="explanation-icon">🎯</div>
+                      <div>
+                        <h5>Guaranteed Returns</h5>
+                        <p>
+                          Each member receives{" "}
+                          {formatCurrency(
+                            chama.contribution_amount * members.length
+                          )}{" "}
+                          when their turn comes.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
++
++              {chama.chama_type === "ASCA" && ascaEquity && (
++                <div className="mt-3">
++                  <h4>My Equity in This ASCA</h4>
++                  <div className="equity-grid">
++                    <div className="equity-card">
++                      <div className="equity-label">Total Contributions</div>
++                      <div className="equity-value">{formatCurrency(ascaEquity.totalAmount)}</div>
++                    </div>
++                    <div className="equity-card">
++                      <div className="equity-label">Total Shares</div>
++                      <div className="equity-value">{ascaEquity.totalShares.toFixed(2)}</div>
++                    </div>
++                    <div className="equity-card">
++                      <div className="equity-label">Current Share Value</div>
++                      <div className="equity-value">{formatCurrency(ascaEquity.currentSharePrice || 0)}</div>
++                    </div>
++                    <div className="equity-card">
++                      <div className="equity-label">Estimated Value</div>
++                      <div className="equity-value highlight">{formatCurrency(ascaEquity.estimatedValue || 0)}</div>
++                    </div>
++                  </div>
++                </div>
++              )}
                   <div className="rosca-explanation">
                     <div className="explanation-item">
                       <div className="explanation-icon">🔄</div>

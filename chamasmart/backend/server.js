@@ -23,23 +23,32 @@ const PORT = process.env.PORT || 5000;
 // Security Middleware
 app.use(helmet());
 
-// Rate Limiting
+// Rate Limiting (global safeguard against abuse, tune per deployment)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Increased from 100 to accommodate dashboard requests
+  max: 1000, // Per-IP baseline; for high-scale deployments, adjust or offload to edge WAF/LB
   standardHeaders: true,
   legacyHeaders: false,
 });
 app.use(limiter);
 
-// Auth Rate Limiting (Stricter but usable)
+// Auth Rate Limiting (stricter to protect login endpoints)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Increased from 20 for multiple tabs/testing
+  max: 100,
   message:
     "Too many login attempts from this IP, please try again after 15 minutes",
 });
 app.use("/api/auth", authLimiter);
+
+// ASCA-specific rate limiting (protect heavier investment/governance endpoints)
+const ascaLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // 60 requests/min per IP for /api/asca
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api/asca", ascaLimiter);
 
 // Logging with Winston
 app.use(requestLogger);
@@ -66,6 +75,7 @@ app.use("/api/loans", require("./routes/loans"));
 app.use("/api/payouts", require("./routes/payouts"));
 app.use("/api/rosca", require("./routes/roscaRoutes"));
 app.use("/api/users", require("./routes/users"));
+app.use("/api/asca", require("./routes/asca"));
 
 // Health and readiness endpoints
 app.get("/api/health", healthCheckEndpoint);
@@ -158,49 +168,51 @@ try {
   logger.error('Failed to initialize scheduler', { error: schedulerErr.message });
 }
 
-server.listen(PORT, () => {
-  logger.info('Server started', {
-    port: PORT,
-    environment: process.env.NODE_ENV,
-    nodeVersion: process.version,
-    pid: process.pid,
+if (process.env.NODE_ENV !== "test") {
+  server.listen(PORT, () => {
+    logger.info('Server started', {
+      port: PORT,
+      environment: process.env.NODE_ENV,
+      nodeVersion: process.version,
+      pid: process.pid,
+    });
+
+    logger.info(`API URL: http://localhost:${PORT}`);
+    logger.info(`Metrics available at: http://localhost:${PORT}/metrics`);
+    logger.info(`Health check at: http://localhost:${PORT}/api/health`);
   });
 
-  logger.info(`API URL: http://localhost:${PORT}`);
-  logger.info(`Metrics available at: http://localhost:${PORT}/metrics`);
-  logger.info(`Health check at: http://localhost:${PORT}/api/health`);
-});
+  // Graceful shutdown logic
+  const shutdown = async (signal) => {
+    logger.info(`Received ${signal}. Starting graceful shutdown...`);
 
-// Graceful shutdown logic
-const shutdown = async (signal) => {
-  logger.info(`Received ${signal}. Starting graceful shutdown...`);
+    // Close HTTP server (and Socket.io connections)
+    server.close(() => {
+      logger.info("HTTP server closed");
+    });
 
-  // Close HTTP server (and Socket.io connections)
-  server.close(() => {
-    logger.info("HTTP server closed");
-  });
+    try {
+      // Close Redis connection
+      if (redis && typeof redis.quit === 'function') {
+        await redis.quit();
+        logger.info("Redis connection closed");
+      }
 
-  try {
-    // Close Redis connection
-    if (redis && typeof redis.quit === 'function') {
-      await redis.quit();
-      logger.info("Redis connection closed");
+      // Close database pool
+      await pool.end();
+      logger.info("PostgreSQL pool has ended");
+
+      logger.info("Graceful shutdown complete. Exiting.");
+      process.exit(0);
+    } catch (err) {
+      logger.error("Error during shutdown", { error: err.message });
+      process.exit(1);
     }
+  };
 
-    // Close database pool
-    await pool.end();
-    logger.info("PostgreSQL pool has ended");
-
-    logger.info("Graceful shutdown complete. Exiting.");
-    process.exit(0);
-  } catch (err) {
-    logger.error("Error during shutdown", { error: err.message });
-    process.exit(1);
-  }
-};
-
-process.on("SIGTERM", () => shutdown("SIGTERM"));
-process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
+}
 
 // Export app for testing (supertest)
 module.exports = app;
