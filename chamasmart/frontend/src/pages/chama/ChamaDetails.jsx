@@ -532,7 +532,7 @@ const ChamaDetails = () => {
   }
 
   return (
-    <>
+    <div className="chama-details-root">
       <div className="page">
         <div className="container">
           <ChamaHeader
@@ -1288,9 +1288,10 @@ const ChamaDetails = () => {
           )}
         </div>
       </div>
+      </div>
 
-    {showCreateCycleModal && (
-      <CreateCycleModal
+      {showCreateCycleModal && (
+        <CreateCycleModal
           chama={chama}
           onClose={() => setShowCreateCycleModal(false)}
           onSuccess={() => {
@@ -1299,8 +1300,8 @@ const ChamaDetails = () => {
         />
       )}
 
-    {showSwapModal && swapTarget && (
-      <SwapRequestModal
+      {showSwapModal && swapTarget && (
+        <SwapRequestModal
           cycle={activeCycle}
           targetMember={swapTarget}
           onClose={() => {
@@ -1312,7 +1313,7 @@ const ChamaDetails = () => {
           }}
         />
       )}
-    </>
+    </div>
   );
 };
 

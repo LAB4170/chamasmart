@@ -1,10 +1,10 @@
 const fs = require('fs');
 const path = require('path');
-const pool = require('./config/db');
-const logger = require('./utils/logger');
+const pool = require('../config/db');
+const logger = require('../utils/logger');
 
 async function runMigration() {
-    const migrationFile = path.join(__dirname, 'migrations', '007_performance_optimization.sql');
+const migrationFile = path.join(__dirname, '..', 'migrations', '007_performance_optimization.sql');
 
     try {
         logger.info('Starting database migration: 007_performance_optimization');

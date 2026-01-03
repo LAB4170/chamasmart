@@ -1,4 +1,4 @@
-const pool = require("./config/db");
+const pool = require("../config/db");
 
 async function deleteAllUsers() {
     const client = await pool.connect();

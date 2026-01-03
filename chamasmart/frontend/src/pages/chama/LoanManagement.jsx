@@ -311,7 +311,7 @@ const LoanManagement = () => {
                                             </td>
                                             <td>{formatDate(loan.due_date)}</td>
                                             <td>
-                                                <span className={`badge ${getStatusBadge(loan.status)`}>
+                                                <span className={`badge ${getStatusBadge(loan.status)}`}>
                                                     {normalizedStatus(loan.status)}
                                                 </span>
                                             </td>
