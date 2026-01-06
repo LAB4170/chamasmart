@@ -13,7 +13,7 @@ const {
   metricsMiddleware,
   metricsEndpoint,
   healthCheckEndpoint,
-  readinessCheckEndpoint
+  readinessCheckEndpoint,
 } = require("./middleware/metrics");
 require("./config/db"); // Initialize DB connection
 
@@ -68,13 +68,23 @@ const loansLimiter = rateLimit({
 });
 app.use("/api/loans", loansLimiter);
 
+// Welfare-specific rate limiting
+const welfareLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100, // 100 requests/min per IP for /api/welfare
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many requests, please try again later",
+});
+app.use("/api/welfare", welfareLimiter);
+
 // Logging with Winston
 app.use(requestLogger);
 
 // Middleware
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Metrics middleware
 app.use(metricsMiddleware);
@@ -102,6 +112,7 @@ app.get("/metrics", metricsEndpoint);
 
 app.use("/api/join-requests", require("./routes/joinRequests"));
 app.use("/api/notifications", require("./routes/notifications"));
+app.use("/api/welfare", require("./routes/welfareRoutes"));
 
 // Serve static files from the React app build directory
 // Serve static files from the React app build directory
@@ -179,16 +190,18 @@ socket.init(server);
 
 // Initialize Scheduler (Safely)
 try {
-  const { initScheduler } = require('./scheduler');
+  const { initScheduler } = require("./scheduler");
   initScheduler();
-  logger.info('Penalty Scheduler initialized');
+  logger.info("Penalty Scheduler initialized");
 } catch (schedulerErr) {
-  logger.error('Failed to initialize scheduler', { error: schedulerErr.message });
+  logger.error("Failed to initialize scheduler", {
+    error: schedulerErr.message,
+  });
 }
 
 if (process.env.NODE_ENV !== "test") {
   server.listen(PORT, () => {
-    logger.info('Server started', {
+    logger.info("Server started", {
       port: PORT,
       environment: process.env.NODE_ENV,
       nodeVersion: process.version,
@@ -211,7 +224,7 @@ if (process.env.NODE_ENV !== "test") {
 
     try {
       // Close Redis connection
-      if (redis && typeof redis.quit === 'function') {
+      if (redis && typeof redis.quit === "function") {
         await redis.quit();
         logger.info("Redis connection closed");
       }
