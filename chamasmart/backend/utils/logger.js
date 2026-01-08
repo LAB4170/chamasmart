@@ -38,6 +38,7 @@ const logger = winston.createLogger({
         environment: process.env.NODE_ENV || 'development',
     },
     transports: [
+        /*
         // Error log file with rotation
         new DailyRotateFile({
             filename: path.join(logsDir, 'error-%DATE%.log'),
@@ -56,9 +57,11 @@ const logger = winston.createLogger({
             maxFiles: '14d',
             zippedArchive: true,
         }),
+        */
     ],
 
     // Handle exceptions and rejections
+    /*
     exceptionHandlers: [
         new DailyRotateFile({
             filename: path.join(logsDir, 'exceptions-%DATE%.log'),
@@ -76,14 +79,13 @@ const logger = winston.createLogger({
             maxFiles: '14d',
         }),
     ],
+    */
 });
 
-// Add console transport in development or if explicitly enabled
-if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_CONSOLE_LOGS === 'true') {
-    logger.add(new winston.transports.Console({
-        format: consoleFormat,
-    }));
-}
+// Add console transport ALWAYS for debugging
+logger.add(new winston.transports.Console({
+    format: consoleFormat,
+}));
 
 // Helper methods for common logging patterns
 logger.logRequest = (req, message, meta = {}) => {

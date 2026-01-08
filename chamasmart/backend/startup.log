@@ -1,0 +1,29 @@
+﻿[dotenv@17.2.3] injecting env (9) from .env -- tip: ΓÜÖ∩╕Å  load multiple .env files with { path: ['.env.local', '.env'] }
+Loading modules...
+Logger loaded
+Loading DB...
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ≡ƒöÉ prevent committing .env to code: https://dotenvx.com/precommit
+DB required
+Creating app...
+App created
+Server created
+Applying middleware...
+Request logger applied
+Applying metrics...
+Metrics applied
+Loading routes...
+Auth route loaded
+Chamas route loaded
+Members route loaded
+Contributions route loaded
+Meetings route loaded
+Invites route loaded
+Loans route loaded
+Payouts route loaded
+Rosca route loaded
+Users route loaded
+Asca route loaded
+Join requests route loaded
+Notifications route loaded
+2026-01-08 18:15:34 [[32minfo[39m]: PostgreSQL connected successfully {"service":"chamasmart-api","environment":"development","host":"localhost","database":"chamasmart","maxConnections":20}
+2026-01-08 18:15:34 [[33mwarn[39m]: Redis connection failed multiple times. Disabling distributed rate limiting. {"service":"chamasmart-api","environment":"development"}

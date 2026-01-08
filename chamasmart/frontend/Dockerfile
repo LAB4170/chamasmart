@@ -1,5 +1,5 @@
-# Use Node.js LTS
-FROM node:18-alpine
+# Use Node.js 22
+FROM node:22-alpine
 
 # Set working directory
 WORKDIR /app
@@ -7,8 +7,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Install dependencies with legacy-peer-deps fix
+RUN npm install --legacy-peer-deps
 
 # Copy source code
 COPY . .

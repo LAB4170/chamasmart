@@ -177,19 +177,23 @@ const metricsEndpoint = async (req, res) => {
 
 // Health check endpoint handler
 const healthCheckEndpoint = (req, res) => {
-    const healthcheck = {
-        uptime: process.uptime(),
-        message: 'OK',
-        timestamp: Date.now(),
-        environment: process.env.NODE_ENV,
-        version: process.env.npm_package_version || '1.0.0',
-    };
-
     try {
+        const healthcheck = {
+            uptime: process.uptime(),
+            message: 'OK',
+            timestamp: Date.now(),
+            environment: process.env.NODE_ENV || 'development',
+            version: process.env.npm_package_version || '1.0.0',
+        };
+
         res.status(200).json(healthcheck);
     } catch (error) {
-        healthcheck.message = error.message;
-        res.status(503).json(healthcheck);
+        logger.error('Health check failed:', error);
+        res.status(503).json({
+            uptime: process.uptime(),
+            message: error.message || 'Health check failed',
+            timestamp: Date.now(),
+        });
     }
 };
 

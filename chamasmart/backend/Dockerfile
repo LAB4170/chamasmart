@@ -1,17 +1,14 @@
-# Use Node.js LTS
-FROM node:18-alpine
+# Use Node.js 22
+FROM node:22-alpine
 
-# Create app directory
-WORKDIR /usr/src/app
+# Set working directory
+WORKDIR /app
 
-# Install dependencies
-# A wildcard is used to ensure both package.json AND package-lock.json are copied
+# Copy package files
 COPY package*.json ./
 
-# Install only production dependencies
-# RUN npm ci --only=production
-# For development, we want all dependencies including nodemon
-RUN npm install
+# Install dependencies with legacy-peer-deps fix
+RUN npm install --legacy-peer-deps
 
 # Copy source code
 COPY . .

@@ -14,6 +14,7 @@ const pool = new Pool({
   connectionTimeoutMillis: 60000, // Increased to 60s for slow environments
 });
 
+/*
 // Test connection on startup
 pool.connect((err, client, release) => {
   if (err) {
@@ -31,6 +32,7 @@ pool.connect((err, client, release) => {
   });
   release();
 });
+*/
 
 // Handle pool errors
 pool.on("error", (err) => {

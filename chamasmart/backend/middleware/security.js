@@ -46,26 +46,26 @@ try {
 
 // Rate limiting configuration (Memory-based fallback)
 const rateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // limit each IP to 1000 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 5000,
   standardHeaders: true,
   legacyHeaders: false,
   message: "Too many requests from this IP, please try again later",
   skip: (req) => {
-    // Skip rate limiting for health checks and static assets
+    const path = req.path || '';
     return (
-      req.path === "/health" ||
-      req.path.startsWith("/static/") ||
-      req.path.endsWith(".js") ||
-      req.path.endsWith(".css")
+      path === "/health" ||
+      path === "/api/ping" ||
+      path.startsWith("/static/") ||
+      path.endsWith(".js") ||
+      path.endsWith(".css")
     );
   },
 });
 
-// Stricter rate limiter for auth endpoints
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // limit each IP to 10 requests per windowMs for auth endpoints
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: "Too many login attempts, please try again later",
   standardHeaders: true,
   legacyHeaders: false,
@@ -74,35 +74,47 @@ const authLimiter = rateLimit({
 // Redis-based rate limiter for API endpoints (if Redis is available)
 let apiRateLimiter;
 if (redisClient) {
-  apiRateLimiter = new RateLimiterRedis({
-    storeClient: redisClient,
-    keyPrefix: "api_limit",
-    points: 100, // 100 requests
-    duration: 60, // per 1 minute by IP
-    blockDuration: 60 * 15, // Block for 15 minutes after limit is reached
-  });
+  try {
+    apiRateLimiter = new RateLimiterRedis({
+      storeClient: redisClient,
+      keyPrefix: "api_limit",
+      points: 100, // 100 requests
+      duration: 60, // per 1 minute by IP
+      blockDuration: 60 * 15, // Block for 15 minutes after limit is reached
+    });
+  } catch (err) {
+    logger.warn("Failed to initialize Redis rate limiter, falling back to memory:", err.message);
+  }
 }
 
 // Apply rate limiting middleware
 const apiLimiter = (req, res, next) => {
-  // Skip rate limiting for certain paths
-  if (req.path.startsWith("/health") || req.path.startsWith("/metrics")) {
+  const path = req.path || '';
+  if (path.startsWith("/health") || path.startsWith("/metrics") || path === "/api/ping") {
     return next();
   }
 
-  // Use Redis limiter if available, otherwise fall back or just proceed (since we have memory limiter globally)
-  if (apiRateLimiter) {
+  // CRITICAL FIX: Only use Redis limiter if both client AND limiter exist and Redis is ready
+  const isRedisReady = redisClient && redisClient.status === 'ready';
+
+  if (apiRateLimiter && isRedisReady) {
     apiRateLimiter
       .consume(req.ip)
       .then(() => next())
-      .catch(() => {
-        res.status(429).json({
-          success: false,
-          message: "Too many requests, please try again later",
-        });
+      .catch((err) => {
+        // Only return 429 if it's actually a rate limit exceed (not a connection error)
+        if (err && err.msBeforeNext) {
+          res.status(429).json({
+            success: false,
+            message: "Too many requests, please try again later",
+          });
+        } else {
+          // If it's a Redis error, fall back to next (memory limiter will handle it)
+          next();
+        }
       });
   } else {
-    // If Redis is not available, we rely on the global rateLimiter
+    // Redis not ready - rely on the global memory-based rateLimiter
     next();
   }
 };

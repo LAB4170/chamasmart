@@ -121,12 +121,12 @@ export default defineConfig({
     // Proxy API requests to backend
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:5005',
         changeOrigin: true,
         secure: false,
       },
       '/socket.io': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:5005',
         changeOrigin: true,
         ws: true,
       },
