@@ -4,13 +4,31 @@ const logger = require("./logger");
 const fs = require("fs").promises;
 
 // Initialize Google Cloud Storage
-const storage = new Storage({
-  keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
-  projectId: process.env.GCP_PROJECT_ID,
-});
-
+let storage;
+let bucket;
 const bucketName = process.env.GCS_BUCKET_NAME || "chamasmart-welfare-docs";
-const bucket = storage.bucket(bucketName);
+
+try {
+  storage = new Storage({
+    keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    projectId: process.env.GCP_PROJECT_ID,
+  });
+  bucket = storage.bucket(bucketName);
+} catch (err) {
+  logger.warn("Failed to initialize Google Cloud Storage:", err.message);
+  // Mock storage for dev environment if crucial env vars are missing
+  bucket = {
+    file: () => ({
+      createWriteStream: () => ({
+        on: (event, cb) => {
+          if (event === 'error') setTimeout(() => cb(new Error("GCS not configured")), 10);
+        },
+        end: () => { }
+      }),
+      delete: async () => true
+    })
+  };
+}
 
 /**
  * Uploads a file to Google Cloud Storage

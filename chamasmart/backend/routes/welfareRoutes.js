@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const welfareController = require("../controllers/welfareController");
-const auth = require("../middleware/auth");
+const { protect } = require("../middleware/auth");
 const upload = require("../middleware/upload");
 
 // Middleware to verify user is a member of the chama
@@ -10,16 +10,16 @@ const chamaMember = require("../middleware/chamaMember");
 // Welfare Configuration Routes (Admin only)
 router.get(
   "/:chamaId/config",
-  auth,
+  protect,
   chamaMember,
   welfareController.getWelfareConfig
 );
-router.put("/config/:id", auth, welfareController.updateWelfareConfig);
+router.put("/config/:id", protect, welfareController.updateWelfareConfig);
 
 // Welfare Fund Routes
 router.get(
   "/:chamaId/fund",
-  auth,
+  protect,
   chamaMember,
   welfareController.getWelfareFund
 );
@@ -27,7 +27,7 @@ router.get(
 // Claim Routes
 router.post(
   "/:chamaId/members/:memberId/claims",
-  auth,
+  protect,
   chamaMember,
   upload.single("proof_document"),
   welfareController.submitClaim
@@ -35,19 +35,19 @@ router.post(
 
 router.get(
   "/:chamaId/members/:memberId/claims",
-  auth,
+  protect,
   chamaMember,
   welfareController.getMemberClaims
 );
 
 router.get(
   "/:chamaId/claims",
-  auth,
+  protect,
   chamaMember,
   welfareController.getChamaClaims
 );
 
 // Approval Routes
-router.post("/claims/:claimId/approve", auth, welfareController.approveClaim);
+router.post("/claims/:claimId/approve", protect, welfareController.approveClaim);
 
 module.exports = router;

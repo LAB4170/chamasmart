@@ -9,7 +9,7 @@
     "build": "cd frontend && npm run build",
     "start": "npm run build && cd backend && npm start",
     "setup": "cd backend && node setup-db.js",
-    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install --legacy-peer-deps",
     "test": "npm run test:backend",
     "test:backend": "cd backend && npm test",
     "lint": "cd frontend && npm run lint",

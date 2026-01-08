@@ -6,29 +6,9 @@
     "auditLog": "C:\\Users\\lewis\\Desktop\\chamasmart\\backend\\logs\\.9a3006e815453e48c26d4c0bee6e7a2c88020ee4-audit.json",
     "files": [
         {
-            "date": 1767018935652,
-            "name": "C:\\Users\\lewis\\Desktop\\chamasmart\\backend\\logs\\exceptions-2025-12-29.log",
-            "hash": "43e9a98cb5a88460b5399b38cce9759f4cc4bd27cea199945c603e6f500cd858"
-        },
-        {
-            "date": 1767264250263,
-            "name": "C:\\Users\\lewis\\Desktop\\chamasmart\\backend\\logs\\exceptions-2026-01-01.log",
-            "hash": "7c5ca21d2b8fe471b2fe3c2cd6fa04d2cdc2d806c900588bff683d64963f0b28"
-        },
-        {
-            "date": 1767394715958,
-            "name": "C:\\Users\\lewis\\Desktop\\chamasmart\\backend\\logs\\exceptions-2026-01-03.log",
-            "hash": "2369cbf4991e3b0905f877f5903806694a8b65d0693c78c698b7b9dd74a8e8ea"
-        },
-        {
-            "date": 1767738762740,
-            "name": "C:\\Users\\lewis\\Desktop\\chamasmart\\backend\\logs\\exceptions-2026-01-07.log",
-            "hash": "942b09da06d6c23b9a06bb4102698fe339786b72b260bb79df7c87ffd7b8e85f"
-        },
-        {
-            "date": 1767865146285,
+            "date": 1767868424927,
             "name": "C:\\Users\\lewis\\Desktop\\chamasmart\\backend\\logs\\exceptions-2026-01-08.log",
-            "hash": "98f6701d0df242ff1b26c632ed9007c8c5db292d6283a660a2be22eea1f3ed5b"
+            "hash": "ab162e28e397974ce6451b3e75868be6134d4da54f26687285ec46e7292e0428"
         }
     ],
     "hashType": "sha256"

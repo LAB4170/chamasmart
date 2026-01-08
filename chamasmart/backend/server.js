@@ -76,14 +76,14 @@ app.get("/metrics", metricsEndpoint);
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
-  // Handle SPA routing
-  app.get("*", (req, res) => {
+  // Handle SPA routing - Express 5 compatible catch-all
+  app.get("(.*)", (req, res) => {
     res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
   });
 }
 
-// 404 handler
-app.all("*", (req, res, next) => {
+// 404 handler - Express 5 compatible (using use instead of all("*"))
+app.use((req, res, next) => {
   res.status(404).json({
     status: "fail",
     message: `Can't find ${req.originalUrl} on this server!`,
@@ -155,10 +155,6 @@ const shutdown = (signal) => {
   // Close the server
   server.close(() => {
     logger.info("Server closed");
-
-    // Close database connections here if needed
-    // Example: mongoose.connection.close()
-
     process.exit(0);
   });
 
@@ -175,12 +171,9 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 // Start server
 server.listen(PORT, () => {
   logger.info(
-    `Server running in ${process.env.NODE_ENV || "development"
-    } mode on port ${PORT}`
+    `Server running in ${process.env.NODE_ENV || "development"} mode on port ${PORT}`
   );
   logger.info(`API URL: http://localhost:${PORT}`);
-  logger.info(`Metrics available at: http://localhost:${PORT}/metrics`);
-  logger.info(`Health check at: http://localhost:${PORT}/health`);
 });
 
 // Export app for testing (supertest)
