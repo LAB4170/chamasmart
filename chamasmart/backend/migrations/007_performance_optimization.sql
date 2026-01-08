@@ -7,17 +7,15 @@
 -- ============================================================================
 
 -- Contributions: Most common queries filter by chama_id and date
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_contributions_chama_date 
-ON contributions(chama_id, contribution_date DESC) 
-WHERE contribution_date >= CURRENT_DATE - INTERVAL '2 years';
+CREATE INDEX IF NOT EXISTS idx_contributions_chama_date 
+ON contributions(chama_id, contribution_date DESC);
 
 -- Contributions: User contribution history
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_contributions_user_date 
-ON contributions(user_id, contribution_date DESC)
-WHERE contribution_date >= CURRENT_DATE - INTERVAL '2 years';
+CREATE INDEX IF NOT EXISTS idx_contributions_user_date 
+ON contributions(user_id, contribution_date DESC);
 
 -- Contributions: Amount-based queries (for analytics)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_contributions_amount 
+CREATE INDEX IF NOT EXISTS idx_contributions_amount 
 ON contributions(chama_id, amount, contribution_date DESC);
 
 -- ============================================================================
@@ -25,22 +23,22 @@ ON contributions(chama_id, amount, contribution_date DESC);
 -- ============================================================================
 
 -- Only index active chama members (reduces index size by ~50%)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_chama_members_active 
+CREATE INDEX IF NOT EXISTS idx_chama_members_active 
 ON chama_members(chama_id, user_id, role) 
 WHERE is_active = true;
 
 -- Only index active chamas
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_chamas_active 
+CREATE INDEX IF NOT EXISTS idx_chamas_active 
 ON chamas(chama_id, chama_type, created_at DESC) 
 WHERE is_active = true;
 
 -- Only index pending/active loans
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_loans_active 
+CREATE INDEX IF NOT EXISTS idx_loans_active 
 ON loans(chama_id, borrower_id, status, due_date) 
 WHERE status IN ('PENDING', 'ACTIVE');
 
 -- Only index pending payouts
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_payouts_pending 
+CREATE INDEX IF NOT EXISTS idx_payouts_pending 
 ON payouts(chama_id, user_id, payout_date) 
 WHERE status = 'PENDING';
 
@@ -49,12 +47,12 @@ WHERE status = 'PENDING';
 -- ============================================================================
 
 -- Chama members with role information (avoids table lookup)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_chama_members_covering 
+CREATE INDEX IF NOT EXISTS idx_chama_members_covering 
 ON chama_members(chama_id, user_id) 
 INCLUDE (role, join_date, total_contributions, is_active);
 
 -- Meetings with total collected (for dashboard queries)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_meetings_covering 
+CREATE INDEX IF NOT EXISTS idx_meetings_covering 
 ON meetings(chama_id, meeting_date DESC) 
 INCLUDE (total_collected, recorded_by);
 
@@ -63,7 +61,7 @@ INCLUDE (total_collected, recorded_by);
 -- ============================================================================
 
 -- Constitution config for searching by rules
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_chamas_constitution_gin 
+CREATE INDEX IF NOT EXISTS idx_chamas_constitution_gin 
 ON chamas USING GIN (constitution_config);
 
 -- ============================================================================
@@ -71,28 +69,26 @@ ON chamas USING GIN (constitution_config);
 -- ============================================================================
 
 -- Ensure all foreign keys have indexes for JOIN performance
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_contributions_recorded_by 
+CREATE INDEX IF NOT EXISTS idx_contributions_recorded_by 
 ON contributions(recorded_by);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_loans_approved_by 
+CREATE INDEX IF NOT EXISTS idx_loans_approved_by 
 ON loans(approved_by);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_loan_repayments_recorded_by 
+CREATE INDEX IF NOT EXISTS idx_loan_repayments_recorded_by 
 ON loan_repayments(recorded_by);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_meetings_recorded_by 
+CREATE INDEX IF NOT EXISTS idx_meetings_recorded_by 
 ON meetings(recorded_by);
 
 -- ============================================================================
 -- EXPRESSION INDEXES FOR COMMON CALCULATIONS
 -- ============================================================================
 
--- Index on month/year for monthly aggregations
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_contributions_month_year 
-ON contributions(chama_id, DATE_TRUNC('month', contribution_date));
+
 
 -- Index on outstanding loan amount
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_loans_outstanding 
+CREATE INDEX IF NOT EXISTS idx_loans_outstanding 
 ON loans(chama_id, (total_repayable - amount_paid)) 
 WHERE status = 'ACTIVE';
 
@@ -169,7 +165,7 @@ CREATE UNIQUE INDEX ON mv_user_statistics(user_id);
 CREATE OR REPLACE FUNCTION refresh_chama_statistics()
 RETURNS void AS $$
 BEGIN
-    REFRESH MATERIALIZED VIEW CONCURRENTLY mv_chama_statistics;
+    REFRESH MATERIALIZED VIEW mv_chama_statistics;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -177,7 +173,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION refresh_user_statistics()
 RETURNS void AS $$
 BEGIN
-    REFRESH MATERIALIZED VIEW CONCURRENTLY mv_user_statistics;
+    REFRESH MATERIALIZED VIEW mv_user_statistics;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -207,10 +203,7 @@ ANALYZE payouts;
 -- VACUUM TABLES TO RECLAIM SPACE
 -- ============================================================================
 
-VACUUM ANALYZE users;
-VACUUM ANALYZE chamas;
-VACUUM ANALYZE chama_members;
-VACUUM ANALYZE contributions;
+
 
 -- ============================================================================
 -- COMMENTS FOR DOCUMENTATION

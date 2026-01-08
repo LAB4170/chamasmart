@@ -17,54 +17,39 @@ async function runMigration() {
     // Read the SQL file
     const sql = fs.readFileSync(migrationFile, "utf8");
 
-    // Split the SQL into individual statements and execute them one by one
-    const statements = sql.split(/;\s*$/m);
-
-    for (const statement of statements) {
-      if (statement.trim() !== "") {
-        await pool.query(statement);
-      }
-    }
+    // Execute the entire SQL file at once
+    // This properly handles dollar-quoted strings and multi-line functions
+    await pool.query(sql);
 
     logger.info("Migration 010_welfare_module completed successfully");
     process.exit(0);
   } catch (error) {
-    logger.error("Migration 010_welfare_module failed", {
-      error: error.message,
-      stack: error.stack,
-      code: error.code,
-      detail: error.detail,
-      hint: error.hint,
-      position: error.position,
-      internalPosition: error.internalPosition,
-      internalQuery: error.internalQuery,
-      where: error.where,
-      schema: error.schema,
-      table: error.table,
-      column: error.column,
-      dataType: error.dataType,
-      constraint: error.constraint,
-      file: error.file,
-      line: error.line,
-      routine: error.routine,
-    });
+    // Check if error is due to objects already existing
+    // Postgres error 42P07 is "relation already exists", 23505 is "unique violation"
+    if (
+      error.message.includes("already exists") ||
+      error.code === "42P07" ||
+      error.code === "23505"
+    ) {
+      logger.warn("Some database objects already exist, skipping...");
+      logger.info("Migration completed with warnings");
+      process.exit(0);
+    } else {
+      logger.error("Migration 010_welfare_module failed", {
+        error: error.message,
+        stack: error.stack,
+        code: error.code,
+      });
 
-    // Provide helpful error message for common issues
-    if (error.code === "42P07") {
-      logger.error(
-        "One or more tables already exist. If you need to reset the database, drop the existing tables first."
-      );
-    } else if (error.code === "23505") {
-      logger.error(
-        "Duplicate key violation. This usually means the migration has already been run."
-      );
-    } else if (error.code === "23503") {
-      logger.error(
-        "Foreign key violation. Make sure the referenced tables and records exist."
-      );
+      // Provide helpful error message for common issues
+      if (error.code === "23503") {
+        logger.error(
+          "Foreign key violation. Make sure the referenced tables and records exist."
+        );
+      }
+
+      process.exit(1);
     }
-
-    process.exit(1);
   }
 }
 

@@ -5,7 +5,7 @@
 -- Create welfare_config table
 CREATE TABLE IF NOT EXISTS welfare_config (
     id SERIAL PRIMARY KEY,
-    chama_id INTEGER NOT NULL REFERENCES chamas(id) ON DELETE CASCADE,
+    chama_id INTEGER NOT NULL REFERENCES chamas(chama_id) ON DELETE CASCADE,
     event_type VARCHAR(100) NOT NULL,
     description TEXT,
     payout_amount DECIMAL(15, 2) NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS welfare_config (
 -- Create welfare_fund table
 CREATE TABLE IF NOT EXISTS welfare_fund (
     id SERIAL PRIMARY KEY,
-    chama_id INTEGER NOT NULL REFERENCES chamas(id) ON DELETE CASCADE,
+    chama_id INTEGER NOT NULL REFERENCES chamas(chama_id) ON DELETE CASCADE,
     balance DECIMAL(15, 2) NOT NULL DEFAULT 0,
     last_updated TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(chama_id)
@@ -29,8 +29,8 @@ CREATE TABLE IF NOT EXISTS welfare_fund (
 -- Create welfare_contributions table
 CREATE TABLE IF NOT EXISTS welfare_contributions (
     id SERIAL PRIMARY KEY,
-    chama_id INTEGER NOT NULL REFERENCES chamas(id) ON DELETE CASCADE,
-    member_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    chama_id INTEGER NOT NULL REFERENCES chamas(chama_id) ON DELETE CASCADE,
+    member_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     amount DECIMAL(15, 2) NOT NULL,
     contribution_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     reference VARCHAR(100),
@@ -41,8 +41,8 @@ CREATE TABLE IF NOT EXISTS welfare_contributions (
 -- Create welfare_claims table
 CREATE TABLE IF NOT EXISTS welfare_claims (
     id SERIAL PRIMARY KEY,
-    chama_id INTEGER NOT NULL REFERENCES chamas(id) ON DELETE CASCADE,
-    member_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    chama_id INTEGER NOT NULL REFERENCES chamas(chama_id) ON DELETE CASCADE,
+    member_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     event_type_id INTEGER NOT NULL REFERENCES welfare_config(id) ON DELETE CASCADE,
     claim_amount DECIMAL(15, 2) NOT NULL,
     description TEXT,
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS welfare_claims (
 CREATE TABLE IF NOT EXISTS welfare_claim_approvals (
     id SERIAL PRIMARY KEY,
     claim_id INTEGER NOT NULL REFERENCES welfare_claims(id) ON DELETE CASCADE,
-    approver_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    approver_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     status VARCHAR(20) NOT NULL CHECK (status IN ('APPROVED', 'REJECTED')),
     comments TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -66,9 +66,9 @@ CREATE TABLE IF NOT EXISTS welfare_claim_approvals (
 );
 
 -- Create indexes (non-concurrent to avoid transaction issues)
-CREATE INDEX idx_welfare_claims_chama ON welfare_claims(chama_id, status);
-CREATE INDEX idx_welfare_claims_member ON welfare_claims(member_id);
-CREATE INDEX idx_welfare_contributions_chama_member ON welfare_contributions(chama_id, member_id);
+CREATE INDEX IF NOT EXISTS idx_welfare_claims_chama ON welfare_claims(chama_id, status);
+CREATE INDEX IF NOT EXISTS idx_welfare_claims_member ON welfare_claims(member_id);
+CREATE INDEX IF NOT EXISTS idx_welfare_contributions_chama_member ON welfare_contributions(chama_id, member_id);
 
 -- Add trigger function for updated_at
 CREATE OR REPLACE FUNCTION update_modified_column()
@@ -77,7 +77,7 @@ BEGIN
     NEW.updated_at = CURRENT_TIMESTAMP;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;;
 
 -- Add triggers for updated_at
 CREATE TRIGGER update_welfare_config_modtime
@@ -93,7 +93,7 @@ DO $$
 DECLARE
     chama_record RECORD;
 BEGIN
-    FOR chama_record IN SELECT id FROM chamas LOOP
+    FOR chama_record IN SELECT chama_id FROM chamas LOOP
         -- Bereavement - Parent
         INSERT INTO welfare_config (
             chama_id, 
@@ -104,7 +104,7 @@ BEGIN
             contribution_amount, 
             is_active
         ) VALUES (
-            chama_record.id,
+            chama_record.chama_id,
             'BEREAVEMENT_PARENT',
             'Death of a parent',
             50000.00,
@@ -124,7 +124,7 @@ BEGIN
             contribution_amount, 
             is_active
         ) VALUES (
-            chama_record.id,
+            chama_record.chama_id,
             'BEREAVEMENT_SPOUSE',
             'Death of a spouse',
             100000.00,
@@ -144,7 +144,7 @@ BEGIN
             contribution_amount, 
             is_active
         ) VALUES (
-            chama_record.id,
+            chama_record.chama_id,
             'HOSPITALIZATION',
             'Hospitalization for more than 3 days',
             30000.00,
@@ -158,7 +158,7 @@ END $$;
 
 -- Initialize welfare fund for existing chamas
 INSERT INTO welfare_fund (chama_id, balance)
-SELECT id, 0 FROM chamas
+SELECT chama_id, 0 FROM chamas
 ON CONFLICT (chama_id) DO NOTHING;
 
 -- Add comment to document the migration

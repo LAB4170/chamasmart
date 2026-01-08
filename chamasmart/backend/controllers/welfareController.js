@@ -179,6 +179,31 @@ const getMemberClaims = async (req, res) => {
   }
 };
 
+const getChamaClaims = async (req, res) => {
+  const { chamaId } = req.params;
+
+  try {
+    const query = `
+      SELECT wc.*, wcfg.event_type, wcfg.payout_amount,
+             u.first_name || ' ' || u.last_name as member_name,
+             (SELECT COUNT(*) FROM welfare_claim_approvals wca WHERE wca.claim_id = wc.id) as approval_count
+      FROM welfare_claims wc
+      JOIN welfare_config wcfg ON wc.event_type_id = wcfg.id
+      JOIN users u ON wc.member_id = u.id
+      WHERE wc.chama_id = $1
+      ORDER BY 
+        CASE WHEN wc.status = 'SUBMITTED' THEN 1 ELSE 2 END,
+        wc.created_at DESC
+    `;
+
+    const { rows } = await pool.query(query, [chamaId]);
+    res.json(rows);
+  } catch (error) {
+    logger.error("Error fetching chama claims:", error);
+    res.status(500).json({ message: "Error fetching claims" });
+  }
+};
+
 // Approval Workflow
 const approveClaim = async (req, res) => {
   const { claimId } = req.params;
@@ -337,6 +362,7 @@ module.exports = {
   // Claims
   submitClaim,
   getMemberClaims,
+  getChamaClaims,
   approveClaim,
 
   // Helper functions (exported for testing)

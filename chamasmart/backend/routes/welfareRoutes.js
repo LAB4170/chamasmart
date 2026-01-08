@@ -40,6 +40,13 @@ router.get(
   welfareController.getMemberClaims
 );
 
+router.get(
+  "/:chamaId/claims",
+  auth,
+  chamaMember,
+  welfareController.getChamaClaims
+);
+
 // Approval Routes
 router.post("/claims/:claimId/approve", auth, welfareController.approveClaim);
 

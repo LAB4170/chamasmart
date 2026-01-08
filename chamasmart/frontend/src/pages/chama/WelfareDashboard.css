@@ -1,0 +1,141 @@
+.welfare-dashboard-container {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.welfare-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.welfare-header h2 {
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.btn-report-incident {
+    background-color: #e74c3c;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-report-incident:hover {
+    background-color: #c0392b;
+}
+
+.welfare-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e0e0e0;
+}
+
+.fund-balance-card .balance-amount {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #27ae60;
+    margin: 1rem 0;
+}
+
+.coverage-card ul {
+    list-style: none;
+    padding: 0;
+}
+
+.coverage-card li {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.coverage-card li:last-child {
+    border-bottom: none;
+}
+
+.claims-section {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.claims-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.claims-table th,
+.claims-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.status-approved {
+    background: #e8f8f5;
+    color: #27ae60;
+}
+
+.status-paid {
+    background: #eafaf1;
+    color: #27ae60;
+    border: 1px solid #27ae60;
+}
+
+.status-pending {
+    background: #fff8e1;
+    color: #f1c40f;
+}
+
+.status-rejected {
+    background: #fdedec;
+    color: #e74c3c;
+}
+
+.admin-actions-link {
+    margin-top: 2rem;
+    text-align: center;
+}
+
+.admin-actions-link button {
+    background: none;
+    border: none;
+    color: #7f8c8d;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+@media (max-width: 768px) {
+    .welfare-stats-grid {
+        grid-template-columns: 1fr;
+    }
+}

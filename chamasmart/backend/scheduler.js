@@ -4,12 +4,15 @@ const { v4: uuidv4 } = require('uuid');
 const logger = require('./utils/logger');
 const { createNotification } = require('./utils/notificationService');
 
+const { checkWelfareFundHealth } = require('./scheduler/welfareScheduler');
+
 const initScheduler = () => {
     // Run every day at midnight
     cron.schedule('0 0 * * *', async () => {
-        logger.info('Running daily scheduler: ROSCA penalties and loan checks...');
+        logger.info('Running daily scheduler: ROSCA penalties, loan checks, and welfare health...');
         await checkAndApplyPenalties();
         await checkLoanInstallments();
+        await checkWelfareFundHealth();
     });
 
     // For development (optional): Run every minute or just run once on start

@@ -30,7 +30,11 @@ const ProcessPayout = lazy(() => import("./pages/chama/ProcessPayout"));
 const BrowseChamas = lazy(() => import("./pages/chama/BrowseChamas"));
 const JoinRequests = lazy(() => import("./pages/chama/JoinRequests"));
 const MyJoinRequests = lazy(() => import("./pages/chama/MyJoinRequests"));
+
 const MyGuarantees = lazy(() => import("./pages/loans/MyGuarantees"));
+const WelfareDashboard = lazy(() => import("./pages/chama/WelfareDashboard"));
+const SubmitClaim = lazy(() => import("./pages/chama/SubmitClaim"));
+const WelfareAdmin = lazy(() => import("./pages/chama/WelfareAdmin"));
 
 // Loading component
 import LoadingSpinner from "./components/LoadingSpinner";
@@ -385,6 +389,30 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <MyGuarantees />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chamas/:id/welfare"
+                  element={
+                    <ProtectedRoute>
+                      <WelfareDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chamas/:id/welfare/claim"
+                  element={
+                    <ProtectedRoute>
+                      <SubmitClaim />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chamas/:id/welfare/admin"
+                  element={
+                    <ProtectedRoute>
+                      <WelfareAdmin />
                     </ProtectedRoute>
                   }
                 />
