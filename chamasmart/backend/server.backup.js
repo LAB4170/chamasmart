@@ -15,6 +15,7 @@ const {
   readinessCheckEndpoint,
 } = require("./middleware/metrics");
 const { securityMiddleware } = require("./middleware/security");
+const { validate } = require("./middleware/validation");
 
 // Initialize database connection
 require("./config/db");
@@ -47,9 +48,49 @@ app.use((req, res, next) => {
   req.requestTime = new Date().toISOString();
   next();
 });
+app.use("/api/asca", ascaLimiter);
+
+// ROSCA-specific rate limiting (protect merry-go-round endpoints)
+const roscaLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // 60 requests/min per IP for /api/rosca
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api/rosca", roscaLimiter);
+
+// Loans-specific rate limiting (protect lending engine from abuse)
+const loansLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // 60 requests/min per IP for /api/loans
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api/loans", loansLimiter);
+
+// Welfare-specific rate limiting
+const welfareLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100, // 100 requests/min per IP for /api/welfare
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many requests, please try again later",
+});
+app.use("/api/welfare", welfareLimiter);
+
+// Logging with Winston
+app.use(requestLogger);
+
+// Middleware
+app.use(cors(corsOptions));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Metrics middleware
 app.use(metricsMiddleware);
+
+// REMOVED: Insecure debug logging that exposed sensitive data
+// Logging is now handled by requestLogger middleware with sanitization
 
 // API Routes
 app.use("/api/auth", require("./routes/auth"));
@@ -63,23 +104,27 @@ app.use("/api/payouts", require("./routes/payouts"));
 app.use("/api/rosca", require("./routes/roscaRoutes"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/asca", require("./routes/asca"));
+
+// Health and readiness endpoints
+app.get("/api/health", healthCheckEndpoint);
+app.get("/api/ready", readinessCheckEndpoint);
+app.get("/metrics", metricsEndpoint);
+
 app.use("/api/join-requests", require("./routes/joinRequests"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/welfare", require("./routes/welfareRoutes"));
 
-// Health and metrics endpoints
-app.get("/health", healthCheckEndpoint);
-app.get("/ready", readinessCheckEndpoint);
-app.get("/metrics", metricsEndpoint);
-
-// Serve static files from the React app build directory in production
+// Serve static files from the React app build directory
+// Serve static files from the React app build directory
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
-  // Handle SPA routing
-  app.get("*", (req, res) => {
+  // Catch all handler: send back React's index.html file for client-side routing
+  app.use((req, res) => {
     res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
   });
+} else {
+  // In development, we don't serve the frontend from here.
 }
 
 // 404 handler
@@ -175,9 +220,11 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 // Start server
 server.listen(PORT, () => {
   logger.info(
-    `Server running in ${process.env.NODE_ENV || "development"
+    `Server running in ${
+      process.env.NODE_ENV || "development"
     } mode on port ${PORT}`
   );
+
   logger.info(`API URL: http://localhost:${PORT}`);
   logger.info(`Metrics available at: http://localhost:${PORT}/metrics`);
   logger.info(`Health check at: http://localhost:${PORT}/health`);

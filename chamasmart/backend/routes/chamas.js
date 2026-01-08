@@ -13,12 +13,15 @@ const {
 } = require("../controllers/chamaController");
 const { protect, isOfficial } = require("../middleware/auth");
 
+const validate = require("../middleware/validate");
+const { createChamaSchema } = require("../utils/validationSchemas");
+
 // Public routes (view chamas)
 router.get("/", getAllChamas);
 router.get("/public", getPublicChamas);
 
 // Protected routes - SPECIFIC routes MUST come before parameterized routes
-router.post("/", protect, createChama);
+router.post("/", protect, validate(createChamaSchema), createChama);
 router.get("/user/my-chamas", protect, getMyChamas);
 
 // Parameterized routes - these come AFTER specific routes

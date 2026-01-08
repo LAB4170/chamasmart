@@ -14,6 +14,9 @@ const {
     exportLoansReport,
 } = require('../controllers/loanController');
 
+const validate = require('../middleware/validate');
+const { applyLoanSchema } = require('../utils/validationSchemas');
+
 // Loan configuration ("constitution")
 router.get('/:chamaId/config', protect, getLoanConfig);
 router.put('/:chamaId/config', protect, isTreasurer, updateLoanConfig);
@@ -25,7 +28,7 @@ router.get('/my/guarantees', protect, getMyGuarantees);
 router.get('/:chamaId/report', protect, isTreasurer, exportLoansReport);
 
 // Core loan flows
-router.post('/:chamaId/apply', protect, applyForLoan);
+router.post('/:chamaId/apply', protect, validate(applyLoanSchema), applyForLoan);
 router.get('/:chamaId', protect, getChamaLoans);
 
 // Guarantor flows

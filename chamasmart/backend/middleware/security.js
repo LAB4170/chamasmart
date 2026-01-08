@@ -1,8 +1,111 @@
-const helmet = require('helmet');
-const mongoSanitize = require('express-mongo-sanitize');
-const xss = require('xss-clean');
-const hpp = require('hpp');
-const logger = require('../utils/logger');
+const helmet = require("helmet");
+const xss = require("xss-clean");
+const hpp = require("hpp");
+const rateLimit = require("express-rate-limit");
+const { RateLimiterRedis } = require("rate-limiter-flexible");
+const Redis = require("ioredis");
+const logger = require("../utils/logger");
+
+// Initialize Redis client for distributed rate limiting
+// Fail gracefully if REDIS is not available
+let redisClient;
+try {
+  redisClient = process.env.REDIS_URL
+    ? new Redis(process.env.REDIS_URL, {
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 1, // Fail fast if Redis is down
+    })
+    : new Redis({
+      host: process.env.REDIS_HOST || "127.0.0.1",
+      port: process.env.REDIS_PORT || 6379,
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 1,
+      retryStrategy: (times) => {
+        // If Redis is down, we don't want to block the app forever
+        if (times > 3) {
+          logger.warn(
+            "Redis connection failed multiple times. Disabling distributed rate limiting."
+          );
+          return null;
+        }
+        return Math.min(times * 50, 2000);
+      },
+    });
+
+  redisClient.on("error", (err) => {
+    // Suppress connection errors to avoid log spam if Redis is intentionally missing
+    if (err.code === "ECONNREFUSED") {
+      // logger.debug('Redis connection refused');
+    } else {
+      logger.error("Redis Rate Limiter Error:", err.message);
+    }
+  });
+} catch (error) {
+  logger.warn("Failed to initialize Redis client:", error.message);
+}
+
+// Rate limiting configuration (Memory-based fallback)
+const rateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // limit each IP to 1000 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many requests from this IP, please try again later",
+  skip: (req) => {
+    // Skip rate limiting for health checks and static assets
+    return (
+      req.path === "/health" ||
+      req.path.startsWith("/static/") ||
+      req.path.endsWith(".js") ||
+      req.path.endsWith(".css")
+    );
+  },
+});
+
+// Stricter rate limiter for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // limit each IP to 10 requests per windowMs for auth endpoints
+  message: "Too many login attempts, please try again later",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Redis-based rate limiter for API endpoints (if Redis is available)
+let apiRateLimiter;
+if (redisClient) {
+  apiRateLimiter = new RateLimiterRedis({
+    storeClient: redisClient,
+    keyPrefix: "api_limit",
+    points: 100, // 100 requests
+    duration: 60, // per 1 minute by IP
+    blockDuration: 60 * 15, // Block for 15 minutes after limit is reached
+  });
+}
+
+// Apply rate limiting middleware
+const apiLimiter = (req, res, next) => {
+  // Skip rate limiting for certain paths
+  if (req.path.startsWith("/health") || req.path.startsWith("/metrics")) {
+    return next();
+  }
+
+  // Use Redis limiter if available, otherwise fall back or just proceed (since we have memory limiter globally)
+  if (apiRateLimiter) {
+    apiRateLimiter
+      .consume(req.ip)
+      .then(() => next())
+      .catch(() => {
+        res.status(429).json({
+          success: false,
+          message: "Too many requests, please try again later",
+        });
+      });
+  } else {
+    // If Redis is not available, we rely on the global rateLimiter
+    next();
+  }
+};
 
 /**
  * Advanced Security Middleware
@@ -14,45 +117,29 @@ const logger = require('../utils/logger');
  * Protects against common web vulnerabilities
  */
 const helmetConfig = helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-            fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-            imgSrc: ["'self'", 'data:', 'https:'],
-            scriptSrc: ["'self'"],
-            connectSrc: ["'self'", 'ws:', 'wss:'],
-        },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:"],
+      scriptSrc: ["'self'"],
+      connectSrc: ["'self'", "ws:", "wss:"],
     },
-    hsts: {
-        maxAge: 31536000, // 1 year
-        includeSubDomains: true,
-        preload: true,
-    },
-    frameguard: {
-        action: 'deny', // Prevent clickjacking
-    },
-    noSniff: true, // Prevent MIME type sniffing
-    xssFilter: true, // Enable XSS filter
-    referrerPolicy: {
-        policy: 'strict-origin-when-cross-origin',
-    },
-});
-
-/**
- * NoSQL Injection Protection
- * Sanitizes user input to prevent NoSQL injection attacks
- */
-const noSqlInjectionProtection = mongoSanitize({
-    replaceWith: '_',
-    onSanitize: ({ req, key }) => {
-        logger.warn('Potential NoSQL injection attempt detected', {
-            ip: req.ip,
-            path: req.path,
-            key,
-            userId: req.user?.user_id,
-        });
-    },
+  },
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true,
+  },
+  frameguard: {
+    action: "deny", // Prevent clickjacking
+  },
+  noSniff: true, // Prevent MIME type sniffing
+  xssFilter: true, // Enable XSS filter
+  referrerPolicy: {
+    policy: "strict-origin-when-cross-origin",
+  },
 });
 
 /**
@@ -66,7 +153,7 @@ const xssProtection = xss();
  * Prevents parameter pollution attacks
  */
 const hppProtection = hpp({
-    whitelist: ['sort', 'filter', 'page', 'limit'], // Allow these params to be duplicated
+  whitelist: ["sort", "filter", "page", "limit"], // Allow these params to be duplicated
 });
 
 /**
@@ -74,71 +161,81 @@ const hppProtection = hpp({
  * Validates and sanitizes all user inputs
  */
 const inputValidation = (req, res, next) => {
-    // Check for suspicious patterns
-    const suspiciousPatterns = [
-        /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, // Script tags
-        /javascript:/gi, // JavaScript protocol
-        /on\w+\s*=/gi, // Event handlers
-        /eval\(/gi, // Eval function
-        /expression\(/gi, // CSS expressions
-    ];
+  // Check for suspicious patterns
+  const suspiciousPatterns = [
+    /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, // Script tags
+    /javascript:/gi, // JavaScript protocol
+    /on\w+\s*=/gi, // Event handlers
+    /eval\(/gi, // Eval function
+    /expression\(/gi, // CSS expressions
+  ];
 
-    const checkValue = (value) => {
-        if (typeof value === 'string') {
-            for (const pattern of suspiciousPatterns) {
-                if (pattern.test(value)) {
-                    return true;
-                }
-            }
+  const checkValue = (value) => {
+    if (typeof value === "string") {
+      for (const pattern of suspiciousPatterns) {
+        if (pattern.test(value)) {
+          return true;
         }
-        return false;
-    };
-
-    const checkObject = (obj) => {
-        for (const key in obj) {
-            if (typeof obj[key] === 'object' && obj[key] !== null) {
-                if (checkObject(obj[key])) return true;
-            } else if (checkValue(obj[key])) {
-                return true;
-            }
-        }
-        return false;
-    };
-
-    // Check body, query, and params
-    if (checkObject(req.body) || checkObject(req.query) || checkObject(req.params)) {
-        logger.warn('Suspicious input detected', {
-            ip: req.ip,
-            path: req.path,
-            method: req.method,
-            userId: req.user?.user_id,
-        });
-
-        return res.status(400).json({
-            success: false,
-            message: 'Invalid input detected',
-        });
+      }
     }
+    return false;
+  };
 
-    next();
+  const checkObject = (obj) => {
+    for (const key in obj) {
+      if (typeof obj[key] === "object" && obj[key] !== null) {
+        if (checkObject(obj[key])) return true;
+      } else if (checkValue(obj[key])) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // Check body, query, and params
+  if (
+    checkObject(req.body) ||
+    checkObject(req.query) ||
+    checkObject(req.params)
+  ) {
+    logger.warn("Suspicious input detected", {
+      ip: req.ip,
+      path: req.path,
+      method: req.method,
+      userId: req.user?.user_id,
+    });
+
+    return res.status(400).json({
+      success: false,
+      message: "Invalid input detected",
+    });
+  }
+
+  next();
 };
 
 /**
  * Security Headers Middleware
- * Adds custom security headers
+ * Adds custom security headers (redundant with Helmet but explicit for critical ones)
  */
 const securityHeaders = (req, res, next) => {
-    // Remove powered by header
-    res.removeHeader('X-Powered-By');
+  // Remove powered by header
+  res.removeHeader("X-Powered-By");
 
-    // Add custom security headers
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('X-XSS-Protection', '1; mode=block');
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  // Add custom security headers
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  res.setHeader(
+    "Strict-Transport-Security",
+    "max-age=31536000; includeSubDomains"
+  );
+  res.setHeader(
+    "Permissions-Policy",
+    "geolocation=(), microphone=(), camera=()"
+  );
 
-    next();
+  next();
 };
 
 /**
@@ -146,22 +243,25 @@ const securityHeaders = (req, res, next) => {
  * Prevents large payload attacks
  */
 const requestSizeLimiter = (req, res, next) => {
-    const maxSize = 10 * 1024 * 1024; // 10MB
+  const maxSize = 10 * 1024 * 1024; // 10MB
 
-    if (req.headers['content-length'] && parseInt(req.headers['content-length']) > maxSize) {
-        logger.warn('Request size exceeded limit', {
-            ip: req.ip,
-            path: req.path,
-            size: req.headers['content-length'],
-        });
+  if (
+    req.headers["content-length"] &&
+    parseInt(req.headers["content-length"]) > maxSize
+  ) {
+    logger.warn("Request size exceeded limit", {
+      ip: req.ip,
+      path: req.path,
+      size: req.headers["content-length"],
+    });
 
-        return res.status(413).json({
-            success: false,
-            message: 'Request entity too large',
-        });
-    }
+    return res.status(413).json({
+      success: false,
+      message: "Request entity too large",
+    });
+  }
 
-    next();
+  next();
 };
 
 /**
@@ -169,48 +269,80 @@ const requestSizeLimiter = (req, res, next) => {
  * Allows/blocks specific IP addresses
  */
 const ipFilter = (options = {}) => {
-    const { whitelist = [], blacklist = [] } = options;
+  const { whitelist = [], blacklist = [] } = options;
 
-    return (req, res, next) => {
-        const clientIp = req.ip || req.connection.remoteAddress;
+  return (req, res, next) => {
+    const clientIp = req.ip || req.connection.remoteAddress;
 
-        // Check blacklist
-        if (blacklist.length > 0 && blacklist.includes(clientIp)) {
-            logger.warn('Blocked IP attempted access', {
-                ip: clientIp,
-                path: req.path,
-            });
+    // Check blacklist
+    if (blacklist.length > 0 && blacklist.includes(clientIp)) {
+      logger.warn("Blocked IP attempted access", {
+        ip: clientIp,
+        path: req.path,
+      });
 
-            return res.status(403).json({
-                success: false,
-                message: 'Access denied',
-            });
-        }
+      return res.status(403).json({
+        success: false,
+        message: "Access denied",
+      });
+    }
 
-        // Check whitelist (if configured)
-        if (whitelist.length > 0 && !whitelist.includes(clientIp)) {
-            logger.warn('Non-whitelisted IP attempted access', {
-                ip: clientIp,
-                path: req.path,
-            });
+    // Check whitelist (if configured)
+    if (whitelist.length > 0 && !whitelist.includes(clientIp)) {
+      logger.warn("Non-whitelisted IP attempted access", {
+        ip: clientIp,
+        path: req.path,
+      });
 
-            return res.status(403).json({
-                success: false,
-                message: 'Access denied',
-            });
-        }
+      return res.status(403).json({
+        success: false,
+        message: "Access denied",
+      });
+    }
 
-        next();
-    };
+    next();
+  };
+};
+
+// Security middleware wrapper
+const securityMiddleware = (app) => {
+  // Apply security headers
+  app.use(helmetConfig);
+
+  // Apply rate limiting
+  app.use(rateLimiter);
+
+  // Apply stricter rate limiting to auth endpoints
+  app.use(
+    ["/api/auth/login", "/api/auth/register", "/api/auth/forgot-password"],
+    authLimiter
+  );
+
+  // Apply Redis-based rate limiting to API routes
+  app.use("/api", apiLimiter);
+
+  // Apply other security middleware
+  // app.use(noSqlInjectionProtection); // Removed: Not using MongoDB
+  app.use(xssProtection);
+  app.use(hpp());
+
+  // Add security headers
+  app.use(securityHeaders);
+
+  // Request size limiting
+  app.use(requestSizeLimiter);
 };
 
 module.exports = {
-    helmetConfig,
-    noSqlInjectionProtection,
-    xssProtection,
-    hppProtection,
-    inputValidation,
-    securityHeaders,
-    requestSizeLimiter,
-    ipFilter,
+  helmetConfig,
+  // noSqlInjectionProtection,
+  xssProtection,
+  securityMiddleware,
+  rateLimiter,
+  authLimiter,
+  hppProtection,
+  inputValidation,
+  securityHeaders,
+  requestSizeLimiter,
+  ipFilter,
 };
