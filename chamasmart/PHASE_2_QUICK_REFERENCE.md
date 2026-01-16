@@ -4,12 +4,12 @@
 
 ### 4 Major Features Implemented
 
-| Feature | Files | Impact | Status |
-|---------|-------|--------|--------|
-| **Query Validation** | queryValidation.js | Prevents SQL injection | ✅ Done |
-| **Token Refresh** | tokenManager.js, auth routes | 7-day token rotation | ✅ Done |
-| **Cache Headers** | cacheControl.js | 85% bandwidth reduction | ✅ Done |
-| **Pagination** | 4 controllers | Handles millions of records | ✅ Done |
+| Feature              | Files                        | Impact                      | Status  |
+| -------------------- | ---------------------------- | --------------------------- | ------- |
+| **Query Validation** | queryValidation.js           | Prevents SQL injection      | ✅ Done |
+| **Token Refresh**    | tokenManager.js, auth routes | 7-day token rotation        | ✅ Done |
+| **Cache Headers**    | cacheControl.js              | 85% bandwidth reduction     | ✅ Done |
+| **Pagination**       | 4 controllers                | Handles millions of records | ✅ Done |
 
 ---
 
@@ -209,37 +209,37 @@ All responses include ETag for cache validation:
 
 ```javascript
 // 1. On login, store both tokens
-localStorage.setItem('accessToken', response.data.accessToken);
-localStorage.setItem('refreshToken', response.data.refreshToken);
+localStorage.setItem("accessToken", response.data.accessToken);
+localStorage.setItem("refreshToken", response.data.refreshToken);
 
 // 2. Use accessToken in API requests
 const config = {
   headers: {
-    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-  }
+    Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+  },
 };
 
 // 3. Setup axios interceptor for 401 responses
 axios.interceptors.response.use(
-  response => response,
-  async error => {
+  (response) => response,
+  async (error) => {
     if (error.response?.status === 401) {
       // Token expired, try to refresh
       try {
-        const response = await axios.post('/api/auth/refresh', {
-          refreshToken: localStorage.getItem('refreshToken')
+        const response = await axios.post("/api/auth/refresh", {
+          refreshToken: localStorage.getItem("refreshToken"),
         });
-        
+
         // Update tokens
-        localStorage.setItem('accessToken', response.data.accessToken);
-        localStorage.setItem('refreshToken', response.data.refreshToken);
-        
+        localStorage.setItem("accessToken", response.data.accessToken);
+        localStorage.setItem("refreshToken", response.data.refreshToken);
+
         // Retry original request
         return axios(error.config);
       } catch (refreshError) {
         // Refresh failed, force login
         localStorage.clear();
-        window.location.href = '/login';
+        window.location.href = "/login";
       }
     }
     throw error;
@@ -248,12 +248,17 @@ axios.interceptors.response.use(
 
 // 4. On logout
 async function logout() {
-  await axios.post('/api/auth/logout', 
-    { refreshToken: localStorage.getItem('refreshToken') },
-    { headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` } }
+  await axios.post(
+    "/api/auth/logout",
+    { refreshToken: localStorage.getItem("refreshToken") },
+    {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+      },
+    }
   );
   localStorage.clear();
-  window.location.href = '/login';
+  window.location.href = "/login";
 }
 ```
 
@@ -348,17 +353,20 @@ chamasmart/
 ## 🚀 Deployment Steps
 
 ### 1. Backup Database
+
 ```bash
 pg_dump chamasmart_db > backup_$(date +%Y%m%d).sql
 ```
 
 ### 2. Apply Migration
+
 ```bash
 npm run migrate  # or your migration command
 # This creates the refresh_tokens table with indexes
 ```
 
 ### 3. Deploy Code
+
 ```bash
 git pull origin main
 npm install  # In case new dependencies
@@ -366,6 +374,7 @@ npm run build  # If needed
 ```
 
 ### 4. Restart Backend
+
 ```bash
 pm2 restart chamasmart-backend
 # or: systemctl restart chamasmart-backend
@@ -373,6 +382,7 @@ pm2 restart chamasmart-backend
 ```
 
 ### 5. Verify Deployment
+
 ```bash
 # Test query validation
 curl "http://localhost:5005/api/chamas?page=1&limit=20"
@@ -400,21 +410,25 @@ Three comprehensive documents created:
 ## 🎓 Key Learnings
 
 ### Query Validation
+
 - Prevent SQL injection via search/filter parameters
 - Whitelist allowed sort fields
 - Validate data types before queries
 
 ### Token Refresh
+
 - Dual token model: access (short) + refresh (long)
 - Store refresh tokens in database for revocation
 - Enable logout from specific device or everywhere
 
 ### Cache Control
+
 - Reduce network traffic by 85% with intelligent caching
 - Use ETag for conditional requests
 - Cache privately for user-specific data
 
 ### Pagination
+
 - Always paginate large datasets (avoid timeouts)
 - Default 20 items per page, max 100
 - Include metadata for frontend UI
@@ -424,12 +438,14 @@ Three comprehensive documents created:
 ## 🔮 Next Steps
 
 ### Phase 3 (Recommended)
+
 1. Expand pagination to remaining controllers
 2. Standardize response format across all endpoints
 3. Add error handling consistency
 4. Implement advanced search features
 
 ### Phase 4 (Advanced)
+
 1. Full-text search with elasticsearch
 2. Redis caching layer
 3. API rate limiting by subscription tier
@@ -440,6 +456,7 @@ Three comprehensive documents created:
 ## 📞 Support
 
 For issues or questions:
+
 1. Check PHASE_2_COMPLETION_REPORT.md (section 8-13)
 2. Review curl examples in this document
 3. Check backend logs: `tail -f logs/app.log`

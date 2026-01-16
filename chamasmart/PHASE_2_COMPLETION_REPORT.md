@@ -27,6 +27,7 @@ Phase 2 implemented 4 critical production-ready enhancements to the backend syst
 **Key Functions**:
 
 1. **`validateQueryParams(req, res, next)`** - Express middleware
+
    - Validates common query parameters using Joi schema
    - Supports: page, limit, sortBy, sortOrder, search, query, status, type, startDate, endDate
    - Removes invalid data automatically
@@ -34,12 +35,14 @@ Phase 2 implemented 4 critical production-ready enhancements to the backend syst
    - Allows unknown fields (whitelist known, pass through unknown)
 
 2. **`sanitizeSearchTerm(searchTerm)`** - String sanitization
-   - Escapes SQL LIKE wildcards (%, _, \)
+
+   - Escapes SQL LIKE wildcards (%, \_, \)
    - Limits to 200 characters max
    - Prevents SQL injection via search parameters
    - Returns safe string ready for LIKE clause
 
 3. **`buildLikeClause(field, searchTerm, caseInsensitive=true)`** - SQL builder
+
    - Builds safe LIKE clause with parameterized query
    - Uses ILIKE (case-insensitive) by default
    - Returns `{ clause: "field ILIKE $1", value: "%sanitized%" }`
@@ -73,11 +76,13 @@ Phase 2 implemented 4 critical production-ready enhancements to the backend syst
 ### Integration
 
 **In `backend/server.js`**:
+
 - Added import: `const { validateQueryParams } = require("./middleware/queryValidation");`
 - Applied globally after request logging, before response formatter
 - Middleware chain: Security → CORS → Parsers → Request Logger → **Query Validation** → Response Formatter → Cache Control → Metrics
 
 **Usage Example**:
+
 ```javascript
 // GET /api/chamas?page=2&limit=50&search=kenya&sortBy=name&sortOrder=asc
 // All parameters validated and sanitized automatically
@@ -95,24 +100,28 @@ Phase 2 implemented 4 critical production-ready enhancements to the backend syst
 **Key Functions**:
 
 1. **`generateAccessToken(userId)`** - Short-lived token
+
    - JWT with 7-day expiry
    - Payload: `{ userId, type: "access" }`
    - Uses `process.env.JWT_SECRET`
    - Returns signed token string
 
 2. **`generateRefreshToken(userId)`** - Long-lived token
+
    - JWT with 30-day expiry
    - Payload: `{ userId, type: "refresh" }`
    - Uses `process.env.JWT_SECRET`
    - Returns signed token string
 
 3. **`storeRefreshToken(userId, token, userAgent, ipAddress)`** - Async database storage
+
    - Inserts into `refresh_tokens` table
    - Stores user_agent and ip_address for security audit
    - Sets expires_at to 30 days from now
    - Enables token revocation tracking
 
 4. **`verifyRefreshToken(userId, token)`** - Async validation
+
    - Checks token exists in database
    - Verifies not expired (expires_at > NOW)
    - Verifies not revoked (revoked_at IS NULL)
@@ -120,11 +129,13 @@ Phase 2 implemented 4 critical production-ready enhancements to the backend syst
    - Returns boolean true if valid
 
 5. **`revokeRefreshToken(userId, token)`** - Async individual revocation
+
    - Sets revoked_at timestamp for specific token
    - Enables logout from specific device
    - Preserves token record for audit trail
 
 6. **`revokeAllRefreshTokens(userId)`** - Async global revocation
+
    - Revokes all tokens for user
    - Implements "logout everywhere" functionality
    - Single SQL UPDATE with WHERE user_id = $1
@@ -149,10 +160,10 @@ CREATE TABLE refresh_tokens (
 );
 
 -- Performance indexes
-CREATE INDEX idx_refresh_tokens_user_token ON refresh_tokens(user_id, token) 
+CREATE INDEX idx_refresh_tokens_user_token ON refresh_tokens(user_id, token)
   WHERE revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP;
 
-CREATE INDEX idx_refresh_tokens_user_active ON refresh_tokens(user_id) 
+CREATE INDEX idx_refresh_tokens_user_active ON refresh_tokens(user_id)
   WHERE revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP;
 
 CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
@@ -161,6 +172,7 @@ CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
 ### Controller Changes: `backend/controllers/authController.js`
 
 **Imports Added**:
+
 ```javascript
 const {
   generateAccessToken,
@@ -173,28 +185,40 @@ const {
 ```
 
 **`login()` Endpoint** - Updated response:
+
 - Now generates TWO tokens: `accessToken` (7d) and `refreshToken` (30d)
 - Stores refresh token in database with user_agent and ip_address
 - Returns both tokens to client
 - Response: `{ user, accessToken, refreshToken }`
 
 **New `refresh()` Endpoint** - POST /api/auth/refresh
+
 ```javascript
 const refresh = async (req, res) => {
   const { refreshToken } = req.body;
   const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
-  
+
   if (decoded.type !== "refresh") return res.error("Invalid token type", 401);
-  
+
   await verifyRefreshToken(decoded.userId, refreshToken);
-  
+
   const newAccessToken = generateAccessToken(decoded.userId);
   const newRefreshToken = generateRefreshToken(decoded.userId);
-  await storeRefreshToken(decoded.userId, newRefreshToken, userAgent, ipAddress);
-  
-  return res.success({ user, accessToken: newAccessToken, refreshToken: newRefreshToken });
+  await storeRefreshToken(
+    decoded.userId,
+    newRefreshToken,
+    userAgent,
+    ipAddress
+  );
+
+  return res.success({
+    user,
+    accessToken: newAccessToken,
+    refreshToken: newRefreshToken,
+  });
 };
 ```
+
 - Public endpoint (no auth required)
 - Takes refreshToken in request body
 - Validates token hasn't expired/been revoked
@@ -202,21 +226,23 @@ const refresh = async (req, res) => {
 - HTTP 200 on success, 401 on invalid token
 
 **New `logout()` Endpoint** - POST /api/auth/logout
+
 ```javascript
 const logout = async (req, res) => {
   const userId = req.user.user_id;
   const { logoutEverywhere } = req.body; // Optional: true for global logout
-  
+
   if (logoutEverywhere) {
     await revokeAllRefreshTokens(userId);
   } else {
     const { refreshToken } = req.body;
     await revokeRefreshToken(userId, refreshToken);
   }
-  
+
   return res.success(null, "Logged out successfully");
 };
 ```
+
 - Protected endpoint (requires auth)
 - Optional `logoutEverywhere` flag for global logout
 - Individual token logout: revoke specific token
@@ -226,12 +252,14 @@ const logout = async (req, res) => {
 ### Routes Changes: `backend/routes/auth.js`
 
 **New Routes Added**:
+
 ```javascript
-router.post("/refresh", refresh);  // Public - for token refresh
-router.post("/logout", verifyToken, logout);  // Protected - for logout
+router.post("/refresh", refresh); // Public - for token refresh
+router.post("/logout", verifyToken, logout); // Protected - for logout
 ```
 
 **Login Response Evolution**:
+
 - **Before**: `{ success, message, data: { user, token } }`
 - **After**: `{ success, message, data: { user, accessToken, refreshToken } }`
 
@@ -246,13 +274,15 @@ router.post("/logout", verifyToken, logout);  // Protected - for logout
 **Key Functions**:
 
 1. **`getCacheDuration(req)`** - Determine cache TTL
+
    - Public endpoints (no auth): 3600 seconds (1 hour)
-   - User-specific endpoints (my-*, user/*): 300 seconds (5 min)
+   - User-specific endpoints (my-_, user/_): 300 seconds (5 min)
    - List endpoints (/lists, /all): 300 seconds (5 min)
    - Non-GET requests: 0 seconds (no cache)
    - Returns: 0 or TTL in seconds
 
 2. **`generateETag(data)`** - Content fingerprint
+
    - MD5 hash of JSON stringified data
    - Used for conditional requests (If-None-Match)
    - Enables browser caching with revalidation
@@ -268,21 +298,25 @@ router.post("/logout", verifyToken, logout);  // Protected - for logout
 ### Cache Behavior
 
 **Public Data (3600s)**:
+
 - `GET /api/chamas/public`
 - `GET /api/chamas/trending`
 - Static content
 
 **User-Specific (300s)**:
+
 - `GET /api/chamas/my-chamas`
 - `GET /api/users/me`
 - `GET /api/contributions/my-contributions`
 
 **List Endpoints (300s)**:
+
 - `GET /api/chamas?page=1`
 - `GET /api/meetings/:chamaId`
 - `GET /api/loans/:chamaId`
 
 **No Cache (0s)**:
+
 - `POST`, `PUT`, `DELETE`, `PATCH` requests
 - Non-GET requests
 - Responses with errors
@@ -300,6 +334,7 @@ Expires: Wed, 21 Oct 2025 07:28:00 GMT
 ### Integration
 
 **In `backend/server.js`**:
+
 - Import: `const { cacheControlMiddleware } = require("./middleware/cacheControl");`
 - Position in chain: After `responseFormatterMiddleware`, before `metricsMiddleware`
 - Applied globally to all routes
@@ -311,6 +346,7 @@ Expires: Wed, 21 Oct 2025 07:28:00 GMT
 ### Updated File: `backend/utils/pagination.js` (Existing)
 
 Helper functions used consistently across all list endpoints:
+
 - `parsePagination(page, limit)` - Parse and validate pagination params
 - `buildLimitClause(page, limit)` - Build LIMIT OFFSET clause
 - `formatPaginationMeta(page, limit, total)` - Calculate pagination metadata
@@ -321,6 +357,7 @@ Helper functions used consistently across all list endpoints:
 #### 1. `backend/controllers/contributionController.js`
 
 **Updated `getChamaContributions()`**:
+
 - Added pagination support: `?page=1&limit=20`
 - Query validation for startDate, endDate, userId filters
 - Total contribution amount calculation in metadata
@@ -328,6 +365,7 @@ Helper functions used consistently across all list endpoints:
 - Response: `{ data, pagination: { page, limit, total, totalPages, hasNext, hasPrev }, meta: { totalAmount } }`
 
 **Response standardization**:
+
 - `recordContribution()`: Changed to `res.success(data, msg, 201)`
 - `getContributionById()`: Changed to `res.success(data, msg)`
 - `deleteContribution()`: Changed to `res.success(null, msg)`
@@ -335,12 +373,14 @@ Helper functions used consistently across all list endpoints:
 #### 2. `backend/controllers/loanController.js`
 
 **Updated `getChamaLoans()`**:
+
 - Added pagination support: `?page=1&limit=20&status=ACTIVE`
 - Status filter for loan state filtering
 - Cache integration for first page without filters
 - Response: `{ data, pagination, message }`
 
 **Benefits**:
+
 - Prevents timeout on chamas with thousands of loans
 - Status filtering enables dashboard views
 - Consistent with contribution pagination
@@ -348,12 +388,14 @@ Helper functions used consistently across all list endpoints:
 #### 3. `backend/controllers/meetingController.js`
 
 **Updated `getChamaMeetings()`**:
+
 - Added pagination support: `?page=1&limit=20`
 - Calculates attendees_count for each meeting
 - Ordered by meeting date DESC
 - Response: `{ data, pagination, message }`
 
 **Response standardization**:
+
 - `createMeeting()`: Validation errors now use `res.validationError()`
 - `getMeetingById()`: Changed to `res.success()`
 - `updateMeeting()`: Changed to `res.success()`
@@ -362,17 +404,20 @@ Helper functions used consistently across all list endpoints:
 #### 4. `backend/controllers/welfareController.js`
 
 **Updated `getMemberClaims()`**:
+
 - Added pagination: `?page=1&limit=20`
 - Per-member claim history
 - Response: `{ data, pagination, message }`
 
 **Updated `getChamaClaims()`**:
+
 - Added pagination: `?page=1&limit=20&status=SUBMITTED`
 - Status filter for claim state
 - Ordered by priority (SUBMITTED first) then date
 - Response: `{ data, pagination, message }`
 
 **Response standardization**:
+
 - `getWelfareConfig()`: Changed to `res.success()`
 - `updateWelfareConfig()`: Changed to `res.success()`
 - `getWelfareFund()`: Changed to `res.success()`
@@ -385,6 +430,7 @@ Helper functions used consistently across all list endpoints:
 All response methods use `res.success()`, `res.error()`, `res.validationError()`, or `res.paginated()`:
 
 ### Success Response
+
 ```javascript
 res.success(data, message, statusCode = 200)
 // Returns:
@@ -398,6 +444,7 @@ res.success(data, message, statusCode = 200)
 ```
 
 ### Error Response
+
 ```javascript
 res.error(message, statusCode = 500)
 // Returns:
@@ -410,6 +457,7 @@ res.error(message, statusCode = 500)
 ```
 
 ### Validation Error Response
+
 ```javascript
 res.validationError(errors = [{ field, message }])
 // Returns:
@@ -423,6 +471,7 @@ res.validationError(errors = [{ field, message }])
 ```
 
 ### Paginated Response
+
 ```javascript
 res.paginated(data, total, page, limit, message, extra = {})
 // Returns:
@@ -449,14 +498,17 @@ res.paginated(data, total, page, limit, message, extra = {})
 ## 7. Files Modified Summary
 
 ### New Files Created (3)
+
 1. ✅ `backend/middleware/queryValidation.js` - Query parameter validation
-2. ✅ `backend/utils/tokenManager.js` - Token management utilities  
+2. ✅ `backend/utils/tokenManager.js` - Token management utilities
 3. ✅ `backend/migrations/012_refresh_tokens_table.sql` - Refresh tokens table
 
 ### New Middleware Created (1)
+
 4. ✅ `backend/middleware/cacheControl.js` - HTTP caching headers
 
 ### Files Modified (6)
+
 5. ✅ `backend/server.js` - Integrated queryValidation and cacheControl middleware
 6. ✅ `backend/controllers/authController.js` - Login, refresh, logout endpoints
 7. ✅ `backend/controllers/contributionController.js` - Pagination + response standardization
@@ -465,6 +517,7 @@ res.paginated(data, total, page, limit, message, extra = {})
 10. ✅ `backend/controllers/welfareController.js` - Pagination + response standardization
 
 ### Routes Modified (1)
+
 11. ✅ `backend/routes/auth.js` - Added /refresh and /logout endpoints
 
 ---
@@ -538,7 +591,7 @@ curl -X POST http://localhost:5005/api/auth/logout \
 
 ```bash
 # Check cache headers on public endpoint
-curl -i http://localhost:5005/api/chamas?page=1 
+curl -i http://localhost:5005/api/chamas?page=1
 
 # Response headers should include:
 # Cache-Control: public, max-age=300
@@ -608,7 +661,7 @@ curl "http://localhost:5005/api/contributions/1?page=1&limit=20&userId=5&startDa
 
 ### Network Optimization
 
-- **With Cache Headers**: 
+- **With Cache Headers**:
   - Repeat browser requests: 304 Not Modified (0 bytes)
   - Saves: 50-200KB per request
   - Mobile benefit: Significant data plan savings
@@ -644,6 +697,7 @@ curl "http://localhost:5005/api/contributions/1?page=1&limit=20&userId=5&startDa
 ## 11. Migration Instructions
 
 ### Step 1: Apply Database Migration
+
 ```bash
 # Run migration 012 to create refresh_tokens table
 npm run migrate  # or custom migration runner
@@ -652,11 +706,13 @@ npm run migrate  # or custom migration runner
 ### Step 2: Deploy Updated Files
 
 Copy new files:
+
 - `backend/middleware/queryValidation.js`
 - `backend/utils/tokenManager.js`
 - `backend/middleware/cacheControl.js`
 
 Update files:
+
 - `backend/server.js`
 - `backend/routes/auth.js`
 - `backend/controllers/authController.js`
@@ -685,36 +741,38 @@ curl -i http://localhost:5005/api/chamas?page=1
 ### Step 4: Update Frontend
 
 **Token Refresh Implementation** (suggested for frontend):
+
 ```javascript
 // Store both tokens
-localStorage.setItem('accessToken', response.data.accessToken);
-localStorage.setItem('refreshToken', response.data.refreshToken);
+localStorage.setItem("accessToken", response.data.accessToken);
+localStorage.setItem("refreshToken", response.data.refreshToken);
 
 // Intercor for 401 responses
 axios.interceptors.response.use(
-  response => response,
-  error => {
+  (response) => response,
+  (error) => {
     if (error.response?.status === 401) {
-      return refreshTokens();  // Call /api/auth/refresh
+      return refreshTokens(); // Call /api/auth/refresh
     }
     throw error;
   }
 );
 
 async function refreshTokens() {
-  const response = await axios.post('/api/auth/refresh', {
-    refreshToken: localStorage.getItem('refreshToken')
+  const response = await axios.post("/api/auth/refresh", {
+    refreshToken: localStorage.getItem("refreshToken"),
   });
-  
-  localStorage.setItem('accessToken', response.data.accessToken);
-  localStorage.setItem('refreshToken', response.data.refreshToken);
-  
+
+  localStorage.setItem("accessToken", response.data.accessToken);
+  localStorage.setItem("refreshToken", response.data.refreshToken);
+
   // Retry original request
   return axios(originalRequest);
 }
 ```
 
 **Pagination Implementation** (suggested for frontend):
+
 ```javascript
 // Parse pagination from response
 const { data, pagination } = response.data;
@@ -722,10 +780,16 @@ const { page, totalPages, hasNextPage } = pagination;
 
 // Render pagination controls
 <div>
-  <button disabled={page === 1} onClick={() => fetchPage(page - 1)}>Prev</button>
-  <span>Page {page} of {totalPages}</span>
-  <button disabled={!hasNextPage} onClick={() => fetchPage(page + 1)}>Next</button>
-</div>
+  <button disabled={page === 1} onClick={() => fetchPage(page - 1)}>
+    Prev
+  </button>
+  <span>
+    Page {page} of {totalPages}
+  </span>
+  <button disabled={!hasNextPage} onClick={() => fetchPage(page + 1)}>
+    Next
+  </button>
+</div>;
 ```
 
 ---
@@ -741,20 +805,24 @@ const { page, totalPages, hasNextPage } = pagination;
 
 ## 13. Future Improvements
 
-1. **Search Optimization**: 
+1. **Search Optimization**:
+
    - Add full-text search indexes on name, description fields
    - Implement elasticsearch for better search performance
 
 2. **Cache Invalidation**:
+
    - Add Redis cache layer
    - Implement cache invalidation on data mutations
    - Cache warming strategies
 
 3. **Token Security**:
+
    - Implement refresh token rotation (new refresh token on each refresh)
    - Add fingerprinting to detect token theft
 
 4. **Pagination**:
+
    - Cursor-based pagination for large datasets
    - Configurable page sizes per endpoint
 
@@ -771,6 +839,6 @@ Phase 2 successfully implemented 4 enterprise-grade features that improve securi
 ✅ Query validation eliminates injection attacks  
 ✅ Token refresh enables 7-day token rotation  
 ✅ Cache headers reduce network bandwidth by ~85%  
-✅ Pagination handles millions of records without timeout  
+✅ Pagination handles millions of records without timeout
 
 **Next Phase**: Phase 3 should focus on remaining controllers (members, proposals, ASCA, ROSCA) and error handling consistency.

@@ -1,6 +1,7 @@
 # User Cleanup & Fresh Start Guide
 
 ## Overview
+
 This guide will help you delete all existing user accounts and reset the database to start fresh with new user registrations. All MongoDB references have also been removed.
 
 ---
@@ -8,16 +9,19 @@ This guide will help you delete all existing user accounts and reset the databas
 ## ✅ What's Included
 
 ### 1. **Cleanup Script**
+
 - Location: `backend/scripts/cleanup_users.js`
 - Automatically deletes all users, chamas, contributions, loans, and related data
 - Resets ID sequences so new users start from ID 1
 - Includes comprehensive logging
 
 ### 2. **Migration File**
+
 - Location: `backend/migrations/011_cleanup_users_fresh_start.sql`
 - SQL-based cleanup for manual execution in pgAdmin if needed
 
 ### 3. **MongoDB Removal**
+
 - ✅ Removed `express-mongo-sanitize` from `package.json`
 - ✅ No MongoDB imports found in codebase
 - ✅ 100% PostgreSQL only
@@ -34,6 +38,7 @@ node scripts/cleanup_users.js
 ```
 
 **Output:**
+
 ```
 🧹 Starting cleanup...
 
@@ -85,30 +90,31 @@ psql -U postgres -d chamasmart -f backend/migrations/011_cleanup_users_fresh_sta
 
 When you run the cleanup, the following data is removed:
 
-| Table | Records Deleted |
-|-------|-----------------|
-| `audit_logs` | All audit entries |
-| `notifications` | All notifications |
-| `welfare_claim_approvals` | All welfare approvals |
-| `welfare_claims` | All welfare claims |
-| `welfare_contributions` | All welfare contributions |
-| `loan_repayments` | All loan repayments |
-| `loans` | All loans |
-| `payouts` | All payouts |
-| `rosca_payouts` | All ROSCA payouts |
-| `rosca_members` | All ROSCA members |
-| `asca_cycles` | All ASCA cycles |
-| `asca_members` | All ASCA members |
-| `meetings` | All meetings |
-| `contributions` | All contributions |
-| `proposals` | All proposals |
-| `join_requests` | All join requests |
-| `chama_invites` | All chama invites |
-| `chama_members` | All chama members |
-| `chamas` | All chamas |
-| `users` | **All users** |
+| Table                     | Records Deleted           |
+| ------------------------- | ------------------------- |
+| `audit_logs`              | All audit entries         |
+| `notifications`           | All notifications         |
+| `welfare_claim_approvals` | All welfare approvals     |
+| `welfare_claims`          | All welfare claims        |
+| `welfare_contributions`   | All welfare contributions |
+| `loan_repayments`         | All loan repayments       |
+| `loans`                   | All loans                 |
+| `payouts`                 | All payouts               |
+| `rosca_payouts`           | All ROSCA payouts         |
+| `rosca_members`           | All ROSCA members         |
+| `asca_cycles`             | All ASCA cycles           |
+| `asca_members`            | All ASCA members          |
+| `meetings`                | All meetings              |
+| `contributions`           | All contributions         |
+| `proposals`               | All proposals             |
+| `join_requests`           | All join requests         |
+| `chama_invites`           | All chama invites         |
+| `chama_members`           | All chama members         |
+| `chamas`                  | All chamas                |
+| `users`                   | **All users**             |
 
 **ID Sequences Reset:**
+
 - `users_user_id_seq` → Starts at 1
 - `chamas_chama_id_seq` → Starts at 1
 - `contributions_contribution_id_seq` → Starts at 1
@@ -119,16 +125,19 @@ When you run the cleanup, the following data is removed:
 ## ⚠️ Important Notes
 
 ### **This is Permanent!**
+
 - There is **NO undo**. Once you run the cleanup, all user data is gone.
 - Make sure you have a backup if you need to preserve any data.
 
 ### **Use Only for Development**
+
 - ✅ Local development
 - ✅ Testing environments
 - ✅ Staging (if needed)
 - ❌ **NEVER** in production!
 
 ### **After Cleanup**
+
 1. Users will have ID starting from 1
 2. Next user registration will get `user_id = 1`
 3. All chama IDs will reset
@@ -160,6 +169,7 @@ SELECT nextval('users_user_id_seq');
 ## 📝 MongoDB References Removed
 
 The following MongoDB dependency has been removed:
+
 - ✅ `express-mongo-sanitize` → Deleted from `package.json`
 
 **System is now 100% PostgreSQL based.**
@@ -171,11 +181,13 @@ The following MongoDB dependency has been removed:
 If something goes wrong:
 
 1. **Rollback if in transaction:**
+
    ```sql
    ROLLBACK;
    ```
 
 2. **From backup** (if available):
+
    - Restore from your PostgreSQL backup
    - `pg_restore backup.sql`
 

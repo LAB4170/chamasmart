@@ -1,5 +1,9 @@
 const pool = require("../config/db");
-const { parsePagination, buildLimitClause, getTotal } = require("../utils/pagination");
+const {
+  parsePagination,
+  buildLimitClause,
+  getTotal,
+} = require("../utils/pagination");
 
 // @desc    Create meeting
 // @route   POST /api/meetings/:chamaId/create
@@ -11,7 +15,7 @@ const createMeeting = async (req, res) => {
 
     if (!meetingDate) {
       return res.validationError([
-        { field: "meetingDate", message: "Meeting date is required" }
+        { field: "meetingDate", message: "Meeting date is required" },
       ]);
     }
 
@@ -97,10 +101,13 @@ const getMeetingById = async (req, res) => {
       [id]
     );
 
-    return res.success({
-      meeting: meetingResult.rows[0],
-      attendance: attendanceResult.rows,
-    }, "Meeting retrieved successfully");
+    return res.success(
+      {
+        meeting: meetingResult.rows[0],
+        attendance: attendanceResult.rows,
+      },
+      "Meeting retrieved successfully"
+    );
   } catch (error) {
     console.error("Get meeting error:", error);
     return res.error("Error fetching meeting", 500);
@@ -153,7 +160,7 @@ const updateMeeting = async (req, res) => {
 
     if (updates.length === 0) {
       return res.validationError([
-        { field: "body", message: "No fields to update" }
+        { field: "body", message: "No fields to update" },
       ]);
     }
 
@@ -191,7 +198,7 @@ const recordAttendance = async (req, res) => {
 
     if (!Array.isArray(attendance) || attendance.length === 0) {
       return res.validationError([
-        { field: "attendance", message: "Attendance array is required" }
+        { field: "attendance", message: "Attendance array is required" },
       ]);
     }
 

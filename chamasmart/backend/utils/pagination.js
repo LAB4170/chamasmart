@@ -17,7 +17,7 @@ const parsePagination = (page = 1, limit = 20) => {
   return {
     page: validPage,
     limit: validLimit,
-    offset
+    offset,
   };
 };
 
@@ -54,8 +54,8 @@ const formatPaginationMeta = (rows, total, page, limit) => {
       hasNextPage: validPage < totalPages,
       hasPreviousPage: validPage > 1,
       startIndex: (validPage - 1) * validLimit + 1,
-      endIndex: Math.min(validPage * validLimit, total)
-    }
+      endIndex: Math.min(validPage * validLimit, total),
+    },
   };
 };
 
@@ -67,7 +67,7 @@ const formatPaginationMeta = (rows, total, page, limit) => {
  * @param {Array} params - Query parameters (optional)
  * @returns {Promise<number>} - Total count
  */
-const getTotal = async (pool, table, whereClause = '', params = []) => {
+const getTotal = async (pool, table, whereClause = "", params = []) => {
   const query = whereClause
     ? `SELECT COUNT(*) as count FROM ${table} WHERE ${whereClause}`
     : `SELECT COUNT(*) as count FROM ${table}`;
@@ -80,5 +80,5 @@ module.exports = {
   parsePagination,
   buildLimitClause,
   formatPaginationMeta,
-  getTotal
+  getTotal,
 };

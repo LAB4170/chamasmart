@@ -29,13 +29,17 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 5005;
 
 // Basic health check (no middleware)
-app.get("/api/ping", (req, res) => res.json({ success: true, message: "pong" }));
-app.get("/health", (req, res) => res.json({
-  uptime: process.uptime(),
-  message: 'OK',
-  timestamp: Date.now(),
-  port: PORT
-}));
+app.get("/api/ping", (req, res) =>
+  res.json({ success: true, message: "pong" })
+);
+app.get("/health", (req, res) =>
+  res.json({
+    uptime: process.uptime(),
+    message: "OK",
+    timestamp: Date.now(),
+    port: PORT,
+  })
+);
 
 // Apply security middleware
 securityMiddleware(app);
@@ -64,7 +68,9 @@ app.use(cacheControlMiddleware);
 app.use(metricsMiddleware);
 
 // API Routes
-app.get("/api/ping", (req, res) => res.json({ success: true, message: "pong" }));
+app.get("/api/ping", (req, res) =>
+  res.json({ success: true, message: "pong" })
+);
 
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/chamas", require("./routes/chamas"));
@@ -96,8 +102,13 @@ if (fs.existsSync(distPath)) {
 // Final Catch-all Middleware (Replaces app.get('*'))
 app.use((req, res, next) => {
   // If API route not found
-  if (req.originalUrl.startsWith('/api')) {
-    return res.status(404).json({ success: false, message: `API endpoint ${req.originalUrl} not found` });
+  if (req.originalUrl.startsWith("/api")) {
+    return res
+      .status(404)
+      .json({
+        success: false,
+        message: `API endpoint ${req.originalUrl} not found`,
+      });
   }
 
   // If Static file not found, fallback to index.html (SPA)
@@ -112,15 +123,22 @@ app.use((req, res, next) => {
 // Global error handling
 app.use((err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
-  console.error('SERVER ERROR:', err.message);
-  logger.error({ message: err.message, stack: err.stack, method: req.method, url: req.url });
-  res.status(err.statusCode).json({ success: false, message: "Internal server error" });
+  console.error("SERVER ERROR:", err.message);
+  logger.error({
+    message: err.message,
+    stack: err.stack,
+    method: req.method,
+    url: req.url,
+  });
+  res
+    .status(err.statusCode)
+    .json({ success: false, message: "Internal server error" });
 });
 
 // Start server
-server.on('error', (err) => {
-  console.error('SERVER FATAL ERROR:', err.message);
-  if (err.code === 'EADDRINUSE') {
+server.on("error", (err) => {
+  console.error("SERVER FATAL ERROR:", err.message);
+  if (err.code === "EADDRINUSE") {
     process.exit(1);
   }
 });

@@ -51,7 +51,10 @@ const storeRefreshToken = async (userId, token, userAgent, ipAddress) => {
 
     return result.rows[0];
   } catch (error) {
-    logger.error("Failed to store refresh token", { userId, error: error.message });
+    logger.error("Failed to store refresh token", {
+      userId,
+      error: error.message,
+    });
     throw error;
   }
 };
@@ -101,7 +104,10 @@ const revokeRefreshToken = async (userId, token) => {
       [userId, token]
     );
   } catch (error) {
-    logger.error("Failed to revoke refresh token", { userId, error: error.message });
+    logger.error("Failed to revoke refresh token", {
+      userId,
+      error: error.message,
+    });
   }
 };
 
@@ -118,7 +124,10 @@ const revokeAllRefreshTokens = async (userId) => {
       [userId]
     );
   } catch (error) {
-    logger.error("Failed to revoke all refresh tokens", { userId, error: error.message });
+    logger.error("Failed to revoke all refresh tokens", {
+      userId,
+      error: error.message,
+    });
   }
 };
 
@@ -131,7 +140,9 @@ const cleanupExpiredTokens = async () => {
     const result = await pool.query(
       `DELETE FROM refresh_tokens WHERE expires_at < NOW()`
     );
-    logger.info("Cleaned up expired refresh tokens", { count: result.rowCount });
+    logger.info("Cleaned up expired refresh tokens", {
+      count: result.rowCount,
+    });
     return result.rowCount;
   } catch (error) {
     logger.error("Failed to cleanup expired tokens", { error: error.message });

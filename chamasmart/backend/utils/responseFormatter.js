@@ -1,18 +1,18 @@
 /**
  * Standard Response Formatter for all API endpoints
  * Ensures consistent response format across the entire application
- * 
+ *
  * Usage:
  * res.json(success(data, "Resource created", 201))
  * res.json(error("Something went wrong"))
  */
 
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require("uuid");
 
 /**
  * Generate request ID for tracing
  */
-const generateRequestId = () => uuidv4().split('-')[0];
+const generateRequestId = () => uuidv4().split("-")[0];
 
 /**
  * Success Response Format
@@ -21,14 +21,19 @@ const generateRequestId = () => uuidv4().split('-')[0];
  * @param {number} statusCode - HTTP status code (optional, default 200)
  * @param {string} requestId - Request ID for tracing (auto-generated if not provided)
  */
-const success = (data = null, message = "Success", statusCode = 200, requestId = null) => {
+const success = (
+  data = null,
+  message = "Success",
+  statusCode = 200,
+  requestId = null
+) => {
   return {
     success: true,
     message,
     data,
     timestamp: new Date().toISOString(),
     requestId: requestId || generateRequestId(),
-    statusCode
+    statusCode,
   };
 };
 
@@ -39,7 +44,12 @@ const success = (data = null, message = "Success", statusCode = 200, requestId =
  * @param {*} details - Additional error details for debugging (optional)
  * @param {string} requestId - Request ID for tracing (auto-generated if not provided)
  */
-const error = (message = "An error occurred", statusCode = 400, details = null, requestId = null) => {
+const error = (
+  message = "An error occurred",
+  statusCode = 400,
+  details = null,
+  requestId = null
+) => {
   return {
     success: false,
     message,
@@ -47,7 +57,7 @@ const error = (message = "An error occurred", statusCode = 400, details = null, 
     timestamp: new Date().toISOString(),
     requestId: requestId || generateRequestId(),
     statusCode,
-    ...(details && { details }) // Include details only if provided
+    ...(details && { details }), // Include details only if provided
   };
 };
 
@@ -58,10 +68,10 @@ const error = (message = "An error occurred", statusCode = 400, details = null, 
  */
 const validationError = (errors, requestId = null) => {
   const formattedErrors = Array.isArray(errors)
-    ? errors.map(err => ({
-        field: err.path.join('.'),
+    ? errors.map((err) => ({
+        field: err.path.join("."),
         message: err.message,
-        type: err.type
+        type: err.type,
       }))
     : errors;
 
@@ -72,7 +82,7 @@ const validationError = (errors, requestId = null) => {
     errors: formattedErrors,
     timestamp: new Date().toISOString(),
     requestId: requestId || generateRequestId(),
-    statusCode: 422
+    statusCode: 422,
   };
 };
 
@@ -85,9 +95,16 @@ const validationError = (errors, requestId = null) => {
  * @param {string} message - User-friendly message
  * @param {string} requestId - Request ID for tracing
  */
-const paginated = (data = [], page = 1, limit = 20, total = 0, message = "Success", requestId = null) => {
+const paginated = (
+  data = [],
+  page = 1,
+  limit = 20,
+  total = 0,
+  message = "Success",
+  requestId = null
+) => {
   const totalPages = Math.ceil(total / limit);
-  
+
   return {
     success: true,
     message,
@@ -98,11 +115,11 @@ const paginated = (data = [], page = 1, limit = 20, total = 0, message = "Succes
       total,
       totalPages,
       hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1
+      hasPreviousPage: page > 1,
     },
     timestamp: new Date().toISOString(),
     requestId: requestId || generateRequestId(),
-    statusCode: 200
+    statusCode: 200,
   };
 };
 
@@ -118,7 +135,11 @@ const responseFormatterMiddleware = (req, res, next) => {
     res.status(statusCode).json(success(data, message, statusCode, req.id));
   };
 
-  res.error = (message = "An error occurred", statusCode = 400, details = null) => {
+  res.error = (
+    message = "An error occurred",
+    statusCode = 400,
+    details = null
+  ) => {
     res.status(statusCode).json(error(message, statusCode, details, req.id));
   };
 
@@ -139,5 +160,5 @@ module.exports = {
   validationError,
   paginated,
   responseFormatterMiddleware,
-  generateRequestId
+  generateRequestId,
 };

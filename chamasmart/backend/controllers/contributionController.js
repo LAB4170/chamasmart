@@ -1,10 +1,15 @@
 const pool = require("../config/db");
 const { isValidAmount, isValidPaymentMethod } = require("../utils/validators");
-const { parsePagination, buildLimitClause, formatPaginationMeta, getTotal } = require("../utils/pagination");
+const {
+  parsePagination,
+  buildLimitClause,
+  formatPaginationMeta,
+  getTotal,
+} = require("../utils/pagination");
 const NodeCache = require("node-cache");
 const { getIo } = require("../socket");
 
-// Reuse the same cache if possible, or create a new one. 
+// Reuse the same cache if possible, or create a new one.
 // Note: In a real app, this would be a shared module.
 const cache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
 
@@ -39,19 +44,19 @@ const recordContribution = async (req, res) => {
     if (!userId || !amount) {
       return res.validationError([
         { field: "userId", message: "User ID is required" },
-        { field: "amount", message: "Amount is required" }
+        { field: "amount", message: "Amount is required" },
       ]);
     }
 
     if (!isValidAmount(amount)) {
       return res.validationError([
-        { field: "amount", message: "Amount must be a positive number" }
+        { field: "amount", message: "Amount must be a positive number" },
       ]);
     }
 
     if (paymentMethod && !isValidPaymentMethod(paymentMethod)) {
       return res.validationError([
-        { field: "paymentMethod", message: "Invalid payment method" }
+        { field: "paymentMethod", message: "Invalid payment method" },
       ]);
     }
 
@@ -107,13 +112,17 @@ const recordContribution = async (req, res) => {
       const io = getIo();
       io.to(`chama_${chamaId}`).emit("contribution_recorded", {
         chamaId,
-        contribution: result.rows[0]
+        contribution: result.rows[0],
       });
     } catch (err) {
       console.error("Socket emit error:", err.message);
     }
 
-    return res.success(result.rows[0], "Contribution recorded successfully", 201);
+    return res.success(
+      result.rows[0],
+      "Contribution recorded successfully",
+      201
+    );
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Record contribution error:", error);
@@ -135,7 +144,8 @@ const getChamaContributions = async (req, res) => {
     const { page: pageNum, limit: limitNum } = parsePagination(page, limit);
 
     // Only cache if no filters are applied
-    const useCache = !startDate && !endDate && !userId && pageNum === 1 && limitNum === 20;
+    const useCache =
+      !startDate && !endDate && !userId && pageNum === 1 && limitNum === 20;
     const cacheKey = `contributions_${chamaId}`;
 
     if (useCache) {
@@ -200,7 +210,11 @@ const getChamaContributions = async (req, res) => {
     );
 
     if (useCache) {
-      cache.set(cacheKey, { data: result.rows, total: totalCount, totalAmount });
+      cache.set(cacheKey, {
+        data: result.rows,
+        total: totalCount,
+        totalAmount,
+      });
     }
 
     return res.paginated(
@@ -303,7 +317,7 @@ const deleteContribution = async (req, res) => {
       const io = getIo();
       io.to(`chama_${chamaId}`).emit("contribution_deleted", {
         chamaId,
-        contributionId: id
+        contributionId: id,
       });
     } catch (err) {
       console.error("Socket emit error:", err.message);

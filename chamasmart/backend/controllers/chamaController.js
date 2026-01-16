@@ -4,7 +4,11 @@ const {
   isValidFrequency,
   isValidAmount,
 } = require("../utils/validators");
-const { parsePagination, formatPaginationMeta, getTotal } = require("../utils/pagination");
+const {
+  parsePagination,
+  formatPaginationMeta,
+  getTotal,
+} = require("../utils/pagination");
 const NodeCache = require("node-cache");
 
 // Initialize cache with 5 minutes (300 seconds) standard TTL
@@ -28,7 +32,11 @@ const clearChamaCache = (chamaId) => {
 const getAllChamas = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
-    const { page: validPage, limit: validLimit, offset } = parsePagination(page, limit);
+    const {
+      page: validPage,
+      limit: validLimit,
+      offset,
+    } = parsePagination(page, limit);
 
     // Get total count
     const countResult = await pool.query(
@@ -49,7 +57,12 @@ const getAllChamas = async (req, res) => {
       [validLimit, offset]
     );
 
-    const paginatedData = formatPaginationMeta(result.rows, total, validPage, validLimit);
+    const paginatedData = formatPaginationMeta(
+      result.rows,
+      total,
+      validPage,
+      validLimit
+    );
 
     res.paginated(
       paginatedData.data,
@@ -125,7 +138,7 @@ const createChama = async (req, res) => {
       contributionFrequency,
       meetingDay,
       meetingTime,
-      visibility = 'PRIVATE',
+      visibility = "PRIVATE",
     } = req.body;
 
     // Validation
@@ -165,7 +178,7 @@ const createChama = async (req, res) => {
     await client.query("BEGIN");
 
     // Validate visibility
-    if (!['PUBLIC', 'PRIVATE'].includes(visibility)) {
+    if (!["PUBLIC", "PRIVATE"].includes(visibility)) {
       return res.status(400).json({
         success: false,
         message: "Visibility must be PUBLIC or PRIVATE",
@@ -192,7 +205,7 @@ const createChama = async (req, res) => {
         meetingTime,
         req.user.user_id,
         visibility,
-        inviteCode
+        inviteCode,
       ]
     );
 
@@ -287,7 +300,7 @@ const updateChama = async (req, res) => {
       values.push(meetingTime);
     }
     if (visibility) {
-      if (!['PUBLIC', 'PRIVATE'].includes(visibility)) {
+      if (!["PUBLIC", "PRIVATE"].includes(visibility)) {
         return res.status(400).json({
           success: false,
           message: "Visibility must be PUBLIC or PRIVATE",
@@ -367,7 +380,11 @@ const deleteChama = async (req, res) => {
 const getMyChamas = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
-    const { page: validPage, limit: validLimit, offset } = parsePagination(page, limit);
+    const {
+      page: validPage,
+      limit: validLimit,
+      offset,
+    } = parsePagination(page, limit);
     const userId = req.user.user_id;
 
     // Get total count
@@ -392,7 +409,12 @@ const getMyChamas = async (req, res) => {
       [userId, validLimit, offset]
     );
 
-    const paginatedData = formatPaginationMeta(result.rows, total, validPage, validLimit);
+    const paginatedData = formatPaginationMeta(
+      result.rows,
+      total,
+      validPage,
+      validLimit
+    );
 
     res.paginated(
       paginatedData.data,
@@ -416,7 +438,12 @@ const getChamaMembers = async (req, res) => {
     const cacheKey = `chama_members_${id}`;
     const cachedData = cache.get(cacheKey);
     if (cachedData) {
-      return res.json({ success: true, count: cachedData.length, data: cachedData, cached: true });
+      return res.json({
+        success: true,
+        count: cachedData.length,
+        data: cachedData,
+        cached: true,
+      });
     }
 
     const result = await pool.query(
@@ -485,7 +512,7 @@ const getChamaStats = async (req, res) => {
          FROM contributions
          WHERE chama_id = $1 AND contribution_date >= CURRENT_DATE - INTERVAL '30 days'`,
         [id]
-      )
+      ),
     ]);
 
     if (statsResult.rows.length === 0) {
@@ -497,7 +524,9 @@ const getChamaStats = async (req, res) => {
 
     const data = {
       ...statsResult.rows[0],
-      recent_contributions: parseInt(activityResult.rows[0].recent_contributions),
+      recent_contributions: parseInt(
+        activityResult.rows[0].recent_contributions
+      ),
     };
 
     cache.set(cacheKey, data);

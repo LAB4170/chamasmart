@@ -18,22 +18,14 @@ const { registerSchema, loginSchema } = require("../utils/validationSchemas");
 // Public routes
 router.post("/register", validate(registerSchema), register);
 router.post("/login", validate(loginSchema), login);
-router.post("/refresh", refresh);  // NEW: Token refresh endpoint
+router.post("/refresh", refresh); // NEW: Token refresh endpoint
 router.post("/verify-email", verifyEmail);
 
 // Protected routes
 router.get("/me", protect, getMe);
-router.post("/logout", protect, logout);  // NEW: Logout endpoint
+router.post("/logout", protect, logout); // NEW: Logout endpoint
 router.post("/verify-phone", protect, verifyPhone);
-router.post(
-  "/resend-email-verification",
-  protect,
-  resendEmailVerification
-);
-router.post(
-  "/resend-phone-verification",
-  protect,
-  resendPhoneVerification
-);
+router.post("/resend-email-verification", protect, resendEmailVerification);
+router.post("/resend-phone-verification", protect, resendPhoneVerification);
 
 module.exports = router;

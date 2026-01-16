@@ -1,4 +1,5 @@
 # ChamaSmart Full-Stack Diagnostic Report
+
 **Generated:** January 16, 2026 | **Status:** ✅ ALL SYSTEMS RUNNING
 
 ---
@@ -16,6 +17,7 @@ Both **Backend** and **Frontend** servers are running successfully with comprehe
 ## 📊 BACKEND ANALYSIS
 
 ### ✅ Server Status
+
 - **Port:** 5005
 - **Runtime:** Node.js (CommonJS)
 - **Status:** `STABILIZED`
@@ -23,13 +25,16 @@ Both **Backend** and **Frontend** servers are running successfully with comprehe
 - **Response:** Healthy
 
 ### 📦 Dependencies Overview
+
 **Core Framework:**
+
 - Express 5.2.1 (HTTP server)
 - Socket.io 4.8.1 (Real-time WebSockets)
 - PostgreSQL (pg 8.16.3) - Primary Database
 - Redis (ioredis 5.9.0) - Caching & Rate Limiting
 
 **Security:**
+
 - JWT (jsonwebtoken 9.0.3) - Token authentication
 - bcryptjs 3.0.3 - Password hashing
 - Helmet 7.2.0 - Security headers
@@ -40,6 +45,7 @@ Both **Backend** and **Frontend** servers are running successfully with comprehe
 - HPP 0.2.3 - HTTP Parameter Pollution protection
 
 **Data & Processing:**
+
 - Bull 4.16.5 - Job queue
 - Node-cron 4.2.1 - Scheduled tasks
 - Multer 2.0.2 - File uploads
@@ -47,6 +53,7 @@ Both **Backend** and **Frontend** servers are running successfully with comprehe
 - Winston 3.19.0 - Logging with daily rotation
 
 **Cloud & Infrastructure:**
+
 - @google-cloud/storage 7.18.0 - GCS integration
 - Prometheus (prom-client 15.1.3) - Metrics
 - Opossum 9.0.0 - Circuit breaker pattern
@@ -54,15 +61,19 @@ Both **Backend** and **Frontend** servers are running successfully with comprehe
 ### 🚨 WARNINGS DETECTED
 
 #### ⚠️ Redis Connection Failed
+
 ```
 Redis connection failed multiple times. Disabling distributed rate limiting.
 ```
+
 **Impact:** Non-critical
+
 - Rate limiting falls back to in-memory store
 - All core features operational
 - Recommended: Configure Redis for production
 
 **Resolution:** Add to `.env`:
+
 ```
 REDIS_HOST=localhost
 REDIS_PORT=6379
@@ -71,43 +82,48 @@ REDIS_PASSWORD=your_password  # if required
 
 ### 🛣️ API Routes Architecture
 
-| Route | Purpose | Auth | Status |
-|-------|---------|------|--------|
-| `/api/auth` | User authentication & verification | Public (register/login) | ✅ |
-| `/api/chamas` | Chama group management | Protected | ✅ |
-| `/api/members` | Membership management | Protected | ✅ |
-| `/api/contributions` | Contribution tracking | Protected | ✅ |
-| `/api/meetings` | Meeting scheduling & attendance | Protected | ✅ |
-| `/api/loans` | Loan management & approvals | Protected | ✅ |
-| `/api/payouts` | Payment processing | Protected | ✅ |
-| `/api/rosca` | ROSCA cycle management | Protected | ✅ |
-| `/api/asca` | ASCA share & equity system | Protected | ✅ |
-| `/api/welfare` | Welfare fund management | Protected | ✅ |
-| `/api/notifications` | Real-time notifications | Protected | ✅ |
-| `/api/invites` | Chama invitations | Protected | ✅ |
-| `/api/join-requests` | Member join requests | Protected | ✅ |
-| `/health` | Health check endpoint | Public | ✅ |
-| `/metrics` | Prometheus metrics | Optional auth | ✅ |
+| Route                | Purpose                            | Auth                    | Status |
+| -------------------- | ---------------------------------- | ----------------------- | ------ |
+| `/api/auth`          | User authentication & verification | Public (register/login) | ✅     |
+| `/api/chamas`        | Chama group management             | Protected               | ✅     |
+| `/api/members`       | Membership management              | Protected               | ✅     |
+| `/api/contributions` | Contribution tracking              | Protected               | ✅     |
+| `/api/meetings`      | Meeting scheduling & attendance    | Protected               | ✅     |
+| `/api/loans`         | Loan management & approvals        | Protected               | ✅     |
+| `/api/payouts`       | Payment processing                 | Protected               | ✅     |
+| `/api/rosca`         | ROSCA cycle management             | Protected               | ✅     |
+| `/api/asca`          | ASCA share & equity system         | Protected               | ✅     |
+| `/api/welfare`       | Welfare fund management            | Protected               | ✅     |
+| `/api/notifications` | Real-time notifications            | Protected               | ✅     |
+| `/api/invites`       | Chama invitations                  | Protected               | ✅     |
+| `/api/join-requests` | Member join requests               | Protected               | ✅     |
+| `/health`            | Health check endpoint              | Public                  | ✅     |
+| `/metrics`           | Prometheus metrics                 | Optional auth           | ✅     |
 
 ### 🔐 Security Configuration
 
 **Implemented Security Layers:**
+
 1. **Rate Limiting**
+
    - General API: 1000 requests per 15 minutes
    - Auth endpoints: 10 requests per 15 minutes
    - Redis-backed for distributed systems
 
 2. **Authentication**
+
    - JWT-based (Bearer tokens)
    - 90-day expiration
    - Email/phone verification flow
 
 3. **Authorization**
+
    - Role-based access control (RBAC)
    - Roles: MEMBER, CHAIRPERSON, SECRETARY, TREASURER, ADMIN
    - Per-chama membership validation
 
 4. **HTTP Security**
+
    - Helmet middleware (HSTS, CSP, X-Frame-Options)
    - XSS protection
    - SQL injection prevention
@@ -120,6 +136,7 @@ REDIS_PASSWORD=your_password  # if required
 ### 📋 Database Configuration
 
 **Current Setup:**
+
 ```
 Host: localhost
 Port: 5432
@@ -132,6 +149,7 @@ Connection Timeout: 60s
 ```
 
 **Migration Status:**
+
 ```
 ✅ 001_add_soft_deletes.sql
 ✅ 002_add_invites.sql
@@ -148,6 +166,7 @@ Connection Timeout: 60s
 ### 📝 Backend Architecture Patterns
 
 **Controllers:** 14 feature-specific controllers
+
 - `authController` - User auth & verification
 - `chamaController` - Group management
 - `loanController` - Loan system
@@ -155,9 +174,10 @@ Connection Timeout: 60s
 - `ascaController` - Share system
 - `meetingController` - Meetings
 - `welfareController` - Welfare fund
-- + 7 more specialized controllers
+- - 7 more specialized controllers
 
 **Middleware Stack:**
+
 - Authentication (`auth.js`)
 - Authorization with role checks
 - Request logging
@@ -168,6 +188,7 @@ Connection Timeout: 60s
 - CORS
 
 **Utilities:**
+
 - Logger (Winston with daily rotation)
 - Input validators (email, phone, password strength)
 - Validation schemas (Joi)
@@ -175,17 +196,20 @@ Connection Timeout: 60s
 - Cache management
 
 ### 🔄 Real-Time Features
+
 - Socket.io configured for WebSocket support
 - Redis adapter for distributed socket sessions
 
 ### 📊 Monitoring & Observability
 
 **Endpoints:**
+
 - `/health` - Basic health check
 - `/readiness` - Readiness probe for k8s
 - `/metrics` - Prometheus-compatible metrics
 
 **Logging:**
+
 - Winston logger with daily rotation
 - Logs directory: `backend/logs/`
 - Log levels: error, warn, info, debug
@@ -195,42 +219,49 @@ Connection Timeout: 60s
 ## 🎨 FRONTEND ANALYSIS
 
 ### ✅ Server Status
+
 - **Port:** 5173
 - **Type:** React 19.2.0 + Vite 7.3.0
 - **Status:** Ready in 11.7 seconds
-- **Access:** 
+- **Access:**
   - Local: `http://localhost:5173/`
   - Network: `http://192.168.3.105:5173/`
 
 ### 📦 Dependencies Overview
 
 **Core Framework:**
+
 - React 19.2.0
 - React Router DOM 7.10.1
 - Vite 7.2.4 (Build tool)
 
 **UI & Visualization:**
+
 - React Window 1.8.10 (Virtualization)
 - jsPDF 3.0.4 (PDF generation)
 - jsPDF AutoTable 5.0.2 (Table to PDF)
 - XLSX (Excel export)
 
 **API & Communication:**
+
 - Axios 1.13.2 (HTTP client)
 - Socket.io Client 4.8.1 (WebSocket)
 
 **Mobile:**
+
 - Capacitor 8.0.0 (iOS/Android)
 - Capacitor CLI
 - Capacitor Android
 - Capacitor iOS
 
 **Performance & PWA:**
+
 - Vite PWA Plugin 1.2.0 (Progressive Web App)
 - Vite Plugin Compression 0.5.1 (Gzip/Brotli)
 - Rollup Plugin Visualizer 6.0.5 (Bundle analysis)
 
 **Development:**
+
 - ESLint 9.39.1
 - Vite React Plugin 5.1.1
 - TypeScript types included
@@ -238,6 +269,7 @@ Connection Timeout: 60s
 ### 🛠️ Build Configuration
 
 **Vite Plugins Enabled:**
+
 1. **React Plugin** - JSX transformation
 2. **Gzip Compression** - `.gz` output
 3. **Brotli Compression** - `.br` output (better compression)
@@ -276,6 +308,7 @@ frontend/
 **Service Layer:** `frontend/src/services/api.js`
 
 **API Groups:**
+
 - `authAPI` - Login, register, verification
 - `chamaAPI` - Group management
 - `memberAPI` - Membership operations
@@ -288,6 +321,7 @@ frontend/
 - `notificationAPI` - Notifications
 
 **Axios Configuration:**
+
 - Base URL: `/api` (proxied to backend)
 - JWT Token: Automatically attached from localStorage
 - 401 Response: Auto-redirect to login, prevent redirect loops
@@ -317,16 +351,19 @@ frontend/
 ### Frontend → Backend Communication
 
 **API URL Resolution:**
+
 ```javascript
-const API_URL = "/api";  // Proxy-based (relative to frontend origin)
+const API_URL = "/api"; // Proxy-based (relative to frontend origin)
 ```
 
 **CORS Configuration:**
+
 - Credentials: ✅ Enabled
 - Methods: GET, POST, PUT, DELETE, PATCH, OPTIONS
 - Headers: Authorization, Content-Type, etc.
 
 **Authentication Flow:**
+
 1. User logs in → Backend returns JWT token
 2. Token stored in `localStorage` as `token`
 3. Axios interceptor attaches `Authorization: Bearer <token>` to all requests
@@ -334,6 +371,7 @@ const API_URL = "/api";  // Proxy-based (relative to frontend origin)
 5. User data stored in `localStorage` as `user`
 
 ### WebSocket Configuration
+
 - Socket.io client connected to same backend
 - Enables real-time notifications
 - Fallback to polling if WebSocket unavailable
@@ -345,14 +383,16 @@ const API_URL = "/api";  // Proxy-based (relative to frontend origin)
 ### Current Issues
 
 #### 1. ⚠️ Redis Not Running (Non-Critical)
+
 - **Severity:** Low
 - **Impact:** Rate limiting uses in-memory store instead of distributed Redis
-- **Solution:** 
+- **Solution:**
   ```bash
   docker-compose up redis  # or install Redis locally
   ```
 
 #### 2. ⚠️ SMTP Configuration Missing
+
 - **Severity:** Medium
 - **Impact:** Email verification emails not sent
 - **Solution:** Configure SMTP in `.env`:
@@ -365,6 +405,7 @@ const API_URL = "/api";  // Proxy-based (relative to frontend origin)
   ```
 
 #### 3. ⚠️ Database Connection Not Validated on Startup
+
 - **Severity:** Low
 - **Impact:** DB connection errors only show when first query runs
 - **Solution:** Uncomment DB test connection in `backend/config/db.js` (lines 19-30)
@@ -372,31 +413,37 @@ const API_URL = "/api";  // Proxy-based (relative to frontend origin)
 ### Recommended Improvements
 
 #### 1. Environment Variables
+
 - [ ] Add `.env.example` with all required variables
 - [ ] Document each environment variable
 - [ ] Add validation for required env vars on startup
 
 #### 2. Database
+
 - [ ] Add database connection pool monitoring
 - [ ] Implement query logging for slow queries
 - [ ] Consider adding database backups
 
 #### 3. Monitoring
+
 - [ ] Set up Prometheus scraping
 - [ ] Add Grafana dashboards
 - [ ] Configure alerting for key metrics
 
 #### 4. Testing
+
 - [ ] Expand backend test coverage (currently auth-focused)
 - [ ] Add frontend component tests
 - [ ] Add integration tests for API flows
 
 #### 5. Documentation
+
 - [ ] API documentation (Swagger/OpenAPI)
 - [ ] Setup guide for local development
 - [ ] Deployment guide (Docker, Kubernetes)
 
 #### 6. Frontend
+
 - [ ] Add error boundary logging
 - [ ] Implement offline detection
 - [ ] Add toast/notification system for user feedback
@@ -506,6 +553,7 @@ ChamaSmart Platform
 ## 📊 PERFORMANCE METRICS
 
 ### Backend Performance
+
 - **Response Time:** < 100ms (typical)
 - **Max Concurrent Connections:** 20 (DB pool)
 - **Request Size Limit:** 10KB
@@ -513,6 +561,7 @@ ChamaSmart Platform
 - **Socket Connections:** Unlimited (with Redis adapter)
 
 ### Frontend Performance
+
 - **Dev Server Start Time:** ~11.7 seconds
 - **Build Output:** Gzip + Brotli compressed
 - **PWA Support:** ✅ Installable
@@ -523,6 +572,7 @@ ChamaSmart Platform
 ## 🧪 TESTING
 
 ### Backend Testing
+
 ```bash
 npm test                    # Run tests
 npm run test:watch        # Watch mode
@@ -530,6 +580,7 @@ jest --coverage           # Coverage report
 ```
 
 ### Frontend Testing
+
 ```bash
 npm run lint              # ESLint check
 ```
@@ -539,6 +590,7 @@ npm run lint              # ESLint check
 ## 🚀 DEPLOYMENT CHECKLIST
 
 ### Pre-Deployment
+
 - [ ] Set all required environment variables
 - [ ] Configure Redis for distributed systems
 - [ ] Set up SMTP for email notifications
@@ -549,12 +601,15 @@ npm run lint              # ESLint check
 - [ ] Set up database backups
 
 ### Deployment Options
+
 1. **Docker Compose** (local/staging)
+
    ```bash
    docker-compose up
    ```
 
 2. **Kubernetes** (production)
+
    - Add kubectl manifests
    - Configure services, deployments, ingress
    - Set up horizontal pod autoscaling
@@ -570,6 +625,7 @@ npm run lint              # ESLint check
 ## ✅ HEALTH CHECK RESULTS
 
 **Endpoint Tests:**
+
 ```
 ✅ GET http://localhost:5005/health
    Response: { uptime: 150.11s, message: "OK", port: "5005" }
@@ -586,12 +642,14 @@ npm run lint              # ESLint check
 ## 📞 SUPPORT & NEXT STEPS
 
 ### Critical Actions
+
 1. ✅ Both servers running
 2. ⚠️ Configure Redis (for production)
 3. ⚠️ Set up SMTP (for email features)
 4. ⚠️ Configure environment variables
 
 ### Development Workflow
+
 ```bash
 # Terminal 1: Backend
 cd backend && npm run dev
@@ -604,6 +662,7 @@ docker-compose up postgres redis
 ```
 
 ### Useful Commands
+
 ```bash
 # Backend
 npm start              # Production mode

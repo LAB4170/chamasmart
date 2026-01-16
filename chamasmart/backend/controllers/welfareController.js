@@ -2,7 +2,11 @@ const pool = require("../config/db");
 const { sendNotification } = require("../utils/notifications");
 const logger = require("../utils/logger");
 const { uploadToStorage } = require("../utils/storage");
-const { parsePagination, buildLimitClause, getTotal } = require("../utils/pagination");
+const {
+  parsePagination,
+  buildLimitClause,
+  getTotal,
+} = require("../utils/pagination");
 
 // Welfare Configuration Management
 const getWelfareConfig = async (req, res) => {
@@ -84,7 +88,10 @@ const getWelfareFund = async (req, res) => {
       const {
         rows: [newFund],
       } = await pool.query(initQuery, [chamaId]);
-      return res.success(newFund, "Welfare fund initialized and retrieved successfully");
+      return res.success(
+        newFund,
+        "Welfare fund initialized and retrieved successfully"
+      );
     }
 
     return res.success(rows[0], "Welfare fund retrieved successfully");
@@ -179,8 +186,19 @@ const getMemberClaims = async (req, res) => {
       LIMIT $3 OFFSET $4
     `;
 
-    const { rows } = await pool.query(query, [memberId, chamaId, limitNum, (pageNum - 1) * limitNum]);
-    return res.paginated(rows, totalCount, pageNum, limitNum, "Member claims retrieved successfully");
+    const { rows } = await pool.query(query, [
+      memberId,
+      chamaId,
+      limitNum,
+      (pageNum - 1) * limitNum,
+    ]);
+    return res.paginated(
+      rows,
+      totalCount,
+      pageNum,
+      limitNum,
+      "Member claims retrieved successfully"
+    );
   } catch (error) {
     logger.error("Error fetching member claims:", error);
     return res.error("Error fetching claims", 500);
@@ -232,7 +250,13 @@ const getChamaClaims = async (req, res) => {
     params.push(limitNum, (pageNum - 1) * limitNum);
 
     const { rows } = await pool.query(query, params);
-    return res.paginated(rows, totalCount, pageNum, limitNum, "Chama claims retrieved successfully");
+    return res.paginated(
+      rows,
+      totalCount,
+      pageNum,
+      limitNum,
+      "Chama claims retrieved successfully"
+    );
   } catch (error) {
     logger.error("Error fetching chama claims:", error);
     return res.error("Error fetching claims", 500);

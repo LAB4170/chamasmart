@@ -14,7 +14,10 @@ const {
 const { protect, isOfficial } = require("../middleware/auth");
 
 const validate = require("../middleware/validate");
-const { createChamaSchema, updateChamaSchema } = require("../utils/validationSchemas");
+const {
+  createChamaSchema,
+  updateChamaSchema,
+} = require("../utils/validationSchemas");
 
 // Public routes (view chamas)
 router.get("/", getAllChamas);
@@ -30,7 +33,13 @@ router.get("/:id/members", protect, getChamaMembers);
 router.get("/:id/stats", protect, getChamaStats);
 
 // Official-only routes
-router.put("/:chamaId", protect, isOfficial, validate(updateChamaSchema), updateChama);
+router.put(
+  "/:chamaId",
+  protect,
+  isOfficial,
+  validate(updateChamaSchema),
+  updateChama
+);
 router.delete("/:chamaId", protect, isOfficial, deleteChama);
 
 module.exports = router;

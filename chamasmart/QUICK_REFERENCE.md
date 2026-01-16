@@ -3,7 +3,8 @@
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js v16+ 
+
+- Node.js v16+
 - npm v8+
 - PostgreSQL v12+
 - (Optional) Docker Desktop
@@ -65,6 +66,7 @@ chamasmart/
 ## 🔑 Key Endpoints
 
 ### Authentication
+
 ```
 POST   /api/auth/register           # New user signup
 POST   /api/auth/login              # User login
@@ -74,6 +76,7 @@ POST   /api/auth/verify-phone       # Phone verification
 ```
 
 ### Chama Groups
+
 ```
 GET    /api/chamas                  # List all chamas
 POST   /api/chamas                  # Create chama
@@ -83,6 +86,7 @@ GET    /api/chamas/user/my-chamas   # User's chamas
 ```
 
 ### Contributions
+
 ```
 GET    /api/contributions/:chamaId          # Get contributions
 POST   /api/contributions/:chamaId/record   # Record contribution
@@ -90,6 +94,7 @@ GET    /api/contributions/:chamaId/:id      # Get contribution details
 ```
 
 ### Loans (Table Banking)
+
 ```
 GET    /api/loans/:chamaId/config          # Loan settings
 PUT    /api/loans/:chamaId/config          # Update settings
@@ -100,6 +105,7 @@ POST   /api/loans/:loanId/repay            # Record repayment
 ```
 
 ### ROSCA (Rotating Savings)
+
 ```
 GET    /api/rosca/chama/:chamaId/cycles    # List cycles
 POST   /api/rosca/chama/:chamaId/cycles    # Create cycle
@@ -108,6 +114,7 @@ POST   /api/rosca/cycles/:cycleId/payout   # Process payout
 ```
 
 ### Health & Monitoring
+
 ```
 GET    /health                      # Health check
 GET    /api/ping                    # Ping endpoint
@@ -120,6 +127,7 @@ GET    /readiness                   # Readiness probe
 ## 🔐 Authentication
 
 ### JWT Token Flow
+
 1. **Register/Login** → Get JWT token
 2. **Store** → localStorage as `token`
 3. **Attach** → Axios adds `Authorization: Bearer <token>` to all requests
@@ -127,6 +135,7 @@ GET    /readiness                   # Readiness probe
 5. **Access** → Server checks user permissions
 
 ### Role-Based Access Control (RBAC)
+
 - `MEMBER` - Regular member
 - `CHAIRPERSON` - Group leader
 - `SECRETARY` - Records keeper
@@ -134,15 +143,21 @@ GET    /readiness                   # Readiness probe
 - `ADMIN` - System administrator
 
 ### Protected Routes Example
+
 ```javascript
 // Protected routes require JWT
-app.get('/api/chamas/:id', protect, getChamaById)
+app.get("/api/chamas/:id", protect, getChamaById);
 
 // Admin-only routes
-app.post('/api/loans/:id/approve', protect, isTreasurer, approveLoan)
+app.post("/api/loans/:id/approve", protect, isTreasurer, approveLoan);
 
 // Role-based routes
-app.post('/api/rosca/cycles', protect, authorize('ADMIN', 'TREASURER'), createCycle)
+app.post(
+  "/api/rosca/cycles",
+  protect,
+  authorize("ADMIN", "TREASURER"),
+  createCycle
+);
 ```
 
 ---
@@ -150,6 +165,7 @@ app.post('/api/rosca/cycles', protect, authorize('ADMIN', 'TREASURER'), createCy
 ## ⚙️ Environment Variables
 
 ### Required (.env)
+
 ```env
 # Server
 NODE_ENV=development
@@ -185,6 +201,7 @@ SMTP_PASS=your_password
 ## 📊 Database Schemas
 
 ### Core Tables
+
 - **users** - User accounts
 - **chamas** - Chama groups
 - **chama_members** - Group membership
@@ -198,9 +215,10 @@ SMTP_PASS=your_password
 - **welfare_claims** - Welfare benefit claims
 
 ### Sample Query
+
 ```sql
 -- Get all members of a chama with their contributions
-SELECT 
+SELECT
     u.user_id,
     u.email,
     cm.role,
@@ -217,6 +235,7 @@ GROUP BY u.user_id, cm.role;
 ## 🧪 Testing
 
 ### Run Tests
+
 ```bash
 # Backend tests
 cd backend
@@ -230,6 +249,7 @@ npm run lint
 ```
 
 ### Test Example
+
 ```bash
 # Test registration
 cd backend
@@ -241,6 +261,7 @@ node scripts/test_register.js
 ## 🐳 Docker Setup
 
 ### Using Docker Compose
+
 ```bash
 # Start all services (PostgreSQL + Redis)
 docker-compose up
@@ -264,18 +285,24 @@ docker-compose up       # Fresh start
 ## 🚨 Common Issues & Solutions
 
 ### Redis Not Connecting
+
 ```
 ⚠️ Redis connection failed multiple times
 ```
+
 **Solution:** This is non-critical. Either:
+
 1. Start Redis: `docker-compose up redis`
 2. Ignore for development (uses in-memory rate limiting)
 
 ### Database Connection Error
+
 ```
 error: password authentication failed
 ```
+
 **Solution:** Check `.env`:
+
 ```env
 DB_USER=postgres          # Must exist
 DB_PASSWORD=password      # Must match DB
@@ -284,10 +311,13 @@ DB_PORT=5432
 ```
 
 ### Port Already in Use
+
 ```
 Error: listen EADDRINUSE: address already in use
 ```
+
 **Solution:** Kill process or use different port:
+
 ```bash
 # Find process using port 5005
 netstat -ano | findstr :5005
@@ -301,10 +331,13 @@ npm run dev
 ```
 
 ### Module Not Found
+
 ```
 Error: Cannot find module './utils/logger'
 ```
+
 **Solution:** Install dependencies:
+
 ```bash
 npm install
 ```
@@ -314,12 +347,14 @@ npm install
 ## 📈 Performance Tips
 
 ### Backend Optimization
+
 1. Enable Redis for distributed caching
 2. Add database indexes (already included in migrations)
 3. Use connection pooling (configured: max 20)
 4. Monitor slow queries (logged automatically)
 
 ### Frontend Optimization
+
 1. Use React DevTools Profiler
 2. Check bundle size: `npm run build`
 3. Enable PWA offline caching
@@ -331,6 +366,7 @@ npm install
 ## 🔗 API Examples
 
 ### Create a Chama Group
+
 ```bash
 curl -X POST http://localhost:5005/api/chamas \
   -H "Authorization: Bearer <token>" \
@@ -344,6 +380,7 @@ curl -X POST http://localhost:5005/api/chamas \
 ```
 
 ### Record a Contribution
+
 ```bash
 curl -X POST http://localhost:5005/api/contributions/123/record \
   -H "Authorization: Bearer <token>" \
@@ -356,6 +393,7 @@ curl -X POST http://localhost:5005/api/contributions/123/record \
 ```
 
 ### Apply for a Loan
+
 ```bash
 curl -X POST http://localhost:5005/api/loans/123/apply \
   -H "Authorization: Bearer <token>" \
@@ -381,6 +419,7 @@ curl -X POST http://localhost:5005/api/loans/123/apply \
 ## 🎯 Development Workflow
 
 ### Make Changes
+
 ```bash
 # 1. Create feature branch
 git checkout -b feature/new-feature
@@ -405,6 +444,7 @@ git push origin feature/new-feature
 ## 🆘 Support Resources
 
 ### Useful Commands
+
 ```bash
 # View backend logs
 npm run dev              # See console output
@@ -426,6 +466,7 @@ curl http://localhost:5005/health
 ```
 
 ### Error Logs Location
+
 - Backend: `backend/logs/` (daily rotation)
 - Frontend: Browser DevTools Console
 - Database: PostgreSQL logs
