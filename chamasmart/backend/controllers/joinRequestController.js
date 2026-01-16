@@ -194,6 +194,24 @@ const respondToRequest = async (req, res) => {
 
         const joinRequest = requestResult.rows[0];
 
+        // CRITICAL FIX: Verify reviewer is an official in this chama
+        const officialCheck = await client.query(
+            `SELECT * FROM chama_members 
+             WHERE chama_id = $1 
+             AND user_id = $2 
+             AND role IN ('CHAIRPERSON', 'SECRETARY', 'TREASURER', 'official')
+             AND is_active = true`,
+            [joinRequest.chama_id, reviewerId]
+        );
+
+        if (officialCheck.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({
+                success: false,
+                message: "You are not authorized to respond to join requests for this chama",
+            });
+        }
+
         if (joinRequest.status !== 'PENDING') {
             await client.query('ROLLBACK');
             return res.status(400).json({

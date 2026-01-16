@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const { parsePagination, buildLimitClause, getTotal } = require("../utils/pagination");
 
 // @desc    Create meeting
 // @route   POST /api/meetings/:chamaId/create
@@ -9,10 +10,9 @@ const createMeeting = async (req, res) => {
     const { meetingDate, meetingTime, location, agenda } = req.body;
 
     if (!meetingDate) {
-      return res.status(400).json({
-        success: false,
-        message: "Meeting date is required",
-      });
+      return res.validationError([
+        { field: "meetingDate", message: "Meeting date is required" }
+      ]);
     }
 
     const result = await pool.query(
@@ -22,18 +22,10 @@ const createMeeting = async (req, res) => {
       [chamaId, meetingDate, meetingTime, location, agenda, req.user.user_id]
     );
 
-    res.status(201).json({
-      success: true,
-      message: "Meeting created successfully",
-      data: result.rows[0],
-    });
+    return res.success(result.rows[0], "Meeting created successfully", 201);
   } catch (error) {
     console.error("Create meeting error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error creating meeting",
-      error: error.message,
-    });
+    return res.error("Error creating meeting", 500);
   }
 };
 
@@ -43,6 +35,14 @@ const createMeeting = async (req, res) => {
 const getChamaMeetings = async (req, res) => {
   try {
     const { chamaId } = req.params;
+    const { page, limit } = req.query;
+
+    // Parse pagination
+    const { page: pageNum, limit: limitNum } = parsePagination(page, limit);
+
+    // Get total count
+    const countQuery = `SELECT COUNT(*) as count FROM meetings WHERE chama_id = $1`;
+    const totalCount = await getTotal(countQuery, [chamaId], "count");
 
     const result = await pool.query(
       `SELECT m.*, u.first_name || ' ' || u.last_name as recorded_by_name,
@@ -50,21 +50,21 @@ const getChamaMeetings = async (req, res) => {
        FROM meetings m
        LEFT JOIN users u ON m.recorded_by = u.user_id
        WHERE m.chama_id = $1
-       ORDER BY m.meeting_date DESC, m.created_at DESC`,
-      [chamaId]
+       ORDER BY m.meeting_date DESC, m.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [chamaId, limitNum, (pageNum - 1) * limitNum]
     );
 
-    res.json({
-      success: true,
-      count: result.rows.length,
-      data: result.rows,
-    });
+    return res.paginated(
+      result.rows,
+      totalCount,
+      pageNum,
+      limitNum,
+      "Meetings retrieved successfully"
+    );
   } catch (error) {
     console.error("Get meetings error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching meetings",
-    });
+    return res.error("Error fetching meetings", 500);
   }
 };
 
@@ -85,10 +85,7 @@ const getMeetingById = async (req, res) => {
     );
 
     if (meetingResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Meeting not found",
-      });
+      return res.error("Meeting not found", 404);
     }
 
     // Get attendance
@@ -100,19 +97,13 @@ const getMeetingById = async (req, res) => {
       [id]
     );
 
-    res.json({
-      success: true,
-      data: {
-        meeting: meetingResult.rows[0],
-        attendance: attendanceResult.rows,
-      },
-    });
+    return res.success({
+      meeting: meetingResult.rows[0],
+      attendance: attendanceResult.rows,
+    }, "Meeting retrieved successfully");
   } catch (error) {
     console.error("Get meeting error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching meeting",
-    });
+    return res.error("Error fetching meeting", 500);
   }
 };
 
@@ -161,10 +152,9 @@ const updateMeeting = async (req, res) => {
     }
 
     if (updates.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "No fields to update",
-      });
+      return res.validationError([
+        { field: "body", message: "No fields to update" }
+      ]);
     }
 
     values.push(chamaId, id);
@@ -179,23 +169,13 @@ const updateMeeting = async (req, res) => {
     const result = await pool.query(query, values);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Meeting not found",
-      });
+      return res.error("Meeting not found", 404);
     }
 
-    res.json({
-      success: true,
-      message: "Meeting updated successfully",
-      data: result.rows[0],
-    });
+    return res.success(result.rows[0], "Meeting updated successfully");
   } catch (error) {
     console.error("Update meeting error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error updating meeting",
-    });
+    return res.error("Error updating meeting", 500);
   }
 };
 
@@ -210,10 +190,9 @@ const recordAttendance = async (req, res) => {
     const { attendance } = req.body; // Array of { userId, attended, late, notes }
 
     if (!Array.isArray(attendance) || attendance.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Attendance array is required",
-      });
+      return res.validationError([
+        { field: "attendance", message: "Attendance array is required" }
+      ]);
     }
 
     await client.query("BEGIN");
@@ -240,18 +219,11 @@ const recordAttendance = async (req, res) => {
 
     await client.query("COMMIT");
 
-    res.json({
-      success: true,
-      message: "Attendance recorded successfully",
-    });
+    return res.success(null, "Attendance recorded successfully");
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Record attendance error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error recording attendance",
-      error: error.message,
-    });
+    return res.error("Error recording attendance", 500);
   } finally {
     client.release();
   }

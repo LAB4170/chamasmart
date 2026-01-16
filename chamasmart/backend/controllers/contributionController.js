@@ -1,5 +1,6 @@
 const pool = require("../config/db");
 const { isValidAmount, isValidPaymentMethod } = require("../utils/validators");
+const { parsePagination, buildLimitClause, formatPaginationMeta, getTotal } = require("../utils/pagination");
 const NodeCache = require("node-cache");
 const { getIo } = require("../socket");
 
@@ -36,24 +37,22 @@ const recordContribution = async (req, res) => {
 
     // Validation
     if (!userId || !amount) {
-      return res.status(400).json({
-        success: false,
-        message: "User ID and amount are required",
-      });
+      return res.validationError([
+        { field: "userId", message: "User ID is required" },
+        { field: "amount", message: "Amount is required" }
+      ]);
     }
 
     if (!isValidAmount(amount)) {
-      return res.status(400).json({
-        success: false,
-        message: "Amount must be a positive number",
-      });
+      return res.validationError([
+        { field: "amount", message: "Amount must be a positive number" }
+      ]);
     }
 
     if (paymentMethod && !isValidPaymentMethod(paymentMethod)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid payment method",
-      });
+      return res.validationError([
+        { field: "paymentMethod", message: "Invalid payment method" }
+      ]);
     }
 
     // Check if user is a member of the chama
@@ -63,10 +62,7 @@ const recordContribution = async (req, res) => {
     );
 
     if (memberCheck.rows.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "User is not a member of this chama",
-      });
+      return res.error("User is not a member of this chama", 400);
     }
 
     await client.query("BEGIN");
@@ -117,19 +113,11 @@ const recordContribution = async (req, res) => {
       console.error("Socket emit error:", err.message);
     }
 
-    res.status(201).json({
-      success: true,
-      message: "Contribution recorded successfully",
-      data: result.rows[0],
-    });
+    return res.success(result.rows[0], "Contribution recorded successfully", 201);
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Record contribution error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error recording contribution",
-      error: error.message,
-    });
+    return res.error("Error recording contribution", 500);
   } finally {
     client.release();
   }
@@ -141,22 +129,25 @@ const recordContribution = async (req, res) => {
 const getChamaContributions = async (req, res) => {
   try {
     const { chamaId } = req.params;
-    const { startDate, endDate, userId } = req.query;
+    const { startDate, endDate, userId, page, limit } = req.query;
+
+    // Parse pagination
+    const { page: pageNum, limit: limitNum } = parsePagination(page, limit);
 
     // Only cache if no filters are applied
-    const useCache = !startDate && !endDate && !userId;
+    const useCache = !startDate && !endDate && !userId && pageNum === 1 && limitNum === 20;
     const cacheKey = `contributions_${chamaId}`;
 
     if (useCache) {
       const cachedData = cache.get(cacheKey);
       if (cachedData) {
-        return res.json({
-          success: true,
-          count: cachedData.data.length,
-          totalAmount: cachedData.total,
-          data: cachedData.data,
-          cached: true
-        });
+        return res.paginated(
+          cachedData.data,
+          cachedData.total,
+          pageNum,
+          limitNum,
+          "Contributions retrieved successfully"
+        );
       }
     }
 
@@ -192,32 +183,39 @@ const getChamaContributions = async (req, res) => {
       paramCount++;
     }
 
+    // Get total count
+    const countQuery = `SELECT COUNT(*) as count FROM contributions WHERE chama_id = $1 AND is_deleted = false`;
+    const countParams = [chamaId];
+    const totalCount = await getTotal(countQuery, countParams, "count");
+
     query += " ORDER BY c.contribution_date DESC, c.created_at DESC";
+    query += buildLimitClause(pageNum, limitNum);
 
     const result = await pool.query(query, params);
 
-    // Calculate total
-    const total = result.rows.reduce(
+    // Calculate total amount for contributions
+    const totalAmount = result.rows.reduce(
       (sum, contrib) => sum + parseFloat(contrib.amount),
       0
     );
 
     if (useCache) {
-      cache.set(cacheKey, { data: result.rows, total: total });
+      cache.set(cacheKey, { data: result.rows, total: totalCount, totalAmount });
     }
 
-    res.json({
-      success: true,
-      count: result.rows.length,
-      totalAmount: total,
-      data: result.rows,
-    });
+    return res.paginated(
+      result.rows,
+      totalCount,
+      pageNum,
+      limitNum,
+      "Contributions retrieved successfully",
+      {
+        totalAmount: totalAmount.toFixed(2),
+      }
+    );
   } catch (error) {
     console.error("Get contributions error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching contributions",
-    });
+    return res.error("Error fetching contributions", 500);
   }
 };
 
@@ -241,22 +239,13 @@ const getContributionById = async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Contribution not found",
-      });
+      return res.error("Contribution not found", 404);
     }
 
-    res.json({
-      success: true,
-      data: result.rows[0],
-    });
+    return res.success(result.rows[0], "Contribution retrieved successfully");
   } catch (error) {
     console.error("Get contribution error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching contribution",
-    });
+    return res.error("Error fetching contribution", 500);
   }
 };
 
@@ -320,17 +309,11 @@ const deleteContribution = async (req, res) => {
       console.error("Socket emit error:", err.message);
     }
 
-    res.json({
-      success: true,
-      message: "Contribution deleted successfully",
-    });
+    return res.success(null, "Contribution deleted successfully");
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Delete contribution error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error deleting contribution",
-    });
+    return res.error("Error deleting contribution", 500);
   } finally {
     client.release();
   }

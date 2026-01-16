@@ -2,6 +2,7 @@ const pool = require("../config/db");
 const { isValidAmount } = require("../utils/validators");
 const logger = require("../utils/logger");
 const { createNotification } = require("../utils/notificationService");
+const { parsePagination, buildLimitClause, formatPaginationMeta, getTotal } = require("../utils/pagination");
 const NodeCache = require("node-cache");
 
 // Cache for chama loans (short TTL to reduce DB load while keeping data fresh)
@@ -606,7 +607,11 @@ const applyForLoan = async (req, res) => {
 const getChamaLoans = async (req, res) => {
   try {
     const { chamaId } = req.params;
+    const { page, limit, status } = req.query;
     const userId = req.user.user_id;
+
+    // Parse pagination
+    const { page: pageNum, limit: limitNum } = parsePagination(page, limit);
 
     // Ensure caller is an active member of this chama
     const membershipRes = await pool.query(
@@ -616,38 +621,68 @@ const getChamaLoans = async (req, res) => {
     );
 
     if (membershipRes.rows.length === 0) {
-      return res.status(403).json({
-        success: false,
-        message: "You are not a member of this chama",
-      });
+      return res.error("You are not a member of this chama", 403);
     }
 
+    // Check cache for first page without filters
     const cacheKey = getLoansCacheKey(chamaId);
-    const cached = loanCache.get(cacheKey);
-    if (cached) {
-      return res.json({
-        success: true,
-        count: cached.length,
-        data: cached,
-        cached: true,
-      });
+    if (pageNum === 1 && limitNum === 20 && !status) {
+      const cached = loanCache.get(cacheKey);
+      if (cached) {
+        return res.paginated(
+          cached,
+          cached.length,
+          pageNum,
+          limitNum,
+          "Loans retrieved successfully"
+        );
+      }
     }
 
-    const result = await pool.query(
-      `SELECT l.*, u.first_name || ' ' || u.last_name as borrower_name
-       FROM loans l
-       JOIN users u ON l.borrower_id = u.user_id
-       WHERE l.chama_id = $1
-       ORDER BY l.created_at DESC`,
-      [chamaId]
+    // Build query
+    let query = `
+      SELECT l.*, u.first_name || ' ' || u.last_name as borrower_name
+      FROM loans l
+      JOIN users u ON l.borrower_id = u.user_id
+      WHERE l.chama_id = $1
+    `;
+
+    const params = [chamaId];
+    let paramCount = 2;
+
+    if (status) {
+      query += ` AND l.status = $${paramCount}`;
+      params.push(status);
+      paramCount++;
+    }
+
+    // Get total count
+    const countQuery = `SELECT COUNT(*) as count FROM loans WHERE chama_id = $1 ${status ? `AND status = $2` : ''}`;
+    const countParams = status ? [chamaId, status] : [chamaId];
+    const totalCount = await getTotal(countQuery, countParams, "count");
+
+    query += " ORDER BY l.created_at DESC";
+    query += buildLimitClause(pageNum, limitNum);
+
+    const result = await pool.query(query, params);
+
+    // Cache first page if no filters
+    if (pageNum === 1 && limitNum === 20 && !status) {
+      loanCache.set(cacheKey, result.rows);
+    }
+
+    return res.paginated(
+      result.rows,
+      totalCount,
+      pageNum,
+      limitNum,
+      "Loans retrieved successfully"
     );
-
-    loanCache.set(cacheKey, result.rows);
-
-    res.json({
-      success: true,
-      count: result.rows.length,
-      data: result.rows,
+  } catch (error) {
+    logger.logError(error, { context: "getChamaLoans" });
+    return res.error("Error fetching loans", 500);
+  }
+};
     });
   } catch (error) {
     logger.logError(error, { context: "getChamaLoans" });

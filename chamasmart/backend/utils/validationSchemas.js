@@ -72,10 +72,78 @@ const applyLoanSchema = Joi.object({
         .optional(),
 });
 
+// Meeting Schemas
+const createMeetingSchema = Joi.object({
+    title: Joi.string().min(3).max(200).required(),
+    description: Joi.string().max(1000).optional(),
+    meetingDate: Joi.date().iso().greater('now').required(),
+    agendaItems: Joi.array()
+        .items(Joi.string().max(200))
+        .optional(),
+});
+
+const updateMeetingSchema = Joi.object({
+    title: Joi.string().min(3).max(200).optional(),
+    description: Joi.string().max(1000).optional(),
+    meetingDate: Joi.date().iso().optional(),
+    agendaItems: Joi.array()
+        .items(Joi.string().max(200))
+        .optional(),
+});
+
+// Chama Update Schemas
+const updateChamaSchema = Joi.object({
+    chamaName: Joi.string().min(3).max(100).optional(),
+    description: Joi.string().max(500).optional(),
+    visibility: Joi.string().valid("PRIVATE", "PUBLIC").optional(),
+    constitutionConfig: Joi.object().optional(),
+});
+
+// Pagination Schemas
+const paginationSchema = Joi.object({
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(20),
+});
+
+// Search Schemas
+const searchSchema = Joi.object({
+    query: Joi.string().min(1).max(100).required(),
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(20),
+});
+
+// Join Request Schemas
+const respondToJoinRequestSchema = Joi.object({
+    status: Joi.string().valid('APPROVED', 'REJECTED').required(),
+    message: Joi.string().max(500).optional(),
+});
+
+const requestToJoinSchema = Joi.object({
+    message: Joi.string().max(500).optional(),
+});
+
+// Welfare Schemas
+const createWelfareClaimSchema = Joi.object({
+    claimType: Joi.string().required(),
+    amount: Joi.number().positive().required(),
+    description: Joi.string().min(10).max(500).required(),
+    supportingDocuments: Joi.array()
+        .items(Joi.string())
+        .optional(),
+});
+
 module.exports = {
     registerSchema,
     loginSchema,
     createChamaSchema,
+    updateChamaSchema,
     contributionSchema,
     applyLoanSchema,
+    createMeetingSchema,
+    updateMeetingSchema,
+    paginationSchema,
+    searchSchema,
+    respondToJoinRequestSchema,
+    requestToJoinSchema,
+    createWelfareClaimSchema,
 };

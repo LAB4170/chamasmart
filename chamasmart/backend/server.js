@@ -16,6 +16,9 @@ const {
   readinessCheckEndpoint,
 } = require("./middleware/metrics");
 const { securityMiddleware } = require("./middleware/security");
+const { responseFormatterMiddleware } = require("./utils/responseFormatter");
+const { cacheControlMiddleware } = require("./middleware/cacheControl");
+const { validateQueryParams } = require("./middleware/queryValidation");
 
 // Initialize database connection
 require("./config/db");
@@ -47,6 +50,15 @@ app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 
 // Request logging
 app.use(requestLogger);
+
+// Query parameter validation
+app.use(validateQueryParams);
+
+// Standard response formatter middleware
+app.use(responseFormatterMiddleware);
+
+// Cache control headers
+app.use(cacheControlMiddleware);
 
 // Metrics
 app.use(metricsMiddleware);

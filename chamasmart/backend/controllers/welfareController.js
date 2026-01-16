@@ -2,6 +2,7 @@ const pool = require("../config/db");
 const { sendNotification } = require("../utils/notifications");
 const logger = require("../utils/logger");
 const { uploadToStorage } = require("../utils/storage");
+const { parsePagination, buildLimitClause, getTotal } = require("../utils/pagination");
 
 // Welfare Configuration Management
 const getWelfareConfig = async (req, res) => {
@@ -17,10 +18,10 @@ const getWelfareConfig = async (req, res) => {
       ORDER BY wc.event_type
     `;
     const { rows } = await pool.query(query, [chamaId]);
-    res.json(rows);
+    return res.success(rows, "Welfare configurations retrieved successfully");
   } catch (error) {
     logger.error("Error fetching welfare config:", error);
-    res.status(500).json({ message: "Error fetching welfare configuration" });
+    return res.error("Error fetching welfare configuration", 500);
   }
 };
 
@@ -59,15 +60,13 @@ const updateWelfareConfig = async (req, res) => {
     ]);
 
     if (rows.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "Welfare configuration not found" });
+      return res.error("Welfare configuration not found", 404);
     }
 
-    res.json(rows[0]);
+    return res.success(rows[0], "Welfare configuration updated successfully");
   } catch (error) {
     logger.error("Error updating welfare config:", error);
-    res.status(500).json({ message: "Error updating welfare configuration" });
+    return res.error("Error updating welfare configuration", 500);
   }
 };
 
@@ -85,13 +84,13 @@ const getWelfareFund = async (req, res) => {
       const {
         rows: [newFund],
       } = await pool.query(initQuery, [chamaId]);
-      return res.json(newFund);
+      return res.success(newFund, "Welfare fund initialized and retrieved successfully");
     }
 
-    res.json(rows[0]);
+    return res.success(rows[0], "Welfare fund retrieved successfully");
   } catch (error) {
     logger.error("Error fetching welfare fund:", error);
-    res.status(500).json({ message: "Error fetching welfare fund" });
+    return res.error("Error fetching welfare fund", 500);
   }
 };
 
@@ -160,8 +159,16 @@ const submitClaim = async (req, res) => {
 
 const getMemberClaims = async (req, res) => {
   const { memberId, chamaId } = req.params;
+  const { page, limit } = req.query;
 
   try {
+    // Parse pagination
+    const { page: pageNum, limit: limitNum } = parsePagination(page, limit);
+
+    // Get total count
+    const countQuery = `SELECT COUNT(*) as count FROM welfare_claims WHERE member_id = $1 AND chama_id = $2`;
+    const totalCount = await getTotal(countQuery, [memberId, chamaId], "count");
+
     const query = `
       SELECT wc.*, wcfg.event_type, wcfg.payout_amount, 
              (SELECT COUNT(*) FROM welfare_claim_approvals wca WHERE wca.claim_id = wc.id) as approval_count
@@ -169,21 +176,37 @@ const getMemberClaims = async (req, res) => {
       JOIN welfare_config wcfg ON wc.event_type_id = wcfg.id
       WHERE wc.member_id = $1 AND wc.chama_id = $2
       ORDER BY wc.created_at DESC
+      LIMIT $3 OFFSET $4
     `;
 
-    const { rows } = await pool.query(query, [memberId, chamaId]);
-    res.json(rows);
+    const { rows } = await pool.query(query, [memberId, chamaId, limitNum, (pageNum - 1) * limitNum]);
+    return res.paginated(rows, totalCount, pageNum, limitNum, "Member claims retrieved successfully");
   } catch (error) {
     logger.error("Error fetching member claims:", error);
-    res.status(500).json({ message: "Error fetching claims" });
+    return res.error("Error fetching claims", 500);
   }
 };
 
 const getChamaClaims = async (req, res) => {
   const { chamaId } = req.params;
+  const { page, limit, status } = req.query;
 
   try {
-    const query = `
+    // Parse pagination
+    const { page: pageNum, limit: limitNum } = parsePagination(page, limit);
+
+    // Build query
+    let countQuery = `SELECT COUNT(*) as count FROM welfare_claims WHERE chama_id = $1`;
+    let countParams = [chamaId];
+
+    if (status) {
+      countQuery += ` AND status = $2`;
+      countParams.push(status);
+    }
+
+    const totalCount = await getTotal(countQuery, countParams, "count");
+
+    let query = `
       SELECT wc.*, wcfg.event_type, wcfg.payout_amount,
              u.first_name || ' ' || u.last_name as member_name,
              (SELECT COUNT(*) FROM welfare_claim_approvals wca WHERE wca.claim_id = wc.id) as approval_count
@@ -191,16 +214,28 @@ const getChamaClaims = async (req, res) => {
       JOIN welfare_config wcfg ON wc.event_type_id = wcfg.id
       JOIN users u ON wc.member_id = u.id
       WHERE wc.chama_id = $1
+    `;
+
+    const params = [chamaId];
+    if (status) {
+      query += ` AND wc.status = $2`;
+      params.push(status);
+    }
+
+    query += `
       ORDER BY 
         CASE WHEN wc.status = 'SUBMITTED' THEN 1 ELSE 2 END,
         wc.created_at DESC
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
     `;
 
-    const { rows } = await pool.query(query, [chamaId]);
-    res.json(rows);
+    params.push(limitNum, (pageNum - 1) * limitNum);
+
+    const { rows } = await pool.query(query, params);
+    return res.paginated(rows, totalCount, pageNum, limitNum, "Chama claims retrieved successfully");
   } catch (error) {
     logger.error("Error fetching chama claims:", error);
-    res.status(500).json({ message: "Error fetching claims" });
+    return res.error("Error fetching claims", 500);
   }
 };
 

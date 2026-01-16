@@ -4,6 +4,7 @@ const {
   isValidFrequency,
   isValidAmount,
 } = require("../utils/validators");
+const { parsePagination, formatPaginationMeta, getTotal } = require("../utils/pagination");
 const NodeCache = require("node-cache");
 
 // Initialize cache with 5 minutes (300 seconds) standard TTL
@@ -26,12 +27,16 @@ const clearChamaCache = (chamaId) => {
 // @access  Public
 const getAllChamas = async (req, res) => {
   try {
-    const cacheKey = "all_chamas";
-    const cachedData = cache.get(cacheKey);
-    if (cachedData) {
-      return res.json({ success: true, count: cachedData.length, data: cachedData, cached: true });
-    }
+    const { page = 1, limit = 20 } = req.query;
+    const { page: validPage, limit: validLimit, offset } = parsePagination(page, limit);
 
+    // Get total count
+    const countResult = await pool.query(
+      `SELECT COUNT(*) as count FROM chamas WHERE is_active = true`
+    );
+    const total = parseInt(countResult.rows[0].count);
+
+    // Get paginated results
     const result = await pool.query(
       `SELECT c.chama_id, c.chama_name, c.chama_type, c.description, c.contribution_amount, 
               c.contribution_frequency, c.total_members, c.created_at,
@@ -39,22 +44,23 @@ const getAllChamas = async (req, res) => {
        FROM chamas c
        LEFT JOIN users u ON c.created_by = u.user_id
        WHERE c.is_active = true
-       ORDER BY c.created_at DESC`
+       ORDER BY c.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [validLimit, offset]
     );
 
-    cache.set(cacheKey, result.rows);
+    const paginatedData = formatPaginationMeta(result.rows, total, validPage, validLimit);
 
-    res.json({
-      success: true,
-      count: result.rows.length,
-      data: result.rows,
-    });
+    res.paginated(
+      paginatedData.data,
+      paginatedData.pagination.page,
+      paginatedData.pagination.limit,
+      paginatedData.pagination.total,
+      "Chamas retrieved successfully"
+    );
   } catch (error) {
     console.error("Get all chamas error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching chamas",
-    });
+    res.error("Error fetching chamas", 500);
   }
 };
 
@@ -360,8 +366,20 @@ const deleteChama = async (req, res) => {
 // @access  Private
 const getMyChamas = async (req, res) => {
   try {
-    // Optimized single query to get chamas, roles AND totals in one go
-    // This avoids needing multiple queries per chama on the frontend or backend
+    const { page = 1, limit = 20 } = req.query;
+    const { page: validPage, limit: validLimit, offset } = parsePagination(page, limit);
+    const userId = req.user.user_id;
+
+    // Get total count
+    const totalResult = await pool.query(
+      `SELECT COUNT(*) as count FROM chamas c
+       INNER JOIN chama_members cm ON c.chama_id = cm.chama_id
+       WHERE cm.user_id = $1 AND cm.is_active = true AND c.is_active = true`,
+      [userId]
+    );
+    const total = parseInt(totalResult.rows[0].count);
+
+    // Get paginated results
     const result = await pool.query(
       `SELECT c.chama_id, c.chama_name, c.chama_type, c.contribution_amount, 
               c.contribution_frequency, c.total_members,
@@ -369,21 +387,23 @@ const getMyChamas = async (req, res) => {
        FROM chamas c
        INNER JOIN chama_members cm ON c.chama_id = cm.chama_id
        WHERE cm.user_id = $1 AND cm.is_active = true AND c.is_active = true
-       ORDER BY c.created_at DESC`,
-      [req.user.user_id]
+       ORDER BY c.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, validLimit, offset]
     );
 
-    res.json({
-      success: true,
-      count: result.rows.length,
-      data: result.rows,
-    });
+    const paginatedData = formatPaginationMeta(result.rows, total, validPage, validLimit);
+
+    res.paginated(
+      paginatedData.data,
+      paginatedData.pagination.page,
+      paginatedData.pagination.limit,
+      paginatedData.pagination.total,
+      "Chamas retrieved successfully"
+    );
   } catch (error) {
     console.error("Get my chamas error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching your chamas",
-    });
+    res.error("Error fetching your chamas", 500);
   }
 };
 

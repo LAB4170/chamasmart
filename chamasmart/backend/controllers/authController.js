@@ -1,21 +1,105 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
-const pool = require("../config/db");
-const logger = require("../utils/logger");
-const {
-  isValidEmail,
-  isValidPhone,
-  normalizePhone,
-  isStrongPassword,
-} = require("../utils/validators");
-const nodemailer = require("nodemailer");
 
-// Generate JWT token
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+};  getCacheDuration,  cacheControlMiddleware,module.exports = {};  return `"${hash}"`;    .digest("hex");    .update(JSON.stringify(data))    .createHash("md5")  const hash = crypto  const crypto = require("crypto");const generateETag = (data) => { */ * Generate simple ETag for response/**};  next();  };    return originalJson.call(this, data);    res.set("Vary", "Accept-Encoding");    // Set common headers    }      res.set("Expires", "0");      res.set("Pragma", "no-cache");      res.set("Cache-Control", "no-cache, no-store, must-revalidate");      // Don't cache by default    } else {      res.set("ETag", generateETag(data));      }        res.set("Cache-Control", `private, max-age=${cacheDuration}`);        // Private cache for user-specific data      } else {        res.set("Cache-Control", `public, max-age=${cacheDuration}`);      if (req.path.includes("/chamas/public")) {      // Public cache for non-sensitive data    if (cacheDuration > 0) {    const cacheDuration = getCacheDuration(req);  res.json = function (data) {  // Override json method to set cache headers  const originalJson = res.json;  // Store original json methodconst cacheControlMiddleware = (req, res, next) => { */ * Cache control headers middleware/**};  return 0;  // Default - don't cache  }    return 300;  if (path.includes("chamas") || path.includes("meetings") || path.includes("contributions")) {  // List endpoints - cache for 5 minutes  }    return 300;  if (path.includes("/my-") || path.includes("/user/")) {  // User-specific data - cache for 5 minutes  }    return 3600;  if (path.includes("/chamas/public") || path.includes("/health")) {  // Public data - cache for 1 hour  }    return 0;  if (method !== "GET") {  // Don't cache non-GET requests  const { method, path } = req;const getCacheDuration = (req) => { */ * Determine cache duration based on endpoint and method/**const logger = require("../utils/logger"); */ * Sets appropriate caching headers based on response type and endpointconst crypto = require("crypto");
+const {
+  generateAccessToken,
+  generateRefreshToken,
+  storeRefreshToken,
+  verifyRefreshToken,
+  revokeAllRefreshTokens,
+} = require("../utils/tokenManager");
+
+// Generate JWT token (DEPRECATED: use generateAccessToken)
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || "7d",
-  });
+  return generateAccessToken(id);
 };
 
 // Generate a numeric OTP code (e.g. 6 digits)
@@ -294,13 +378,24 @@ const login = async (req, res) => {
       });
     }
 
-    // Generate token
-    const token = generateToken(user.user_id);
+    // Generate access token and refresh token
+    const accessToken = generateAccessToken(user.user_id);
+    const refreshToken = generateRefreshToken(user.user_id);
 
-    res.json({
-      success: true,
-      message: "Login successful",
-      data: {
+    // Store refresh token in database
+    try {
+      const userAgent = req.get("user-agent") || "unknown";
+      const ipAddress = req.ip || req.connection.remoteAddress || "unknown";
+      await storeRefreshToken(user.user_id, refreshToken, userAgent, ipAddress);
+    } catch (tokenError) {
+      logger.warn("Failed to store refresh token, but continuing login", {
+        userId: user.user_id,
+        error: tokenError.message,
+      });
+    }
+
+    res.success(
+      {
         user: {
           id: user.user_id,
           email: user.email,
@@ -308,9 +403,11 @@ const login = async (req, res) => {
           lastName: user.last_name,
           phoneNumber: user.phone_number,
         },
-        token,
+        accessToken,
+        refreshToken,
       },
-    });
+      "Login successful"
+    );
   } catch (error) {
     logger.logError(error, {
       context: "auth_login",
@@ -620,6 +717,99 @@ const resendPhoneVerification = async (req, res) => {
   }
 };
 
+// @desc    Refresh access token using refresh token
+// @route   POST /api/auth/refresh
+// @access  Public
+const refresh = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.error("Refresh token required", 400);
+    }
+
+    // Decode the token to get user ID
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    } catch (error) {
+      return res.error("Invalid or expired refresh token", 401);
+    }
+
+    if (decoded.type !== "refresh") {
+      return res.error("Invalid token type", 401);
+    }
+
+    const userId = decoded.id;
+
+    // Verify token exists in database
+    try {
+      await verifyRefreshToken(userId, refreshToken);
+    } catch (error) {
+      return res.error("Refresh token not found or revoked", 401);
+    }
+
+    // Get user info
+    const userResult = await pool.query(
+      "SELECT user_id, email, first_name, last_name, phone_number FROM users WHERE user_id = $1",
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.error("User not found", 404);
+    }
+
+    const user = userResult.rows[0];
+
+    // Generate new access token
+    const newAccessToken = generateAccessToken(userId);
+
+    // Optionally generate new refresh token (rotate tokens for better security)
+    const newRefreshToken = generateRefreshToken(userId);
+    const userAgent = req.get("user-agent") || "unknown";
+    const ipAddress = req.ip || req.connection.remoteAddress || "unknown";
+
+    await storeRefreshToken(userId, newRefreshToken, userAgent, ipAddress);
+
+    res.success(
+      {
+        user: {
+          id: user.user_id,
+          email: user.email,
+          firstName: user.first_name,
+          lastName: user.last_name,
+          phoneNumber: user.phone_number,
+        },
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+      },
+      "Token refreshed successfully"
+    );
+  } catch (error) {
+    logger.error("Token refresh error", { error: error.message });
+    res.error("Error refreshing token", 500);
+  }
+};
+
+// @desc    Logout user (revoke all refresh tokens)
+// @route   POST /api/auth/logout
+// @access  Private
+const logout = async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+
+    // Revoke all refresh tokens for this user
+    await revokeAllRefreshTokens(userId);
+
+    logger.info("User logged out", { userId });
+
+    res.success(null, "Logged out successfully");
+  } catch (error) {
+    logger.error("Logout error", { userId: req.user.user_id, error: error.message });
+    res.error("Error logging out", 500);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -628,4 +818,6 @@ module.exports = {
   verifyPhone,
   resendEmailVerification,
   resendPhoneVerification,
+  refresh,
+  logout,
 };

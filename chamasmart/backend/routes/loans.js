@@ -17,12 +17,15 @@ const {
 const validate = require('../middleware/validate');
 const { applyLoanSchema } = require('../utils/validationSchemas');
 
+// IMPORTANT: Specific routes MUST come BEFORE parameterized routes to prevent route shadowing
+// Otherwise, /my/guarantees will be treated as /:chamaId with chamaId="my"
+
+// Current user's specific routes (FIRST - most specific)
+router.get('/my/guarantees', protect, getMyGuarantees);
+
 // Loan configuration ("constitution")
 router.get('/:chamaId/config', protect, getLoanConfig);
 router.put('/:chamaId/config', protect, isTreasurer, updateLoanConfig);
-
-// Current user's guarantees
-router.get('/my/guarantees', protect, getMyGuarantees);
 
 // Reports (treasurer-only)
 router.get('/:chamaId/report', protect, isTreasurer, exportLoansReport);
@@ -31,7 +34,7 @@ router.get('/:chamaId/report', protect, isTreasurer, exportLoansReport);
 router.post('/:chamaId/apply', protect, validate(applyLoanSchema), applyForLoan);
 router.get('/:chamaId', protect, getChamaLoans);
 
-// Guarantor flows
+// Guarantor flows (nested resources)
 router.get('/:loanId/guarantors', protect, getLoanGuarantors);
 router.post('/:loanId/guarantors/respond', protect, respondToGuarantor);
 

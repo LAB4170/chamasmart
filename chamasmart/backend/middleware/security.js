@@ -1,5 +1,5 @@
 const helmet = require("helmet");
-const xss = require("xss-clean");
+// const xss = require("xss-clean"); // DISABLED: xss-clean is incompatible with Node.js 18+, using custom input validation instead
 const hpp = require("hpp");
 const rateLimit = require("express-rate-limit");
 const { RateLimiterRedis } = require("rate-limiter-flexible");
@@ -12,25 +12,25 @@ let redisClient;
 try {
   redisClient = process.env.REDIS_URL
     ? new Redis(process.env.REDIS_URL, {
-      enableOfflineQueue: false,
-      maxRetriesPerRequest: 1, // Fail fast if Redis is down
-    })
+        enableOfflineQueue: false,
+        maxRetriesPerRequest: 1, // Fail fast if Redis is down
+      })
     : new Redis({
-      host: process.env.REDIS_HOST || "127.0.0.1",
-      port: process.env.REDIS_PORT || 6379,
-      enableOfflineQueue: false,
-      maxRetriesPerRequest: 1,
-      retryStrategy: (times) => {
-        // If Redis is down, we don't want to block the app forever
-        if (times > 3) {
-          logger.warn(
-            "Redis connection failed multiple times. Disabling distributed rate limiting."
-          );
-          return null;
-        }
-        return Math.min(times * 50, 2000);
-      },
-    });
+        host: process.env.REDIS_HOST || "127.0.0.1",
+        port: process.env.REDIS_PORT || 6379,
+        enableOfflineQueue: false,
+        maxRetriesPerRequest: 1,
+        retryStrategy: (times) => {
+          // If Redis is down, we don't want to block the app forever
+          if (times > 3) {
+            logger.warn(
+              "Redis connection failed multiple times. Disabling distributed rate limiting."
+            );
+            return null;
+          }
+          return Math.min(times * 50, 2000);
+        },
+      });
 
   redisClient.on("error", (err) => {
     // Suppress connection errors to avoid log spam if Redis is intentionally missing
@@ -52,7 +52,7 @@ const rateLimiter = rateLimit({
   legacyHeaders: false,
   message: "Too many requests from this IP, please try again later",
   skip: (req) => {
-    const path = req.path || '';
+    const path = req.path || "";
     return (
       path === "/health" ||
       path === "/api/ping" ||
@@ -83,19 +83,26 @@ if (redisClient) {
       blockDuration: 60 * 15, // Block for 15 minutes after limit is reached
     });
   } catch (err) {
-    logger.warn("Failed to initialize Redis rate limiter, falling back to memory:", err.message);
+    logger.warn(
+      "Failed to initialize Redis rate limiter, falling back to memory:",
+      err.message
+    );
   }
 }
 
 // Apply rate limiting middleware
 const apiLimiter = (req, res, next) => {
-  const path = req.path || '';
-  if (path.startsWith("/health") || path.startsWith("/metrics") || path === "/api/ping") {
+  const path = req.path || "";
+  if (
+    path.startsWith("/health") ||
+    path.startsWith("/metrics") ||
+    path === "/api/ping"
+  ) {
     return next();
   }
 
   // CRITICAL FIX: Only use Redis limiter if both client AND limiter exist and Redis is ready
-  const isRedisReady = redisClient && redisClient.status === 'ready';
+  const isRedisReady = redisClient && redisClient.status === "ready";
 
   if (apiRateLimiter && isRedisReady) {
     apiRateLimiter
@@ -157,8 +164,9 @@ const helmetConfig = helmet({
 /**
  * XSS Protection
  * Sanitizes user input to prevent cross-site scripting attacks
+ * DISABLED: Using custom input validation middleware instead (inputValidation)
  */
-const xssProtection = xss();
+// const xssProtection = xss();
 
 /**
  * HTTP Parameter Pollution Protection
@@ -335,7 +343,8 @@ const securityMiddleware = (app) => {
 
   // Apply other security middleware
   // app.use(noSqlInjectionProtection); // Removed: Not using MongoDB
-  app.use(xssProtection);
+  // app.use(xssProtection); // DISABLED: Using custom input validation instead
+  app.use(inputValidation); // Custom XSS/injection protection
   app.use(hpp());
 
   // Add security headers
@@ -348,7 +357,7 @@ const securityMiddleware = (app) => {
 module.exports = {
   helmetConfig,
   // noSqlInjectionProtection,
-  xssProtection,
+  // xssProtection, // DISABLED: Using custom inputValidation instead
   securityMiddleware,
   rateLimiter,
   authLimiter,
