@@ -97,6 +97,9 @@ const {
   revokeAllRefreshTokens,
 } = require("../utils/tokenManager");
 
+// Import encryption service for PII protection
+const { encryptSensitiveData, decryptSensitiveData } = require("../security/encryption");
+
 // Generate JWT token (DEPRECATED: use generateAccessToken)
 const generateToken = (id) => {
   return generateAccessToken(id);
@@ -217,18 +220,23 @@ const register = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user
+    // Encrypt sensitive PII before storage
+    const encryptedEmail = encryptSensitiveData(email.toLowerCase());
+    const encryptedPhone = encryptSensitiveData(normalizedPhone);
+    const encryptedNationalId = nationalId ? encryptSensitiveData(nationalId) : null;
+
+    // Create user with encrypted PII
     const result = await pool.query(
       `INSERT INTO users (email, password_hash, first_name, last_name, phone_number, national_id)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING user_id, email, first_name, last_name, phone_number, created_at`,
       [
-        email.toLowerCase(),
+        encryptedEmail,
         hashedPassword,
         firstName,
         lastName,
-        normalizedPhone,
-        nationalId || null,
+        encryptedPhone,
+        encryptedNationalId,
       ]
     );
 
@@ -338,12 +346,23 @@ const login = async (req, res) => {
       });
     }
 
-    // Check if user exists
-    console.log('Querying database for user:', email.toLowerCase());
-    const result = await pool.query("SELECT * FROM users WHERE email = $1", [
-      email.toLowerCase(),
-    ]);
-    console.log('Database query result:', { rowCount: result.rows.length });
+    // Encrypt the email to search for it (since we're storing encrypted emails)
+    let encryptedEmail;
+    try {
+      encryptedEmail = encryptSensitiveData(email.toLowerCase());
+    } catch (encryptErr) {
+      logger.error("Failed to encrypt email for login lookup", { error: encryptErr.message });
+      return res.status(500).json({
+        success: false,
+        message: "Authentication service unavailable",
+      });
+    }
+
+    // Check if user exists with encrypted email
+    const result = await pool.query(
+      "SELECT user_id, email, password_hash, email_verified, first_name, last_name, phone_number FROM users WHERE email = $1",
+      [encryptedEmail]
+    );
 
     if (result.rows.length === 0) {
       return res.status(401).json({
@@ -394,14 +413,25 @@ const login = async (req, res) => {
       });
     }
 
+    // Decrypt PII for response
+    let decryptedEmail = email.toLowerCase();
+    let decryptedPhone = user.phone_number;
+    try {
+      decryptedEmail = decryptSensitiveData(user.email);
+      decryptedPhone = decryptSensitiveData(user.phone_number);
+    } catch (decryptErr) {
+      logger.warn("Failed to decrypt user PII in login response", { userId: user.user_id, error: decryptErr.message });
+      // Continue with encrypted values if decryption fails
+    }
+
     res.success(
       {
         user: {
           id: user.user_id,
-          email: user.email,
+          email: decryptedEmail,
           firstName: user.first_name,
           lastName: user.last_name,
-          phoneNumber: user.phone_number,
+          phoneNumber: decryptedPhone,
         },
         accessToken,
         refreshToken,

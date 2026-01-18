@@ -1,36 +1,71 @@
 /**
  * Token Management Utilities
  * Handles access tokens and refresh tokens for authentication
+ * Enhanced with key versioning and token hashing for security
  */
 
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const pool = require("../config/db");
 const logger = require("./logger");
+const { getKeyManager } = require("../security/keyManagement");
 
 /**
- * Generate access token (short-lived, 7 days)
+ * Hash refresh token before storage (SHA-256)
+ * @param {string} token - The raw refresh token
+ * @returns {string} SHA-256 hash of token
+ */
+const hashToken = (token) => {
+  return crypto.createHash("sha256").update(token).digest("hex");
+};
+
+/**
+ * Verify token against its hash
+ * @param {string} token - The raw token to verify
+ * @param {string} hash - The stored hash
+ * @returns {boolean} True if token matches hash
+ */
+const verifyTokenHash = (token, hash) => {
+  const computedHash = hashToken(token);
+  return computedHash === hash;
+};
+
+/**
+ * Generate access token (short-lived, 7 days) with key versioning
  * @param {number} userId - User ID
  * @returns {string} - Access token
  */
 const generateAccessToken = (userId) => {
-  return jwt.sign({ id: userId, type: "access" }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || "7d",
-  });
+  const keyManager = getKeyManager();
+  return jwt.sign(
+    { id: userId, type: "access" },
+    keyManager.getActiveKey(),
+    {
+      expiresIn: process.env.JWT_EXPIRE || "7d",
+      keyid: keyManager.getActiveKeyVersion().toString(),
+    }
+  );
 };
 
 /**
- * Generate refresh token (long-lived, 30 days)
+ * Generate refresh token (long-lived, 30 days) with key versioning
  * @param {number} userId - User ID
  * @returns {string} - Refresh token
  */
 const generateRefreshToken = (userId) => {
-  return jwt.sign({ id: userId, type: "refresh" }, process.env.JWT_SECRET, {
-    expiresIn: process.env.REFRESH_TOKEN_EXPIRE || "30d",
-  });
+  const keyManager = getKeyManager();
+  return jwt.sign(
+    { id: userId, type: "refresh" },
+    keyManager.getActiveKey(),
+    {
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRE || "30d",
+      keyid: keyManager.getActiveKeyVersion().toString(),
+    }
+  );
 };
 
 /**
- * Store refresh token in database
+ * Store refresh token in database with hashing
  * @param {number} userId - User ID
  * @param {string} token - Refresh token
  * @param {string} userAgent - User agent from request
@@ -39,16 +74,19 @@ const generateRefreshToken = (userId) => {
  */
 const storeRefreshToken = async (userId, token, userAgent, ipAddress) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const keyManager = getKeyManager();
+    const decoded = jwt.verify(token, keyManager.getActiveKey());
     const expiresAt = new Date(decoded.exp * 1000); // Convert to milliseconds
+    const hashedToken = hashToken(token);
 
     const result = await pool.query(
       `INSERT INTO refresh_tokens (user_id, token, user_agent, ip_address, expires_at, created_at)
        VALUES ($1, $2, $3, $4, $5, NOW())
        RETURNING *`,
-      [userId, token, userAgent, ipAddress, expiresAt]
+      [userId, hashedToken, userAgent, ipAddress, expiresAt]
     );
 
+    logger.info("Refresh token stored (hashed)", { userId });
     return result.rows[0];
   } catch (error) {
     logger.error("Failed to store refresh token", {
@@ -67,22 +105,58 @@ const storeRefreshToken = async (userId, token, userAgent, ipAddress) => {
  */
 const verifyRefreshToken = async (userId, token) => {
   try {
-    // Verify JWT signature
-    jwt.verify(token, process.env.JWT_SECRET);
+    const keyManager = getKeyManager();
+    const hashedToken = hashToken(token);
+    
+    // Try to verify with all available keys (for rotation support)
+    let decoded = null;
+    let verificationError = null;
 
-    // Check if token exists in database and is not revoked
+    // Try active key first
+    try {
+      decoded = jwt.verify(token, keyManager.getActiveKey());
+    } catch (err) {
+      verificationError = err;
+    }
+
+    // If active key fails, try previous versions (rotation period)
+    if (!decoded) {
+      const allVersions = Object.keys(keyManager.keys);
+      for (const version of allVersions) {
+        try {
+          const key = keyManager.getKeyForVerification(version);
+          if (key) {
+            decoded = jwt.verify(token, key);
+            logger.warn("Token verified with previous key version", {
+              userId,
+              version,
+            });
+            break;
+          }
+        } catch (err) {
+          // Continue to next version
+        }
+      }
+    }
+
+    if (!decoded) {
+      throw verificationError || new Error("Token verification failed");
+    }
+
+    // Check if token exists in database with matching hash
     const result = await pool.query(
       `SELECT * FROM refresh_tokens 
        WHERE user_id = $1 AND token = $2 AND expires_at > NOW() AND revoked_at IS NULL
        ORDER BY created_at DESC
        LIMIT 1`,
-      [userId, token]
+      [userId, hashedToken]
     );
 
     if (result.rows.length === 0) {
-      throw new Error("Refresh token not found or expired");
+      throw new Error("Refresh token not found, expired, or revoked");
     }
 
+    logger.info("Refresh token verified successfully", { userId });
     return result.rows[0];
   } catch (error) {
     logger.warn("Invalid refresh token", { userId, error: error.message });
@@ -158,4 +232,6 @@ module.exports = {
   revokeRefreshToken,
   revokeAllRefreshTokens,
   cleanupExpiredTokens,
+  hashToken,
+  verifyTokenHash,
 };

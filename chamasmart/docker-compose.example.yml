@@ -25,7 +25,6 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-change_me}
       POSTGRES_DB: ${DB_NAME:-chamasmart}
       POSTGRES_INITDB_ARGS: "-c max_connections=${DB_POOL_MAX:-20}"
-      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
     ports:
       - "${DB_PORT:-5433}:5432"
     volumes:
@@ -39,6 +38,17 @@ services:
     networks:
       - chamasmart_net
     restart: unless-stopped
+    environment:
+      # Hardening options
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    command:
+      - "postgres"
+      - "-c"
+      - "ssl=on"
+      - "-c"
+      - "ssl_cert_file=/var/lib/postgresql/server.crt"
+      - "-c"
+      - "ssl_key_file=/var/lib/postgresql/server.key"
 
   # ============================================================================
   # REDIS SERVICE - Caching & Rate Limiting

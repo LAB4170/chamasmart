@@ -1,0 +1,182 @@
+# ============================================================================
+# ENVIRONMENT & SECRETS - NEVER COMMIT THESE
+# ============================================================================
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.env
+.env.production
+.env.staging
+.env.test
+.env.*
+*.env
+
+# SSH Keys, TLS Certificates, & Credentials
+*.pem
+*.key
+*.crt
+*.cert
+*.p8
+*.p12
+*.pfx
+*.jks
+*.keystore
+private/
+secrets/
+certs/
+credentials/
+*.secret
+*.jks
+
+# AWS Credentials
+.aws/
+*.aws_credentials
+*.aws_config
+
+# Google Cloud Platform
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!.prettierrc.json
+!jest.config.js
+!eslint.config.js
+google-cloud-credentials/
+service-account-*.json
+gcp-key-*.json
+
+# Azure Credentials
+.azure/
+*.azure_credentials
+
+# Docker Secrets
+.docker/
+docker-secrets/
+
+# ============================================================================
+# DEPENDENCIES
+# ============================================================================
+node_modules/
+npm-debug.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+lerna-debug.log
+.pnp
+.pnp.js
+
+# ============================================================================
+# OS-SPECIFIC FILES
+# ============================================================================
+.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+.vscode-test
+.cache/
+
+# ============================================================================
+# IDE & EDITOR FILES
+# ============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+*.sublime-text-project
+*.sublime-workspace
+.emacs.desktop
+.emacs.desktop.lock
+*_archive
+*.sublime-project
+*.sublime-workspace
+
+# ============================================================================
+# BUILD & DIST OUTPUTS
+# ============================================================================
+dist/
+build/
+out/
+coverage/
+*.tgz
+*.zip
+
+# ============================================================================
+# LOGS
+# ============================================================================
+logs/
+*.log
+error.log
+combined.log
+debug.log
+access.log
+requests.log
+
+# ============================================================================
+# DATABASE FILES
+# ============================================================================
+*.db
+*.sqlite
+*.sqlite3
+*.sql.bak
+dump.sql
+backup/
+database-exports/
+
+# ============================================================================
+# TEMPORARY & CACHE FILES
+# ============================================================================
+tmp/
+temp/
+*.tmp
+.cache/
+.eslintcache
+
+# ============================================================================
+# GIT-RELATED (Remove secrets from history)
+# ============================================================================
+git-backup/
+*.bundle
+chamasmart-backup-*.bundle
+
+# ============================================================================
+# DEPLOYMENT & CI/CD ARTIFACTS
+# ============================================================================
+.github/workflows/secrets/
+.gitlab-ci-secrets/
+.circleci-secrets/
+deploy/secrets/
+kubernetes/secrets/
+
+# ============================================================================
+# TEST COVERAGE & REPORTS
+# ============================================================================
+coverage/
+*.lcov
+test-results/
+junit.xml
+
+# ============================================================================
+# BACKUP FILES
+# ============================================================================
+*.bak
+*.backup
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ============================================================================
+# REDIS CACHE & TEMPORARY DATA
+# ============================================================================
+dump.rdb
+appendonly.aof
