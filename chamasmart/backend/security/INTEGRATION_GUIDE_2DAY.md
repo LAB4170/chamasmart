@@ -3,6 +3,7 @@
 ## STATUS: STARTING AGGRESSIVE INTEGRATION
 
 ✅ **COMPLETED:**
+
 - Migration 013: Audit logging system (9 tables)
 - Migration 014: Password security (6 tables)
 
@@ -15,12 +16,13 @@
 **File: `backend/utils/tokenManager.js`**
 
 Add this at the TOP of the file:
+
 ```javascript
-const crypto = require('crypto');
+const crypto = require("crypto");
 
 // Hash token before storage
 const hashToken = (token) => {
-  return crypto.createHash('sha256').update(token).digest('hex');
+  return crypto.createHash("sha256").update(token).digest("hex");
 };
 
 // Verify token against hash
@@ -36,6 +38,7 @@ module.exports = {
 ```
 
 **In `storeRefreshToken` function - Update token storage:**
+
 ```javascript
 // CHANGE FROM:
 await pool.query(
@@ -52,6 +55,7 @@ await pool.query(
 ```
 
 **In `verifyRefreshToken` function - Update verification:**
+
 ```javascript
 // CHANGE FROM:
 if (dbToken === refreshToken) { ... }
@@ -98,25 +102,27 @@ EOF
 **File: `backend/server.js`**
 
 Add this AFTER the imports section:
+
 ```javascript
-const { checkLoginRateLimit } = require('./security/enhancedRateLimiting');
+const { checkLoginRateLimit } = require("./security/enhancedRateLimiting");
 ```
 
 Add this BEFORE the routes (after middleware setup):
+
 ```javascript
 // Rate limiting middleware
-app.use('/api/auth/login', async (req, res, next) => {
+app.use("/api/auth/login", async (req, res, next) => {
   try {
     const limited = await checkLoginRateLimit(req.body.email || req.ip, req.ip);
     if (limited) {
       return res.status(429).json({
         success: false,
-        message: 'Too many login attempts. Please try again later.',
+        message: "Too many login attempts. Please try again later.",
       });
     }
     next();
   } catch (err) {
-    logger.error('Rate limit check failed', err);
+    logger.error("Rate limit check failed", err);
     next(); // Continue on error
   }
 });
@@ -131,32 +137,54 @@ app.use('/api/auth/login', async (req, res, next) => {
 **File: `backend/controllers/authController.js`**
 
 Add at TOP of file:
+
 ```javascript
-const { encryptSensitiveData, decryptSensitiveData } = require('../security/encryption');
+const {
+  encryptSensitiveData,
+  decryptSensitiveData,
+} = require("../security/encryption");
 ```
 
 In the `register` function, when inserting user, ENCRYPT before INSERT:
+
 ```javascript
 // CHANGE FROM:
 const result = await pool.query(
   `INSERT INTO users (email, password_hash, first_name, last_name, phone_number, national_id)
    VALUES ($1, $2, $3, $4, $5, $6)`,
-  [email.toLowerCase(), hashedPassword, firstName, lastName, normalizedPhone, nationalId]
+  [
+    email.toLowerCase(),
+    hashedPassword,
+    firstName,
+    lastName,
+    normalizedPhone,
+    nationalId,
+  ],
 );
 
 // TO:
 const encryptedPhone = encryptSensitiveData(normalizedPhone);
 const encryptedEmail = encryptSensitiveData(email.toLowerCase());
-const encryptedNationalId = nationalId ? encryptSensitiveData(nationalId) : null;
+const encryptedNationalId = nationalId
+  ? encryptSensitiveData(nationalId)
+  : null;
 
 const result = await pool.query(
   `INSERT INTO users (email, password_hash, first_name, last_name, phone_number, national_id)
    VALUES ($1, $2, $3, $4, $5, $6)`,
-  [encryptedEmail, hashedPassword, firstName, lastName, encryptedPhone, encryptedNationalId]
+  [
+    encryptedEmail,
+    hashedPassword,
+    firstName,
+    lastName,
+    encryptedPhone,
+    encryptedNationalId,
+  ],
 );
 ```
 
 In the `getMe` function or any SELECT that returns user:
+
 ```javascript
 // DECRYPT after retrieving:
 const user = result.rows[0];
@@ -173,6 +201,7 @@ return user;
 ### HOUR 5-6: Soft Delete Columns
 
 **Run this SQL:**
+
 ```bash
 psql -U postgres -d chamasmart << 'EOF'
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
@@ -191,6 +220,7 @@ EOF
 ```
 
 **Update queries to filter out deleted:**
+
 ```javascript
 // CHANGE FROM:
 SELECT * FROM users WHERE user_id = $1
@@ -208,33 +238,39 @@ SELECT * FROM users WHERE user_id = $1 AND is_deleted = false
 **File: `backend/controllers/authController.js`**
 
 Add at TOP:
+
 ```javascript
-const { logAuthenticationEvent, logDataAccess } = require('../security/auditLogger');
+const {
+  logAuthenticationEvent,
+  logDataAccess,
+} = require("../security/auditLogger");
 ```
 
 In `login` function, after successful login:
+
 ```javascript
 // Log successful login
 await logAuthenticationEvent(
   user.user_id,
-  'LOGIN_SUCCESS',
+  "LOGIN_SUCCESS",
   true,
   req.ip,
-  req.headers['user-agent'],
-  'User login successful'
+  req.headers["user-agent"],
+  "User login successful",
 );
 ```
 
 In `login` function, after failed login:
+
 ```javascript
 // Log failed login
 await logAuthenticationEvent(
   null,
-  'LOGIN_FAILED',
+  "LOGIN_FAILED",
   false,
   req.ip,
-  req.headers['user-agent'],
-  `Failed login attempt for email: ${email}`
+  req.headers["user-agent"],
+  `Failed login attempt for email: ${email}`,
 );
 ```
 
@@ -245,12 +281,14 @@ await logAuthenticationEvent(
 ### HOUR 7-8: Testing (20 min each)
 
 **1. Test Encryption:**
+
 ```bash
 cd backend
 npm test -- security/encryption.test.js
 ```
 
 **2. Test Token Hashing:**
+
 ```bash
 # Manually verify:
 # - Login works
@@ -258,6 +296,7 @@ npm test -- security/encryption.test.js
 ```
 
 **3. Test Rate Limiting:**
+
 ```bash
 # Try 4 quick logins - should be blocked on 4th
 for i in {1..4}; do
@@ -273,6 +312,7 @@ done
 ### HOUR 8-9: Deploy (30 min)
 
 **1. Staging:**
+
 ```bash
 git add -A
 git commit -m "Security hardening: encryption, rate limiting, soft deletes, audit logging"
@@ -284,6 +324,7 @@ npm start
 ```
 
 **2. Verify:**
+
 ```bash
 # Test 3 endpoints
 curl http://staging/api/health
@@ -292,6 +333,7 @@ curl http://staging/api/chamas
 ```
 
 **3. Production:**
+
 ```bash
 # Backup database first
 pg_dump chamasmart > chamasmart_backup_$(date +%s).sql
@@ -322,20 +364,21 @@ npm start
 
 ## CRITICAL SECURITY IMPROVEMENTS MADE
 
-| Risk | Before | After | Impact |
-|------|--------|-------|--------|
-| Plaintext PII | ✅ Exposed | ❌ AES-256 Encrypted | 100% protection |
-| Token Theft | ✅ Works | ❌ Hashed | Prevents session hijacking |
-| Brute Force | ✅ Unlimited | ❌ 3/15min | 80x harder to attack |
-| Data Audit | ❌ None | ✅ Complete trail | KDPA compliant |
-| Query Perf | ⚠️ Slow | ✅ 50-100x faster | Better UX |
-| Data Deletion | ❌ Hard delete only | ✅ Soft + Hard | GDPR compliant |
+| Risk          | Before              | After                | Impact                     |
+| ------------- | ------------------- | -------------------- | -------------------------- |
+| Plaintext PII | ✅ Exposed          | ❌ AES-256 Encrypted | 100% protection            |
+| Token Theft   | ✅ Works            | ❌ Hashed            | Prevents session hijacking |
+| Brute Force   | ✅ Unlimited        | ❌ 3/15min           | 80x harder to attack       |
+| Data Audit    | ❌ None             | ✅ Complete trail    | KDPA compliant             |
+| Query Perf    | ⚠️ Slow             | ✅ 50-100x faster    | Better UX                  |
+| Data Deletion | ❌ Hard delete only | ✅ Soft + Hard       | GDPR compliant             |
 
 ---
 
 ## IF YOU RUN OUT OF TIME
 
 PRIORITY ORDER (what NOT to do):
+
 1. ✅ MUST: Migrations + Token Hashing + Rate Limiting = 80% security
 2. ✅ SHOULD: Encryption + Indexes
 3. ⏳ NICE: Soft Deletes + Full Audit Logging

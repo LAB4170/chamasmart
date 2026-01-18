@@ -1,11 +1,11 @@
 /**
  * FAST-TRACK INTEGRATION: Token Manager with Hashing
  * File: backend/utils/tokenManager.js - ADD THESE FUNCTIONS
- * 
+ *
  * Copy these functions into your existing tokenManager.js file
  */
 
-const crypto = require('crypto');
+const crypto = require("crypto");
 
 /**
  * Hash refresh token before storage (SHA-256)
@@ -13,7 +13,7 @@ const crypto = require('crypto');
  * @returns {string} SHA-256 hash of token
  */
 const hashToken = (token) => {
-  return crypto.createHash('sha256').update(token).digest('hex');
+  return crypto.createHash("sha256").update(token).digest("hex");
 };
 
 /**
@@ -29,16 +29,16 @@ const verifyTokenHash = (token, hash) => {
 
 /**
  * INTEGRATION POINTS - Update these in your existing code:
- * 
+ *
  * 1. In storeRefreshToken function:
  *    OLD: await pool.query("INSERT INTO refresh_tokens (user_id, token, ...) VALUES ($1, $2, ...)", [userId, refreshToken, ...]);
  *    NEW: const hashedToken = hashToken(refreshToken);
  *         await pool.query("INSERT INTO refresh_tokens (user_id, token, ...) VALUES ($1, $2, ...)", [userId, hashedToken, ...]);
- * 
+ *
  * 2. In verifyRefreshToken function:
  *    OLD: if (dbToken === refreshToken) { ... }
  *    NEW: if (verifyTokenHash(refreshToken, dbToken)) { ... }
- * 
+ *
  * 3. Export these functions:
  *    module.exports = {
  *      ...existing exports,

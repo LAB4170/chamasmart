@@ -18,15 +18,18 @@ Status: CURRENTLY EXPOSED - FIX NOW
 ## ⚡ EMERGENCY FIX (2 Hours)
 
 ### Step 1: Remove Secrets (15 min)
+
 ```bash
 cd c:\Users\lewis\Desktop\chamasmart
 node backend/scripts/remove-secrets-from-git.js
 ```
+
 ✓ Backup created  
 ✓ .env removed from history  
 ✓ Force pushed
 
 ### Step 2: Rotate Secrets (30 min)
+
 ```bash
 # Generate new JWT_SECRET
 node -e "console.log('JWT_SECRET='+require('crypto').randomBytes(32).toString('hex'))"
@@ -37,11 +40,13 @@ npm stop && npm start
 ```
 
 ### Step 3: Clear Sessions (15 min)
+
 ```bash
 psql -U postgres -d chamasmart -c "TRUNCATE refresh_tokens CASCADE;"
 ```
 
 ### Step 4: Change DB Password (15 min)
+
 ```bash
 # Generate password
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
@@ -53,6 +58,7 @@ psql -U postgres -d chamasmart -c "ALTER USER postgres WITH PASSWORD 'new_passwo
 ```
 
 ### Step 5: Verify (15 min)
+
 ```bash
 curl http://localhost:5000/api/health
 # Should return { uptime: ..., message: "OK" }
@@ -73,16 +79,16 @@ curl http://localhost:5000/api/health
 
 ## 🛠️ SECURITY ISSUES SUMMARY
 
-| # | Issue | Severity | Fix Time |
-|---|-------|----------|----------|
-| 1 | .env in git | 🔴 CRITICAL | 15 min |
-| 2 | Docker hardcoded creds | 🔴 CRITICAL | 10 min |
-| 3 | Test hardcoded secrets | 🟡 HIGH | 15 min |
-| 4 | Bad .gitignore | 🟡 HIGH | 15 min |
-| 5 | No key rotation | 🟡 HIGH | 30 min |
-| 6 | DB no SSL/TLS | 🟡 HIGH | 30 min |
-| 7 | Redis no password | 🟡 HIGH | 20 min |
-| 8 | Email creds exposed | 🟡 MEDIUM | 15 min |
+| #   | Issue                  | Severity    | Fix Time |
+| --- | ---------------------- | ----------- | -------- |
+| 1   | .env in git            | 🔴 CRITICAL | 15 min   |
+| 2   | Docker hardcoded creds | 🔴 CRITICAL | 10 min   |
+| 3   | Test hardcoded secrets | 🟡 HIGH     | 15 min   |
+| 4   | Bad .gitignore         | 🟡 HIGH     | 15 min   |
+| 5   | No key rotation        | 🟡 HIGH     | 30 min   |
+| 6   | DB no SSL/TLS          | 🟡 HIGH     | 30 min   |
+| 7   | Redis no password      | 🟡 HIGH     | 20 min   |
+| 8   | Email creds exposed    | 🟡 MEDIUM   | 15 min   |
 
 ---
 
@@ -95,32 +101,35 @@ curl http://localhost:5000/api/health
 ✓ SQL injection prevention  
 ✓ Security headers  
 ✓ CORS protection  
-✓ Request logging  
+✓ Request logging
 
 ---
 
 ## 🚀 3-PHASE PLAN
 
 ### Phase 1: Emergency (Today)
+
 - Remove secrets from git
 - Rotate all credentials
 - Clear active sessions
 - Verify functionality
-**Time: 2 hours**
+  **Time: 2 hours**
 
 ### Phase 2: Short-term (This Week)
+
 - Update .gitignore
 - Deploy key management
 - Enable SSL/TLS everywhere
 - Audit code for more secrets
-**Time: 24 hours**
+  **Time: 24 hours**
 
 ### Phase 3: Long-term (This Month)
+
 - Deploy Vault for secrets
 - Automate key rotation
 - Setup monitoring
 - Security testing
-**Time: 13 hours**
+  **Time: 13 hours**
 
 ---
 
@@ -129,6 +138,7 @@ curl http://localhost:5000/api/health
 **Location:** `backend/scripts/remove-secrets-from-git.js`
 
 What it does:
+
 1. Creates backup of your repo
 2. Removes .env from git history
 3. Updates .gitignore
@@ -140,14 +150,14 @@ What it does:
 
 ## 📋 FILES CREATED
 
-| File | Purpose | Size |
-|------|---------|------|
-| API_KEYS_SECURITY_AUDIT.md | Detailed vulnerability analysis | 4,500 lines |
-| API_SECURITY_EXECUTIVE_SUMMARY.md | High-level overview | 500 lines |
-| COMPLETE_REMEDIATION_CHECKLIST.md | Step-by-step fixes | 800 lines |
-| SECURE_ENVIRONMENT_CONFIGURATION.md | Environment setup | 1,000 lines |
-| backend/security/keyManagement.js | Key rotation system | 150 lines |
-| backend/scripts/remove-secrets-from-git.js | Cleanup script | 100 lines |
+| File                                       | Purpose                         | Size        |
+| ------------------------------------------ | ------------------------------- | ----------- |
+| API_KEYS_SECURITY_AUDIT.md                 | Detailed vulnerability analysis | 4,500 lines |
+| API_SECURITY_EXECUTIVE_SUMMARY.md          | High-level overview             | 500 lines   |
+| COMPLETE_REMEDIATION_CHECKLIST.md          | Step-by-step fixes              | 800 lines   |
+| SECURE_ENVIRONMENT_CONFIGURATION.md        | Environment setup               | 1,000 lines |
+| backend/security/keyManagement.js          | Key rotation system             | 150 lines   |
+| backend/scripts/remove-secrets-from-git.js | Cleanup script                  | 100 lines   |
 
 ---
 
@@ -164,7 +174,7 @@ After fixes:
 ✓ Audit logging enabled  
 ✓ All tests passing  
 ✓ No errors in logs  
-✓ Monitoring active  
+✓ Monitoring active
 
 ---
 
@@ -177,7 +187,7 @@ After fixes:
 ❌ Log sensitive data  
 ❌ Use HTTP (no HTTPS)  
 ❌ Skip SSL/TLS  
-❌ Share credentials  
+❌ Share credentials
 
 ---
 
@@ -263,7 +273,7 @@ WEEK 2-4:
 
 **READ:** `API_SECURITY_EXECUTIVE_SUMMARY.md` (10 min)  
 **RUN:** `node backend/scripts/remove-secrets-from-git.js` (5 min)  
-**VERIFY:** All emergency steps completed (50 min)  
+**VERIFY:** All emergency steps completed (50 min)
 
 **Total: ~65 minutes to emergency fix completion**
 

@@ -99,22 +99,22 @@
   ```javascript
   await logAuthenticationEvent(
     user.user_id,
-    'LOGIN_SUCCESS',
+    "LOGIN_SUCCESS",
     true,
     req.ip,
-    req.headers['user-agent'],
-    'User login successful'
+    req.headers["user-agent"],
+    "User login successful",
   );
   ```
 - [ ] After **failed login**:
   ```javascript
   await logAuthenticationEvent(
     null,
-    'LOGIN_FAILED',
+    "LOGIN_FAILED",
     false,
     req.ip,
-    req.headers['user-agent'],
-    `Failed login for: ${email}`
+    req.headers["user-agent"],
+    `Failed login for: ${email}`,
   );
   ```
 
@@ -125,10 +125,10 @@
   ```javascript
   await logSensitiveOperation(
     req.user.user_id,
-    'CREATE_CHAMA',
-    'chama',
+    "CREATE_CHAMA",
+    "chama",
     { chama_id: chama.chama_id, name: chama.name },
-    req.ip
+    req.ip,
   );
   ```
 
@@ -139,6 +139,7 @@
 ### PHASE 6: Testing (1 hour) ✅
 
 **Test 1: Encryption**
+
 ```bash
 cd backend
 npm test -- security/encryption.test.js
@@ -146,6 +147,7 @@ npm test -- security/encryption.test.js
 ```
 
 **Test 2: Token Hashing**
+
 ```bash
 # Manual test:
 # 1. Register new user
@@ -154,6 +156,7 @@ npm test -- security/encryption.test.js
 ```
 
 **Test 3: Rate Limiting**
+
 ```bash
 # Try 4 quick logins with wrong password
 for i in {1..4}; do
@@ -167,6 +170,7 @@ done
 ```
 
 **Test 4: Soft Deletes**
+
 ```bash
 psql -U postgres -d chamasmart
 SELECT * FROM users LIMIT 1;
@@ -175,6 +179,7 @@ SELECT * FROM users LIMIT 1;
 ```
 
 **Test 5: Audit Logging**
+
 ```bash
 # Login to system
 curl -X POST http://localhost:5005/api/auth/login \
@@ -256,19 +261,23 @@ SELECT * FROM auth_audit_logs ORDER BY created_at DESC LIMIT 1;
 ## 🚨 IF SOMETHING FAILS
 
 **Token Hashing Issue?**
+
 - Revert: Remove hashing from tokenManager
 - Keep: Migrations (they're safe)
 
 **Rate Limiting Blocking Too Much?**
+
 - Adjust limits in `enhancedRateLimiting.js`
 - Whitelist admin IPs
 
 **Encryption Breaking Login?**
+
 - Remove encryption temporarily
 - Use plaintext for comparison
 - Deploy encryption as phase 2
 
 **Database Errors?**
+
 - Restore from backup: `psql chamasmart < backup.sql`
 - Check migrations ran: `SELECT * FROM audit_logs LIMIT 1;`
 
@@ -276,30 +285,30 @@ SELECT * FROM auth_audit_logs ORDER BY created_at DESC LIMIT 1;
 
 ## ⏱️ TIME ESTIMATE BREAKDOWN
 
-| Task | Duration | Status |
-|------|----------|--------|
-| Migrations | 15 min | ✅ DONE |
-| Token Hashing | 30 min | ⏳ TODO |
-| Rate Limiting | 30 min | ⏳ TODO |
-| Encryption | 60 min | ⏳ TODO |
-| Soft Deletes | 30 min | ⏳ TODO |
-| Audit Logging | 60 min | ⏳ TODO |
-| Testing | 60 min | ⏳ TODO |
-| Deployment | 120 min | ⏳ TODO (DAY 2) |
-| **TOTAL** | **7.5 hours** | - |
+| Task          | Duration      | Status          |
+| ------------- | ------------- | --------------- |
+| Migrations    | 15 min        | ✅ DONE         |
+| Token Hashing | 30 min        | ⏳ TODO         |
+| Rate Limiting | 30 min        | ⏳ TODO         |
+| Encryption    | 60 min        | ⏳ TODO         |
+| Soft Deletes  | 30 min        | ⏳ TODO         |
+| Audit Logging | 60 min        | ⏳ TODO         |
+| Testing       | 60 min        | ⏳ TODO         |
+| Deployment    | 120 min       | ⏳ TODO (DAY 2) |
+| **TOTAL**     | **7.5 hours** | -               |
 
 ---
 
 ## 📊 SECURITY IMPROVEMENTS
 
-| Risk | Before | After | Risk Reduction |
-|------|--------|-------|-----------------|
-| Plaintext PII | HIGH | LOW | 95% |
-| Token Theft | HIGH | LOW | 90% |
-| Brute Force | HIGH | LOW | 95% |
-| No Audit Trail | CRITICAL | LOW | 100% |
-| No Data Recovery | MEDIUM | LOW | 80% |
-| Slow Queries | MEDIUM | LOW | 90% |
+| Risk             | Before   | After | Risk Reduction |
+| ---------------- | -------- | ----- | -------------- |
+| Plaintext PII    | HIGH     | LOW   | 95%            |
+| Token Theft      | HIGH     | LOW   | 90%            |
+| Brute Force      | HIGH     | LOW   | 95%            |
+| No Audit Trail   | CRITICAL | LOW   | 100%           |
+| No Data Recovery | MEDIUM   | LOW   | 80%            |
+| Slow Queries     | MEDIUM   | LOW   | 90%            |
 
 **Overall Risk Reduction: 92%** 🎉
 

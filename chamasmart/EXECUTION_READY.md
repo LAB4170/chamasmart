@@ -11,6 +11,7 @@
 ## ✅ WHAT WAS COMPLETED BEFORE YOU
 
 ### Phase: Database Infrastructure (COMPLETE)
+
 - ✅ Migration 013_audit_logging_system.sql
   - 9 new tables for audit trail
   - Timestamp: Executed successfully
@@ -27,6 +28,7 @@
   - Status: 90% faster queries
 
 ### Phase: Security Code (COMPLETE)
+
 - ✅ `backend/security/encryption.js` (180 lines)
   - AES-256-GCM encryption with key versioning
   - Ready to use: NO CHANGES NEEDED
@@ -48,6 +50,7 @@
   - Ready to use: NO CHANGES NEEDED
 
 ### Phase: Integration Patches (COMPLETE)
+
 - ✅ TOKEN_HASHING_PATCH.js (Ready to apply)
 - ✅ RATE_LIMITING_PATCH.js (Ready to apply)
 - ✅ ENCRYPTION_PATCH.js (Ready to apply)
@@ -55,6 +58,7 @@
 - ✅ Audit logging patches (Ready to apply)
 
 ### Phase: Documentation (COMPLETE)
+
 - ✅ START_HERE_2DAY_SPRINT.md (READ THIS FIRST!)
 - ✅ SECURITY_SPRINT_2DAY.md (Master checklist)
 - ✅ INTEGRATION_GUIDE_2DAY.md (Step-by-step)
@@ -66,21 +70,21 @@
 
 ### TODAY (Hour 1-8): Implementation
 
-| Hour | Phase | Task | Duration | Status |
-|------|-------|------|----------|--------|
-| 1-2 | 1 | Token Hashing | 30 min | ⏳ START |
-| 2-3 | 2 | Rate Limiting | 30 min | ⏳ NEXT |
-| 3-5 | 3 | Encryption | 60 min | ⏳ TODO |
-| 5-6 | 4 | Soft Deletes | 30 min | ⏳ TODO |
-| 6-7 | 5 | Audit Logging | 60 min | ⏳ TODO |
-| 7-8 | 6 | Testing | 60 min | ⏳ TODO |
+| Hour | Phase | Task          | Duration | Status   |
+| ---- | ----- | ------------- | -------- | -------- |
+| 1-2  | 1     | Token Hashing | 30 min   | ⏳ START |
+| 2-3  | 2     | Rate Limiting | 30 min   | ⏳ NEXT  |
+| 3-5  | 3     | Encryption    | 60 min   | ⏳ TODO  |
+| 5-6  | 4     | Soft Deletes  | 30 min   | ⏳ TODO  |
+| 6-7  | 5     | Audit Logging | 60 min   | ⏳ TODO  |
+| 7-8  | 6     | Testing       | 60 min   | ⏳ TODO  |
 
 ### TOMORROW (Hour 9-12): Deployment
 
-| Hour | Phase | Task | Duration | Status |
-|------|-------|------|----------|--------|
-| 1-3 | - | Staging Deployment | 120 min | ⏳ TODO |
-| 3-4 | - | Production Deployment | 60 min | ⏳ TODO |
+| Hour | Phase | Task                  | Duration | Status  |
+| ---- | ----- | --------------------- | -------- | ------- |
+| 1-3  | -     | Staging Deployment    | 120 min  | ⏳ TODO |
+| 3-4  | -     | Production Deployment | 60 min   | ⏳ TODO |
 
 ---
 
@@ -98,7 +102,8 @@
 
 **Details in:** `backend/security/TOKEN_HASHING_PATCH.js`
 
-**Expected outcome:** 
+**Expected outcome:**
+
 - Refresh tokens stored as SHA-256 hashes (not plaintext)
 - Session hijacking prevented even if DB breached
 
@@ -119,6 +124,7 @@
 **Details in:** `backend/security/RATE_LIMITING_PATCH.js`
 
 **Expected outcome:**
+
 - 4th login attempt in 15 min → 429 error
 - Brute force time: 10 hours → 800+ hours
 
@@ -132,17 +138,20 @@
 
 **Why:** If database leaks, PII is still encrypted (100% secure)
 
-**Files:** 
+**Files:**
+
 - `backend/controllers/authController.js` (main work)
 - `backend/controllers/userController.js` (and others that SELECT users)
 
-**Changes needed:** 
+**Changes needed:**
+
 - Before INSERT: encrypt the data
 - After SELECT: decrypt the data
 
 **Details in:** `backend/security/ENCRYPTION_PATCH.js`
 
 **Expected outcome:**
+
 - Database contains: `eyJhbGciOiJBMjU2R0NNIiwiaXYiOi...` (encrypted)
 - Response contains: `+254712345678` (plaintext to client)
 - Security: 100% protection even if DB breached
@@ -158,16 +167,19 @@
 **Why:** Enable data recovery + GDPR compliance
 
 **Files:**
+
 - Migration file: `016_add_soft_deletes_critical.sql`
 - Controllers: All SELECT queries
 
 **Changes needed:**
+
 - Run migration
 - Add `WHERE is_deleted = false` to all queries
 
 **Details in:** `SECURITY_SPRINT_2DAY.md`
 
 **Expected outcome:**
+
 - Users, chamas, loans can be soft-deleted
 - Data recoverable within retention period
 - GDPR Article 17 compliant
@@ -182,18 +194,21 @@
 
 **Why:** Prove compliance + detect attacks in real-time
 
-**Files:** 
+**Files:**
+
 - `backend/controllers/authController.js` (login, register)
 - `backend/controllers/chamaController.js` (create, update)
 - `backend/controllers/loanController.js` (disbursement)
 
 **Changes needed:**
+
 - After login: log success/failure
 - After create/update: log the operation
 
 **Details in:** `SECURITY_SPRINT_2DAY.md` and `INTEGRATION_GUIDE_2DAY.md`
 
 **Expected outcome:**
+
 - auth_audit_logs table populated
 - Full compliance audit trail
 - KDPA Article 4 compliance
@@ -209,6 +224,7 @@
 **Why:** Ensure changes don't break anything
 
 **Tests:**
+
 1. Encryption test: `npm test -- security/encryption.test.js`
 2. Token hashing: Register → Login → Check DB
 3. Rate limiting: 4 quick login attempts
@@ -216,6 +232,7 @@
 5. Audit logging: Login → Check audit_logs table
 
 **Expected outcome:**
+
 - All tests passing
 - No errors in logs
 - All 5 security features working
@@ -225,12 +242,14 @@
 ## 🚀 TOMORROW: DEPLOYMENT
 
 ### Pre-Deployment Checklist
+
 - [ ] All tests passing
 - [ ] Code reviewed
 - [ ] Database backed up
 - [ ] Staging env ready
 
 ### Staging Deployment (2 hours)
+
 - [ ] Deploy code to staging
 - [ ] Run migrations
 - [ ] Run full test suite
@@ -238,6 +257,7 @@
 - [ ] Performance check
 
 ### Production Deployment (1 hour)
+
 - [ ] Backup production DB
 - [ ] Deploy code
 - [ ] Run migrations
@@ -249,39 +269,44 @@
 ## 📊 IMPACT METRICS
 
 ### Security Improvements
-| Risk | Before | After | Reduction |
-|------|--------|-------|-----------|
-| Plaintext PII | ✅ Exposed | ❌ Encrypted | 100% |
-| Token Theft | ✅ Plaintext | ❌ Hashed | 90% |
-| Brute Force | ✅ Possible | ❌ Limited | 95% |
-| No Audit | ✅ None | ❌ Complete | 100% |
-| No Recovery | ✅ Lost | ❌ Recoverable | 100% |
+
+| Risk          | Before       | After          | Reduction |
+| ------------- | ------------ | -------------- | --------- |
+| Plaintext PII | ✅ Exposed   | ❌ Encrypted   | 100%      |
+| Token Theft   | ✅ Plaintext | ❌ Hashed      | 90%       |
+| Brute Force   | ✅ Possible  | ❌ Limited     | 95%       |
+| No Audit      | ✅ None      | ❌ Complete    | 100%      |
+| No Recovery   | ✅ Lost      | ❌ Recoverable | 100%      |
 
 ### Performance Improvements
-| Query Type | Before | After | Speed |
-|------------|--------|-------|-------|
-| By user_id | 100ms | 2ms | 50x faster |
-| By chama_id | 150ms | 3ms | 50x faster |
-| Large joins | 500ms | 5ms | 100x faster |
+
+| Query Type  | Before | After | Speed       |
+| ----------- | ------ | ----- | ----------- |
+| By user_id  | 100ms  | 2ms   | 50x faster  |
+| By chama_id | 150ms  | 3ms   | 50x faster  |
+| Large joins | 500ms  | 5ms   | 100x faster |
 
 ### Compliance
-| Standard | Before | After |
-|----------|--------|-------|
-| KDPA 2019 | 35% | 95% |
-| Data Security | LOW | HIGH |
-| Audit Trail | NONE | FULL |
-| Data Recovery | NO | YES |
+
+| Standard      | Before | After |
+| ------------- | ------ | ----- |
+| KDPA 2019     | 35%    | 95%   |
+| Data Security | LOW    | HIGH  |
+| Audit Trail   | NONE   | FULL  |
+| Data Recovery | NO     | YES   |
 
 ---
 
 ## 📁 FILES YOU'LL NEED
 
 ### Documentation (READ IN ORDER)
+
 1. `START_HERE_2DAY_SPRINT.md` ← BEGIN HERE
 2. `SECURITY_SPRINT_2DAY.md` (master checklist)
 3. `INTEGRATION_GUIDE_2DAY.md` (step-by-step)
 
 ### Patch Files (APPLY IN ORDER)
+
 1. `backend/security/TOKEN_HASHING_PATCH.js`
 2. `backend/security/RATE_LIMITING_PATCH.js`
 3. `backend/security/ENCRYPTION_PATCH.js`
@@ -289,6 +314,7 @@
 5. Audit logging (integrated into each controller)
 
 ### Ready-to-Use Code (NO CHANGES)
+
 - `backend/security/encryption.js`
 - `backend/security/auditLogger.js`
 - `backend/security/advancedAuth.js`
@@ -302,6 +328,7 @@
 You'll know you're done when:
 
 ✅ **Day 1 (Today):**
+
 1. Token Hashing working (tokens are hashed in DB)
 2. Rate limiting working (4th login blocked)
 3. Encryption working (email/phone encrypted in DB)
@@ -310,6 +337,7 @@ You'll know you're done when:
 6. All tests passing (npm test succeeds)
 
 ✅ **Day 2 (Tomorrow):**
+
 1. Staging deployment successful
 2. Production deployment successful
 3. All endpoints working
@@ -326,6 +354,7 @@ You'll know you're done when:
 **Contingency Buffer:** 36 hours
 
 **If you work 8 hours today + 4 hours tomorrow:**
+
 - ✅ All security features implemented
 - ✅ All tests passing
 - ✅ Deployed to production
@@ -362,6 +391,7 @@ You'll know you're done when:
 ## 🚀 START NOW
 
 **Next Step:**
+
 1. Open: `START_HERE_2DAY_SPRINT.md`
 2. Read: Phase 1 section
 3. Open: `backend/utils/tokenManager.js`
@@ -372,7 +402,7 @@ You'll know you're done when:
 
 ---
 
-*Status: Ready for Execution*  
-*Date: January 18, 2026, 14:30 UTC*  
-*Security Sprint: 2 Days to Production*  
-*Estimated Completion: January 20, 2026*
+_Status: Ready for Execution_  
+_Date: January 18, 2026, 14:30 UTC_  
+_Security Sprint: 2 Days to Production_  
+_Estimated Completion: January 20, 2026_

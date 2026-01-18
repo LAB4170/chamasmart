@@ -37,14 +37,10 @@ const verifyTokenHash = (token, hash) => {
  */
 const generateAccessToken = (userId) => {
   const keyManager = getKeyManager();
-  return jwt.sign(
-    { id: userId, type: "access" },
-    keyManager.getActiveKey(),
-    {
-      expiresIn: process.env.JWT_EXPIRE || "7d",
-      keyid: keyManager.getActiveKeyVersion().toString(),
-    }
-  );
+  return jwt.sign({ id: userId, type: "access" }, keyManager.getActiveKey(), {
+    expiresIn: process.env.JWT_EXPIRE || "7d",
+    keyid: keyManager.getActiveKeyVersion().toString(),
+  });
 };
 
 /**
@@ -54,14 +50,10 @@ const generateAccessToken = (userId) => {
  */
 const generateRefreshToken = (userId) => {
   const keyManager = getKeyManager();
-  return jwt.sign(
-    { id: userId, type: "refresh" },
-    keyManager.getActiveKey(),
-    {
-      expiresIn: process.env.REFRESH_TOKEN_EXPIRE || "30d",
-      keyid: keyManager.getActiveKeyVersion().toString(),
-    }
-  );
+  return jwt.sign({ id: userId, type: "refresh" }, keyManager.getActiveKey(), {
+    expiresIn: process.env.REFRESH_TOKEN_EXPIRE || "30d",
+    keyid: keyManager.getActiveKeyVersion().toString(),
+  });
 };
 
 /**
@@ -83,7 +75,7 @@ const storeRefreshToken = async (userId, token, userAgent, ipAddress) => {
       `INSERT INTO refresh_tokens (user_id, token, user_agent, ip_address, expires_at, created_at)
        VALUES ($1, $2, $3, $4, $5, NOW())
        RETURNING *`,
-      [userId, hashedToken, userAgent, ipAddress, expiresAt]
+      [userId, hashedToken, userAgent, ipAddress, expiresAt],
     );
 
     logger.info("Refresh token stored (hashed)", { userId });
@@ -107,7 +99,7 @@ const verifyRefreshToken = async (userId, token) => {
   try {
     const keyManager = getKeyManager();
     const hashedToken = hashToken(token);
-    
+
     // Try to verify with all available keys (for rotation support)
     let decoded = null;
     let verificationError = null;
@@ -149,7 +141,7 @@ const verifyRefreshToken = async (userId, token) => {
        WHERE user_id = $1 AND token = $2 AND expires_at > NOW() AND revoked_at IS NULL
        ORDER BY created_at DESC
        LIMIT 1`,
-      [userId, hashedToken]
+      [userId, hashedToken],
     );
 
     if (result.rows.length === 0) {
@@ -175,7 +167,7 @@ const revokeRefreshToken = async (userId, token) => {
     await pool.query(
       `UPDATE refresh_tokens SET revoked_at = NOW()
        WHERE user_id = $1 AND token = $2`,
-      [userId, token]
+      [userId, token],
     );
   } catch (error) {
     logger.error("Failed to revoke refresh token", {
@@ -195,7 +187,7 @@ const revokeAllRefreshTokens = async (userId) => {
     await pool.query(
       `UPDATE refresh_tokens SET revoked_at = NOW()
        WHERE user_id = $1 AND revoked_at IS NULL`,
-      [userId]
+      [userId],
     );
   } catch (error) {
     logger.error("Failed to revoke all refresh tokens", {
@@ -212,7 +204,7 @@ const revokeAllRefreshTokens = async (userId) => {
 const cleanupExpiredTokens = async () => {
   try {
     const result = await pool.query(
-      `DELETE FROM refresh_tokens WHERE expires_at < NOW()`
+      `DELETE FROM refresh_tokens WHERE expires_at < NOW()`,
     );
     logger.info("Cleaned up expired refresh tokens", {
       count: result.rowCount,

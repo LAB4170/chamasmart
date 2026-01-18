@@ -30,7 +30,7 @@ const PORT = process.env.PORT || 5005;
 
 // Basic health check (no middleware)
 app.get("/api/ping", (req, res) =>
-  res.json({ success: true, message: "pong" })
+  res.json({ success: true, message: "pong" }),
 );
 app.get("/health", (req, res) =>
   res.json({
@@ -38,7 +38,7 @@ app.get("/health", (req, res) =>
     message: "OK",
     timestamp: Date.now(),
     port: PORT,
-  })
+  }),
 );
 
 // Apply security middleware
@@ -76,71 +76,80 @@ const {
   checkLoginRateLimit,
   checkOtpRateLimit,
   checkPasswordResetRateLimit,
-} = require('./security/enhancedRateLimiting');
+} = require("./security/enhancedRateLimiting");
 
 // Rate limit: Login attempts (3 per 15 minutes per email)
-app.use('/api/auth/login', async (req, res, next) => {
+app.use("/api/auth/login", async (req, res, next) => {
   try {
     // Use email if provided, otherwise IP
     const identifier = req.body.email || req.ip;
     const isLimited = await checkLoginRateLimit(identifier, req.ip);
-    
+
     if (isLimited) {
       return res.status(429).json({
         success: false,
-        message: 'Too many login attempts. Please try again in 15 minutes.',
+        message: "Too many login attempts. Please try again in 15 minutes.",
       });
     }
     next();
   } catch (err) {
-    logger.error('Rate limit check failed', { context: 'rate_limit_login', error: err.message });
+    logger.error("Rate limit check failed", {
+      context: "rate_limit_login",
+      error: err.message,
+    });
     next(); // Continue on error to avoid breaking auth
   }
 });
 
 // Rate limit: OTP verification (5 per 15 minutes)
-app.use('/api/auth/verify-phone', async (req, res, next) => {
+app.use("/api/auth/verify-phone", async (req, res, next) => {
   try {
     const isLimited = await checkOtpRateLimit(req.user?.user_id, req.ip);
-    
+
     if (isLimited) {
       return res.status(429).json({
         success: false,
-        message: 'Too many OTP attempts. Please try again later.',
+        message: "Too many OTP attempts. Please try again later.",
       });
     }
     next();
   } catch (err) {
-    logger.error('Rate limit check failed', { context: 'rate_limit_otp', error: err.message });
+    logger.error("Rate limit check failed", {
+      context: "rate_limit_otp",
+      error: err.message,
+    });
     next();
   }
 });
 
 // Rate limit: Password reset (2 per hour)
-app.use('/api/auth/password-reset', async (req, res, next) => {
+app.use("/api/auth/password-reset", async (req, res, next) => {
   try {
     const identifier = req.body.email || req.ip;
     const isLimited = await checkPasswordResetRateLimit(identifier, req.ip);
-    
+
     if (isLimited) {
       return res.status(429).json({
         success: false,
-        message: 'Too many password reset requests. Please try again later.',
+        message: "Too many password reset requests. Please try again later.",
       });
     }
     next();
   } catch (err) {
-    logger.error('Rate limit check failed', { context: 'rate_limit_password', error: err.message });
+    logger.error("Rate limit check failed", {
+      context: "rate_limit_password",
+      error: err.message,
+    });
     next();
   }
 });
 
-logger.info('Rate limiting middleware activated', {
-  context: 'server_init',
+logger.info("Rate limiting middleware activated", {
+  context: "server_init",
   limits: {
-    login: '3 per 15 minutes',
-    otp: '5 per 15 minutes', 
-    passwordReset: '2 per hour',
+    login: "3 per 15 minutes",
+    otp: "5 per 15 minutes",
+    passwordReset: "2 per hour",
   },
 });
 
@@ -150,7 +159,7 @@ logger.info('Rate limiting middleware activated', {
 
 // API Routes
 app.get("/api/ping", (req, res) =>
-  res.json({ success: true, message: "pong" })
+  res.json({ success: true, message: "pong" }),
 );
 
 app.use("/api/auth", require("./routes/auth"));
@@ -184,12 +193,10 @@ if (fs.existsSync(distPath)) {
 app.use((req, res, next) => {
   // If API route not found
   if (req.originalUrl.startsWith("/api")) {
-    return res
-      .status(404)
-      .json({
-        success: false,
-        message: `API endpoint ${req.originalUrl} not found`,
-      });
+    return res.status(404).json({
+      success: false,
+      message: `API endpoint ${req.originalUrl} not found`,
+    });
   }
 
   // If Static file not found, fallback to index.html (SPA)

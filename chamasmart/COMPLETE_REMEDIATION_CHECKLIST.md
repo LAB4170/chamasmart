@@ -11,15 +11,18 @@
 ### Step 1: Stop Exposure (15 minutes)
 
 - [ ] **Remove .env from git history**
+
   ```bash
   cd c:\Users\lewis\Desktop\chamasmart
   node backend/scripts/remove-secrets-from-git.js
   ```
+
   - Backup created: `chamasmart-backup-*.bundle`
   - .env removed from all commits
   - Force push completed
 
 - [ ] **Verify .env is gone from git**
+
   ```bash
   git log --all --full-history -- .env | head -1
   # Should return nothing if successful
@@ -34,17 +37,21 @@
 ### Step 2: Rotate Secrets (30 minutes)
 
 - [ ] **Generate new JWT_SECRET_V1**
+
   ```bash
   node -e "console.log('New JWT_SECRET_V1:', require('crypto').randomBytes(32).toString('hex'))"
   ```
+
   Store this value (32 chars minimum, 64 chars recommended)
 
 - [ ] **Generate new SESSION_SECRET**
+
   ```bash
   node -e "console.log('New SESSION_SECRET:', require('crypto').randomBytes(32).toString('hex'))"
   ```
 
 - [ ] **Generate new ENCRYPTION_KEY**
+
   ```bash
   node -e "console.log('New ENCRYPTION_KEY:', require('crypto').randomBytes(32).toString('base64'))"
   ```
@@ -65,9 +72,11 @@
 ### Step 3: Invalidate Old Sessions (15 minutes)
 
 - [ ] **Force logout all users**
+
   ```bash
   psql -U postgres -d chamasmart -c "TRUNCATE refresh_tokens CASCADE;"
   ```
+
   - All active sessions invalidated
   - Users must login again with new credentials
 
@@ -79,15 +88,17 @@
 ### Step 4: Change Database Password (15 minutes)
 
 - [ ] **Generate new database password**
+
   ```bash
   # Linux/Mac
   openssl rand -base64 32
-  
+
   # Windows PowerShell
   [Convert]::ToBase64String([System.Security.Cryptography.RNGCryptoServiceProvider]::new().GetBytes(32))
   ```
 
 - [ ] **Change PostgreSQL password**
+
   ```bash
   psql -U postgres -d chamasmart -c "ALTER USER postgres WITH PASSWORD 'new_password_here';"
   ```
@@ -107,12 +118,14 @@
 ### Step 5: Verify Nothing Broke (15 minutes)
 
 - [ ] **Check backend health endpoint**
+
   ```bash
   curl http://localhost:5000/api/health
   # Should return { uptime: ..., message: "OK", ... }
   ```
 
 - [ ] **Test login flow**
+
   ```bash
   curl -X POST http://localhost:5000/api/auth/login \
     -H "Content-Type: application/json" \
@@ -121,6 +134,7 @@
   ```
 
 - [ ] **Check logs for errors**
+
   ```bash
   tail -f backend/logs/*.log
   # Should not show authentication or connection errors
@@ -143,7 +157,8 @@
 ### GitHub/Git Repository Security
 
 - [ ] **Comprehensive .gitignore update**
-  Add to `.backend/.gitignore`:
+      Add to `.backend/.gitignore`:
+
   ```gitignore
   # Environment variables (CRITICAL)
   .env
@@ -151,18 +166,18 @@
   .env.*.local
   .env.production.local
   .env.test.local
-  
+
   # IDE/Editor
   .idea/
   .vscode/
   *.swp
   *.swo
   *~
-  
+
   # OS
   .DS_Store
   Thumbs.db
-  
+
   # Sensitive files
   *.pem
   *.key
@@ -170,12 +185,12 @@
   *.jks
   secrets/
   private/
-  
+
   # Build/Dist
   dist/
   build/
   coverage/
-  
+
   # Logs
   logs/
   npm-debug.log*
@@ -184,6 +199,7 @@
   ```
 
 - [ ] **Test .gitignore works**
+
   ```bash
   git check-ignore -v .env
   git check-ignore -v backend/.env.local
@@ -228,12 +244,13 @@
 ### Database Security
 
 - [ ] **Enable SSL/TLS for database connection**
-  Update `backend/config/db.js`:
+      Update `backend/config/db.js`:
+
   ```javascript
   const pool = new Pool({
     // ... existing config ...
     ssl: {
-      rejectUnauthorized: process.env.NODE_ENV === 'production',
+      rejectUnauthorized: process.env.NODE_ENV === "production",
       ca: fs.readFileSync(process.env.DB_SSL_CA),
       cert: fs.readFileSync(process.env.DB_SSL_CERT),
       key: fs.readFileSync(process.env.DB_SSL_KEY),
@@ -242,6 +259,7 @@
   ```
 
 - [ ] **Add connection timeout security**
+
   ```javascript
   statement_timeout: 60000,
   idle_in_transaction_session_timeout: 30000,
@@ -249,10 +267,10 @@
 
 - [ ] **Enable query logging for audit**
   ```javascript
-  pool.on('query', (query) => {
-    logger.debug('Query executed', { 
-      text: query.text, 
-      duration: query.duration 
+  pool.on("query", (query) => {
+    logger.debug("Query executed", {
+      text: query.text,
+      duration: query.duration,
     });
   });
   ```
@@ -260,12 +278,14 @@
 ### Redis Security
 
 - [ ] **Set strong Redis password** (if not already done)
+
   ```bash
   # In redis.conf
   requirepass your_very_strong_password_here_32chars_minimum
   ```
 
 - [ ] **Enable Redis TLS/SSL**
+
   ```bash
   # In redis.conf
   tls-port 6380
@@ -279,9 +299,9 @@
   const redisClient = new Redis({
     host: process.env.REDIS_HOST,
     port: parseInt(process.env.REDIS_PORT),
-    password: process.env.REDIS_PASSWORD,  // Must be set
+    password: process.env.REDIS_PASSWORD, // Must be set
     tls: {
-      rejectUnauthorized: process.env.NODE_ENV === 'production',
+      rejectUnauthorized: process.env.NODE_ENV === "production",
     },
   });
   ```
@@ -296,10 +316,10 @@
   ```javascript
   const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT,  // 587 for TLS, 465 for SSL
-    secure: process.env.EMAIL_SECURE !== 'false',
+    port: process.env.EMAIL_PORT, // 587 for TLS, 465 for SSL
+    secure: process.env.EMAIL_SECURE !== "false",
     tls: {
-      rejectUnauthorized: process.env.NODE_ENV === 'production',
+      rejectUnauthorized: process.env.NODE_ENV === "production",
     },
   });
   ```
@@ -311,16 +331,17 @@
 ### Secrets Management Infrastructure
 
 - [ ] **Implement HashiCorp Vault or similar**
+
   ```bash
   # Install Vault
   # Enable KV v2 secrets engine
   vault secrets enable -version=2 kv
-  
+
   # Store secrets
   vault kv put kv/chamasmart/jwt \
     secret_v1="new_secret_here" \
     secret_v2="backup_secret"
-  
+
   # In application
   const vault = require('node-vault')({
     endpoint: process.env.VAULT_ADDR,
@@ -341,13 +362,14 @@
 ### Audit & Monitoring
 
 - [ ] **Enable comprehensive audit logging**
+
   ```javascript
   // Log every secret access
-  logger.info('Secret accessed', {
-    secretName: 'JWT_SECRET',
+  logger.info("Secret accessed", {
+    secretName: "JWT_SECRET",
     user: req.user.id,
     timestamp: new Date(),
-    context: 'token_generation',
+    context: "token_generation",
   });
   ```
 
@@ -378,32 +400,32 @@
   - HTTPS only: Port 443
 
 - [ ] **Enable certificate pinning** (optional)
+
   ```javascript
-  const https = require('https');
-  const PinningAgent = require('https-pin-agent');
-  
+  const https = require("https");
+  const PinningAgent = require("https-pin-agent");
+
   const agent = new PinningAgent({
-    pin: 'sha256/abcd1234...',  // Your cert hash
+    pin: "sha256/abcd1234...", // Your cert hash
   });
   ```
 
 ### Testing & Validation
 
 - [ ] **Add security tests**
+
   ```javascript
-  test('JWT tokens cannot be forged', async () => {
-    const forgedToken = jwt.sign(
-      { id: 999, role: 'admin' },
-      'wrong_secret'
-    );
+  test("JWT tokens cannot be forged", async () => {
+    const forgedToken = jwt.sign({ id: 999, role: "admin" }, "wrong_secret");
     const response = await request(app)
-      .get('/api/me')
-      .set('Authorization', `Bearer ${forgedToken}`);
+      .get("/api/me")
+      .set("Authorization", `Bearer ${forgedToken}`);
     expect(response.status).toBe(401);
   });
   ```
 
 - [ ] **Run security audit regularly**
+
   ```bash
   npm audit
   npm audit fix
@@ -451,18 +473,18 @@
 
 After completing this checklist, you should have:
 
-| Metric | Before | After |
-|--------|--------|-------|
-| Secrets in git | YES ✗ | NO ✓ |
+| Metric                | Before  | After      |
+| --------------------- | ------- | ---------- |
+| Secrets in git        | YES ✗   | NO ✓       |
 | Secrets in .gitignore | PARTIAL | COMPLETE ✓ |
-| Database SSL/TLS | NO ✗ | YES ✓ |
-| Redis SSL/TLS | NO ✗ | YES ✓ |
-| Key rotation | NO ✗ | YES ✓ |
-| Audit logging | PARTIAL | COMPLETE ✓ |
-| Rate limiting | BASIC | ADVANCED ✓ |
-| Password policy | BASIC | STRONG ✓ |
-| Monitoring | NONE | COMPLETE ✓ |
-| Documentation | NONE | COMPLETE ✓ |
+| Database SSL/TLS      | NO ✗    | YES ✓      |
+| Redis SSL/TLS         | NO ✗    | YES ✓      |
+| Key rotation          | NO ✗    | YES ✓      |
+| Audit logging         | PARTIAL | COMPLETE ✓ |
+| Rate limiting         | BASIC   | ADVANCED ✓ |
+| Password policy       | BASIC   | STRONG ✓   |
+| Monitoring            | NONE    | COMPLETE ✓ |
+| Documentation         | NONE    | COMPLETE ✓ |
 
 ---
 
@@ -504,6 +526,7 @@ TOTAL TIME: ~16.5 hours
 ## 🚨 RED FLAGS - Stop if You See These
 
 ❌ **Do NOT proceed to production if:**
+
 1. .env file still in git
 2. Secrets not rotated
 3. Sessions not invalidated

@@ -71,6 +71,7 @@ Copy-Item chamasmart-backup-full.bundle \\network\secure_backup\
 ```
 
 **Verification:**
+
 ```powershell
 # Test that backup bundle is valid
 git bundle verify chamasmart-backup-full.bundle
@@ -103,6 +104,7 @@ node backend/scripts/phase1-emergency-fix.js
 ```
 
 **What to expect:**
+
 - Script prompts: "This will modify your git history. Continue? (y/n)"
 - Type: `y` and press Enter
 - Script runs through all 8 steps
@@ -136,6 +138,7 @@ git show HEAD:.gitignore | Select-String -Pattern "\.env"
 ```
 
 **Expected Results:**
+
 - ✅ `git log --all -- .env` returns nothing
 - ✅ `git check-ignore -v .env` shows .env is ignored
 - ✅ .gitignore recently updated (in git log)
@@ -166,6 +169,7 @@ Get-Content .\.env.local | Select-String "JWT_SECRET_V1"
 ```
 
 **Expected Results:**
+
 - ✅ `.env.local` exists in root
 - ✅ `.env.local` exists in backend/
 - ✅ Both files contain new secrets with proper format
@@ -209,6 +213,7 @@ environment:
 ```
 
 **Verification:**
+
 ```powershell
 # Validate docker-compose
 docker-compose config > $null
@@ -243,12 +248,14 @@ SELECT COUNT(*) FROM refresh_tokens;
 ```
 
 **What this does:**
+
 - Invalidates all active user sessions
 - Users must log in again
 - Prevents old tokens from working
 - Forces authentication with new JWT secrets
 
 **Verification:**
+
 ```powershell
 # Verify truncate worked
 psql -U postgres -h localhost -p 5433 -d chamasmart -c "SELECT COUNT(*) FROM refresh_tokens;"
@@ -284,6 +291,7 @@ docker-compose ps
 ```
 
 **Verification:**
+
 ```powershell
 # Check all services are running
 docker-compose ps
@@ -367,6 +375,7 @@ curl -H "Authorization: Bearer $token" `
 ```
 
 **Success Criteria - ALL MUST PASS:**
+
 - [ ] Backend starts without errors
 - [ ] Database connection verified
 - [ ] Redis connection verified
@@ -496,6 +505,7 @@ REVIEW & SIGN-OFF                  T+1:30-2:00
 ## RISK ASSESSMENT AFTER PHASE 1
 
 ### Current State (BEFORE)
+
 ```
 Risk Score: 9/10 CRITICAL
 Issues Fixed: 2/8 (25%)
@@ -514,6 +524,7 @@ System Risk: EXTREME
 ```
 
 ### After Phase 1 (AFTER)
+
 ```
 Risk Score: 4/10 MANAGED ✅
 Issues Fixed: 4/8 (50%)
@@ -594,6 +605,7 @@ After Phase 1 is complete and verified, proceed with Phase 2:
 4. Contact security team for assistance
 
 **Emergency Contacts:**
+
 - Backup Location: [Your Backup Location]
 - Git Repository: [Your Git URL]
 - Database: [DB Connection String]

@@ -1,15 +1,18 @@
 /**
  * FAST-TRACK INTEGRATION: Encryption in authController
  * File: backend/controllers/authController.js
- * 
+ *
  * STEP 1: Add this import at the TOP of the file
  */
 
-const { encryptSensitiveData, decryptSensitiveData } = require('../security/encryption');
+const {
+  encryptSensitiveData,
+  decryptSensitiveData,
+} = require("../security/encryption");
 
 /**
  * STEP 2: In the register() function
- * 
+ *
  * FIND THIS SECTION (around line 215):
  */
 const oldRegisterInsert = `
@@ -56,7 +59,7 @@ const newRegisterInsert = `
 
 /**
  * STEP 3: In the getMe() function (or any function that SELECT * from users)
- * 
+ *
  * FIND THIS SECTION:
  */
 const oldGetMe = `
@@ -114,11 +117,11 @@ const newGetMe = `
  * - verifyEmail()
  * - verifyPhone()
  * - And any controller that returns user data
- * 
+ *
  * PATTERN:
  * 1. After SELECT - decrypt the fields
  * 2. Before INSERT/UPDATE - encrypt the fields
- * 
+ *
  * Example for login():
  */
 const loginExample = `
@@ -147,28 +150,28 @@ const loginExample = `
 
 /**
  * IMPORTANT NOTES:
- * 
+ *
  * 1. Database stores ENCRYPTED values:
  *    - email: 'eyJhbGc...' (encrypted)
  *    - phone_number: 'eyJhbGc...' (encrypted)
  *    - national_id: 'eyJhbGc...' (encrypted)
- * 
+ *
  * 2. Application decrypts when needed:
  *    - For displaying to user
  *    - For comparisons
  *    - For email sending
- * 
+ *
  * 3. Search queries DON'T work on encrypted fields:
  *    OLD: SELECT * FROM users WHERE email = $1 ✅ WORKS
  *    NEW: SELECT * FROM users WHERE email = encryptedEmail ❌ FAILS
- *    
+ *
  *    FIX: For login, you must:
  *    - Get ALL users
  *    - Decrypt each email
  *    - Compare in code
- *    
+ *
  *    OR: Store email hash separately for searching
- * 
+ *
  * 4. Migration needed for existing users:
  *    ALTER TABLE users ADD COLUMN email_encrypted TEXT;
  *    ALTER TABLE users ADD COLUMN phone_encrypted TEXT;

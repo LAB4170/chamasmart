@@ -11,7 +11,7 @@
 # All secrets are loaded from .env.local using ${VARIABLE_NAME} syntax
 # ============================================================================
 
-version: '3.8'
+version: "3.8"
 
 services:
   # ============================================================================
@@ -32,7 +32,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/database_schema.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-chamasmart}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-chamasmart}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -133,27 +137,27 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    
+
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${PORT:-5000}/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-    
+
     volumes:
       - ./backend:/usr/src/app
       - /usr/src/app/node_modules
       - backend_logs:/usr/src/app/logs
-    
+
     networks:
       - chamasmart_net
-    
+
     restart: unless-stopped
-    
+
     security_opt:
       - no-new-privileges:true
-    
+
     cap_drop:
       - ALL
     cap_add:
@@ -200,7 +204,6 @@ networks:
     ipam:
       config:
         - subnet: 172.28.0.0/16
-
 # ============================================================================
 # DEPLOYMENT NOTES
 # ============================================================================

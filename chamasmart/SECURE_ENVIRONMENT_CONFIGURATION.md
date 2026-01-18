@@ -5,12 +5,14 @@
 ### Quick Start
 
 1. **Create `.env.local` (NEVER commit):**
+
 ```bash
 cp .env.example .env.local
 # Edit .env.local with your actual values
 ```
 
 2. **Verify `.env` is in `.gitignore`:**
+
 ```bash
 echo ".env" >> .gitignore
 echo ".env.local" >> .gitignore
@@ -25,6 +27,7 @@ echo ".env.local" >> .gitignore
 Create a `.env.local` file with these variables (DO NOT COMMIT):
 
 ### Server Configuration
+
 ```env
 NODE_ENV=development              # development|staging|production
 PORT=5000
@@ -33,6 +36,7 @@ ENABLE_CONSOLE_LOGS=true
 ```
 
 ### Database (PostgreSQL)
+
 ```env
 DB_USER=postgres
 DB_HOST=localhost
@@ -53,6 +57,7 @@ DB_REJECT_UNAUTHORIZED=true
 ```
 
 ### Redis (Rate Limiting & Caching)
+
 ```env
 REDIS_HOST=localhost
 REDIS_PORT=6379
@@ -68,6 +73,7 @@ REDIS_REJECT_UNAUTHORIZED=true
 ```
 
 ### JWT & Security
+
 ```env
 # JWT Authentication (Change these NOW)
 JWT_SECRET_V1=generate_with_node_crypto.randomBytes_64.toString_hex
@@ -95,12 +101,14 @@ STRICT_TRANSPORT_SECURITY="max-age=31536000; includeSubDomains"
 ```
 
 ### CORS (Cross-Origin Resource Sharing)
+
 ```env
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:5000
 # For production: https://yourdomain.com
 ```
 
 ### Rate Limiting
+
 ```env
 RATE_LIMIT_WINDOW_MS=900000       # 15 minutes
 RATE_LIMIT_MAX_REQUESTS=5000      # Per window
@@ -111,6 +119,7 @@ DATA_EXPORT_RATE_LIMIT_MAX=5      # Per day
 ```
 
 ### Email Configuration (Nodemailer)
+
 ```env
 EMAIL_HOST=smtp.gmail.com         # Your SMTP server
 EMAIL_PORT=587                    # Usually 587 (TLS) or 465 (SSL)
@@ -128,6 +137,7 @@ EMAIL_RETRY_DELAY_MS=1000
 ```
 
 ### Google Cloud Storage (Optional - for file uploads)
+
 ```env
 GCS_BUCKET_NAME=chamasmart-welfare-docs
 GCP_PROJECT_ID=your-gcp-project-id
@@ -135,6 +145,7 @@ GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
 ```
 
 ### Africa's Talking API (Optional - for SMS/USSD)
+
 ```env
 AFRICAS_TALKING_API_KEY=your_africas_talking_api_key
 AFRICAS_TALKING_USERNAME=your_africas_talking_username
@@ -143,6 +154,7 @@ AFRICAS_TALKING_2FA_ENABLED=false  # Enable for SMS 2FA
 ```
 
 ### Stripe / Payment Processing (Optional)
+
 ```env
 STRIPE_PUBLIC_KEY=pk_live_your_public_key
 STRIPE_SECRET_KEY=sk_live_your_secret_key  # NEVER expose this
@@ -150,6 +162,7 @@ STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
 ```
 
 ### Monitoring & Logging (Optional)
+
 ```env
 SENTRY_DSN=https://your-sentry-dsn@sentry.io/project
 LOG_TO_ELASTICSEARCH=false
@@ -160,6 +173,7 @@ METRICS_AUTH_TOKEN=your_metrics_auth_token_if_protected
 ```
 
 ### Development Only
+
 ```env
 DEBUG_SQL_QUERIES=false           # Log all SQL queries (SLOW)
 MOCK_EXTERNAL_APIS=false          # Use mock implementations
@@ -287,10 +301,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Deploy to server
         env:
           # These are SECRETS in GitHub (Settings > Secrets)
@@ -310,7 +324,7 @@ jobs:
 ### Docker Compose with Secrets
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   backend:
@@ -319,7 +333,7 @@ services:
       JWT_SECRET_V1: ${JWT_SECRET_V1}
       DB_PASSWORD: ${DB_PASSWORD}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-    
+
     # Or use Docker secrets:
     secrets:
       - jwt_secret
@@ -327,7 +341,7 @@ services:
 
 secrets:
   jwt_secret:
-    external: true  # Created with: docker secret create jwt_secret -
+    external: true # Created with: docker secret create jwt_secret -
   db_password:
     external: true
 ```
