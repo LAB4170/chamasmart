@@ -65,3 +65,30 @@ yarn-error.log*
 .env
 .env.test
 .env.production
+
+
+# Added by Phase 1 Security Fix
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# SSH Keys & Certificates
+*.pem
+*.key
+*.crt
+*.cert
+*.p8
+*.p12
+private/
+secrets/
+certs/
+credentials/
+
+# Backup files
+*.bundle
+*.bak
+*.backup
