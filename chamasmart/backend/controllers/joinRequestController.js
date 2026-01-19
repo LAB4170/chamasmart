@@ -221,25 +221,6 @@ const respondToRequest = async (req, res) => {
       });
     }
 
-    // Verify user is an official of this chama
-    const officialCheck = await client.query(
-      "SELECT role FROM chama_members WHERE chama_id = $1 AND user_id = $2 AND is_active = true",
-      [joinRequest.chama_id, reviewerId]
-    );
-
-    if (
-      officialCheck.rows.length === 0 ||
-      !["CHAIRPERSON", "SECRETARY", "TREASURER"].includes(
-        officialCheck.rows[0].role
-      )
-    ) {
-      await client.query("ROLLBACK");
-      return res.status(403).json({
-        success: false,
-        message: "Only chama officials can review join requests",
-      });
-    }
-
     // Update request status
     await client.query(
       `UPDATE join_requests 

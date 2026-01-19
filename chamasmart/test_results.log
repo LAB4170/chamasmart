@@ -1,0 +1,62 @@
+
+> chamasmart@1.0.0 test
+> npm run test:backend --maxWorkers=1 --forceExit
+
+npm warn Unknown cli config "--maxWorkers". This will stop working in the next major version of npm.
+npm warn Unknown cli config "--forceExit". This will stop working in the next major version of npm.
+
+> chamasmart@1.0.0 test:backend
+> cd backend && npm test
+
+npm warn Unknown env config "forceexit". This will stop working in the next major version of npm.
+npm warn Unknown env config "maxworkers". This will stop working in the next major version of npm.
+
+> chamasmart-backend@1.0.0 test
+> jest --runInBand
+
+  console.log
+    [dotenv@17.2.3] injecting env (3) from .env -- tip: ≡ƒæÑ sync secrets across teammates & machines: https://dotenvx.com/ops
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+  console.log
+    STABILIZED: Server running on port 5005
+
+      at Server.log (server.js:235:11)
+
+GET /api/rosca/cycles/123/roster 403 6.573 ms - 999 - -
+GET /api/rosca/cycles/123/roster 200 4.024 ms - 999 - -
+PASS tests/roscaRoutes.int.test.js
+  ROSCA routes integration - roster security
+    ΓêÜ denies roster access for non-member (403) (86 ms)
+    ΓêÜ authorized member can see roster without PII (no phone_number/trust_score) (20 ms)
+
+  console.log
+    [dotenv@17.2.3] injecting env (3) from .env -- tip: ΓÜÖ∩╕Å  enable debug logging with { debug: true }
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+  console.error
+    SERVER FATAL ERROR: listen EADDRINUSE: address already in use :::5005
+
+    [0m [90m 226 |[39m [90m// Start server[39m
+     [90m 227 |[39m server[33m.[39mon([32m"error"[39m[33m,[39m (err) [33m=>[39m {
+    [31m[1m>[22m[39m[90m 228 |[39m   console[33m.[39merror([32m"SERVER FATAL ERROR:"[39m[33m,[39m err[33m.[39mmessage)[33m;[39m
+     [90m     |[39m           [31m[1m^[22m[39m
+     [90m 229 |[39m   [36mif[39m (err[33m.[39mcode [33m===[39m [32m"EADDRINUSE"[39m) {
+     [90m 230 |[39m     process[33m.[39mexit([35m1[39m)[33m;[39m
+     [90m 231 |[39m   }[0m
+
+      at Server.error (server.js:228:11)
+
+  ΓùÅ  process.exit called with "1"
+
+      228 |   console.error("SERVER FATAL ERROR:", err.message);
+      229 |   if (err.code === "EADDRINUSE") {
+    > 230 |     process.exit(1);
+          |             ^
+      231 |   }
+      232 | });
+      233 |
+
+      at Server.exit (server.js:230:13)
