@@ -104,9 +104,12 @@ async function sendOTPSMS(phone, otp) {
 
 const signupStart = async (req, res, next) => {
   try {
+    console.log("🔍 SIGNUP START CALLED", { body: req.body });
+    
     const { email, phone, name, authMethod } = req.body;
 
     if (!authMethod || !["email", "phone", "google"].includes(authMethod)) {
+      console.warn("⚠️ Invalid auth method:", authMethod);
       return res.status(400).json({
         success: false,
         message: "Invalid auth method. Use: email, phone, or google",
@@ -205,7 +208,16 @@ const signupStart = async (req, res, next) => {
       },
     });
   } catch (error) {
+    console.error("🚨 SIGNUP START ERROR:", {
+      message: error.message,
+      stack: error.stack,
+      body: req.body,
+    });
     logger.error("Signup start error", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to start signup. Please try again.",
+    });
     next(error);
   }
 };
