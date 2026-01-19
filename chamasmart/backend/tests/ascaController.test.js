@@ -1,5 +1,5 @@
-jest.mock('../config/db');
-const db = require('../config/db');
+jest.mock("../config/db");
+const db = require("../config/db");
 
 // Ensure pool.connect() and pool.query are mocked before requiring the controller
 db.connect.mockImplementation(async () => ({
@@ -11,7 +11,7 @@ db.query = db.__mockQuery;
 let buyShares;
 let getMyEquity;
 
-({ buyShares, getMyEquity } = require('../controllers/ascaController'));
+({ buyShares, getMyEquity } = require("../controllers/ascaController"));
 
 beforeEach(() => {
   // Reset and re-establish mocks before each test
@@ -29,16 +29,16 @@ const buildRes = () => {
   return res;
 };
 
-describe('ASCA Controller - buyShares', () => {
+describe("ASCA Controller - buyShares", () => {
   beforeEach(() => {
     db.__mockQuery.mockReset();
     db.__mockClientQuery.mockReset();
   });
 
-  test('rejects invalid payment method', async () => {
+  test("rejects invalid payment method", async () => {
     const req = {
-      params: { chamaId: '1' },
-      body: { amount: 1000, paymentMethod: 'INVALID' },
+      params: { chamaId: "1" },
+      body: { amount: 1000, paymentMethod: "INVALID" },
       user: { user_id: 42 },
     };
     const res = buildRes();
@@ -54,28 +54,28 @@ describe('ASCA Controller - buyShares', () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
-        message: 'Invalid payment method',
-      })
+        message: "Invalid payment method",
+      }),
     );
     expect(next).not.toHaveBeenCalled();
   });
 
-  test('creates share purchase with valid payment method and computes shares', async () => {
+  test("creates share purchase with valid payment method and computes shares", async () => {
     const req = {
-      params: { chamaId: '1' },
-      body: { amount: 1000, paymentMethod: 'mpesa' },
+      params: { chamaId: "1" },
+      body: { amount: 1000, paymentMethod: "mpesa" },
       user: { user_id: 10 },
     };
     const res = buildRes();
     const next = jest.fn();
 
     const impl = async (text, params) => {
-      if (text.startsWith('SELECT chama_id, chama_type')) {
+      if (text.startsWith("SELECT chama_id, chama_type")) {
         return {
           rows: [
             {
               chama_id: 1,
-              chama_type: 'ASCA',
+              chama_type: "ASCA",
               current_fund: 0,
               share_price: 100,
             },
@@ -83,19 +83,19 @@ describe('ASCA Controller - buyShares', () => {
         };
       }
 
-      if (text.startsWith('SELECT contribution_amount, share_price FROM chamas')) {
+      if (
+        text.startsWith("SELECT contribution_amount, share_price FROM chamas")
+      ) {
         return {
-          rows: [
-            { contribution_amount: null, share_price: 100 },
-          ],
+          rows: [{ contribution_amount: null, share_price: 100 }],
         };
       }
 
-      if (text.startsWith('SELECT user_id FROM chama_members')) {
+      if (text.startsWith("SELECT user_id FROM chama_members")) {
         return { rows: [{ user_id: 10 }] };
       }
 
-      if (text.startsWith('INSERT INTO contributions')) {
+      if (text.startsWith("INSERT INTO contributions")) {
         return {
           rows: [
             {
@@ -108,15 +108,15 @@ describe('ASCA Controller - buyShares', () => {
         };
       }
 
-      if (text.startsWith('UPDATE chamas SET current_fund')) {
+      if (text.startsWith("UPDATE chamas SET current_fund")) {
         return { rows: [] };
       }
 
-      if (text.startsWith('UPDATE chama_members SET total_contributions')) {
+      if (text.startsWith("UPDATE chama_members SET total_contributions")) {
         return { rows: [] };
       }
 
-      if (text.startsWith('INSERT INTO asca_share_contributions')) {
+      if (text.startsWith("INSERT INTO asca_share_contributions")) {
         return {
           rows: [
             {
@@ -129,14 +129,14 @@ describe('ASCA Controller - buyShares', () => {
         };
       }
 
-      if (text === 'BEGIN' || text === 'COMMIT' || text === 'ROLLBACK') {
+      if (text === "BEGIN" || text === "COMMIT" || text === "ROLLBACK") {
         return { rows: [] };
       }
 
       // Fallback: log and return empty result for any query we did not explicitly stub
       // so tests remain focused on the ASCA flows we care about.
       // eslint-disable-next-line no-console
-      console.log('ASCA unit test: unexpected query:', text);
+      console.log("ASCA unit test: unexpected query:", text);
       return { rows: [] };
     };
 
@@ -147,7 +147,7 @@ describe('ASCA Controller - buyShares', () => {
 
     if (next.mock.calls.length) {
       // eslint-disable-next-line no-console
-      console.log('ASCA unit test buyShares error:', next.mock.calls[0][0]);
+      console.log("ASCA unit test buyShares error:", next.mock.calls[0][0]);
     }
 
     expect(res.status).toHaveBeenCalledWith(201);
@@ -156,32 +156,32 @@ describe('ASCA Controller - buyShares', () => {
     expect(payload.success).toBe(true);
     expect(payload.data.sharePrice).toBe(100);
     expect(payload.data.sharesBought).toBeCloseTo(10);
-    expect(payload.data.contribution.payment_method).toBe('MPESA');
+    expect(payload.data.contribution.payment_method).toBe("MPESA");
     expect(next).not.toHaveBeenCalled();
   });
 });
 
-describe('ASCA Controller - getMyEquity', () => {
+describe("ASCA Controller - getMyEquity", () => {
   beforeEach(() => {
     db.__mockQuery.mockReset();
     db.__mockClientQuery.mockReset();
   });
 
-  test('computes equity based on total assets and shares', async () => {
+  test("computes equity based on total assets and shares", async () => {
     const req = {
-      params: { chamaId: '1' },
+      params: { chamaId: "1" },
       user: { user_id: 10 },
     };
     const res = buildRes();
     const next = jest.fn();
 
     const impl = async (text, params) => {
-      if (text.startsWith('SELECT chama_id, chama_type')) {
+      if (text.startsWith("SELECT chama_id, chama_type")) {
         return {
           rows: [
             {
               chama_id: 1,
-              chama_type: 'ASCA',
+              chama_type: "ASCA",
               current_fund: 2000,
               share_price: 100,
             },
@@ -189,41 +189,36 @@ describe('ASCA Controller - getMyEquity', () => {
         };
       }
 
-      if (text.includes('FROM asca_share_contributions') && text.includes('WHERE chama_id = $1 AND user_id = $2')) {
+      if (
+        text.includes("FROM asca_share_contributions") &&
+        text.includes("WHERE chama_id = $1 AND user_id = $2")
+      ) {
         return {
-          rows: [
-            { total_amount: 1000, total_shares: 10 },
-          ],
+          rows: [{ total_amount: 1000, total_shares: 10 }],
         };
       }
 
-      if (text.startsWith('SELECT current_fund, share_price FROM chamas')) {
+      if (text.startsWith("SELECT current_fund, share_price FROM chamas")) {
         return {
-          rows: [
-            { current_fund: 2000, share_price: 100 },
-          ],
+          rows: [{ current_fund: 2000, share_price: 100 }],
         };
       }
 
-      if (text.includes('SELECT COALESCE(SUM(number_of_shares)')) {
+      if (text.includes("SELECT COALESCE(SUM(number_of_shares)")) {
         return {
-          rows: [
-            { total_shares: 100 },
-          ],
+          rows: [{ total_shares: 100 }],
         };
       }
 
-      if (text.includes('SELECT COALESCE(SUM(current_valuation)')) {
+      if (text.includes("SELECT COALESCE(SUM(current_valuation)")) {
         return {
-          rows: [
-            { total_assets: 8000 },
-          ],
+          rows: [{ total_assets: 8000 }],
         };
       }
 
       // Fallback for any other query
       // eslint-disable-next-line no-console
-      console.log('ASCA unit test (getMyEquity): unexpected query:', text);
+      console.log("ASCA unit test (getMyEquity): unexpected query:", text);
       return { rows: [] };
     };
 

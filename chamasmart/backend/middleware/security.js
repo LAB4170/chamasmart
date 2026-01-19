@@ -24,7 +24,7 @@ try {
           // If Redis is down, we don't want to block the app forever
           if (times > 3) {
             logger.warn(
-              "Redis connection failed multiple times. Disabling distributed rate limiting."
+              "Redis connection failed multiple times. Disabling distributed rate limiting.",
             );
             return null;
           }
@@ -85,7 +85,7 @@ if (redisClient) {
   } catch (err) {
     logger.warn(
       "Failed to initialize Redis rate limiter, falling back to memory:",
-      err.message
+      err.message,
     );
   }
 }
@@ -248,11 +248,11 @@ const securityHeaders = (req, res, next) => {
   res.setHeader("X-XSS-Protection", "1; mode=block");
   res.setHeader(
     "Strict-Transport-Security",
-    "max-age=31536000; includeSubDomains"
+    "max-age=31536000; includeSubDomains",
   );
   res.setHeader(
     "Permissions-Policy",
-    "geolocation=(), microphone=(), camera=()"
+    "geolocation=(), microphone=(), camera=()",
   );
   // Explicit headers expected by tests
   res.setHeader("X-DNS-Prefetch-Control", "off");
@@ -338,7 +338,7 @@ const securityMiddleware = (app) => {
   // Apply stricter rate limiting to auth endpoints
   app.use(
     ["/api/auth/login", "/api/auth/register", "/api/auth/forgot-password"],
-    authLimiter
+    authLimiter,
   );
 
   // Apply Redis-based rate limiting to API routes

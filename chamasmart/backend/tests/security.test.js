@@ -30,8 +30,8 @@ describe("Security Middleware", () => {
             request(server).post("/api/auth/login").send({
               email: "test@example.com",
               password: "password123",
-            })
-          )
+            }),
+          ),
       );
 
       // All requests should not be rate limited (status should not be 429)
