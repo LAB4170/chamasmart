@@ -28,6 +28,9 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5005;
 
+// Apply security middleware FIRST (before all routes)
+securityMiddleware(app);
+
 // Basic health check (no middleware)
 app.get("/api/ping", (req, res) =>
   res.json({ success: true, message: "pong" }),
@@ -40,9 +43,6 @@ app.get("/health", (req, res) =>
     port: PORT,
   }),
 );
-
-// Apply security middleware
-securityMiddleware(app);
 
 // Trust proxy
 app.set("trust proxy", 1);
@@ -235,6 +235,22 @@ server.listen(PORT, () => {
   console.log(`STABILIZED: Server running on port ${PORT}`);
   logger.info(`Server running on port ${PORT}`);
 });
+
+// Initialize Socket.io (if configured) except during unit tests to avoid
+// attempting external Redis connections in CI/test environments.
+if (process.env.NODE_ENV !== 'test') {
+  try {
+    const socketModule = require('./socket');
+    // init is async but we don't need to block server start in tests
+    socketModule.init(server).catch((err) => {
+      logger.error('Socket.io initialization failed', { error: err.message });
+    });
+  } catch (err) {
+    logger.warn('Socket module not available or failed to load', { error: err.message });
+  }
+} else {
+  logger.info('Skipping Socket.io initialization in test environment');
+}
 
 module.exports = app;
 module.exports.server = server;

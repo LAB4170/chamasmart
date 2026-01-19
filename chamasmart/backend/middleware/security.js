@@ -254,6 +254,9 @@ const securityHeaders = (req, res, next) => {
     "Permissions-Policy",
     "geolocation=(), microphone=(), camera=()"
   );
+  // Explicit headers expected by tests
+  res.setHeader("X-DNS-Prefetch-Control", "off");
+  res.setHeader("X-Download-Options", "noopen");
 
   next();
 };

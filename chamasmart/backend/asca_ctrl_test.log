@@ -1,0 +1,52 @@
+
+> chamasmart-backend@1.0.0 test
+> jest --runInBand tests/ascaController.test.js --no-coverage
+
+  console.log
+    [MOCK] Loading mocked database
+
+      at Object.log (config/__mocks__/db.js:2:9)
+
+  console.log
+    ASCA unit test buyShares error: TypeError: Cannot read properties of undefined (reading 'query')
+        at query (C:\Users\lewis\Desktop\chamasmart\backend\controllers\ascaController.js:79:18)
+        at Object.<anonymous> (C:\Users\lewis\Desktop\chamasmart\backend\tests\ascaController.test.js:139:5)
+
+      at Object.log (tests/ascaController.test.js:143:15)
+
+  console.log
+    [dotenv@17.2.3] injecting env (3) from .env -- tip: ΓÜÖ∩╕Å  override existing env vars with { override: true }
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+FAIL tests/ascaController.test.js (7.33 s)
+  ASCA Controller - buyShares
+    ΓêÜ rejects invalid payment method (11 ms)
+    ├ù creates share purchase with valid payment method and computes shares (35 ms)
+  ASCA Controller - getMyEquity
+    ΓêÜ computes equity based on total assets and shares (4 ms)
+
+  ΓùÅ ASCA Controller - buyShares ΓÇ║ creates share purchase with valid payment method and computes shares
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: 201
+
+    Number of calls: 0
+
+      144 |     }
+      145 |
+    > 146 |     expect(res.status).toHaveBeenCalledWith(201);
+          |                        ^
+      147 |     const payload = res.json.mock.calls[0][0];
+      148 |
+      149 |     expect(payload.success).toBe(true);
+
+      at Object.toHaveBeenCalledWith (tests/ascaController.test.js:146:24)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 2 passed, 3 total
+Snapshots:   0 total
+Time:        7.537 s
+Ran all test suites matching tests/ascaController.test.js.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

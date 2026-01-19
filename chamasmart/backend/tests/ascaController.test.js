@@ -1,18 +1,25 @@
 jest.mock('../config/db');
 const db = require('../config/db');
 
+// Ensure pool.connect() and pool.query are mocked before requiring the controller
+db.connect.mockImplementation(async () => ({
+  query: db.__mockClientQuery,
+  release: jest.fn(),
+}));
+db.query = db.__mockQuery;
+
 let buyShares;
 let getMyEquity;
 
-// Ensure pool.connect() always returns a client with query/release during these tests
-// and load the controller only after the DB mock is in place.
-beforeAll(() => {
+({ buyShares, getMyEquity } = require('../controllers/ascaController'));
+
+beforeEach(() => {
+  // Reset and re-establish mocks before each test
   db.connect.mockImplementation(async () => ({
     query: db.__mockClientQuery,
     release: jest.fn(),
   }));
-
-  ({ buyShares, getMyEquity } = require('../controllers/ascaController'));
+  db.query = db.__mockQuery;
 });
 
 const buildRes = () => {
