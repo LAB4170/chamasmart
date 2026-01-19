@@ -243,18 +243,20 @@ server.listen(PORT, () => {
 
 // Initialize Socket.io (if configured) except during unit tests to avoid
 // attempting external Redis connections in CI/test environments.
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== "test") {
   try {
-    const socketModule = require('./socket');
+    const socketModule = require("./socket");
     // init is async but we don't need to block server start in tests
     socketModule.init(server).catch((err) => {
-      logger.error('Socket.io initialization failed', { error: err.message });
+      logger.error("Socket.io initialization failed", { error: err.message });
     });
   } catch (err) {
-    logger.warn('Socket module not available or failed to load', { error: err.message });
+    logger.warn("Socket module not available or failed to load", {
+      error: err.message,
+    });
   }
 } else {
-  logger.info('Skipping Socket.io initialization in test environment');
+  logger.info("Skipping Socket.io initialization in test environment");
 }
 
 module.exports = app;

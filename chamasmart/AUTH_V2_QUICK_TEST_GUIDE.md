@@ -3,6 +3,7 @@
 ## SETUP (5 minutes)
 
 ### 1. Start Backend
+
 ```bash
 cd backend
 npm run dev
@@ -10,6 +11,7 @@ npm run dev
 ```
 
 ### 2. Start Frontend
+
 ```bash
 # In another terminal
 cd frontend
@@ -20,18 +22,22 @@ npm run dev
 ### 3. Check Services
 
 **Backend Health:**
+
 ```bash
 curl http://localhost:5005/api/auth/v2/health
 ```
+
 Expected: `{"success":true,"message":"Auth service is operational"}`
 
 **Database Connection:**
+
 ```bash
 # Backend will auto-connect to PostgreSQL on startup
 # Check logs for "✅ Database connected"
 ```
 
 **Redis Connection:**
+
 ```bash
 # Check logs for "✅ Redis connected"
 # Or test directly:
@@ -44,6 +50,7 @@ redis-cli ping
 ## SCENARIO 1: Email OTP Signup (10 minutes)
 
 ### Step 1: Start Signup
+
 ```bash
 curl -X POST http://localhost:5005/api/auth/v2/signup/start \
   -H "Content-Type: application/json" \
@@ -55,6 +62,7 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/start \
 ```
 
 **Expected Response:**
+
 ```json
 {
   "success": true,
@@ -70,6 +78,7 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/start \
 ### Step 2: Get OTP from Redis (Dev Only)
 
 In Redis CLI:
+
 ```bash
 redis-cli
 > GET signup:abc123def456...
@@ -77,6 +86,7 @@ redis-cli
 ```
 
 **OR** Check email in development:
+
 - In development mode, OTP is logged to console
 - Look for: `📧 OTP Email sent`
 
@@ -93,6 +103,7 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/verify-otp \
 ```
 
 **Expected Response:**
+
 ```json
 {
   "success": true,
@@ -168,6 +179,7 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/resend-otp \
 ```
 
 **Expected Response:**
+
 ```json
 {
   "success": true,
@@ -179,6 +191,7 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/resend-otp \
 ```
 
 **Note:** Rate limited to 1 resend per 30 seconds
+
 - Try to resend twice in 20 seconds → 2nd fails with 429 (Too Many Requests)
 
 ---
@@ -186,6 +199,7 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/resend-otp \
 ## SCENARIO 4: API Key Management (5 minutes)
 
 ### Create API Key
+
 ```bash
 # Need valid JWT token from previous signup
 curl -X POST http://localhost:5005/api/auth/v2/api-keys \
@@ -198,6 +212,7 @@ curl -X POST http://localhost:5005/api/auth/v2/api-keys \
 ```
 
 **Expected Response:**
+
 ```json
 {
   "success": true,
@@ -215,12 +230,14 @@ curl -X POST http://localhost:5005/api/auth/v2/api-keys \
 ```
 
 ### List API Keys
+
 ```bash
 curl -X GET http://localhost:5005/api/auth/v2/api-keys \
   -H "Authorization: Bearer <YOUR_ACCESS_TOKEN>"
 ```
 
 ### Use API Key for Authentication
+
 ```bash
 # Use the API key like a bearer token
 curl -X GET http://localhost:5005/api/auth/v2/profile \
@@ -228,6 +245,7 @@ curl -X GET http://localhost:5005/api/auth/v2/profile \
 ```
 
 **Expected Response:**
+
 ```json
 {
   "success": true,
@@ -240,6 +258,7 @@ curl -X GET http://localhost:5005/api/auth/v2/profile \
 ```
 
 ### Revoke API Key
+
 ```bash
 curl -X DELETE http://localhost:5005/api/auth/v2/api-keys/key-12345/revoke \
   -H "Authorization: Bearer <YOUR_ACCESS_TOKEN>"
@@ -259,6 +278,7 @@ curl -X POST http://localhost:5005/api/auth/v2/refresh-token \
 ```
 
 **Expected Response:**
+
 ```json
 {
   "success": true,
@@ -274,6 +294,7 @@ curl -X POST http://localhost:5005/api/auth/v2/refresh-token \
 ## SCENARIO 6: Rate Limiting (5 minutes)
 
 ### Test Signup Rate Limit (5 attempts per hour)
+
 ```bash
 for i in {1..6}; do
   curl -X POST http://localhost:5005/api/auth/v2/signup/start \
@@ -288,6 +309,7 @@ done
 ```
 
 **Expected:**
+
 - Attempts 1-5: Status 200 (success)
 - Attempt 6: Status 429 (rate limited)
 
@@ -300,6 +322,7 @@ done
 ```
 
 ### Test OTP Resend Rate Limit (1 per 30 seconds)
+
 ```bash
 # Immediately after first resend
 curl -X POST http://localhost:5005/api/auth/v2/signup/resend-otp \
@@ -318,6 +341,7 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/resend-otp \
 ## SCENARIO 7: Frontend Testing (10 minutes)
 
 ### Visit Signup Page
+
 1. Open browser: `http://localhost:5173/signup-v2`
 2. Should see:
    - ✅ ChamaSmart header
@@ -325,11 +349,13 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/resend-otp \
    - ✅ Account type selection (3 cards)
 
 ### Step 1: Select Account Type
+
 - Click "Join Existing Group"
 - Progress bar updates
 - "Continue" button enabled
 
 ### Step 2: Select Auth Method
+
 - Click "Email Verification"
 - Email input appears
 - Type: `frontend-test@example.com`
@@ -337,6 +363,7 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/resend-otp \
 - Should see success message
 
 ### Step 3: Verify OTP
+
 - Should auto-navigate to OTP form
 - See masked email: `f***@example.com`
 - Get OTP from Redis or logs
@@ -345,6 +372,7 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/resend-otp \
 - Click "Verify & Create Account"
 
 ### Step 4: Complete Profile
+
 - Enter first/last name
 - Phone (optional)
 - Check "I agree to..."
@@ -356,6 +384,7 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/resend-otp \
 ## ERROR SCENARIOS & DEBUGGING
 
 ### Error 1: OTP Invalid
+
 ```json
 {
   "success": false,
@@ -367,6 +396,7 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/resend-otp \
 **Fix:** Get fresh OTP from Redis or resend
 
 ### Error 2: Signup Token Expired
+
 ```json
 {
   "success": false,
@@ -378,6 +408,7 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/resend-otp \
 **Fix:** Start signup again (tokens expire in 15 minutes)
 
 ### Error 3: Rate Limited
+
 ```json
 {
   "success": false,
@@ -390,15 +421,19 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/resend-otp \
 **Fix:** Wait 1 hour, or restart Redis in development
 
 ### Error 4: Database Connection Failed
+
 **Logs:** `❌ Database connection failed`
-**Fix:** 
+**Fix:**
+
 - Verify PostgreSQL is running: `psql -U postgres`
 - Check credentials in `.env`
 - Verify DB exists: `createdb chamasmart`
 
 ### Error 5: Redis Connection Failed
+
 **Logs:** `❌ Redis connection failed`
 **Fix:**
+
 - Verify Redis is running: `redis-cli ping` → should return `PONG`
 - Check Redis credentials in `.env`
 - Default: `localhost:6379` (no password in dev)
@@ -408,6 +443,7 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/resend-otp \
 ## DEBUGGING COMMANDS
 
 ### View All OTP Data in Redis
+
 ```bash
 redis-cli
 > KEYS signup:*
@@ -415,26 +451,31 @@ redis-cli
 ```
 
 ### View All API Keys
+
 ```bash
 psql -U postgres -d chamasmart -c "SELECT * FROM api_keys;"
 ```
 
 ### View OTP Audit Log
+
 ```bash
 psql -U postgres -d chamasmart -c "SELECT * FROM otp_audit ORDER BY created_at DESC LIMIT 10;"
 ```
 
 ### View Signup Sessions
+
 ```bash
 psql -U postgres -d chamasmart -c "SELECT * FROM signup_sessions;"
 ```
 
 ### Tail Backend Logs
+
 ```bash
 tail -f backend/logs/app.log | grep -i "auth\|otp\|signup"
 ```
 
 ### Reset Rate Limits (Dev Only)
+
 ```bash
 redis-cli
 > FLUSHDB
@@ -494,7 +535,7 @@ Save as `auth-v2.postman_collection.json`:
       "request": {
         "method": "POST",
         "url": "http://localhost:5005/api/auth/v2/api-keys",
-        "header": {"Authorization": "Bearer {{accessToken}}"},
+        "header": { "Authorization": "Bearer {{accessToken}}" },
         "body": {
           "mode": "raw",
           "raw": "{\"name\":\"Test Key\",\"expiresInDays\":365}"
@@ -510,6 +551,7 @@ Save as `auth-v2.postman_collection.json`:
 ## TIMELINE & SUCCESS CRITERIA
 
 **✅ All Tests Pass When:**
+
 1. ✅ Email signup creates user in DB
 2. ✅ OTP is generated and stored (verified in Redis)
 3. ✅ OTP verification creates user, generates tokens

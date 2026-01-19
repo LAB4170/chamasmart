@@ -5,6 +5,7 @@
 ### ✅ Backend Auth APIs Created
 
 **File:** `backend/controllers/authControllerV2.js` (560 lines)
+
 - ✅ `signupStart()` - Initiate signup with email/phone/Google
 - ✅ `signupVerifyOTP()` - Verify OTP and create account
 - ✅ `signupGoogle()` - Google OAuth callback handler
@@ -12,6 +13,7 @@
 - ✅ `refreshAccessToken()` - Token refresh endpoint
 
 **Features:**
+
 - 🔐 OTP generation (6-digit code, 10-min expiry)
 - 📧 Email OTP handling (Redis-backed for dev)
 - 📱 Phone OTP placeholder (Twilio/Africa's Talking ready)
@@ -25,6 +27,7 @@
 ### ✅ API Key Management Created
 
 **File:** `backend/middleware/apiKeyAuth.js` (350 lines)
+
 - ✅ `generateAPIKey()` - Create secure API keys
 - ✅ `apiKeyAuth` middleware - Validate API key requests
 - ✅ `createAPIKey()` - Endpoint to generate new keys
@@ -33,6 +36,7 @@
 - ✅ `deleteAPIKey()` - Remove key permanently
 
 **Security:**
+
 - 🔐 API keys stored as bcrypt hashes (never plaintext)
 - 📍 Key prefix visible for reference (format: `chama_live_[uuid]_[random]`)
 - 🔄 Automatic last-used timestamp tracking
@@ -44,6 +48,7 @@
 ### ✅ Rate Limiting Zones Created
 
 **File:** `backend/security/rateLimitingV2.js` (220 lines)
+
 - ✅ `signupLimiter` - 5 attempts/hour per IP
 - ✅ `loginLimiter` - 5 attempts/15min per email+IP
 - ✅ `otpVerifyLimiter` - 3 attempts/15min per contact
@@ -51,6 +56,7 @@
 - ✅ `apiLimiter` - 100 requests/min per user
 
 **Features:**
+
 - Redis-backed persistence
 - Custom error messages with retry-after times
 - IP + identifier-based tracking
@@ -62,6 +68,7 @@
 ### ✅ OTP Utilities Created
 
 **File:** `backend/utils/otp.js` (280 lines)
+
 - ✅ `EmailOTP` class - Send OTP via email (Nodemailer)
 - ✅ `SMSOTP` class - Send OTP via SMS (Twilio/Africa's Talking ready)
 - ✅ `OTPGenerator` - Generate OTPs with expiry
@@ -69,6 +76,7 @@
 - ✅ Phone number formatting and masking
 
 **Providers Ready:**
+
 - SendGrid (via nodemailer)
 - Twilio SMS
 - Africa's Talking SMS
@@ -79,6 +87,7 @@
 ### ✅ Auth Routes Wired
 
 **File:** `backend/routes/authV2.js` (80 lines)
+
 - ✅ Signup flows: `/api/auth/v2/signup/start`
 - ✅ OTP verification: `/api/auth/v2/signup/verify-otp`
 - ✅ Google callback: `/api/auth/v2/signup/google`
@@ -87,6 +96,7 @@
 - ✅ Rate limiting integrated
 
 **Integrated into:**
+
 - `backend/server.js` - Routes mounted at `/api/auth/v2`
 - Runs alongside legacy auth routes (backward compatible)
 
@@ -95,12 +105,14 @@
 ### ✅ Frontend Signup Component Created
 
 **File:** `frontend/src/pages/SignupV2.vue` (900+ lines)
+
 - ✅ Step 1: Account type selection (join/create/explore)
 - ✅ Step 2: Auth method choice (Google/Email/Phone/Passwordless)
 - ✅ Step 3: OTP verification with 6-digit input
 - ✅ Step 4: Profile completion
 
 **UI Features:**
+
 - 📊 Progress bar with step indicators
 - 🎨 Gradient background (purple/violet theme)
 - 📱 Mobile responsive (320px - 1200px)
@@ -111,6 +123,7 @@
 - 🛡️ Form validation and error messages
 
 **Integrations:**
+
 - API calls to `/api/auth/v2/signup/*` endpoints
 - Token storage (localStorage)
 - Router navigation to dashboard
@@ -121,6 +134,7 @@
 ### ✅ Environment Configuration Updated
 
 **File:** `backend/.env.example` (comprehensive)
+
 - ✅ JWT configuration (access + refresh tokens)
 - ✅ Redis settings
 - ✅ Email configuration (Gmail, SendGrid)
@@ -132,6 +146,7 @@
 - ✅ All security & monitoring vars
 
 **Action Required:**
+
 ```bash
 # Copy template to actual env file
 cp backend/.env.example backend/.env
@@ -149,6 +164,7 @@ cp backend/.env.example backend/.env
 ### ✅ Integration Tests Created
 
 **File:** `backend/tests/auth-v2.test.js` (400+ lines)
+
 - ✅ Signup flow tests
 - ✅ OTP verification tests
 - ✅ Google OAuth tests
@@ -158,6 +174,7 @@ cp backend/.env.example backend/.env
 - ✅ Error handling tests
 
 **Run Tests:**
+
 ```bash
 npm run test -- auth-v2.test.js
 ```
@@ -171,6 +188,7 @@ npm run test -- auth-v2.test.js
 **NOT YET APPLIED** - Waiting for .env setup in Phase 5
 
 **Schema Changes:**
+
 ```sql
 -- New users table columns:
 - auth_method (email/phone/google/passwordless)
@@ -191,6 +209,7 @@ npm run test -- auth-v2.test.js
 ```
 
 **To Apply Migration:**
+
 ```bash
 cd backend
 npm run migrate  # After .env is properly configured
@@ -250,36 +269,37 @@ USER FLOWS:
 
 ### Public Endpoints (No Auth Required)
 
-| Method | Endpoint | Purpose | Rate Limit |
-|--------|----------|---------|-----------|
-| POST | `/api/auth/v2/signup/start` | Initiate signup | 5/hour |
-| POST | `/api/auth/v2/signup/verify-otp` | Verify OTP & create account | 3/15min |
-| POST | `/api/auth/v2/signup/resend-otp` | Resend OTP | 1/30sec |
-| POST | `/api/auth/v2/signup/google` | Google OAuth callback | None |
-| POST | `/api/auth/v2/refresh-token` | Get new access token | None |
-| GET | `/api/auth/v2/health` | Health check | None |
+| Method | Endpoint                         | Purpose                     | Rate Limit |
+| ------ | -------------------------------- | --------------------------- | ---------- |
+| POST   | `/api/auth/v2/signup/start`      | Initiate signup             | 5/hour     |
+| POST   | `/api/auth/v2/signup/verify-otp` | Verify OTP & create account | 3/15min    |
+| POST   | `/api/auth/v2/signup/resend-otp` | Resend OTP                  | 1/30sec    |
+| POST   | `/api/auth/v2/signup/google`     | Google OAuth callback       | None       |
+| POST   | `/api/auth/v2/refresh-token`     | Get new access token        | None       |
+| GET    | `/api/auth/v2/health`            | Health check                | None       |
 
 ### Protected Endpoints (JWT Required)
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/api/auth/v2/api-keys` | Create API key |
-| GET | `/api/auth/v2/api-keys` | List user's API keys |
-| DELETE | `/api/auth/v2/api-keys/:keyId/revoke` | Revoke API key |
-| DELETE | `/api/auth/v2/api-keys/:keyId` | Delete API key |
-| GET | `/api/auth/v2/profile` | Get user profile |
+| Method | Endpoint                              | Purpose              |
+| ------ | ------------------------------------- | -------------------- |
+| POST   | `/api/auth/v2/api-keys`               | Create API key       |
+| GET    | `/api/auth/v2/api-keys`               | List user's API keys |
+| DELETE | `/api/auth/v2/api-keys/:keyId/revoke` | Revoke API key       |
+| DELETE | `/api/auth/v2/api-keys/:keyId`        | Delete API key       |
+| GET    | `/api/auth/v2/profile`                | Get user profile     |
 
 ### Flexible Auth Endpoints (JWT or API Key)
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/api/auth/v2/profile` | Works with both JWT and API key |
+| Method | Endpoint               | Purpose                         |
+| ------ | ---------------------- | ------------------------------- |
+| GET    | `/api/auth/v2/profile` | Works with both JWT and API key |
 
 ---
 
 ## 🧪 TESTING THE IMPLEMENTATION
 
 ### 1. Start the Backend
+
 ```bash
 cd backend
 npm run dev
@@ -289,6 +309,7 @@ npm run dev
 ### 2. Test with cURL
 
 **Test Email Signup:**
+
 ```bash
 curl -X POST http://localhost:5005/api/auth/v2/signup/start \
   -H "Content-Type: application/json" \
@@ -300,6 +321,7 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/start \
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -313,6 +335,7 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/start \
 ```
 
 **Verify OTP:**
+
 ```bash
 # Get OTP from Redis (for dev testing):
 # redis-cli: GET signup:<signupToken>
@@ -327,6 +350,7 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/verify-otp \
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -347,6 +371,7 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/verify-otp \
 ```
 
 **Create API Key:**
+
 ```bash
 curl -X POST http://localhost:5005/api/auth/v2/api-keys \
   -H "Authorization: Bearer <accessToken>" \
@@ -358,6 +383,7 @@ curl -X POST http://localhost:5005/api/auth/v2/api-keys \
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -386,6 +412,7 @@ npm run dev
 ## 🔐 SECURITY FEATURES IMPLEMENTED
 
 ### 1. OTP Security
+
 - ✅ 6-digit codes with 10-minute expiry
 - ✅ Rate limiting: 3 attempts/15min, 1 resend/30sec
 - ✅ Audit logging for all attempts (success/failure)
@@ -394,6 +421,7 @@ npm run dev
 - ✅ Invalid attempts logged with IP and user agent
 
 ### 2. API Key Security
+
 - ✅ Keys stored as bcrypt hashes (irreversible)
 - ✅ Key prefix visible (format: `chama_live_uuid_random`)
 - ✅ Shown only once at creation
@@ -403,12 +431,14 @@ npm run dev
 - ✅ IP logging on auth attempts
 
 ### 3. JWT Security
+
 - ✅ Separate access (1h) and refresh (7d) tokens
 - ✅ Refresh tokens tracked in DB (can be revoked)
 - ✅ Token expiry enforced
 - ✅ No sensitive data in JWT payload
 
 ### 4. Rate Limiting
+
 - ✅ Per-IP rate limiting
 - ✅ Per-email rate limiting
 - ✅ Per-user (after login) rate limiting
@@ -416,6 +446,7 @@ npm run dev
 - ✅ Bypass in test environment
 
 ### 5. Input Validation
+
 - ✅ Email format validation
 - ✅ Phone number validation
 - ✅ OTP digit-only validation
@@ -427,6 +458,7 @@ npm run dev
 ## 📱 FRONTEND ARCHITECTURE
 
 ### Component Structure
+
 ```
 SignupV2.vue (Main component)
 ├─ Step 1: Account Type Selection
@@ -464,6 +496,7 @@ UI Features:
 ## 🚀 NEXT PHASES (When Ready)
 
 ### PHASE 3: Frontend Integration
+
 - [ ] Connect SignupV2 to backend APIs
 - [ ] Google OAuth SDK integration
 - [ ] Session management
@@ -471,6 +504,7 @@ UI Features:
 - [ ] E2E tests
 
 ### PHASE 4: Additional Security
+
 - [ ] 2FA implementation
 - [ ] Email verification for sensitive changes
 - [ ] Device fingerprinting
@@ -478,6 +512,7 @@ UI Features:
 - [ ] CAPTCHA integration
 
 ### PHASE 5: Production Deployment
+
 - [ ] NGINX load balancing (3 backend instances)
 - [ ] Docker configuration
 - [ ] CI/CD pipeline
@@ -489,6 +524,7 @@ UI Features:
 ## ✅ DEPLOYMENT CHECKLIST
 
 ### Pre-Deployment (Today)
+
 - [x] Backend APIs created & tested
 - [x] Frontend components created
 - [x] Database migration ready
@@ -497,6 +533,7 @@ UI Features:
 - [x] OTP system implemented
 
 ### Pre-Production (Phase 5)
+
 - [ ] Update `.env` with real credentials
 - [ ] Apply database migration
 - [ ] Test all auth flows end-to-end
@@ -507,6 +544,7 @@ UI Features:
 - [ ] Email/SMS provider activation
 
 ### Production
+
 - [ ] Deploy backend to production server
 - [ ] Deploy frontend to CDN
 - [ ] Configure NGINX load balancer
@@ -521,7 +559,7 @@ UI Features:
 ### Common Issues & Solutions
 
 **Issue:** OTP not sending via email
-**Solution:** Check `.env` EMAIL_* variables and mail server credentials
+**Solution:** Check `.env` EMAIL\_\* variables and mail server credentials
 
 **Issue:** Google OAuth failing
 **Solution:** Verify GOOGLE_CLIENT_ID matches frontend and backend
@@ -537,6 +575,7 @@ UI Features:
 ## 📊 MONITORING & LOGS
 
 All auth operations are logged with:
+
 - ✅ Timestamp
 - ✅ User ID / Contact info (masked)
 - ✅ Operation (signup, OTP, API key, etc.)
@@ -545,6 +584,7 @@ All auth operations are logged with:
 - ✅ Error message (if failed)
 
 **View logs:**
+
 ```bash
 tail -f backend/logs/app.log
 # Or filter for auth events:

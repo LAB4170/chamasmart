@@ -9,24 +9,33 @@
 
     <!-- Progress Indicator -->
     <div class="progress-bar">
-      <div class="progress-step" :class="{ active: currentStep >= 1, completed: currentStep > 1 }">
+      <div
+        class="progress-step"
+        :class="{ active: currentStep >= 1, completed: currentStep > 1 }"
+      >
         <div class="step-number">1</div>
         <div class="step-label">Account Type</div>
       </div>
       <div class="progress-line" :class="{ active: currentStep > 1 }"></div>
-      
-      <div class="progress-step" :class="{ active: currentStep >= 2, completed: currentStep > 2 }">
+
+      <div
+        class="progress-step"
+        :class="{ active: currentStep >= 2, completed: currentStep > 2 }"
+      >
         <div class="step-number">2</div>
         <div class="step-label">Choose Auth</div>
       </div>
       <div class="progress-line" :class="{ active: currentStep > 2 }"></div>
-      
-      <div class="progress-step" :class="{ active: currentStep >= 3, completed: currentStep > 3 }">
+
+      <div
+        class="progress-step"
+        :class="{ active: currentStep >= 3, completed: currentStep > 3 }"
+      >
         <div class="step-number">3</div>
         <div class="step-label">Verify OTP</div>
       </div>
       <div class="progress-line" :class="{ active: currentStep > 3 }"></div>
-      
+
       <div class="progress-step" :class="{ active: currentStep >= 4 }">
         <div class="step-number">4</div>
         <div class="step-label">Profile</div>
@@ -38,30 +47,34 @@
       <!-- STEP 1: Account Type Selection -->
       <div v-if="currentStep === 1" class="form-step">
         <h2>What brings you here?</h2>
-        
+
         <div class="option-grid">
-          <div 
-            class="option-card" 
+          <div
+            class="option-card"
             :class="{ selected: accountType === 'existing' }"
             @click="selectAccountType('existing')"
           >
             <div class="option-icon">👥</div>
             <div class="option-title">Join Existing Group</div>
-            <div class="option-description">Have an invite code from your group</div>
+            <div class="option-description">
+              Have an invite code from your group
+            </div>
           </div>
 
-          <div 
-            class="option-card" 
+          <div
+            class="option-card"
             :class="{ selected: accountType === 'create' }"
             @click="selectAccountType('create')"
           >
             <div class="option-icon">✨</div>
             <div class="option-title">Create New Group</div>
-            <div class="option-description">Start your own Chama with friends</div>
+            <div class="option-description">
+              Start your own Chama with friends
+            </div>
           </div>
 
-          <div 
-            class="option-card" 
+          <div
+            class="option-card"
             :class="{ selected: accountType === 'explore' }"
             @click="selectAccountType('explore')"
           >
@@ -71,7 +84,7 @@
           </div>
         </div>
 
-        <button 
+        <button
           class="btn btn-primary btn-block"
           :disabled="!accountType"
           @click="goToStep(2)"
@@ -83,20 +96,17 @@
       <!-- STEP 2: Choose Authentication Method -->
       <div v-if="currentStep === 2" class="form-step">
         <h2>How would you like to sign up?</h2>
-        
+
         <div class="auth-options">
           <!-- Google OAuth -->
-          <button 
-            class="auth-btn google-btn"
-            @click="handleGoogleAuth"
-          >
+          <button class="auth-btn google-btn" @click="handleGoogleAuth">
             <span class="auth-icon">🔵</span>
             <span>Continue with Google</span>
             <span class="auth-badge">Fastest</span>
           </button>
 
           <!-- Email OTP -->
-          <button 
+          <button
             class="auth-btn email-btn"
             :class="{ active: authMethod === 'email' }"
             @click="selectAuthMethod('email')"
@@ -107,7 +117,7 @@
           </button>
 
           <!-- Phone OTP -->
-          <button 
+          <button
             class="auth-btn phone-btn"
             :class="{ active: authMethod === 'phone' }"
             @click="selectAuthMethod('phone')"
@@ -118,7 +128,7 @@
           </button>
 
           <!-- Passwordless Email -->
-          <button 
+          <button
             class="auth-btn passwordless-btn"
             :class="{ active: authMethod === 'passwordless' }"
             @click="selectAuthMethod('passwordless')"
@@ -131,12 +141,12 @@
 
         <!-- Form for Email/Phone Input -->
         <div v-if="authMethod === 'email'" class="contact-input">
-          <input 
-            v-model="email" 
+          <input
+            v-model="email"
             type="email"
             placeholder="your@email.com"
             class="form-control"
-          >
+          />
         </div>
 
         <div v-if="authMethod === 'phone'" class="contact-input">
@@ -147,18 +157,18 @@
               <option value="+256">🇺🇬 +256</option>
               <option value="+234">🇳🇬 +234</option>
             </select>
-            <input 
-              v-model="phone" 
+            <input
+              v-model="phone"
               type="tel"
               placeholder="712345678"
               class="form-control"
-            >
+            />
           </div>
         </div>
 
         <div class="button-group">
           <button class="btn btn-secondary" @click="goToStep(1)">Back</button>
-          <button 
+          <button
             class="btn btn-primary"
             :disabled="!canProceedStep2"
             @click="proceedToOTP"
@@ -174,13 +184,13 @@
       <div v-if="currentStep === 3" class="form-step">
         <h2>Enter Verification Code</h2>
         <p class="step-description">
-          We sent a 6-digit code to 
+          We sent a 6-digit code to
           <strong>{{ contactMethodDisplay }}</strong>
         </p>
 
         <!-- OTP Input (6 digits) -->
         <div class="otp-input-group">
-          <input 
+          <input
             v-for="(digit, index) in 6"
             :key="index"
             v-model="otp[index]"
@@ -189,7 +199,7 @@
             class="otp-input"
             @input="handleOTPInput(index, $event)"
             @keydown.backspace="handleOTPBackspace(index, $event)"
-          >
+          />
         </div>
 
         <!-- Resend OTP -->
@@ -197,13 +207,13 @@
           <p v-if="otpResendTimer > 0">
             Resend in <strong>{{ otpResendTimer }}s</strong>
           </p>
-          <button 
+          <button
             v-else
             class="btn-link"
             @click="resendOTP"
             :disabled="isResending"
           >
-            {{ isResending ? 'Sending...' : 'Resend Code' }}
+            {{ isResending ? "Sending..." : "Resend Code" }}
           </button>
         </div>
 
@@ -215,18 +225,20 @@
         <!-- Password Input (for non-OAuth methods) -->
         <div v-if="authMethod !== 'google'" class="password-input-group">
           <label>Create Password (optional)</label>
-          <input 
+          <input
             v-model="password"
             type="password"
             placeholder="Leave blank for passwordless login"
             class="form-control"
-          >
+          />
           <small>Leave empty for passwordless/OTP-only login</small>
         </div>
 
         <div class="button-group">
-          <button class="btn btn-secondary" @click="goToStep(2)">Change Method</button>
-          <button 
+          <button class="btn btn-secondary" @click="goToStep(2)">
+            Change Method
+          </button>
+          <button
             class="btn btn-primary"
             :disabled="!otpComplete || isLoading"
             @click="verifyOTP"
@@ -241,66 +253,66 @@
       <!-- STEP 4: Complete Profile -->
       <div v-if="currentStep === 4" class="form-step">
         <h2>Complete Your Profile</h2>
-        
+
         <div class="profile-form">
           <div class="form-group">
             <label>First Name</label>
-            <input 
+            <input
               v-model="firstName"
               type="text"
               placeholder="John"
               class="form-control"
-            >
+            />
           </div>
 
           <div class="form-group">
             <label>Last Name</label>
-            <input 
+            <input
               v-model="lastName"
               type="text"
               placeholder="Doe"
               class="form-control"
-            >
+            />
           </div>
 
           <div class="form-group">
             <label>Phone (if not used for signup)</label>
-            <input 
+            <input
               v-model="profilePhone"
               type="tel"
               placeholder="+254712345678"
               class="form-control"
-            >
+            />
           </div>
 
           <!-- Optional Fields Based on Account Type -->
           <div v-if="accountType === 'existing'" class="form-group">
             <label>Invite Code</label>
-            <input 
+            <input
               v-model="inviteCode"
               type="text"
               placeholder="CHAMA-XXXX"
               class="form-control"
-            >
+            />
           </div>
 
           <div class="form-group">
             <label class="checkbox-label">
-              <input v-model="agreeToTerms" type="checkbox">
+              <input v-model="agreeToTerms" type="checkbox" />
               I agree to the Terms of Service and Privacy Policy
             </label>
           </div>
         </div>
 
         <div class="button-group">
-          <button 
-            class="btn btn-secondary" 
+          <button
+            class="btn btn-secondary"
             @click="goToStep(3)"
             :disabled="isLoading"
           >
             Back
           </button>
-          <button 
+          <button
             class="btn btn-primary"
             :disabled="!agreeToTerms || isLoading"
             @click="completeSignup"
@@ -326,71 +338,76 @@
 
     <!-- Footer Links -->
     <div class="footer-links">
-      Already have an account? 
+      Already have an account?
       <router-link to="/login" class="link">Sign In</router-link>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import api from '../services/api';
+import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
+import api from "../services/api";
 
 export default {
-  name: 'SignupV2',
+  name: "SignupV2",
   setup() {
     const router = useRouter();
 
     // Step state
     const currentStep = ref(1);
-    const accountType = ref('');
-    const authMethod = ref('');
+    const accountType = ref("");
+    const authMethod = ref("");
 
     // Contact info
-    const email = ref('');
-    const phone = ref('');
-    const countryCode = ref('+254');
+    const email = ref("");
+    const phone = ref("");
+    const countryCode = ref("+254");
 
     // OTP state
-    const otp = ref(['', '', '', '', '', '']);
+    const otp = ref(["", "", "", "", "", ""]);
     const otpResendTimer = ref(0);
-    const otpExpiry = ref('10:00');
-    const signupToken = ref('');
-    const password = ref('');
+    const otpExpiry = ref("10:00");
+    const signupToken = ref("");
+    const password = ref("");
 
     // Profile info
-    const firstName = ref('');
-    const lastName = ref('');
-    const profilePhone = ref('');
-    const inviteCode = ref('');
+    const firstName = ref("");
+    const lastName = ref("");
+    const profilePhone = ref("");
+    const inviteCode = ref("");
     const agreeToTerms = ref(false);
 
     // UI state
     const isLoading = ref(false);
     const isResending = ref(false);
-    const errorMessage = ref('');
-    const successMessage = ref('');
+    const errorMessage = ref("");
+    const successMessage = ref("");
 
     // Computed properties
     const canProceedStep2 = computed(() => {
-      if (authMethod.value === 'email') return email.value && email.value.includes('@');
-      if (authMethod.value === 'phone') return phone.value && phone.value.length >= 9;
+      if (authMethod.value === "email")
+        return email.value && email.value.includes("@");
+      if (authMethod.value === "phone")
+        return phone.value && phone.value.length >= 9;
       return true;
     });
 
     const otpComplete = computed(() => {
-      return otp.value.every(digit => digit !== '');
+      return otp.value.every((digit) => digit !== "");
     });
 
     const contactMethodDisplay = computed(() => {
-      if (authMethod.value === 'email') {
-        return email.value.replace(/(.{2})(.*)(@.*)/, '$1***$3');
+      if (authMethod.value === "email") {
+        return email.value.replace(/(.{2})(.*)(@.*)/, "$1***$3");
       }
-      if (authMethod.value === 'phone') {
-        return `${countryCode.value}${phone.value}`.replace(/(.{4})(.*)(.{2})$/, '$1****$3');
+      if (authMethod.value === "phone") {
+        return `${countryCode.value}${phone.value}`.replace(
+          /(.{4})(.*)(.{2})$/,
+          "$1****$3",
+        );
       }
-      return '';
+      return "";
     });
 
     // Methods
@@ -404,36 +421,42 @@ export default {
 
     const goToStep = (step) => {
       currentStep.value = step;
-      errorMessage.value = '';
+      errorMessage.value = "";
     };
 
     const proceedToOTP = async () => {
       try {
         isLoading.value = true;
-        errorMessage.value = '';
+        errorMessage.value = "";
 
         const payload = {
           authMethod: authMethod.value,
-          email: authMethod.value === 'email' ? email.value : undefined,
-          phone: authMethod.value === 'phone' ? `${countryCode.value}${phone.value}` : undefined,
-          name: firstName.value || 'User'
+          email: authMethod.value === "email" ? email.value : undefined,
+          phone:
+            authMethod.value === "phone"
+              ? `${countryCode.value}${phone.value}`
+              : undefined,
+          name: firstName.value || "User",
         };
 
-        const response = await api.post('/auth/v2/signup/start', payload);
+        const response = await api.post("/auth/v2/signup/start", payload);
 
         if (response.data.success) {
           signupToken.value = response.data.data.signupToken;
           successMessage.value = `Verification code sent to ${response.data.data.contact}`;
-          
+
           // Start OTP timer
           startOTPTimer();
           goToStep(3);
         } else {
-          throw new Error(response.data.message || 'Failed to start signup');
+          throw new Error(response.data.message || "Failed to start signup");
         }
       } catch (error) {
-        errorMessage.value = error.response?.data?.message || error.message || 'Error sending verification code';
-        console.error('Signup start error:', error);
+        errorMessage.value =
+          error.response?.data?.message ||
+          error.message ||
+          "Error sending verification code";
+        console.error("Signup start error:", error);
       } finally {
         isLoading.value = false;
       }
@@ -442,10 +465,10 @@ export default {
     const handleOTPInput = (index, event) => {
       const value = event.target.value;
       if (!/^\d*$/.test(value)) {
-        otp.value[index] = '';
+        otp.value[index] = "";
         return;
       }
-      
+
       otp.value[index] = value;
 
       // Auto-focus next input
@@ -456,7 +479,7 @@ export default {
     };
 
     const handleOTPBackspace = (index, event) => {
-      if (index > 0 && otp.value[index] === '') {
+      if (index > 0 && otp.value[index] === "") {
         const prevInput = event.target.previousElementSibling;
         if (prevInput) prevInput.focus();
       }
@@ -468,11 +491,11 @@ export default {
         timeLeft--;
         const minutes = Math.floor(timeLeft / 60);
         const seconds = timeLeft % 60;
-        otpExpiry.value = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        otpExpiry.value = `${minutes}:${seconds.toString().padStart(2, "0")}`;
 
         if (timeLeft <= 0) {
           clearInterval(interval);
-          errorMessage.value = 'OTP expired. Please request a new one.';
+          errorMessage.value = "OTP expired. Please request a new one.";
         }
       }, 1000);
     };
@@ -480,13 +503,13 @@ export default {
     const resendOTP = async () => {
       try {
         isResending.value = true;
-        const response = await api.post('/auth/v2/signup/resend-otp', {
-          signupToken: signupToken.value
+        const response = await api.post("/auth/v2/signup/resend-otp", {
+          signupToken: signupToken.value,
         });
 
         if (response.data.success) {
-          successMessage.value = 'New verification code sent';
-          otp.value = ['', '', '', '', '', ''];
+          successMessage.value = "New verification code sent";
+          otp.value = ["", "", "", "", "", ""];
           otpResendTimer.value = 30;
           startOTPTimer();
 
@@ -496,7 +519,8 @@ export default {
           }, 1000);
         }
       } catch (error) {
-        errorMessage.value = error.response?.data?.message || 'Failed to resend OTP';
+        errorMessage.value =
+          error.response?.data?.message || "Failed to resend OTP";
       } finally {
         isResending.value = false;
       }
@@ -505,31 +529,38 @@ export default {
     const verifyOTP = async () => {
       try {
         isLoading.value = true;
-        errorMessage.value = '';
+        errorMessage.value = "";
 
-        const otpCode = otp.value.join('');
+        const otpCode = otp.value.join("");
         const payload = {
           signupToken: signupToken.value,
           otp: otpCode,
-          password: password.value || undefined
+          password: password.value || undefined,
         };
 
-        const response = await api.post('/auth/v2/signup/verify-otp', payload);
+        const response = await api.post("/auth/v2/signup/verify-otp", payload);
 
         if (response.data.success) {
           // Store tokens
-          localStorage.setItem('accessToken', response.data.data.tokens.accessToken);
-          localStorage.setItem('refreshToken', response.data.data.tokens.refreshToken);
-          
+          localStorage.setItem(
+            "accessToken",
+            response.data.data.tokens.accessToken,
+          );
+          localStorage.setItem(
+            "refreshToken",
+            response.data.data.tokens.refreshToken,
+          );
+
           // Go to profile step
           goToStep(4);
-          successMessage.value = 'OTP verified! Complete your profile.';
+          successMessage.value = "OTP verified! Complete your profile.";
         } else {
-          throw new Error(response.data.message || 'OTP verification failed');
+          throw new Error(response.data.message || "OTP verification failed");
         }
       } catch (error) {
-        errorMessage.value = error.response?.data?.message || error.message || 'Invalid OTP';
-        console.error('OTP verification error:', error);
+        errorMessage.value =
+          error.response?.data?.message || error.message || "Invalid OTP";
+        console.error("OTP verification error:", error);
       } finally {
         isLoading.value = false;
       }
@@ -544,25 +575,25 @@ export default {
         // 4. Receive user + tokens
         // 5. Redirect to dashboard
 
-        errorMessage.value = 'Google OAuth coming soon!';
+        errorMessage.value = "Google OAuth coming soon!";
       } catch (error) {
-        errorMessage.value = 'Google authentication failed';
+        errorMessage.value = "Google authentication failed";
       }
     };
 
     const completeSignup = async () => {
       try {
         isLoading.value = true;
-        
+
         // In a real app, you might update user profile here
         // For now, redirect to dashboard
-        successMessage.value = 'Account created successfully! Redirecting...';
-        
+        successMessage.value = "Account created successfully! Redirecting...";
+
         setTimeout(() => {
-          router.push('/dashboard');
+          router.push("/dashboard");
         }, 1500);
       } catch (error) {
-        errorMessage.value = 'Failed to complete signup';
+        errorMessage.value = "Failed to complete signup";
       } finally {
         isLoading.value = false;
       }
@@ -600,9 +631,9 @@ export default {
       resendOTP,
       verifyOTP,
       handleGoogleAuth,
-      completeSignup
+      completeSignup,
     };
-  }
+  },
 };
 </script>
 
@@ -616,7 +647,9 @@ export default {
   justify-content: center;
   align-items: center;
   padding: 20px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+    Cantarell, sans-serif;
 }
 
 /* Header */
@@ -681,7 +714,7 @@ export default {
 }
 
 .progress-step.completed .step-number {
-  background: #4CAF50;
+  background: #4caf50;
   color: white;
 }
 
