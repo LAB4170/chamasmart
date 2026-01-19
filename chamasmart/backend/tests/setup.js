@@ -46,5 +46,8 @@ jest.mock("../utils/logger", () => ({
   logSecurityEvent: jest.fn(),
 }));
 
+// Mock database - using __mocks__/db.js
+jest.mock("../config/db");
+
 // Global test timeout
 jest.setTimeout(10000);

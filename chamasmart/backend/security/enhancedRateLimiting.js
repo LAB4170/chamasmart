@@ -20,7 +20,10 @@ const createRedisStore = (opts) => {
       // Other versions export a factory function
       return RedisStore(opts);
     } catch (err2) {
-      logger.warn("Unable to create RedisStore for rate limiting", err2.message || err2);
+      logger.warn(
+        "Unable to create RedisStore for rate limiting",
+        err2.message || err2,
+      );
       return undefined;
     }
   }

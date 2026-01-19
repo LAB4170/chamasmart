@@ -2,7 +2,12 @@ const pool = require("../config/db");
 const { isValidAmount } = require("../utils/validators");
 const logger = require("../utils/logger");
 const { createNotification } = require("../utils/notificationService");
-const { parsePagination, buildLimitClause, formatPaginationMeta, getTotal } = require("../utils/pagination");
+const {
+  parsePagination,
+  buildLimitClause,
+  formatPaginationMeta,
+  getTotal,
+} = require("../utils/pagination");
 const NodeCache = require("node-cache");
 
 // Cache for chama loans (short TTL to reduce DB load while keeping data fresh)
@@ -50,7 +55,7 @@ const getLoanConfig = async (req, res) => {
 
     const chamaRes = await pool.query(
       "SELECT chama_type, constitution_config FROM chamas WHERE chama_id = $1 AND is_active = true",
-      [chamaId]
+      [chamaId],
     );
 
     if (chamaRes.rows.length === 0) {
@@ -99,7 +104,7 @@ const updateLoanConfig = async (req, res) => {
 
     const chamaRes = await client.query(
       "SELECT constitution_config, chama_type FROM chamas WHERE chama_id = $1 FOR UPDATE",
-      [chamaId]
+      [chamaId],
     );
 
     if (chamaRes.rows.length === 0) {
@@ -204,7 +209,7 @@ const updateLoanConfig = async (req, res) => {
 
     await client.query(
       "UPDATE chamas SET constitution_config = $1 WHERE chama_id = $2",
-      [updatedConstitution, chamaId]
+      [updatedConstitution, chamaId],
     );
 
     await client.query("COMMIT");
@@ -265,7 +270,7 @@ const applyForLoan = async (req, res) => {
     // Check chama and config
     const chamaRes = await client.query(
       "SELECT chama_type, constitution_config FROM chamas WHERE chama_id = $1 AND is_active = true",
-      [chamaId]
+      [chamaId],
     );
 
     if (chamaRes.rows.length === 0) {
@@ -296,7 +301,7 @@ const applyForLoan = async (req, res) => {
     // Check if user is a member and active
     const memberRes = await client.query(
       "SELECT total_contributions, is_active FROM chama_members WHERE chama_id = $1 AND user_id = $2 AND is_active = true",
-      [chamaId, userId]
+      [chamaId, userId],
     );
 
     if (memberRes.rows.length === 0) {
@@ -313,11 +318,11 @@ const applyForLoan = async (req, res) => {
     // Check for defaulted and concurrent loans
     const existingLoansRes = await client.query(
       "SELECT status, total_repayable, amount_paid, principal_outstanding, interest_outstanding, penalty_outstanding FROM loans WHERE chama_id = $1 AND borrower_id = $2 AND status IN ('PENDING','PENDING_GUARANTOR','PENDING_APPROVAL','ACTIVE','DEFAULTED')",
-      [chamaId, userId]
+      [chamaId, userId],
     );
 
     const hasDefaulted = existingLoansRes.rows.some(
-      (l) => l.status === "DEFAULTED"
+      (l) => l.status === "DEFAULTED",
     );
     if (hasDefaulted) {
       await client.query("ROLLBACK");
@@ -342,7 +347,7 @@ const applyForLoan = async (req, res) => {
              FROM loans
              WHERE chama_id = $1 AND borrower_id = $2
                AND created_at::date = CURRENT_DATE`,
-      [chamaId, userId]
+      [chamaId, userId],
     );
     const dailyCount = parseInt(dailyCountRes.rows[0].count, 10) || 0;
     if (dailyCount >= loanConfig.max_applications_per_day) {
@@ -410,12 +415,12 @@ const applyForLoan = async (req, res) => {
 
       const guaRes = await client.query(
         "SELECT user_id FROM chama_members WHERE chama_id = $1 AND user_id = ANY($2::int[]) AND is_active = true",
-        [chamaId, guarantorIds]
+        [chamaId, guarantorIds],
       );
 
       const validIds = new Set(guaRes.rows.map((r) => r.user_id));
       guarantorArray = guarantorArray.filter((g) =>
-        validIds.has(Number(g.userId))
+        validIds.has(Number(g.userId)),
       );
 
       if (!guarantorArray.length) {
@@ -428,7 +433,7 @@ const applyForLoan = async (req, res) => {
 
       const totalGuaranteed = guarantorArray.reduce(
         (sum, g) => sum + (Number(g.amount) || 0),
-        0
+        0,
       );
 
       if (totalGuaranteed < requiredGuarantee) {
@@ -513,7 +518,7 @@ const applyForLoan = async (req, res) => {
         initialStatus,
         purpose,
         metadata,
-      ]
+      ],
     );
 
     const loan = loanInsertRes.rows[0];
@@ -532,7 +537,7 @@ const applyForLoan = async (req, res) => {
           inst.amount,
           inst.principal_amount,
           inst.interest_amount,
-        ]
+        ],
       );
     }
 
@@ -543,7 +548,7 @@ const applyForLoan = async (req, res) => {
           `INSERT INTO loan_guarantors (loan_id, guarantor_id, guaranteed_amount)
                      VALUES ($1,$2,$3)
                      ON CONFLICT (loan_id, guarantor_id) DO UPDATE SET guaranteed_amount = EXCLUDED.guaranteed_amount`,
-          [loan.loan_id, g.userId, Number(g.amount) || 0]
+          [loan.loan_id, g.userId, Number(g.amount) || 0],
         );
 
         // Notify guarantor about request
@@ -552,7 +557,7 @@ const applyForLoan = async (req, res) => {
           type: "LOAN_GUARANTEE_REQUEST",
           title: "Loan guarantee request",
           message: `A member has requested you to guarantee a loan of KES ${numericAmount.toFixed(
-            2
+            2,
           )}.`,
           relatedId: loan.loan_id,
         });
@@ -565,7 +570,7 @@ const applyForLoan = async (req, res) => {
       type: "LOAN_APPLICATION_CREATED",
       title: "Loan application received",
       message: `Your loan application of KES ${numericAmount.toFixed(
-        2
+        2,
       )} has been submitted.`,
       relatedId: loan.loan_id,
     });
@@ -617,7 +622,7 @@ const getChamaLoans = async (req, res) => {
     const membershipRes = await pool.query(
       `SELECT 1 FROM chama_members
              WHERE chama_id = $1 AND user_id = $2 AND is_active = true`,
-      [chamaId, userId]
+      [chamaId, userId],
     );
 
     if (membershipRes.rows.length === 0) {
@@ -634,7 +639,7 @@ const getChamaLoans = async (req, res) => {
           cached.length,
           pageNum,
           limitNum,
-          "Loans retrieved successfully"
+          "Loans retrieved successfully",
         );
       }
     }
@@ -657,7 +662,7 @@ const getChamaLoans = async (req, res) => {
     }
 
     // Get total count
-    const countQuery = `SELECT COUNT(*) as count FROM loans WHERE chama_id = $1 ${status ? `AND status = $2` : ''}`;
+    const countQuery = `SELECT COUNT(*) as count FROM loans WHERE chama_id = $1 ${status ? `AND status = $2` : ""}`;
     const countParams = status ? [chamaId, status] : [chamaId];
     const totalCount = await getTotal(countQuery, countParams, "count");
 
@@ -676,7 +681,7 @@ const getChamaLoans = async (req, res) => {
       totalCount,
       pageNum,
       limitNum,
-      "Loans retrieved successfully"
+      "Loans retrieved successfully",
     );
   } catch (error) {
     logger.logError(error, { context: "getChamaLoans" });
@@ -697,7 +702,7 @@ const getLoanGuarantors = async (req, res) => {
              FROM loans l
              JOIN users u ON l.borrower_id = u.user_id
              WHERE l.loan_id = $1`,
-      [loanId]
+      [loanId],
     );
 
     if (loanRes.rows.length === 0) {
@@ -712,7 +717,7 @@ const getLoanGuarantors = async (req, res) => {
     const membershipRes = await pool.query(
       `SELECT 1 FROM chama_members
              WHERE chama_id = $1 AND user_id = $2 AND is_active = true`,
-      [loan.chama_id, userId]
+      [loan.chama_id, userId],
     );
 
     if (membershipRes.rows.length === 0) {
@@ -735,7 +740,7 @@ const getLoanGuarantors = async (req, res) => {
              FROM loan_guarantors lg
              JOIN users u ON lg.guarantor_id = u.user_id
              WHERE lg.loan_id = $1`,
-      [loanId]
+      [loanId],
     );
 
     const installmentsRes = await pool.query(
@@ -743,7 +748,7 @@ const getLoanGuarantors = async (req, res) => {
              FROM loan_installments
              WHERE loan_id = $1
              ORDER BY due_date ASC`,
-      [loanId]
+      [loanId],
     );
 
     return res.json({
@@ -789,7 +794,7 @@ const getMyGuarantees = async (req, res) => {
              JOIN users u ON l.borrower_id = u.user_id
              WHERE lg.guarantor_id = $1
              ORDER BY l.created_at DESC`,
-      [userId]
+      [userId],
     );
 
     return res.json({
@@ -826,7 +831,7 @@ const respondToGuarantor = async (req, res) => {
 
     const loanRes = await client.query(
       "SELECT * FROM loans WHERE loan_id = $1 FOR UPDATE",
-      [loanId]
+      [loanId],
     );
     if (loanRes.rows.length === 0) {
       await client.query("ROLLBACK");
@@ -849,7 +854,7 @@ const respondToGuarantor = async (req, res) => {
 
     const guarRes = await client.query(
       "SELECT * FROM loan_guarantors WHERE loan_id = $1 AND guarantor_id = $2 FOR UPDATE",
-      [loanId, userId]
+      [loanId, userId],
     );
     if (guarRes.rows.length === 0) {
       await client.query("ROLLBACK");
@@ -862,13 +867,13 @@ const respondToGuarantor = async (req, res) => {
     const newStatus = decision === "ACCEPT" ? "ACCEPTED" : "REJECTED";
     await client.query(
       "UPDATE loan_guarantors SET status = $1, responded_at = NOW() WHERE loan_id = $2 AND guarantor_id = $3",
-      [newStatus, loanId, userId]
+      [newStatus, loanId, userId],
     );
 
     // Recompute coverage
     const covRes = await client.query(
       "SELECT COALESCE(SUM(guaranteed_amount),0) AS coverage FROM loan_guarantors WHERE loan_id = $1 AND status = 'ACCEPTED'",
-      [loanId]
+      [loanId],
     );
     const coverage = Number(covRes.rows[0].coverage) || 0;
 
@@ -880,7 +885,7 @@ const respondToGuarantor = async (req, res) => {
 
     await client.query(
       "UPDATE loans SET guarantor_coverage = $1, status = $2 WHERE loan_id = $3",
-      [coverage, nextStatus, loanId]
+      [coverage, nextStatus, loanId],
     );
 
     await createNotification(client, {
@@ -938,7 +943,7 @@ const respondToLoan = async (req, res) => {
 
     const loanResult = await client.query(
       "SELECT * FROM loans WHERE loan_id = $1 FOR UPDATE",
-      [loanId]
+      [loanId],
     );
     if (loanResult.rows.length === 0) {
       await client.query("ROLLBACK");
@@ -951,7 +956,7 @@ const respondToLoan = async (req, res) => {
     // RBAC: only the treasurer of this chama can approve/cancel loans
     const roleRes = await client.query(
       "SELECT role FROM chama_members WHERE chama_id = $1 AND user_id = $2 AND is_active = true",
-      [loan.chama_id, req.user.user_id]
+      [loan.chama_id, req.user.user_id],
     );
 
     if (roleRes.rows.length === 0) {
@@ -982,7 +987,7 @@ const respondToLoan = async (req, res) => {
     if (status === "CANCELLED") {
       await client.query(
         "UPDATE loans SET status = 'CANCELLED' WHERE loan_id = $1",
-        [loanId]
+        [loanId],
       );
 
       await createNotification(client, {
@@ -1006,7 +1011,7 @@ const respondToLoan = async (req, res) => {
     // Approve (ACTIVE)
     const chamaRes = await client.query(
       "SELECT current_fund FROM chamas WHERE chama_id = $1 FOR UPDATE",
-      [loan.chama_id]
+      [loan.chama_id],
     );
 
     if (!chamaRes.rows.length) {
@@ -1027,12 +1032,12 @@ const respondToLoan = async (req, res) => {
 
     await client.query(
       "UPDATE chamas SET current_fund = current_fund - $1 WHERE chama_id = $2",
-      [loan.loan_amount, loan.chama_id]
+      [loan.loan_amount, loan.chama_id],
     );
 
     const updatedLoan = await client.query(
       "UPDATE loans SET status = 'ACTIVE', approved_by = $1, loan_date = CURRENT_DATE WHERE loan_id = $2 RETURNING *",
-      [req.user.user_id, loanId]
+      [req.user.user_id, loanId],
     );
 
     // Clear loans cache for this chama
@@ -1088,7 +1093,7 @@ const repayLoan = async (req, res) => {
 
     const loanRes = await client.query(
       "SELECT * FROM loans WHERE loan_id = $1 FOR UPDATE",
-      [loanId]
+      [loanId],
     );
     if (loanRes.rows.length === 0) {
       await client.query("ROLLBACK");
@@ -1123,7 +1128,7 @@ const repayLoan = async (req, res) => {
     ) {
       const payInterest = Math.min(
         remaining,
-        Number(loan.interest_outstanding)
+        Number(loan.interest_outstanding),
       );
       interestComponent = payInterest;
       remaining -= payInterest;
@@ -1136,7 +1141,7 @@ const repayLoan = async (req, res) => {
     ) {
       const payPrincipal = Math.min(
         remaining,
-        Number(loan.principal_outstanding)
+        Number(loan.principal_outstanding),
       );
       principalComponent = payPrincipal;
       remaining -= payPrincipal;
@@ -1189,7 +1194,7 @@ const repayLoan = async (req, res) => {
         interestComponent,
         penaltyComponent,
         source,
-      ]
+      ],
     );
 
     await client.query(
@@ -1207,13 +1212,13 @@ const repayLoan = async (req, res) => {
         Math.max(0, newPenaltyOutstanding),
         newStatus,
         loanId,
-      ]
+      ],
     );
 
     // Add back to Chama funds
     await client.query(
       "UPDATE chamas SET current_fund = current_fund + $1 WHERE chama_id = $2",
-      [numericAmount, loan.chama_id]
+      [numericAmount, loan.chama_id],
     );
 
     // Clear chama loans cache since balances changed
@@ -1227,7 +1232,7 @@ const repayLoan = async (req, res) => {
       type: "LOAN_REPAYMENT_RECEIVED",
       title: "Loan repayment received",
       message: `We have received your repayment of KES ${numericAmount.toFixed(
-        2
+        2,
       )}.`,
       relatedId: loan.loan_id,
     });
@@ -1297,7 +1302,7 @@ const exportLoansReport = async (req, res) => {
              LEFT JOIN users ug ON lg.guarantor_id = ug.user_id
              WHERE l.chama_id = $1
              ORDER BY l.created_at ASC, lg.id ASC`,
-      [chamaId]
+      [chamaId],
     );
 
     const rows = result.rows || [];
@@ -1357,7 +1362,7 @@ const exportLoansReport = async (req, res) => {
           escape(r.guarantee_status),
           escape(r.guarantee_created_at),
           escape(r.guarantee_responded_at),
-        ].join(",")
+        ].join(","),
       );
     }
 

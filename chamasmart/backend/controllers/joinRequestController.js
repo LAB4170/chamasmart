@@ -16,7 +16,7 @@ const requestToJoin = async (req, res) => {
     // Check if chama exists and is public
     const chamaResult = await client.query(
       "SELECT * FROM chamas WHERE chama_id = $1",
-      [chamaId]
+      [chamaId],
     );
 
     if (chamaResult.rows.length === 0) {
@@ -40,7 +40,7 @@ const requestToJoin = async (req, res) => {
     // Check if user is already a member
     const memberCheck = await client.query(
       "SELECT * FROM chama_members WHERE chama_id = $1 AND user_id = $2",
-      [chamaId, userId]
+      [chamaId, userId],
     );
 
     if (memberCheck.rows.length > 0) {
@@ -54,7 +54,7 @@ const requestToJoin = async (req, res) => {
     // Check for existing pending request
     const existingRequest = await client.query(
       "SELECT * FROM join_requests WHERE chama_id = $1 AND user_id = $2 AND status = 'PENDING'",
-      [chamaId, userId]
+      [chamaId, userId],
     );
 
     if (existingRequest.rows.length > 0) {
@@ -70,7 +70,7 @@ const requestToJoin = async (req, res) => {
       `INSERT INTO join_requests (chama_id, user_id, message, status)
        VALUES ($1, $2, $3, 'PENDING')
        RETURNING *`,
-      [chamaId, userId, message]
+      [chamaId, userId, message],
     );
 
     const joinRequest = requestResult.rows[0];
@@ -79,14 +79,14 @@ const requestToJoin = async (req, res) => {
     const officialsResult = await client.query(
       `SELECT user_id FROM chama_members 
        WHERE chama_id = $1 AND role IN ('CHAIRPERSON', 'SECRETARY', 'TREASURER') AND is_active = true`,
-      [chamaId]
+      [chamaId],
     );
 
     // Create notifications for all officials
     const { createNotification } = require("../utils/notifications");
     const userResult = await client.query(
       "SELECT first_name, last_name FROM users WHERE user_id = $1",
-      [userId]
+      [userId],
     );
     const requester = userResult.rows[0];
 
@@ -141,7 +141,7 @@ const getJoinRequests = async (req, res) => {
            WHEN 'REJECTED' THEN 3 
          END,
          jr.created_at DESC`,
-      [chamaId]
+      [chamaId],
     );
 
     res.json({
@@ -181,7 +181,7 @@ const respondToRequest = async (req, res) => {
     // Get join request
     const requestResult = await client.query(
       "SELECT * FROM join_requests WHERE request_id = $1",
-      [requestId]
+      [requestId],
     );
 
     if (requestResult.rows.length === 0) {
@@ -201,7 +201,7 @@ const respondToRequest = async (req, res) => {
              AND user_id = $2 
              AND role IN ('CHAIRPERSON', 'SECRETARY', 'TREASURER', 'official')
              AND is_active = true`,
-      [joinRequest.chama_id, reviewerId]
+      [joinRequest.chama_id, reviewerId],
     );
 
     if (officialCheck.rows.length === 0) {
@@ -226,7 +226,7 @@ const respondToRequest = async (req, res) => {
       `UPDATE join_requests 
        SET status = $1, reviewed_by = $2, reviewed_at = CURRENT_TIMESTAMP
        WHERE request_id = $3`,
-      [status, reviewerId, requestId]
+      [status, reviewerId, requestId],
     );
 
     // If approved, add user as member
@@ -234,27 +234,27 @@ const respondToRequest = async (req, res) => {
       // Get next rotation position
       const positionResult = await client.query(
         "SELECT COALESCE(MAX(rotation_position), 0) + 1 as next_position FROM chama_members WHERE chama_id = $1",
-        [joinRequest.chama_id]
+        [joinRequest.chama_id],
       );
       const nextPosition = positionResult.rows[0].next_position;
 
       await client.query(
         `INSERT INTO chama_members (chama_id, user_id, role, rotation_position)
          VALUES ($1, $2, 'MEMBER', $3)`,
-        [joinRequest.chama_id, joinRequest.user_id, nextPosition]
+        [joinRequest.chama_id, joinRequest.user_id, nextPosition],
       );
 
       // Update total members count
       await client.query(
         "UPDATE chamas SET total_members = total_members + 1 WHERE chama_id = $1",
-        [joinRequest.chama_id]
+        [joinRequest.chama_id],
       );
     }
 
     // Get chama name for notification
     const chamaResult = await client.query(
       "SELECT chama_name FROM chamas WHERE chama_id = $1",
-      [joinRequest.chama_id]
+      [joinRequest.chama_id],
     );
     const chamaName = chamaResult.rows[0].chama_name;
 
@@ -313,7 +313,7 @@ const getMyRequests = async (req, res) => {
        LEFT JOIN users r ON jr.reviewed_by = r.user_id
        WHERE jr.user_id = $1
        ORDER BY jr.created_at DESC`,
-      [userId]
+      [userId],
     );
 
     res.json({

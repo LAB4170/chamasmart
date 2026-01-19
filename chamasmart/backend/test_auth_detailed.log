@@ -1,0 +1,198 @@
+
+> chamasmart-backend@1.0.0 test
+> jest --runInBand tests/auth.test.js --no-coverage
+
+  console.log
+    [dotenv@17.2.3] injecting env (3) from .env -- tip: ≡ƒôí add observability to secrets: https://dotenvx.com/ops
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+  console.log
+    STABILIZED: Server running on port 5005
+
+      at Server.log (server.js:235:11)
+
+  console.error
+    AUTH_REGISTER_ERROR: Cannot read properties of undefined (reading 'rows') TypeError: Cannot read properties of undefined (reading 'rows')
+        at rows (C:\Users\lewis\Desktop\chamasmart\backend\controllers\authController.js:125:20)
+        at processTicksAndRejections (node:internal/process/task_queues:103:5)
+
+    [0m [90m 225 |[39m     })[33m;[39m
+     [90m 226 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 227 |[39m     console[33m.[39merror([32m"AUTH_REGISTER_ERROR:"[39m[33m,[39m error[33m.[39mmessage[33m,[39m error[33m.[39mstack)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 228 |[39m     logger[33m.[39mlogError(error[33m,[39m {
+     [90m 229 |[39m       context[33m:[39m [32m"auth_register"[39m[33m,[39m
+     [90m 230 |[39m       email[33m:[39m req[33m.[39mbody[33m?[39m[33m.[39memail[33m,[39m[0m
+
+      at error (controllers/authController.js:227:13)
+
+POST /api/auth/register 500 60.309 ms - anonymous - {"email":"test1768827282782@example.com","password":"[REDACTED]","firstName":"Test","lastName":"User","phoneNumber":"0712345678"}
+POST /api/auth/register 400 5.416 ms - anonymous - {"email":"test@example.com"}
+  console.error
+    AUTH_REGISTER_ERROR: Cannot read properties of undefined (reading 'rows') TypeError: Cannot read properties of undefined (reading 'rows')
+        at rows (C:\Users\lewis\Desktop\chamasmart\backend\controllers\authController.js:125:20)
+        at processTicksAndRejections (node:internal/process/task_queues:103:5)
+
+    [0m [90m 225 |[39m     })[33m;[39m
+     [90m 226 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 227 |[39m     console[33m.[39merror([32m"AUTH_REGISTER_ERROR:"[39m[33m,[39m error[33m.[39mmessage[33m,[39m error[33m.[39mstack)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 228 |[39m     logger[33m.[39mlogError(error[33m,[39m {
+     [90m 229 |[39m       context[33m:[39m [32m"auth_register"[39m[33m,[39m
+     [90m 230 |[39m       email[33m:[39m req[33m.[39mbody[33m?[39m[33m.[39memail[33m,[39m[0m
+
+      at error (controllers/authController.js:227:13)
+
+POST /api/auth/register 500 15.023 ms - anonymous - {"email":"duplicate1768827283071@example.com","password":"[REDACTED]","firstName":"Test","lastName":"User","phoneNumber":"0712345678"}
+  console.error
+    AUTH_REGISTER_ERROR: Cannot read properties of undefined (reading 'rows') TypeError: Cannot read properties of undefined (reading 'rows')
+        at rows (C:\Users\lewis\Desktop\chamasmart\backend\controllers\authController.js:125:20)
+        at processTicksAndRejections (node:internal/process/task_queues:103:5)
+
+    [0m [90m 225 |[39m     })[33m;[39m
+     [90m 226 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 227 |[39m     console[33m.[39merror([32m"AUTH_REGISTER_ERROR:"[39m[33m,[39m error[33m.[39mmessage[33m,[39m error[33m.[39mstack)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 228 |[39m     logger[33m.[39mlogError(error[33m,[39m {
+     [90m 229 |[39m       context[33m:[39m [32m"auth_register"[39m[33m,[39m
+     [90m 230 |[39m       email[33m:[39m req[33m.[39mbody[33m?[39m[33m.[39memail[33m,[39m[0m
+
+      at error (controllers/authController.js:227:13)
+
+POST /api/auth/register 500 20.768 ms - anonymous - {"email":"duplicate1768827283071@example.com","password":"[REDACTED]","firstName":"Test","lastName":"User","phoneNumber":"0712345678"}
+  console.error
+    AUTH_REGISTER_ERROR: Cannot read properties of undefined (reading 'rows') TypeError: Cannot read properties of undefined (reading 'rows')
+        at rows (C:\Users\lewis\Desktop\chamasmart\backend\controllers\authController.js:125:20)
+        at processTicksAndRejections (node:internal/process/task_queues:103:5)
+
+    [0m [90m 225 |[39m     })[33m;[39m
+     [90m 226 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 227 |[39m     console[33m.[39merror([32m"AUTH_REGISTER_ERROR:"[39m[33m,[39m error[33m.[39mmessage[33m,[39m error[33m.[39mstack)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 228 |[39m     logger[33m.[39mlogError(error[33m,[39m {
+     [90m 229 |[39m       context[33m:[39m [32m"auth_register"[39m[33m,[39m
+     [90m 230 |[39m       email[33m:[39m req[33m.[39mbody[33m?[39m[33m.[39memail[33m,[39m[0m
+
+      at error (controllers/authController.js:227:13)
+
+POST /api/auth/register 500 6.069 ms - anonymous - {"email":"logintest1768827283143@example.com","password":"[REDACTED]","firstName":"Login","lastName":"Test","phoneNumber":"0712345678"}
+  console.log
+    Querying database for user: nonexistent@example.com
+
+      at log (controllers/authController.js:263:13)
+
+  console.error
+    AUTH_LOGIN_ERROR: Cannot read properties of undefined (reading 'rows') TypeError: Cannot read properties of undefined (reading 'rows')
+        at rows (C:\Users\lewis\Desktop\chamasmart\backend\controllers\authController.js:267:62)
+        at processTicksAndRejections (node:internal/process/task_queues:103:5)
+
+    [0m [90m 318 |[39m     })[33m;[39m
+     [90m 319 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 320 |[39m     console[33m.[39merror([32m"AUTH_LOGIN_ERROR:"[39m[33m,[39m error[33m.[39mmessage[33m,[39m error[33m.[39mstack)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 321 |[39m     logger[33m.[39mlogError(error[33m,[39m {
+     [90m 322 |[39m       context[33m:[39m [32m"auth_login"[39m[33m,[39m
+     [90m 323 |[39m       email[33m:[39m req[33m.[39mbody[33m?[39m[33m.[39memail[33m,[39m[0m
+
+      at error (controllers/authController.js:320:13)
+
+POST /api/auth/login 500 54.623 ms - anonymous - {"email":"nonexistent@example.com","password":"[REDACTED]"}
+FAIL tests/auth.test.js (5.967 s)
+  Authentication API
+    POST /api/auth/register
+      ├ù should register a new user (265 ms)
+      ΓêÜ should reject registration with missing fields (32 ms)
+      ├ù should reject duplicate email (70 ms)
+    POST /api/auth/login
+      ├ù should login with correct credentials (5 ms)
+      ├ù should reject login with wrong password (2 ms)
+      ├ù should reject login with non-existent email (90 ms)
+  Health Check API
+    ΓêÜ should return health status (21 ms)
+
+  ΓùÅ Authentication API ΓÇ║ POST /api/auth/register ΓÇ║ should register a new user
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 500
+
+      15 |                 });
+      16 |
+    > 17 |             expect(res.statusCode).toBe(201);
+         |                                    ^
+      18 |             expect(res.body).toHaveProperty('success', true);
+      19 |             expect(res.body).toHaveProperty('token');
+      20 |             expect(res.body.data).toHaveProperty('user_id');
+
+      at Object.toBe (tests/auth.test.js:17:36)
+
+  ΓùÅ Authentication API ΓÇ║ POST /api/auth/register ΓÇ║ should reject duplicate email
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 400
+    Received: 500
+
+      58 |                 });
+      59 |
+    > 60 |             expect(res.statusCode).toBe(400);
+         |                                    ^
+      61 |             expect(res.body.message).toContain('already exists');
+      62 |         });
+      63 |     });
+
+      at Object.toBe (tests/auth.test.js:60:36)
+
+  ΓùÅ Authentication API ΓÇ║ POST /api/auth/login ΓÇ║ should login with correct credentials
+
+    TypeError: Cannot read properties of undefined (reading 'email')
+
+      85 |                 .post('/api/auth/login')
+      86 |                 .send({
+    > 87 |                     email: testUser.email,
+         |                                     ^
+      88 |                     password: 'Test123!@#',
+      89 |                 });
+      90 |
+
+      at Object.email (tests/auth.test.js:87:37)
+
+  ΓùÅ Authentication API ΓÇ║ POST /api/auth/login ΓÇ║ should reject login with wrong password
+
+    TypeError: Cannot read properties of undefined (reading 'email')
+
+       98 |                 .post('/api/auth/login')
+       99 |                 .send({
+    > 100 |                     email: testUser.email,
+          |                                     ^
+      101 |                     password: 'WrongPassword',
+      102 |                 });
+      103 |
+
+      at Object.email (tests/auth.test.js:100:37)
+
+  ΓùÅ Authentication API ΓÇ║ POST /api/auth/login ΓÇ║ should reject login with non-existent email
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 401
+    Received: 500
+
+      114 |                 });
+      115 |
+    > 116 |             expect(res.statusCode).toBe(401);
+          |                                    ^
+      117 |         });
+      118 |     });
+      119 | });
+
+      at Object.toBe (tests/auth.test.js:116:36)
+
+Test Suites: 1 failed, 1 total
+Tests:       5 failed, 2 passed, 7 total
+Snapshots:   0 total
+Time:        6.174 s
+Ran all test suites matching tests/auth.test.js.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

@@ -1,0 +1,120 @@
+
+> chamasmart-backend@1.0.0 test
+> jest --runInBand tests/auth.test.js --no-coverage
+
+  console.log
+    [dotenv@17.2.3] injecting env (3) from .env -- tip: ΓÜÖ∩╕Å  load multiple .env files with { path: ['.env.local', '.env'] }
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+  console.log
+    [dotenv@17.2.3] injecting env (0) from .env -- tip: ≡ƒæÑ sync secrets across teammates & machines: https://dotenvx.com/ops
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+  console.log
+    STABILIZED: Server running on port 5005
+
+      at Server.log (server.js:235:11)
+
+  console.error
+    AUTH_REGISTER_ERROR: password authentication failed for user "postgres" error: password authentication failed for user "postgres"
+        at C:\Users\lewis\Desktop\chamasmart\backend\node_modules\pg-pool\index.js:45:11
+        at processTicksAndRejections (node:internal/process/task_queues:103:5)
+        at BoundPool.pool.query (C:\Users\lewis\Desktop\chamasmart\backend\config\db.js:52:20)
+        at register (C:\Users\lewis\Desktop\chamasmart\backend\controllers\authController.js:120:24)
+
+    [0m [90m 225 |[39m     })[33m;[39m
+     [90m 226 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 227 |[39m     console[33m.[39merror([32m"AUTH_REGISTER_ERROR:"[39m[33m,[39m error[33m.[39mmessage[33m,[39m error[33m.[39mstack)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 228 |[39m     logger[33m.[39mlogError(error[33m,[39m {
+     [90m 229 |[39m       context[33m:[39m [32m"auth_register"[39m[33m,[39m
+     [90m 230 |[39m       email[33m:[39m req[33m.[39mbody[33m?[39m[33m.[39memail[33m,[39m[0m
+
+      at error (controllers/authController.js:227:13)
+
+POST /api/auth/register 500 234.839 ms - anonymous - {"email":"test1768827052203@example.com","password":"[REDACTED]","firstName":"Test","lastName":"User","phoneNumber":"0712345678"}
+POST /api/auth/register 400 5.768 ms - anonymous - {"email":"test@example.com"}
+  console.error
+    AUTH_REGISTER_ERROR: password authentication failed for user "postgres" error: password authentication failed for user "postgres"
+        at C:\Users\lewis\Desktop\chamasmart\backend\node_modules\pg-pool\index.js:45:11
+        at processTicksAndRejections (node:internal/process/task_queues:103:5)
+        at BoundPool.pool.query (C:\Users\lewis\Desktop\chamasmart\backend\config\db.js:52:20)
+        at register (C:\Users\lewis\Desktop\chamasmart\backend\controllers\authController.js:120:24)
+
+    [0m [90m 225 |[39m     })[33m;[39m
+     [90m 226 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 227 |[39m     console[33m.[39merror([32m"AUTH_REGISTER_ERROR:"[39m[33m,[39m error[33m.[39mmessage[33m,[39m error[33m.[39mstack)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 228 |[39m     logger[33m.[39mlogError(error[33m,[39m {
+     [90m 229 |[39m       context[33m:[39m [32m"auth_register"[39m[33m,[39m
+     [90m 230 |[39m       email[33m:[39m req[33m.[39mbody[33m?[39m[33m.[39memail[33m,[39m[0m
+
+      at error (controllers/authController.js:227:13)
+
+POST /api/auth/register 500 93.707 ms - anonymous - {"email":"duplicate1768827052556@example.com","password":"[REDACTED]","firstName":"Test","lastName":"User","phoneNumber":"0712345678"}
+  console.error
+    AUTH_REGISTER_ERROR: password authentication failed for user "postgres" error: password authentication failed for user "postgres"
+        at C:\Users\lewis\Desktop\chamasmart\backend\node_modules\pg-pool\index.js:45:11
+        at processTicksAndRejections (node:internal/process/task_queues:103:5)
+        at BoundPool.pool.query (C:\Users\lewis\Desktop\chamasmart\backend\config\db.js:52:20)
+        at register (C:\Users\lewis\Desktop\chamasmart\backend\controllers\authController.js:120:24)
+
+    [0m [90m 225 |[39m     })[33m;[39m
+     [90m 226 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 227 |[39m     console[33m.[39merror([32m"AUTH_REGISTER_ERROR:"[39m[33m,[39m error[33m.[39mmessage[33m,[39m error[33m.[39mstack)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 228 |[39m     logger[33m.[39mlogError(error[33m,[39m {
+     [90m 229 |[39m       context[33m:[39m [32m"auth_register"[39m[33m,[39m
+     [90m 230 |[39m       email[33m:[39m req[33m.[39mbody[33m?[39m[33m.[39memail[33m,[39m[0m
+
+      at error (controllers/authController.js:227:13)
+
+POST /api/auth/register 500 103.643 ms - anonymous - {"email":"duplicate1768827052556@example.com","password":"[REDACTED]","firstName":"Test","lastName":"User","phoneNumber":"0712345678"}
+  console.error
+    AUTH_REGISTER_ERROR: password authentication failed for user "postgres" error: password authentication failed for user "postgres"
+        at C:\Users\lewis\Desktop\chamasmart\backend\node_modules\pg-pool\index.js:45:11
+        at processTicksAndRejections (node:internal/process/task_queues:103:5)
+        at BoundPool.pool.query (C:\Users\lewis\Desktop\chamasmart\backend\config\db.js:52:20)
+        at register (C:\Users\lewis\Desktop\chamasmart\backend\controllers\authController.js:120:24)
+
+    [0m [90m 225 |[39m     })[33m;[39m
+     [90m 226 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 227 |[39m     console[33m.[39merror([32m"AUTH_REGISTER_ERROR:"[39m[33m,[39m error[33m.[39mmessage[33m,[39m error[33m.[39mstack)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 228 |[39m     logger[33m.[39mlogError(error[33m,[39m {
+     [90m 229 |[39m       context[33m:[39m [32m"auth_register"[39m[33m,[39m
+     [90m 230 |[39m       email[33m:[39m req[33m.[39mbody[33m?[39m[33m.[39memail[33m,[39m[0m
+
+      at error (controllers/authController.js:227:13)
+
+POST /api/auth/register 500 100.864 ms - anonymous - {"email":"logintest1768827052777@example.com","password":"[REDACTED]","firstName":"Login","lastName":"Test","phoneNumber":"0712345678"}
+  console.log
+    Querying database for user: nonexistent@example.com
+
+      at log (controllers/authController.js:263:13)
+
+  console.error
+    AUTH_LOGIN_ERROR: password authentication failed for user "postgres" error: password authentication failed for user "postgres"
+        at C:\Users\lewis\Desktop\chamasmart\backend\node_modules\pg-pool\index.js:45:11
+        at processTicksAndRejections (node:internal/process/task_queues:103:5)
+        at BoundPool.pool.query (C:\Users\lewis\Desktop\chamasmart\backend\config\db.js:52:20)
+        at login (C:\Users\lewis\Desktop\chamasmart\backend\controllers\authController.js:264:20)
+
+    [0m [90m 318 |[39m     })[33m;[39m
+     [90m 319 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 320 |[39m     console[33m.[39merror([32m"AUTH_LOGIN_ERROR:"[39m[33m,[39m error[33m.[39mmessage[33m,[39m error[33m.[39mstack)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 321 |[39m     logger[33m.[39mlogError(error[33m,[39m {
+     [90m 322 |[39m       context[33m:[39m [32m"auth_login"[39m[33m,[39m
+     [90m 323 |[39m       email[33m:[39m req[33m.[39mbody[33m?[39m[33m.[39memail[33m,[39m[0m
+
+      at error (controllers/authController.js:320:13)
+
+POST /api/auth/login 500 137.401 ms - anonymous - {"email":"nonexistent@example.com","password":"[REDACTED]"}
+FAIL tests/auth.test.js (7.685 s)
+  Authentication API
+    POST /api/auth/register
+      ├ù should register a new user (328 ms)
+      ΓêÜ should reject registration with missing fields (27 ms)
