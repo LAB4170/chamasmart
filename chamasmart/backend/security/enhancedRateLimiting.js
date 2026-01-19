@@ -8,6 +8,24 @@ const RedisStore = require("rate-limit-redis");
 const Redis = require("ioredis");
 const logger = require("../utils/logger");
 
+// Helper to support different versions/exports of rate-limit-redis
+const createRedisStore = (opts) => {
+  if (!RedisStore) return undefined;
+  try {
+    // Some versions export a constructor
+    // eslint-disable-next-line new-cap
+    return new RedisStore(opts);
+  } catch (err) {
+    try {
+      // Other versions export a factory function
+      return RedisStore(opts);
+    } catch (err2) {
+      logger.warn("Unable to create RedisStore for rate limiting", err2.message || err2);
+      return undefined;
+    }
+  }
+};
+
 let redisClient;
 try {
   redisClient = new Redis({
@@ -45,7 +63,7 @@ exports.loginLimiter = rateLimit({
   skip: (req) => false,
   keyGenerator: (req) => req.ip,
   store: redisClient
-    ? new RedisStore({
+    ? createRedisStore({
         client: redisClient,
         prefix: "rl:login:",
       })
@@ -74,7 +92,7 @@ exports.registerLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: redisClient
-    ? new RedisStore({
+    ? createRedisStore({
         client: redisClient,
         prefix: "rl:register:",
       })
@@ -102,7 +120,7 @@ exports.passwordResetLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: redisClient
-    ? new RedisStore({
+    ? createRedisStore({
         client: redisClient,
         prefix: "rl:password:",
       })
@@ -129,7 +147,7 @@ exports.otpVerificationLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: redisClient
-    ? new RedisStore({
+    ? createRedisStore({
         client: redisClient,
         prefix: "rl:otp:",
       })
@@ -149,7 +167,7 @@ exports.createResourceLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => req.user?.user_id || req.ip,
   store: redisClient
-    ? new RedisStore({
+    ? createRedisStore({
         client: redisClient,
         prefix: "rl:create:",
       })
@@ -165,7 +183,7 @@ exports.financialTransactionLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => req.user?.user_id || req.ip,
   store: redisClient
-    ? new RedisStore({
+    ? createRedisStore({
         client: redisClient,
         prefix: "rl:finance:",
       })
@@ -195,7 +213,7 @@ exports.loanApplicationLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => req.user?.user_id || req.ip,
   store: redisClient
-    ? new RedisStore({
+    ? createRedisStore({
         client: redisClient,
         prefix: "rl:loans:",
       })
@@ -221,7 +239,7 @@ exports.apiLimiter = rateLimit({
     );
   },
   store: redisClient
-    ? new RedisStore({
+    ? createRedisStore({
         client: redisClient,
         prefix: "rl:api:",
       })
@@ -236,7 +254,7 @@ exports.listLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: redisClient
-    ? new RedisStore({
+    ? createRedisStore({
         client: redisClient,
         prefix: "rl:list:",
       })
@@ -256,7 +274,7 @@ exports.dataExportLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => req.user?.user_id || req.ip,
   store: redisClient
-    ? new RedisStore({
+    ? createRedisStore({
         client: redisClient,
         prefix: "rl:export:",
       })
@@ -272,7 +290,7 @@ exports.reportLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => req.user?.user_id || req.ip,
   store: redisClient
-    ? new RedisStore({
+    ? createRedisStore({
         client: redisClient,
         prefix: "rl:report:",
       })
@@ -291,7 +309,7 @@ exports.searchLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: redisClient
-    ? new RedisStore({
+    ? createRedisStore({
         client: redisClient,
         prefix: "rl:search:",
       })

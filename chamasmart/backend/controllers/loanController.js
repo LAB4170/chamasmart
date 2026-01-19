@@ -683,15 +683,6 @@ const getChamaLoans = async (req, res) => {
     return res.error("Error fetching loans", 500);
   }
 };
-    });
-  } catch (error) {
-    logger.logError(error, { context: "getChamaLoans" });
-    res.status(500).json({
-      success: false,
-      message: "Error fetching loans",
-    });
-  }
-};
 
 // @desc    Get guarantors and installments for a loan
 // @route   GET /api/loans/:loanId/guarantors

@@ -1,6 +1,9 @@
 // Test setup file
 process.env.NODE_ENV = "test";
 
+// Require crypto early so it can be used to generate test secrets
+const crypto = require("crypto");
+
 // Use environment variables for secrets, with fallback to test-safe values
 process.env.JWT_SECRET_V1 =
   process.env.JWT_SECRET_V1 ||
@@ -32,7 +35,6 @@ process.env.METRICS_AUTH_TOKEN =
   "test-metrics-token-" + crypto.randomBytes(16).toString("hex");
 
 // Mock logger to reduce noise in tests
-const crypto = require("crypto");
 jest.mock("../utils/logger", () => ({
   info: jest.fn(),
   error: jest.fn(),

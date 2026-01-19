@@ -1,605 +1,435 @@
-# 🚀 QUICK START SECURITY REFERENCE
+# ChamaSmart Quick Reference Guide
 
-## ChamaSmart Security Implementation - Developer Guide
+## 🚀 Quick Start
 
-**For developers implementing Phase 2-3 of security integration**
+### Prerequisites
+- Node.js v16+ 
+- npm v8+
+- PostgreSQL v12+
+- (Optional) Docker Desktop
 
----
-
-## ⚡ TL;DR - Start Here
-
-### 5-Minute Overview
-
-1. **What changed?** 8 critical security vulnerabilities fixed
-2. **How?** 5 new security modules + 2 database migrations
-3. **Impact?** 97% harder to break, 100% KDPA compliant
-4. **Time to deploy?** 6-7 hours total
-5. **Files to touch?** server.js + authController.js + 3 other controllers
-
-### Files You Need to Know
-
-| File                                       | Purpose         | Action                   |
-| ------------------------------------------ | --------------- | ------------------------ |
-| `backend/security/encryption.js`           | Encrypt PII     | Import in controllers    |
-| `backend/security/auditLogger.js`          | Log all access  | Import in server.js      |
-| `backend/security/advancedAuth.js`         | 2FA + security  | Import in authController |
-| `backend/security/dataProtection.js`       | KDPA compliance | Middleware in server.js  |
-| `backend/security/enhancedRateLimiting.js` | Rate limits     | Middleware in server.js  |
-| `.env`                                     | Configuration   | Update with keys         |
-| `backend/server.js`                        | Main app        | Add middleware           |
-| `backend/controllers/authController.js`    | Auth logic      | Add encryption           |
-| `backend/migrations/013*.sql`              | Audit tables    | Run once                 |
-| `backend/migrations/014*.sql`              | Security tables | Run once                 |
-
----
-
-## 🎯 Implementation Steps (Quick)
-
-### Step 1: Environment (5 min)
+### Installation & Running
 
 ```bash
-# Generate encryption key
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+# 1. Clone and setup
+cd c:\Users\lewis\Desktop\chamasmart
 
-# Copy to .env
-ENCRYPTION_KEY=<paste_above>
-ENCRYPTION_KEY_VERSION=1
-RATE_LIMIT_LOGIN_ATTEMPTS=3
-```
+# 2. Backend setup
+cd backend
+npm install
+npm run dev
 
-### Step 2: Database (5 min)
+# 3. Frontend setup (new terminal)
+cd frontend
+npm install
+npm run dev
 
-```bash
-psql -U postgres -d chamasmart < backend/migrations/013_audit_logging_system.sql
-psql -U postgres -d chamasmart < backend/migrations/014_password_security_enhancements.sql
-```
-
-### Step 3: Dependencies (2 min)
-
-```bash
-npm install speakeasy qrcode bcrypt
-```
-
-### Step 4: server.js (15 min)
-
-```javascript
-// Add these imports
-const AuditLogger = require("./security/auditLogger");
-const { dataProtectionMiddleware } = require("./security/dataProtection");
-const { enhancedAuthLimiter } = require("./security/enhancedRateLimiting");
-
-// Add to middleware chain
-app.use("/api/auth/login", enhancedAuthLimiter);
-app.use("/api/", dataProtectionMiddleware);
-app.use((req, res, next) => {
-  req.auditLogger = AuditLogger;
-  next();
-});
-```
-
-### Step 5: authController (30 min)
-
-```javascript
-const Encryption = require("../security/encryption");
-const AdvancedAuth = require("../security/advancedAuth");
-
-// In register function:
-const validation = await AdvancedAuth.validatePasswordPolicy(password);
-const encrypted = await Encryption.encryptSensitiveData({ phone_number }, 1);
-
-// In login function:
-const lockStatus = await AdvancedAuth.isAccountLocked(userId);
-await AdvancedAuth.recordFailedLoginAttempt(
-  userId,
-  req.ip,
-  req.get("user-agent"),
-);
-```
-
-### Step 6: Test & Deploy (2 hours)
-
-```bash
-npm test  # Run unit tests
-npm start # Start server
-# Test endpoints manually
+# 4. Access
+Frontend: http://localhost:5173
+Backend:  http://localhost:5005
 ```
 
 ---
 
-## 💾 Encryption Usage
+## 🗂️ Project Structure
 
-### Encrypt Data (Before saving)
-
-```javascript
-const Encryption = require("../security/encryption");
-
-// Encrypt single field
-const encrypted = await Encryption.encryptSensitiveData(
-  { phone_number: "+254712345678" },
-  process.env.ENCRYPTION_KEY_VERSION,
-);
-
-// encrypted = {
-//   encrypted: 'abc123...',
-//   iv: 'def456...',
-//   authTag: 'ghi789...',
-//   keyVersion: 1
-// }
-
-// Store as JSON string
-await db.query("INSERT INTO users (phone_encrypted) VALUES ($1)", [
-  JSON.stringify(encrypted),
-]);
 ```
-
-### Decrypt Data (When retrieving)
-
-```javascript
-const encrypted = JSON.parse(storedData);
-
-const decrypted = await Encryption.decryptSensitiveData(
-  encrypted,
-  encrypted.keyVersion,
-);
-
-// decrypted = { phone_number: '+254712345678' }
-```
-
-### Fields to Encrypt
-
-```javascript
-const fieldsToEncrypt = {
-  phone_number: "User's phone",
-  email: "User's email address",
-  id_number: "National ID/Passport",
-  bank_account: "Bank account number",
-};
+chamasmart/
+├── backend/                 # Express API server
+│   ├── controllers/         # Business logic (14 modules)
+│   ├── routes/              # API endpoints
+│   ├── middleware/          # Auth, logging, security
+│   ├── config/              # Database, CORS, Redis
+│   ├── migrations/          # Database schemas
+│   ├── utils/               # Validators, logger
+│   ├── scheduler/           # Cron jobs
+│   └── server.js            # Entry point
+│
+├── frontend/                # React + Vite app
+│   ├── src/
+│   │   ├── components/      # Reusable UI components
+│   │   ├── pages/           # Route pages
+│   │   ├── services/        # API calls
+│   │   ├── context/         # State management
+│   │   └── App.jsx          # Root component
+│   ├── vite.config.js       # Build config
+│   └── package.json
+│
+├── docker-compose.yml       # PostgreSQL + Redis
+├── DIAGNOSTIC_REPORT.md     # Full diagnostic analysis
+└── .env                     # Environment variables
 ```
 
 ---
 
-## 📝 Audit Logging Usage
+## 🔑 Key Endpoints
 
-### Log Data Access
-
-```javascript
-const AuditLogger = require("./security/auditLogger");
-
-await AuditLogger.logDataAccess(
-  userId,
-  "READ", // action
-  "users", // dataType
-  userId, // dataId
-  { email: "user@example.com" }, // details
-  req.ip,
-  req.get("user-agent"),
-);
+### Authentication
+```
+POST   /api/auth/register           # New user signup
+POST   /api/auth/login              # User login
+GET    /api/auth/me                 # Get current user
+POST   /api/auth/verify-email       # Email verification
+POST   /api/auth/verify-phone       # Phone verification
 ```
 
-### Log Authentication
-
-```javascript
-await AuditLogger.logAuthenticationEvent(
-  userId,
-  "LOGIN_SUCCESS", // event
-  true, // success
-  req.ip,
-  req.get("user-agent"),
-  "Successful authentication",
-);
+### Chama Groups
+```
+GET    /api/chamas                  # List all chamas
+POST   /api/chamas                  # Create chama
+GET    /api/chamas/:id              # Get chama details
+PUT    /api/chamas/:id              # Update chama
+GET    /api/chamas/user/my-chamas   # User's chamas
 ```
 
-### Query Audit Logs
-
-```javascript
-const logs = await AuditLogger.queryAuditLog({
-  userId: 123,
-  startDate: new Date("2026-01-01"),
-  endDate: new Date(),
-  action: "LOGIN_FAILED",
-});
+### Contributions
+```
+GET    /api/contributions/:chamaId          # Get contributions
+POST   /api/contributions/:chamaId/record   # Record contribution
+GET    /api/contributions/:chamaId/:id      # Get contribution details
 ```
 
----
-
-## 🔐 Rate Limiting Usage
-
-### In server.js
-
-```javascript
-const {
-  enhancedAuthLimiter,
-  enhancedOTPLimiter,
-  sensitiveOpsLimiter,
-} = require("./security/enhancedRateLimiting");
-
-// Apply to specific routes
-app.use("/api/auth/login", enhancedAuthLimiter); // 3/15min
-app.use("/api/auth/register", enhancedAuthLimiter); // 3/15min
-app.use("/api/auth/verify-otp", enhancedOTPLimiter); // 5/15min
-app.use("/api/loans", sensitiveOpsLimiter); // 10/min
+### Loans (Table Banking)
+```
+GET    /api/loans/:chamaId/config          # Loan settings
+PUT    /api/loans/:chamaId/config          # Update settings
+POST   /api/loans/:chamaId/apply           # Apply for loan
+GET    /api/loans/:chamaId                 # List loans
+PUT    /api/loans/:loanId/approve          # Approve/reject loan
+POST   /api/loans/:loanId/repay            # Record repayment
 ```
 
-### What gets limited
-
-```javascript
-{
-  login: 3 attempts per 15 minutes,
-  otp: 5 attempts per 15 minutes,
-  password_reset: 2 per hour,
-  registration: 1 per hour per IP,
-  api_general: 50 per minute,
-  sensitive_ops: 10 per minute,
-  data_export: 5 per day
-}
+### ROSCA (Rotating Savings)
+```
+GET    /api/rosca/chama/:chamaId/cycles    # List cycles
+POST   /api/rosca/chama/:chamaId/cycles    # Create cycle
+GET    /api/rosca/cycles/:cycleId/roster   # Cycle roster
+POST   /api/rosca/cycles/:cycleId/payout   # Process payout
 ```
 
-### Exponential backoff
-
-```javascript
-// After 3 failures: 15 min block
-// After 5 failures: 30 min block
-// After 8 failures: 1 hour block
-// Automatic unlock after duration
+### Health & Monitoring
+```
+GET    /health                      # Health check
+GET    /api/ping                    # Ping endpoint
+GET    /metrics                     # Prometheus metrics
+GET    /readiness                   # Readiness probe
 ```
 
 ---
 
-## 🔑 2FA/MFA Implementation
+## 🔐 Authentication
 
-### Enable TOTP for User
+### JWT Token Flow
+1. **Register/Login** → Get JWT token
+2. **Store** → localStorage as `token`
+3. **Attach** → Axios adds `Authorization: Bearer <token>` to all requests
+4. **Validate** → Backend validates JWT signature
+5. **Access** → Server checks user permissions
 
+### Role-Based Access Control (RBAC)
+- `MEMBER` - Regular member
+- `CHAIRPERSON` - Group leader
+- `SECRETARY` - Records keeper
+- `TREASURER` - Financial officer
+- `ADMIN` - System administrator
+
+### Protected Routes Example
 ```javascript
-const AdvancedAuth = require("./security/advancedAuth");
+// Protected routes require JWT
+app.get('/api/chamas/:id', protect, getChamaById)
 
-const totp = await AdvancedAuth.enableTOTP(userId, userName);
+// Admin-only routes
+app.post('/api/loans/:id/approve', protect, isTreasurer, approveLoan)
 
-// Response includes:
-// - secret (base32 key for authenticator app)
-// - qrCode (data URL for QR code display)
-// - backupCodes (10 emergency codes)
-```
-
-### Enable SMS for User
-
-```javascript
-const sms = await AdvancedAuth.enableSMS2FA(userId, phoneNumber);
-
-// Response includes:
-// - sessionId (for verification)
-// - message (user instructions)
-// - expiresIn (seconds until expiration)
-```
-
-### Verify 2FA Code
-
-```javascript
-const result = await AdvancedAuth.verifyTOTPCode(userId, token);
-
-if (result.valid) {
-  // Create session and login
-} else {
-  // Show error
-}
-```
-
-### Device Management
-
-```javascript
-// Register device
-await AdvancedAuth.registerDevice(
-  userId,
-  "iPhone 12",
-  "MOBILE",
-  req.ip,
-  req.get("user-agent"),
-);
-
-// Mark as trusted
-await AdvancedAuth.markDeviceTrusted(deviceId, userId);
-
-// Get all devices
-const devices = await AdvancedAuth.getUserDevices(userId);
+// Role-based routes
+app.post('/api/rosca/cycles', protect, authorize('ADMIN', 'TREASURER'), createCycle)
 ```
 
 ---
 
-## ✅ Password Security
+## ⚙️ Environment Variables
 
-### Validate Password
+### Required (.env)
+```env
+# Server
+NODE_ENV=development
+PORT=5005
 
-```javascript
-const AdvancedAuth = require("./security/advancedAuth");
+# JWT
+JWT_SECRET=<your-secret-key>
+JWT_EXPIRES_IN=90d
 
-const validation = await AdvancedAuth.validatePasswordPolicy(
-  password,
-  userId, // for history check
-);
+# Database
+DB_USER=postgres
+DB_HOST=localhost
+DB_NAME=chamasmart
+DB_PASSWORD=password
+DB_PORT=5432
 
-if (!validation.valid) {
-  return res.status(400).json({
-    error: "Password does not meet requirements",
-    details: validation.errors,
-  });
-}
-```
+# Redis (optional)
+REDIS_HOST=localhost
+REDIS_PORT=6379
 
-### Password Requirements
+# Frontend
+FRONTEND_URL=http://localhost:3000
 
-```
-✓ Minimum 12 characters
-✓ At least 1 uppercase (A-Z)
-✓ At least 1 lowercase (a-z)
-✓ At least 1 number (0-9)
-✓ At least 1 special character (!@#$%^&*)
-✓ Not in known breaches (HaveIBeenPwned)
-✓ Not in user's last 5 passwords
-```
-
-### Check Password Breach
-
-```javascript
-const breachResult = await AdvancedAuth.checkPasswordBreach(password);
-
-if (breachResult.breached) {
-  return res.status(400).json({
-    error: `Password found in ${breachResult.breachCount} data breaches`,
-  });
-}
-```
-
-### Handle Failed Attempts
-
-```javascript
-const result = await AdvancedAuth.recordFailedLoginAttempt(
-  userId,
-  req.ip,
-  req.get("user-agent"),
-);
-
-if (result.locked) {
-  // Account locked - user cannot login
-  return res.status(403).json(result);
-}
-
-// Show remaining attempts
-return res.status(401).json({
-  error: "Invalid credentials",
-  attemptsRemaining: result.attemptsRemaining,
-});
+# SMTP (for email)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_password
 ```
 
 ---
 
-## 📊 Common Controller Pattern
+## 📊 Database Schemas
 
-### Secure Registration
+### Core Tables
+- **users** - User accounts
+- **chamas** - Chama groups
+- **chama_members** - Group membership
+- **contributions** - Member contributions
+- **loans** - Loan applications
+- **loan_guarantors** - Loan guarantees
+- **meetings** - Group meetings
+- **notifications** - User notifications
+- **rosca_cycles** - ROSCA rotation cycles
+- **asca_shares** - ASCA share holdings
+- **welfare_claims** - Welfare benefit claims
 
-```javascript
-exports.register = async (req, res) => {
-  const { name, email, phone, password } = req.body;
-
-  // 1. Validate password
-  const validation = await AdvancedAuth.validatePasswordPolicy(password);
-  if (!validation.valid) {
-    return res.status(400).json({
-      error: "Password invalid",
-      details: validation.errors,
-    });
-  }
-
-  // 2. Encrypt PII
-  const phoneEncrypted = await Encryption.encryptSensitiveData(
-    { phone_number: phone },
-    1,
-  );
-
-  // 3. Hash password
-  const hashedPassword = await bcrypt.hash(password, 12);
-
-  // 4. Create user
-  const user = await db.query(
-    "INSERT INTO users (name, email, phone_encrypted, password) VALUES (...)",
-    [name, email, JSON.stringify(phoneEncrypted), hashedPassword],
-  );
-
-  // 5. Log event
-  await AuditLogger.logAuthenticationEvent(
-    user.user_id,
-    "REGISTRATION",
-    true,
-    req.ip,
-    req.get("user-agent"),
-    "User registration successful",
-  );
-
-  res.status(201).json({ success: true, user });
-};
-```
-
-### Secure Login
-
-```javascript
-exports.login = async (req, res) => {
-  const { email, password } = req.body;
-
-  // 1. Get user
-  const user = await db.query("SELECT * FROM users WHERE email = $1", [email]);
-  if (!user.rows.length) {
-    return res.status(401).json({ error: "Invalid credentials" });
-  }
-
-  // 2. Check lockout
-  const lockStatus = await AdvancedAuth.isAccountLocked(user.user_id);
-  if (lockStatus.locked) {
-    return res.status(403).json({ error: "Account locked" });
-  }
-
-  // 3. Verify password
-  const isValid = await bcrypt.compare(password, user.password);
-  if (!isValid) {
-    const result = await AdvancedAuth.recordFailedLoginAttempt(
-      user.user_id,
-      req.ip,
-      req.get("user-agent"),
-    );
-    if (result.locked) {
-      return res.status(403).json(result);
-    }
-    return res.status(401).json({
-      error: "Invalid credentials",
-      attemptsRemaining: result.attemptsRemaining,
-    });
-  }
-
-  // 4. Check 2FA
-  if (user.two_factor_enabled) {
-    const verification = await send2FAVerification(user);
-    return res.json({ requiresMFA: true, sessionId: verification.sessionId });
-  }
-
-  // 5. Reset attempts
-  await AdvancedAuth.resetLoginAttempts(user.user_id);
-
-  // 6. Create session
-  const tokens = createTokens(user, req.ip, req.get("user-agent"));
-
-  // 7. Log success
-  await AuditLogger.logAuthenticationEvent(
-    user.user_id,
-    "LOGIN_SUCCESS",
-    true,
-    req.ip,
-    req.get("user-agent"),
-    "Successful authentication",
-  );
-
-  res.json({ success: true, user, tokens });
-};
+### Sample Query
+```sql
+-- Get all members of a chama with their contributions
+SELECT 
+    u.user_id,
+    u.email,
+    cm.role,
+    SUM(c.amount) as total_contributions
+FROM users u
+JOIN chama_members cm ON u.user_id = cm.user_id
+LEFT JOIN contributions c ON u.user_id = c.user_id
+WHERE cm.chama_id = $1 AND cm.is_active = true
+GROUP BY u.user_id, cm.role;
 ```
 
 ---
 
-## 🧪 Testing Quick Commands
+## 🧪 Testing
 
-### Test Encryption
-
+### Run Tests
 ```bash
-curl -X GET http://localhost:5000/api/test/encryption
-# Should return: { encrypted: {...}, decrypted: {...}, match: true }
+# Backend tests
+cd backend
+npm test                    # Run all tests
+npm run test:watch        # Watch mode
+jest --coverage           # Coverage report
+
+# Frontend lint
+cd frontend
+npm run lint
 ```
 
-### Test Rate Limiting
-
+### Test Example
 ```bash
-for i in {1..5}; do
-  curl -X POST http://localhost:5000/api/auth/login \
-    -d '{"email":"test@example.com","password":"wrong"}'
-  echo "Attempt $i"
-done
-# Attempts 4 & 5 should be rate limited
+# Test registration
+cd backend
+node scripts/test_register.js
 ```
 
-### Test Audit Logging
+---
 
+## 🐳 Docker Setup
+
+### Using Docker Compose
 ```bash
-psql -U postgres -d chamasmart \
-  -c "SELECT action, COUNT(*) FROM audit_logs GROUP BY action;"
-# Should show various actions being tracked
+# Start all services (PostgreSQL + Redis)
+docker-compose up
+
+# Or start just database
+docker-compose up postgres
+
+# View logs
+docker-compose logs -f backend
+
+# Stop services
+docker-compose down
+
+# Reset database
+docker-compose down -v  # Remove volumes
+docker-compose up       # Fresh start
 ```
 
-### Test 2FA
+---
 
+## 🚨 Common Issues & Solutions
+
+### Redis Not Connecting
+```
+⚠️ Redis connection failed multiple times
+```
+**Solution:** This is non-critical. Either:
+1. Start Redis: `docker-compose up redis`
+2. Ignore for development (uses in-memory rate limiting)
+
+### Database Connection Error
+```
+error: password authentication failed
+```
+**Solution:** Check `.env`:
+```env
+DB_USER=postgres          # Must exist
+DB_PASSWORD=password      # Must match DB
+DB_HOST=localhost         # Or 127.0.0.1
+DB_PORT=5432
+```
+
+### Port Already in Use
+```
+Error: listen EADDRINUSE: address already in use
+```
+**Solution:** Kill process or use different port:
 ```bash
-curl -X POST http://localhost:5000/api/auth/enable-2fa \
+# Find process using port 5005
+netstat -ano | findstr :5005
+
+# Kill process
+taskkill /PID <PID> /F
+
+# Or change port
+set PORT=5006
+npm run dev
+```
+
+### Module Not Found
+```
+Error: Cannot find module './utils/logger'
+```
+**Solution:** Install dependencies:
+```bash
+npm install
+```
+
+---
+
+## 📈 Performance Tips
+
+### Backend Optimization
+1. Enable Redis for distributed caching
+2. Add database indexes (already included in migrations)
+3. Use connection pooling (configured: max 20)
+4. Monitor slow queries (logged automatically)
+
+### Frontend Optimization
+1. Use React DevTools Profiler
+2. Check bundle size: `npm run build`
+3. Enable PWA offline caching
+4. Use React.memo for heavy components
+5. Implement code splitting with React.lazy
+
+---
+
+## 🔗 API Examples
+
+### Create a Chama Group
+```bash
+curl -X POST http://localhost:5005/api/chamas \
   -H "Authorization: Bearer <token>" \
-  -d '{"method":"TOTP"}'
-# Should return QR code and backup codes
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Silicon Valley Savers",
+    "description": "Tech community savings group",
+    "targetAmount": 500000,
+    "currency": "KES"
+  }'
 ```
 
----
-
-## 🐛 Common Issues & Fixes
-
-### Issue: "ENCRYPTION_KEY not set"
-
-**Fix:** Add to .env file
-
+### Record a Contribution
 ```bash
-ENCRYPTION_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")
+curl -X POST http://localhost:5005/api/contributions/123/record \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": 456,
+    "amount": 5000,
+    "date": "2026-01-16"
+  }'
 ```
 
-### Issue: "Module not found: speakeasy"
-
-**Fix:** Install dependency
-
+### Apply for a Loan
 ```bash
-npm install speakeasy qrcode bcrypt
+curl -X POST http://localhost:5005/api/loans/123/apply \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 50000,
+    "duration": 12,
+    "purpose": "Business equipment"
+  }'
 ```
 
-### Issue: "audit_logs table not found"
+---
 
-**Fix:** Run migrations
+## 📚 Documentation Files
 
+- `DIAGNOSTIC_REPORT.md` - Full system analysis
+- `DOCKER_GUIDE.md` - Docker deployment guide
+- `MIGRATION_INSTRUCTIONS.md` - Database migration help
+- `SIMPLE_MIGRATION_STEPS.md` - Quick migration guide
+
+---
+
+## 🎯 Development Workflow
+
+### Make Changes
 ```bash
-psql -U postgres -d chamasmart < backend/migrations/013_audit_logging_system.sql
-```
+# 1. Create feature branch
+git checkout -b feature/new-feature
 
-### Issue: "Rate limiting not working"
+# 2. Make code changes
+# Backend changes hot-reload with nodemon
+# Frontend hot-reloads with Vite
 
-**Fix:** Verify middleware in server.js
+# 3. Run tests
+npm test
 
-```javascript
-app.use("/api/auth/login", enhancedAuthLimiter); // Must come BEFORE routes
-```
+# 4. Commit changes
+git add .
+git commit -m "feat: add new feature"
 
-### Issue: "Encryption failing on update"
-
-**Fix:** Verify keyVersion matches
-
-```javascript
-// Use current version
-await Encryption.encryptSensitiveData(data, process.env.ENCRYPTION_KEY_VERSION);
+# 5. Push and create PR
+git push origin feature/new-feature
 ```
 
 ---
 
-## 📚 Documentation References
+## 🆘 Support Resources
 
-- Full guide: `SECURITY_IMPLEMENTATION_GUIDE.md`
-- Audit report: `SECURITY_AUDIT_REPORT.md`
-- Delivery summary: `SECURITY_DELIVERY_SUMMARY.md`
-- Implementation checklist: `IMPLEMENTATION_CHECKLIST.md`
+### Useful Commands
+```bash
+# View backend logs
+npm run dev              # See console output
+
+# View frontend errors
+npm run dev              # Check browser console
+
+# Database shell
+psql -U postgres -d chamasmart -h localhost
+
+# Redis CLI
+redis-cli               # If Redis running
+
+# Health check
+curl http://localhost:5005/health
+
+# API documentation (if available)
+# Add Swagger UI: npm install swagger-ui-express
+```
+
+### Error Logs Location
+- Backend: `backend/logs/` (daily rotation)
+- Frontend: Browser DevTools Console
+- Database: PostgreSQL logs
 
 ---
 
-## ✨ Key Points to Remember
-
-1. **Encrypt before INSERT** - All PII must be encrypted
-2. **Log everything** - All data access should be logged
-3. **Rate limit early** - Enforce limits in middleware
-4. **Test thoroughly** - Each change affects security
-5. **Monitor always** - Check logs and metrics regularly
-6. **Document changes** - Keep team informed
-7. **Backup first** - Always backup before migrations
-8. **Rollback ready** - Know how to revert if needed
-
----
-
-## 🚀 You're Ready!
-
-All code is provided and tested. Follow the steps:
-
-1. Configure environment (5 min)
-2. Run migrations (5 min)
-3. Install dependencies (2 min)
-4. Update server.js (15 min)
-5. Update controllers (30 min)
-6. Test (2 hours)
-7. Deploy (1 hour)
-
-**Total: ~6 hours to production-ready security** ✅
-
-Questions? Check the detailed guides or reach out to the security team.
-
-Happy coding! 🔐
+**Last Updated:** 2026-01-16 | **Version:** 1.0 | **Status:** ✅ Active
