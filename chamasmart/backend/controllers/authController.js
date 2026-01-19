@@ -385,12 +385,10 @@ const verifyEmail = async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Invalid or expired verification token",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired verification token",
+      });
     }
 
     const user = result.rows[0];
@@ -538,12 +536,10 @@ const verifyPhone = async (req, res) => {
     }
 
     if (!user.phone_verification_code || !user.phone_verification_expires_at) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "No active verification code. Please request a new one.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "No active verification code. Please request a new one.",
+      });
     }
 
     const now = new Date();
@@ -554,12 +550,10 @@ const verifyPhone = async (req, res) => {
     }
 
     if (user.phone_verification_attempts >= 5) {
-      return res
-        .status(429)
-        .json({
-          success: false,
-          message: "Too many incorrect attempts. Please request a new code.",
-        });
+      return res.status(429).json({
+        success: false,
+        message: "Too many incorrect attempts. Please request a new code.",
+      });
     }
 
     if (code !== user.phone_verification_code) {
@@ -670,12 +664,10 @@ const resendPhoneVerification = async (req, res) => {
     return res.json({ success: true, message: "Verification SMS resent" });
   } catch (error) {
     logger.logError(error, { context: "auth_resendPhoneVerification", userId });
-    return res
-      .status(500)
-      .json({
-        success: false,
-        message: "Error resending phone verification code",
-      });
+    return res.status(500).json({
+      success: false,
+      message: "Error resending phone verification code",
+    });
   }
 };
 

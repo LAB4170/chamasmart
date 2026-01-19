@@ -237,3 +237,4 @@ server.listen(PORT, () => {
 });
 
 module.exports = app;
+module.exports.server = server;

@@ -49,5 +49,23 @@ jest.mock("../utils/logger", () => ({
 // Mock database - using __mocks__/db.js
 jest.mock("../config/db");
 
+// Global afterAll to close server
+afterAll(async () => {
+  // Close any open servers
+  try {
+    const serverModule = require("../server");
+    if (serverModule && serverModule.server) {
+      await new Promise((resolve, reject) => {
+        serverModule.server.close((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+    }
+  } catch (err) {
+    // Ignore errors if server wasn't started
+  }
+});
+
 // Global test timeout
 jest.setTimeout(10000);
