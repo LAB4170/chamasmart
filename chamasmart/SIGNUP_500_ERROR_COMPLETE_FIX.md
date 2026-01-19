@@ -13,13 +13,13 @@
 
 ### Primary Causes (by probability):
 
-| Cause | Probability | Impact | Fix Time |
-|-------|-------------|--------|----------|
-| PostgreSQL not running | 40% | Complete failure | 2 min |
-| Database credentials wrong | 25% | Auth fails | 3 min |
-| Migration not applied | 20% | Table missing | 5 min |
-| Redis not running | 10% | Rate limiting fails | 2 min |
-| Missing .env variables | 5% | Config error | 1 min |
+| Cause                      | Probability | Impact              | Fix Time |
+| -------------------------- | ----------- | ------------------- | -------- |
+| PostgreSQL not running     | 40%         | Complete failure    | 2 min    |
+| Database credentials wrong | 25%         | Auth fails          | 3 min    |
+| Migration not applied      | 20%         | Table missing       | 5 min    |
+| Redis not running          | 10%         | Rate limiting fails | 2 min    |
+| Missing .env variables     | 5%          | Config error        | 1 min    |
 
 ---
 
@@ -28,6 +28,7 @@
 ### **FIX #1: Verify PostgreSQL is Running (2 minutes)**
 
 #### Windows PowerShell:
+
 ```powershell
 # Check if PostgreSQL service exists and is running
 Get-Service PostgreSQL* | Format-Table Name, Status
@@ -40,6 +41,7 @@ psql -U postgres -h localhost -p 5432 -c "SELECT NOW();"
 ```
 
 #### Expected Output:
+
 ```
 LocalTime
 ----------------------------
@@ -50,12 +52,14 @@ LocalTime
 ### **FIX #2: Verify Database Credentials in `.env` (1 minute)**
 
 #### Check Current Configuration:
+
 ```bash
 cd backend
 Get-Content .env | Select-String "DB_"
 ```
 
 #### Expected Output:
+
 ```
 DB_USER=postgres
 DB_HOST=localhost
@@ -65,6 +69,7 @@ DB_PORT=5432
 ```
 
 #### If Missing or Wrong:
+
 ```bash
 # Edit with your credentials
 notepad .env
@@ -76,11 +81,13 @@ cp .env.example .env
 ### **FIX #3: Apply Database Migrations (5 minutes)**
 
 #### Check if Tables Exist:
+
 ```bash
 psql -U postgres -h localhost -d chamasmart -c "\dt"
 ```
 
 #### Expected Tables:
+
 ```
               List of relations
  Schema |          Name          | Type  | Owner
@@ -97,6 +104,7 @@ psql -U postgres -h localhost -d chamasmart -c "\dt"
 ```
 
 #### If Tables Missing, Apply Migrations:
+
 ```bash
 cd backend
 
@@ -114,6 +122,7 @@ psql -U postgres -h localhost -d chamasmart
 ### **FIX #4: Verify Redis is Running (2 minutes)**
 
 #### Windows:
+
 ```powershell
 # Check Redis service
 Get-Service Redis* | Format-Table Name, Status
@@ -126,11 +135,13 @@ redis-cli PING
 ```
 
 #### Expected Output:
+
 ```
 PONG
 ```
 
 #### If Redis Not Available (Development Only):
+
 ```bash
 # Add to .env to skip Redis requirement
 echo "REDIS_SKIP=true" >> .env
@@ -172,6 +183,7 @@ npm run dev
 Run these commands to identify the specific issue:
 
 ### 1. Test Database Connection
+
 ```bash
 cd backend
 node -e "
@@ -189,6 +201,7 @@ pool.query('SELECT NOW()', (err, result) => {
 ```
 
 ### 2. Test Redis Connection
+
 ```bash
 cd backend
 node -e "
@@ -206,6 +219,7 @@ redis.ping((err, reply) => {
 ```
 
 ### 3. Check All Environment Variables
+
 ```bash
 cd backend
 node -e "
@@ -221,10 +235,11 @@ console.log('PORT:', env.PORT || '5005');
 ```
 
 ### 4. Check Database Tables Exist
+
 ```bash
 psql -U postgres -h localhost -d chamasmart -c "
-SELECT table_name FROM information_schema.tables 
-WHERE table_schema = 'public' 
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'public'
 ORDER BY table_name;
 "
 ```
@@ -236,30 +251,35 @@ ORDER BY table_name;
 ### If You See:
 
 #### `password authentication failed for user "postgres"`
+
 ```
 ❌ Issue: Wrong password in DB_PASSWORD
 ✅ Fix: Update .env with correct PostgreSQL password
 ```
 
 #### `could not connect to server: Connection refused`
+
 ```
 ❌ Issue: PostgreSQL not running
 ✅ Fix: Start PostgreSQL service with Get-Service PostgreSQL*
 ```
 
 #### `relation "users" does not exist`
+
 ```
 ❌ Issue: Database tables not created
 ✅ Fix: Run npm run migrate
 ```
 
 #### `ECONNREFUSED 127.0.0.1:6379`
+
 ```
 ❌ Issue: Redis not running
 ✅ Fix: Start Redis or set REDIS_SKIP=true in .env
 ```
 
 #### `Missing required environment variables`
+
 ```
 ❌ Issue: .env not configured
 ✅ Fix: cp .env.example .env && edit credentials
@@ -332,17 +352,19 @@ After applying fixes, verify:
 If the issue persists after these fixes:
 
 ### 1. Check Backend Logs
+
 ```bash
 cd backend
 
 # View console output from npm run dev
 # Look for error messages like:
 # - "TypeError"
-# - "ReferenceError" 
+# - "ReferenceError"
 # - "Cannot read property"
 ```
 
 ### 2. Check Browser Console
+
 ```javascript
 // Open DevTools (F12) → Console tab
 // Look for error details in:
@@ -351,6 +373,7 @@ cd backend
 ```
 
 ### 3. Enable Debug Logging
+
 ```bash
 cd backend
 $env:DEBUG = "*"
@@ -359,6 +382,7 @@ npm run dev
 ```
 
 ### 4. Test Signup Endpoint Directly
+
 ```powershell
 # Using curl
 curl -X POST http://localhost:5005/api/auth/v2/signup/start `
@@ -395,19 +419,18 @@ curl -X POST http://localhost:5005/api/auth/v2/signup/start `
 
 ## 🎯 SUMMARY
 
-| Step | Action | Time | Status |
-|------|--------|------|--------|
-| 1 | Start PostgreSQL | 1 min | ⏳ |
-| 2 | Configure .env | 1 min | ⏳ |
-| 3 | Run migrations | 2 min | ⏳ |
-| 4 | Start Redis | 1 min | ⏳ |
-| 5 | Restart services | 2 min | ⏳ |
-| 6 | Test signup | 2 min | ⏳ |
-| **Total** | | **9 min** | ⏳ |
+| Step      | Action           | Time      | Status |
+| --------- | ---------------- | --------- | ------ |
+| 1         | Start PostgreSQL | 1 min     | ⏳     |
+| 2         | Configure .env   | 1 min     | ⏳     |
+| 3         | Run migrations   | 2 min     | ⏳     |
+| 4         | Start Redis      | 1 min     | ⏳     |
+| 5         | Restart services | 2 min     | ⏳     |
+| 6         | Test signup      | 2 min     | ⏳     |
+| **Total** |                  | **9 min** | ⏳     |
 
 ---
 
 **Last Updated:** 2026-01-19  
 **Status:** ✅ All fixes applied and tested  
 **Contact:** Support team if issues persist
-

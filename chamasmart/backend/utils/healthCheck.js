@@ -35,11 +35,11 @@ async function performHealthCheck() {
 
   if (allPassed) {
     console.log(
-      "✅ All health checks passed! Server ready to accept requests.\n"
+      "✅ All health checks passed! Server ready to accept requests.\n",
     );
   } else {
     console.warn(
-      "\n⚠️  Some health checks failed. Server may not function properly.\n"
+      "\n⚠️  Some health checks failed. Server may not function properly.\n",
     );
     console.warn("Common fixes:");
     if (!checks.database.success) {

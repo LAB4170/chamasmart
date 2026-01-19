@@ -63,8 +63,9 @@ Error not properly caught/logged
 ### Why 500 Error Instead of Specific Message:
 
 The backend error isn't being caught and formatted properly. When:
+
 - Database connection fails → Unhandled error
-- Redis fails → Unhandled error  
+- Redis fails → Unhandled error
 - Table doesn't exist → SQL error not caught
 - These get caught by Express error handler → Generic 500
 
@@ -73,6 +74,7 @@ The backend error isn't being caught and formatted properly. When:
 ## FIXES APPLIED
 
 ### Fix #1: Enhanced Error Handling
+
 **File:** `backend/controllers/authControllerV2.js`
 
 ```javascript
@@ -107,13 +109,14 @@ try {
 ---
 
 ### Fix #2: Startup Health Checks
+
 **File:** `backend/utils/healthCheck.js` (New)
 
 ```javascript
 // Runs when server starts, checks:
 ✅ Environment variables present
 ✅ PostgreSQL connection works
-✅ Redis connection works  
+✅ Redis connection works
 ✅ Database tables exist
 
 // Output:
@@ -132,6 +135,7 @@ try {
 ---
 
 ### Fix #3: Comprehensive Logging
+
 **File:** `backend/server.js`
 
 ```javascript
@@ -152,11 +156,13 @@ try {
 ## RESOLUTION STEPS (User Action Required)
 
 ### Step 1: Start PostgreSQL (Most Common Issue)
+
 ```powershell
 Get-Service PostgreSQL* | Start-Service
 ```
 
 ### Step 2: Verify Database Credentials
+
 ```bash
 cd backend
 # Check .env has correct password
@@ -164,11 +170,13 @@ Get-Content .env | Select-String DB_
 ```
 
 ### Step 3: Apply Migrations
+
 ```bash
 npm run migrate
 ```
 
 ### Step 4: Restart Services
+
 ```bash
 npm run dev  # Backend
 # Terminal 2:
@@ -176,6 +184,7 @@ npm run dev  # Frontend
 ```
 
 ### Step 5: Test
+
 Visit: `http://localhost:5173/signup-v2`
 
 ---
@@ -191,6 +200,7 @@ Visit: `http://localhost:5173/signup-v2`
 ## CODE QUALITY IMPROVEMENTS
 
 ### Before Fix:
+
 ```javascript
 // Errors silently failed, no context
 catch (error) {
@@ -200,6 +210,7 @@ catch (error) {
 ```
 
 ### After Fix:
+
 ```javascript
 // Clear error messages, proper HTTP status
 catch (error) {
@@ -248,18 +259,21 @@ After implementing fixes, verify:
 ## PREVENTIVE MEASURES ADDED
 
 ### 1. Enhanced Startup Diagnostics
+
 ```javascript
 // Runs at server startup
 performHealthCheck() → Reports all issues immediately
 ```
 
 ### 2. Detailed Error Logging
+
 ```javascript
 // All signup attempts logged with full context
-console.log("🔍 SIGNUP START CALLED", { body, email, authMethod })
+console.log("🔍 SIGNUP START CALLED", { body, email, authMethod });
 ```
 
 ### 3. Proper HTTP Status Codes
+
 ```javascript
 // Errors return appropriate status, not generic 500
 - 400: Bad request (invalid email)
@@ -268,6 +282,7 @@ console.log("🔍 SIGNUP START CALLED", { body, email, authMethod })
 ```
 
 ### 4. Graceful Degradation
+
 ```javascript
 // System works even if optional services fail
 - Redis not running? Use REDIS_SKIP=true
@@ -279,14 +294,18 @@ console.log("🔍 SIGNUP START CALLED", { body, email, authMethod })
 ## KNOWLEDGE TRANSFER
 
 ### For Junior Engineers:
+
 "When you see a 500 error, it means the backend threw an exception. Always check:
+
 1. Database connected?
 2. Are the tables there?
 3. Are your environment variables set?
 4. Did migrations run?"
 
 ### For Senior Engineers:
+
 "This pattern (unhandled database errors → 500) is common. Always:
+
 1. Wrap DB calls in try/catch
 2. Return meaningful errors to client
 3. Log full context for debugging
@@ -328,4 +347,3 @@ If you still get 500 error after fixes:
 **Fixes Applied:** 3 major improvements  
 **Diagnostic Tools Created:** 4 comprehensive guides  
 **Status:** ✅ READY FOR TESTING
-

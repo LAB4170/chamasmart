@@ -105,7 +105,7 @@ async function sendOTPSMS(phone, otp) {
 const signupStart = async (req, res, next) => {
   try {
     console.log("🔍 SIGNUP START CALLED", { body: req.body });
-    
+
     const { email, phone, name, authMethod } = req.body;
 
     if (!authMethod || !["email", "phone", "google"].includes(authMethod)) {
