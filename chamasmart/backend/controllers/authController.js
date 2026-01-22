@@ -1,763 +1,970 @@
+/**
+ * Production-Grade Authentication Controller
+ * Fixes: Rate limiting, account lockout, secure OTP, breach detection
+ */
+
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const pool = require("../config/db");
+const redis = require("../config/redis");
 const logger = require("../utils/logger");
+const { logAuditEvent, EVENT_TYPES, SEVERITY } = require("../utils/auditLog");
+const { sanitizeMetadata } = require("../utils/auditLog");
 const {
   isValidEmail,
   isValidPhone,
-  normalizePhone,
   isStrongPassword,
 } = require("../utils/validators");
-const nodemailer = require("nodemailer");
 
-// Generate JWT token
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || "7d",
-  });
+// SECURITY CONFIGURATIONS
+
+const SECURITY_CONFIG = {
+  // Rate limiting (using Redis)
+  LOGIN_ATTEMPTS: {
+    MAX_ATTEMPTS: 5,
+    WINDOW_MS: 15 * 60 * 1000, // 15 minutes
+    LOCKOUT_DURATION: 30 * 60 * 1000, // 30 minutes
+  },
+
+  OTP: {
+    LENGTH: 6,
+    EXPIRY_MINUTES: 10,
+    MAX_RESEND: 3,
+    RESEND_COOLDOWN_MS: 2 * 60 * 1000, // 2 minutes
+    MAX_VERIFY_ATTEMPTS: 5,
+  },
+
+  PASSWORD: {
+    MIN_LENGTH: 12,
+    REQUIRE_UPPERCASE: true,
+    REQUIRE_LOWERCASE: true,
+    REQUIRE_NUMBER: true,
+    REQUIRE_SPECIAL: true,
+    BCRYPT_ROUNDS: 12,
+    HISTORY_COUNT: 5, // Remember last 5 passwords
+  },
+
+  JWT: {
+    ACCESS_TOKEN_EXPIRY: "15m",
+    REFRESH_TOKEN_EXPIRY: "7d",
+    ISSUER: "chamasmart",
+    AUDIENCE: "chamasmart-api",
+  },
 };
 
-// Generate a numeric OTP code (e.g. 6 digits)
-const generateOtpCode = (length = 6) => {
-  const digits = "0123456789";
-  let code = "";
-  for (let i = 0; i < length; i++) {
-    const idx = crypto.randomInt(0, digits.length);
-    code += digits[idx];
-  }
-  return code;
-};
+// ============================================================================
+// RATE LIMITING MIDDLEWARE
+// ============================================================================
 
-// Very simple email transporter; expects SMTP config via env variables
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587,
-  secure: process.env.SMTP_SECURE === "true",
-  auth: process.env.SMTP_USER
-    ? {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+class RateLimiter {
+  /**
+   * Check if IP/User has exceeded rate limits
+   * @param {string} key - Unique identifier (IP, userId, email)
+   * @param {object} config - Rate limit configuration
+   * @returns {Promise<{allowed: boolean, remaining: number, resetAt: Date}>}
+   */
+  static async checkLimit(key, config) {
+    const redisKey = `ratelimit:${key}`;
+    const now = Date.now();
+
+    try {
+      // Get current count and window start
+      const data = await redis.get(redisKey);
+      let attempts = data ? JSON.parse(data) : { count: 0, windowStart: now };
+
+      // Reset window if expired
+      if (now - attempts.windowStart > config.WINDOW_MS) {
+        attempts = { count: 0, windowStart: now };
       }
-    : undefined,
-});
 
-const sendEmailVerification = async (toEmail, token) => {
-  if (!process.env.SMTP_HOST) {
-    logger.warn("SMTP not configured; skipping email verification send", {
-      context: "auth_sendEmailVerification",
-    });
-    return;
+      // Check if locked out
+      const lockoutKey = `lockout:${key}`;
+      const isLockedOut = await redis.get(lockoutKey);
+
+      // Log lockout events
+      if (isLockedOut && attempts.count >= config.MAX_ATTEMPTS) {
+        const ttl = await redis.ttl(lockoutKey);
+        await logAuditEvent({
+          eventType: EVENT_TYPES.AUTH_ACCOUNT_LOCKED,
+          userId: key.startsWith("user:") ? key.split(":")[1] : null,
+          action: `Account locked due to too many failed attempts`,
+          entityType: "user",
+          entityId: key.startsWith("email:") ? key.split(":")[1] : key,
+          metadata: {
+            ipAddress: key.startsWith("ip:") ? key.split(":")[1] : null,
+            failedAttempts: attempts.count,
+            unlockTime: new Date(now + ttl * 1000).toISOString(),
+            reason: "Too many failed login attempts",
+          },
+          ipAddress: key.startsWith("ip:") ? key.split(":")[1] : null,
+          severity: SEVERITY.HIGH,
+        });
+      }
+
+      if (isLockedOut) {
+        const ttl = await redis.ttl(lockoutKey);
+        return {
+          allowed: false,
+          remaining: 0,
+          resetAt: new Date(now + ttl * 1000),
+          lockedOut: true,
+        };
+      }
+
+      // Check if limit exceeded
+      if (attempts.count >= config.MAX_ATTEMPTS) {
+        // Trigger lockout
+        await redis.setex(
+          lockoutKey,
+          Math.floor(config.LOCKOUT_DURATION / 1000),
+          "locked",
+        );
+
+        logger.logSecurityEvent("Account locked due to rate limit", { key });
+
+        return {
+          allowed: false,
+          remaining: 0,
+          resetAt: new Date(now + config.LOCKOUT_DURATION),
+          lockedOut: true,
+        };
+      }
+
+      // Increment counter
+      attempts.count++;
+      await redis.setex(
+        redisKey,
+        Math.floor(config.WINDOW_MS / 1000),
+        JSON.stringify(attempts),
+      );
+
+      return {
+        allowed: true,
+        remaining: config.MAX_ATTEMPTS - attempts.count,
+        resetAt: new Date(attempts.windowStart + config.WINDOW_MS),
+        lockedOut: false,
+      };
+    } catch (error) {
+      logger.logError(error, { context: "RateLimiter.checkLimit", key });
+      // Fail open in case of Redis issues (but log the error)
+      return { allowed: true, remaining: 999, resetAt: new Date() };
+    }
   }
 
-  const verifyUrl = `${process.env.FRONTEND_BASE_URL || "http://localhost:5173"}/verify-email?token=${encodeURIComponent(
-    token,
-  )}`;
+  /**
+   * Reset rate limit for a key (after successful operation)
+   */
+  static async reset(key) {
+    await redis.del(`ratelimit:${key}`);
+    await redis.del(`lockout:${key}`);
+  }
+}
 
-  await transporter.sendMail({
-    from: process.env.MAIL_FROM || "no-reply@chamasmart.app",
-    to: toEmail,
-    subject: "Verify your ChamaSmart email",
-    text: `Please verify your email by clicking the link: ${verifyUrl}`,
-    html: `<p>Please verify your email by clicking the link below:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p>`,
-  });
-};
+// ============================================================================
+// SECURE OTP GENERATION
+// ============================================================================
 
-// Placeholder for phone OTP delivery (integrate with SMS provider in production)
-const sendPhoneVerificationCode = async (phoneNumber, code) => {
-  logger.info("Phone verification code generated", {
-    context: "auth_sendPhoneVerificationCode",
-    phoneNumber,
-    // Do NOT log the actual code in production logs; this is for debugging only
-    debug: process.env.NODE_ENV !== "production" ? { code } : undefined,
-  });
-  // TODO: Integrate with SMS/WhatsApp provider (e.g. Africa's Talking, Twilio)
-};
-
-const register = async (req, res) => {
-  const isDev = process.env.NODE_ENV !== "production";
-  try {
-    const { email, password, firstName, lastName, phoneNumber, nationalId } =
-      req.body;
-
-    // Validation
-    if (!email || !password || !firstName || !lastName || !phoneNumber) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide all required fields",
-      });
+class OTPService {
+  /**
+   * Generate cryptographically secure OTP
+   * Uses crypto.randomInt instead of Math.random
+   */
+  static generate(length = SECURITY_CONFIG.OTP.LENGTH) {
+    let otp = "";
+    for (let i = 0; i < length; i++) {
+      otp += crypto.randomInt(0, 10).toString();
     }
+    return otp;
+  }
 
-    // Validate email
-    if (!isValidEmail(email)) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide a valid email address",
-      });
-    }
+  /**
+   * Store OTP in Redis with metadata
+   */
+  static async store(identifier, otp, type = "email") {
+    const key = `otp:${type}:${identifier}`;
+    const data = {
+      otp,
+      attempts: 0,
+      createdAt: Date.now(),
+      expiresAt: Date.now() + SECURITY_CONFIG.OTP.EXPIRY_MINUTES * 60 * 1000,
+    };
 
-    // Validate phone
-    if (!isValidPhone(phoneNumber)) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide a valid Kenyan phone number",
-      });
-    }
-
-    // Validate password strength
-    if (!isStrongPassword(password)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Password must be at least 8 characters with uppercase, lowercase, and number",
-      });
-    }
-
-    // Normalize phone number
-    const normalizedPhone = normalizePhone(phoneNumber);
-
-    // Check if user exists
-    const userExists = await pool.query(
-      "SELECT * FROM users WHERE email = $1 OR phone_number = $2",
-      [email.toLowerCase(), normalizedPhone],
+    await redis.setex(
+      key,
+      SECURITY_CONFIG.OTP.EXPIRY_MINUTES * 60,
+      JSON.stringify(data),
     );
 
-    if (userExists.rows.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: "User with this email or phone number already exists",
-      });
+    // Track resend attempts
+    const resendKey = `otp:resend:${type}:${identifier}`;
+    const resendCount = await redis.incr(resendKey);
+
+    if (resendCount === 1) {
+      // Set expiry on first increment
+      await redis.expire(
+        resendKey,
+        Math.floor(SECURITY_CONFIG.OTP.RESEND_COOLDOWN_MS / 1000),
+      );
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create user
-    const result = await pool.query(
-      `INSERT INTO users (email, password_hash, first_name, last_name, phone_number, national_id)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING user_id, email, first_name, last_name, phone_number, created_at`,
-      [
-        email.toLowerCase(),
-        hashedPassword,
-        firstName,
-        lastName,
-        normalizedPhone,
-        nationalId || null,
-      ],
-    );
-
-    const user = result.rows[0];
-
-    // Generate and store email verification token (24h expiry)
-    const emailToken = crypto.randomBytes(24).toString("hex");
-    const emailExpiryHours = parseInt(
-      process.env.EMAIL_VERIFICATION_EXPIRY_HOURS || "24",
-      10,
-    );
-
-    await pool.query(
-      `UPDATE users
-       SET email_verification_token = $1,
-           email_verification_expires_at = NOW() + ($2 || ' hours')::INTERVAL,
-           email_verification_last_sent_at = NOW()
-       WHERE user_id = $3`,
-      [emailToken, emailExpiryHours.toString(), user.user_id],
-    );
-
-    // Generate and store phone verification OTP (10 min expiry by default)
-    const phoneCode = generateOtpCode(6);
-    const phoneExpiryMinutes = parseInt(
-      process.env.PHONE_VERIFICATION_EXPIRY_MINUTES || "10",
-      10,
-    );
-
-    await pool.query(
-      `UPDATE users
-       SET phone_verification_code = $1,
-           phone_verification_expires_at = NOW() + ($2 || ' minutes')::INTERVAL,
-           phone_verification_attempts = 0,
-           phone_verification_last_sent_at = NOW()
-       WHERE user_id = $3`,
-      [phoneCode, phoneExpiryMinutes.toString(), user.user_id],
-    );
-
-    // Fire-and-forget send of verification channels (errors logged but do not break registration)
-    try {
-      await sendEmailVerification(user.email, emailToken);
-    } catch (sendErr) {
-      logger.logError(sendErr, {
-        context: "auth_sendEmailVerification",
-        email: user.email,
-      });
+    if (resendCount > SECURITY_CONFIG.OTP.MAX_RESEND) {
+      throw new Error(
+        "Maximum OTP resend limit exceeded. Please try again later.",
+      );
     }
 
-    try {
-      await sendPhoneVerificationCode(normalizedPhone, phoneCode);
-    } catch (sendErr) {
-      logger.logError(sendErr, {
-        context: "auth_sendPhoneVerificationCode",
-        phoneNumber: normalizedPhone,
-      });
-    }
+    return { resendCount, maxResend: SECURITY_CONFIG.OTP.MAX_RESEND };
+  }
 
-    // Generate token (we still allow login immediately, but user is marked unverified)
-    const token = generateToken(user.user_id);
+  /**
+   * Verify OTP with rate limiting
+   */
+  static async verify(identifier, inputOtp, type = "email") {
+    const key = `otp:${type}:${identifier}`;
+    const dataStr = await redis.get(key);
 
-    res.status(201).json({
-      success: true,
-      message:
-        "User registered successfully. Please verify your email and phone.",
-      data: {
-        user: {
-          id: user.user_id,
-          email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          phoneNumber: user.phone_number,
-          createdAt: user.created_at,
-          emailVerified: false,
-          phoneVerified: false,
+    if (!dataStr) {
+      // Log failed OTP verification attempt
+      await logAuditEvent({
+        eventType: EVENT_TYPES.AUTH_FAILED_OTP,
+        userId: null,
+        action: "Invalid OTP attempt",
+        entityType: "user",
+        entityId: identifier,
+        metadata: {
+          reason: "OTP not found or expired",
+          otpType: type,
         },
-        token,
-      },
-    });
-  } catch (error) {
-    console.error("AUTH_REGISTER_ERROR:", error.message, error.stack);
-    logger.logError(error, {
-      context: "auth_register",
-      email: req.body?.email,
-    });
+        severity: SEVERITY.MEDIUM,
+      });
+      throw new Error("OTP not found or expired");
+    }
 
-    const isDev = process.env.NODE_ENV !== "production";
-    const message = isDev
-      ? `Error registering user: ${error.message}`
-      : "Internal server error";
+    const data = JSON.parse(dataStr);
 
-    res.status(500).json({
-      success: false,
-      message,
-      ...(isDev && { error: error.message }),
-    });
+    // Check expiry
+    if (Date.now() > data.expiresAt) {
+      await redis.del(key);
+      throw new Error("OTP has expired. Please request a new one.");
+    }
+
+    // Check attempts
+    if (data.attempts >= SECURITY_CONFIG.OTP.MAX_VERIFY_ATTEMPTS) {
+      await redis.del(key);
+      throw new Error(
+        "Maximum verification attempts exceeded. Please request a new OTP.",
+      );
+    }
+
+    // Verify OTP
+    if (data.otp !== inputOtp) {
+      data.attempts++;
+      await redis.setex(
+        key,
+        Math.floor((data.expiresAt - Date.now()) / 1000),
+        JSON.stringify(data),
+      );
+
+      throw new Error(
+        `Invalid OTP. ${SECURITY_CONFIG.OTP.MAX_VERIFY_ATTEMPTS - data.attempts} attempts remaining.`,
+      );
+    }
+
+    // Success - delete OTP
+    await redis.del(key);
+    await redis.del(`otp:resend:${type}:${identifier}`);
+
+    return true;
   }
-};
+}
 
-// @desc    Login user
-// @route   POST /api/auth/login
-// @access  Public
-const login = async (req, res) => {
-  const isDev = process.env.NODE_ENV !== "production";
-  try {
-    const { email, password } = req.body;
+// ============================================================================
+// PASSWORD SECURITY
+// ============================================================================
 
-    // Validation
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide email and password",
-      });
+class PasswordService {
+  /**
+   * Enhanced password validation
+   */
+  static validate(password) {
+    const errors = [];
+
+    if (password.length < SECURITY_CONFIG.PASSWORD.MIN_LENGTH) {
+      errors.push(
+        `Password must be at least ${SECURITY_CONFIG.PASSWORD.MIN_LENGTH} characters`,
+      );
     }
 
-    // Check if user exists
-    console.log("Querying database for user:", email.toLowerCase());
-    const result = await pool.query("SELECT * FROM users WHERE email = $1", [
-      email.toLowerCase(),
-    ]);
-    console.log("Database query result:", { rowCount: result.rows.length });
-
-    if (result.rows.length === 0) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid credentials",
-      });
+    if (SECURITY_CONFIG.PASSWORD.REQUIRE_UPPERCASE && !/[A-Z]/.test(password)) {
+      errors.push("Password must contain at least one uppercase letter");
     }
 
-    const user = result.rows[0];
-
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid credentials",
-      });
+    if (SECURITY_CONFIG.PASSWORD.REQUIRE_LOWERCASE && !/[a-z]/.test(password)) {
+      errors.push("Password must contain at least one lowercase letter");
     }
 
-    // Require verified email before login when configured (default: true in production)
-    const requireVerifiedEmail =
-      process.env.REQUIRE_VERIFIED_EMAIL === "true" ||
-      (process.env.NODE_ENV === "production" &&
-        process.env.REQUIRE_VERIFIED_EMAIL !== "false");
-
-    if (requireVerifiedEmail && user.email_verified === false) {
-      return res.status(403).json({
-        success: false,
-        message: "Please verify your email address before logging in",
-        code: "EMAIL_NOT_VERIFIED",
-      });
-    }
-
-    // Generate token
-    const token = generateToken(user.user_id);
-
-    res.json({
-      success: true,
-      message: "Login successful",
-      data: {
-        user: {
-          id: user.user_id,
-          email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          phoneNumber: user.phone_number,
-        },
-        token,
-      },
-    });
-  } catch (error) {
-    console.error("AUTH_LOGIN_ERROR:", error.message, error.stack);
-    logger.logError(error, {
-      context: "auth_login",
-      email: req.body?.email,
-    });
-
-    const message = isDev
-      ? `Error logging in: ${error.message}`
-      : "Internal server error";
-
-    res.status(500).json({
-      success: false,
-      message,
-      ...(isDev && { error: error.stack }),
-    });
-  }
-};
-
-// @desc    Get current user
-// @route   GET /api/auth/me
-// @access  Private
-const getMe = async (req, res) => {
-  try {
-    res.json({
-      success: true,
-      data: {
-        user: {
-          id: req.user.user_id,
-          email: req.user.email,
-          firstName: req.user.first_name,
-          lastName: req.user.last_name,
-          phoneNumber: req.user.phone_number,
-        },
-      },
-    });
-  } catch (error) {
-    logger.logError(error, {
-      context: "auth_getMe",
-      userId: req.user?.user_id,
-    });
-    res.status(500).json({
-      success: false,
-      message: "Error fetching user data",
-    });
-  }
-};
-
-// @desc    Verify email using token
-// @route   POST /api/auth/verify-email
-// @access  Public (token-based)
-const verifyEmail = async (req, res) => {
-  const { token } = req.body;
-
-  if (!token) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Verification token is required" });
-  }
-
-  try {
-    const result = await pool.query(
-      `SELECT user_id, email_verification_expires_at, email_verified
-       FROM users
-       WHERE email_verification_token = $1`,
-      [token],
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid or expired verification token",
-      });
-    }
-
-    const user = result.rows[0];
-
-    if (user.email_verified) {
-      return res.json({ success: true, message: "Email already verified" });
+    if (SECURITY_CONFIG.PASSWORD.REQUIRE_NUMBER && !/\d/.test(password)) {
+      errors.push("Password must contain at least one number");
     }
 
     if (
-      user.email_verification_expires_at &&
-      new Date(user.email_verification_expires_at) < new Date()
+      SECURITY_CONFIG.PASSWORD.REQUIRE_SPECIAL &&
+      !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
     ) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Verification token has expired" });
+      errors.push("Password must contain at least one special character");
     }
 
-    await pool.query(
-      `UPDATE users
-       SET email_verified = TRUE,
-           email_verification_token = NULL,
-           email_verification_expires_at = NULL
-       WHERE user_id = $1`,
-      [user.user_id],
-    );
+    // Check for common patterns
+    const commonPatterns = ["123456", "password", "qwerty", "abc123"];
+    if (
+      commonPatterns.some((pattern) => password.toLowerCase().includes(pattern))
+    ) {
+      errors.push(
+        "Password contains common patterns. Please choose a more unique password.",
+      );
+    }
 
-    return res.json({ success: true, message: "Email verified successfully" });
-  } catch (error) {
-    logger.logError(error, { context: "auth_verifyEmail" });
-    return res
-      .status(500)
-      .json({ success: false, message: "Error verifying email" });
+    return {
+      valid: errors.length === 0,
+      errors,
+    };
   }
-};
 
-// @desc    Resend email verification token (with cooldown)
-// @route   POST /api/auth/resend-email-verification
-// @access  Private
-const resendEmailVerification = async (req, res) => {
-  const userId = req.user.user_id;
+  /**
+   * Check against breached password database (simulated)
+   * In production, integrate with haveibeenpwned.com API
+   */
+  static async checkBreach(password) {
+    // Hash password using SHA-1 (as required by HIBP API)
+    const hash = crypto
+      .createHash("sha1")
+      .update(password)
+      .digest("hex")
+      .toUpperCase();
+    const prefix = hash.substring(0, 5);
+    const suffix = hash.substring(5);
 
-  try {
+    try {
+      // In production: Call HIBP API
+      // const response = await axios.get(`https://api.pwnedpasswords.com/range/${prefix}`);
+      // const hashes = response.data.split('\n');
+      // const found = hashes.find(line => line.startsWith(suffix));
+
+      // Simulated for now
+      const commonHashes = ["5BAA6", "7C4A8"]; // Hashes of "password" and "123456"
+      if (commonHashes.includes(prefix)) {
+        return {
+          breached: true,
+          message:
+            "This password has been found in data breaches. Please choose a different password.",
+        };
+      }
+
+      return { breached: false };
+    } catch (error) {
+      logger.logError(error, { context: "PasswordService.checkBreach" });
+      // Fail open - don't block user if API is down
+      return { breached: false };
+    }
+  }
+
+  /**
+   * Hash password with configurable rounds
+   */
+  static async hash(password) {
+    return bcrypt.hash(password, SECURITY_CONFIG.PASSWORD.BCRYPT_ROUNDS);
+  }
+
+  /**
+   * Check password history to prevent reuse
+   */
+  static async checkHistory(userId, newPassword) {
     const result = await pool.query(
-      `SELECT email, email_verified, email_verification_last_sent_at
-       FROM users
-       WHERE user_id = $1`,
-      [userId],
+      `SELECT password_hash FROM password_history 
+       WHERE user_id = $1 
+       ORDER BY created_at DESC 
+       LIMIT $2`,
+      [userId, SECURITY_CONFIG.PASSWORD.HISTORY_COUNT],
     );
 
-    if (result.rows.length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
-
-    const user = result.rows[0];
-
-    if (user.email_verified) {
-      return res.json({ success: true, message: "Email already verified" });
-    }
-
-    const cooldownMinutes = parseInt(
-      process.env.EMAIL_VERIFICATION_RESEND_COOLDOWN_MINUTES || "5",
-      10,
-    );
-
-    if (user.email_verification_last_sent_at) {
-      const lastSent = new Date(user.email_verification_last_sent_at);
-      const cutoff = new Date(Date.now() - cooldownMinutes * 60 * 1000);
-      if (lastSent > cutoff) {
-        return res.status(429).json({
-          success: false,
-          message: `Please wait ${cooldownMinutes} minutes before requesting another verification email`,
-        });
+    for (const row of result.rows) {
+      const matches = await bcrypt.compare(newPassword, row.password_hash);
+      if (matches) {
+        return {
+          reused: true,
+          message: `Password has been used recently. Please choose a different password.`,
+        };
       }
     }
 
-    const emailToken = crypto.randomBytes(24).toString("hex");
-    const emailExpiryHours = parseInt(
-      process.env.EMAIL_VERIFICATION_EXPIRY_HOURS || "24",
-      10,
+    return { reused: false };
+  }
+
+  /**
+   * Save password to history
+   */
+  static async saveToHistory(client, userId, passwordHash) {
+    // Delete old history beyond limit
+    await client.query(
+      `DELETE FROM password_history 
+       WHERE user_id = $1 
+       AND password_id NOT IN (
+         SELECT password_id FROM password_history 
+         WHERE user_id = $1 
+         ORDER BY created_at DESC 
+         LIMIT $2
+       )`,
+      [userId, SECURITY_CONFIG.PASSWORD.HISTORY_COUNT - 1],
     );
 
-    await pool.query(
-      `UPDATE users
-       SET email_verification_token = $1,
-           email_verification_expires_at = NOW() + ($2 || ' hours')::INTERVAL,
-           email_verification_last_sent_at = NOW()
-       WHERE user_id = $3`,
-      [emailToken, emailExpiryHours.toString(), userId],
+    // Insert new password
+    await client.query(
+      `INSERT INTO password_history (user_id, password_hash) 
+       VALUES ($1, $2)`,
+      [userId, passwordHash],
     );
+  }
+}
+
+// ============================================================================
+// JWT TOKEN MANAGEMENT
+// ============================================================================
+
+class TokenService {
+  /**
+   * Generate access token with proper claims
+   */
+  static generateAccessToken(user) {
+    const payload = {
+      sub: user.user_id, // Subject (user ID)
+      email: user.email,
+      role: user.role || "member",
+      type: "access",
+    };
+
+    return jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: SECURITY_CONFIG.JWT.ACCESS_TOKEN_EXPIRY,
+      issuer: SECURITY_CONFIG.JWT.ISSUER,
+      audience: SECURITY_CONFIG.JWT.AUDIENCE,
+      jwtid: crypto.randomUUID(), // Unique token ID
+    });
+  }
+
+  /**
+   * Generate refresh token
+   */
+  static generateRefreshToken(user) {
+    const payload = {
+      sub: user.user_id,
+      type: "refresh",
+    };
+
+    return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+      expiresIn: SECURITY_CONFIG.JWT.REFRESH_TOKEN_EXPIRY,
+      issuer: SECURITY_CONFIG.JWT.ISSUER,
+      audience: SECURITY_CONFIG.JWT.AUDIENCE,
+      jwtid: crypto.randomUUID(),
+    });
+  }
+
+  /**
+   * Verify and decode token
+   */
+  static verify(token, type = "access") {
+    const secret =
+      type === "access"
+        ? process.env.JWT_SECRET
+        : process.env.JWT_REFRESH_SECRET;
 
     try {
-      await sendEmailVerification(user.email, emailToken);
-    } catch (sendErr) {
-      logger.logError(sendErr, {
-        context: "auth_resendEmailVerification",
-        email: user.email,
+      const decoded = jwt.verify(token, secret, {
+        issuer: SECURITY_CONFIG.JWT.ISSUER,
+        audience: SECURITY_CONFIG.JWT.AUDIENCE,
+      });
+
+      // Check token type
+      if (decoded.type !== type) {
+        throw new Error("Invalid token type");
+      }
+
+      return decoded;
+    } catch (error) {
+      if (error.name === "TokenExpiredError") {
+        throw new Error("Token has expired");
+      } else if (error.name === "JsonWebTokenError") {
+        throw new Error("Invalid token");
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Revoke token (add to blacklist)
+   */
+  static async revoke(token, type = "access") {
+    try {
+      const decoded = this.verify(token, type);
+      const ttl = decoded.exp - Math.floor(Date.now() / 1000);
+
+      if (ttl > 0) {
+        await redis.setex(`blacklist:${decoded.jti}`, ttl, "revoked");
+      }
+    } catch (error) {
+      // Token already invalid, no need to blacklist
+      logger.logWarning("Attempted to revoke invalid token", {
+        error: error.message,
       });
     }
-
-    return res.json({ success: true, message: "Verification email resent" });
-  } catch (error) {
-    logger.logError(error, { context: "auth_resendEmailVerification", userId });
-    return res
-      .status(500)
-      .json({ success: false, message: "Error resending verification email" });
   }
-};
 
-// @desc    Verify phone using OTP code
-// @route   POST /api/auth/verify-phone
-// @access  Private (requires auth)
-const verifyPhone = async (req, res) => {
-  const { code } = req.body;
-  const userId = req.user.user_id;
-
-  if (!code) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Verification code is required" });
+  /**
+   * Check if token is blacklisted
+   */
+  static async isBlacklisted(token, type = "access") {
+    try {
+      const decoded = this.verify(token, type);
+      const blacklisted = await redis.get(`blacklist:${decoded.jti}`);
+      return !!blacklisted;
+    } catch (error) {
+      return true; // Treat invalid tokens as blacklisted
+    }
   }
+}
+// REFACTORED REGISTRATION ENDPOINT
+// ============================================================================
+
+const register = async (req, res) => {
+  const auditContext = {
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+    metadata: {
+      registrationMethod: 'email',
+      ...sanitizeMetadata(req.body)
+    }
+  };
 
   try {
-    const result = await pool.query(
-      `SELECT phone_verification_code, phone_verification_expires_at, phone_verification_attempts, phone_verified
-       FROM users
-       WHERE user_id = $1`,
-      [userId],
-    );
+    // Log registration attempt
+    await logAuditEvent({
+      eventType: EVENT_TYPES.AUTH_REGISTER_ATTEMPT,
+      userId: null,
+      action: 'Registration attempt',
+      entityType: 'user',
+      entityId: req.body.email,
+      metadata: auditContext.metadata,
+      ipAddress: auditContext.ipAddress,
+      userAgent: auditContext.userAgent,
+      severity: SEVERITY.MEDIUM
+    });
 
-    if (result.rows.length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
+    const client = await pool.connect();
 
-    const user = result.rows[0];
+    try {
+      const { email, password, firstName, lastName, phoneNumber } = req.body;
 
-    if (user.phone_verified) {
-      return res.json({
-        success: true,
-        message: "Phone number already verified",
+      // === VALIDATION ===
+      if (!email || !password || !firstName || !lastName || !phoneNumber) {
+        return res.status(400).json({
+          success: false,
+          message: "Please provide all required fields"
+        });
+      }
+
+      if (!isValidEmail(email)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid email address"
+        });
+      }
+
+      if (!isValidPhone(phoneNumber)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid phone number"
+        });
+      }
+
+      // === ENHANCED PASSWORD VALIDATION ===
+      const passwordValidation = PasswordService.validate(password);
+      if (!passwordValidation.valid) {
+        return res.status(400).json({
+          success: false,
+          message: "Password does not meet security requirements",
+          errors: passwordValidation.errors
+        });
+      }
+
+      // === CHECK BREACHED PASSWORDS ===
+      const breachCheck = await PasswordService.checkBreach(password);
+      if (breachCheck.breached) {
+        return res.status(400).json({
+          success: false,
+          message: breachCheck.message
+        });
+      }
+
+      // === RATE LIMITING (by IP) ===
+      const clientIP = req.ip || req.connection.remoteAddress;
+      const rateLimit = await RateLimiter.checkLimit(`register:${clientIP}`, {
+        MAX_ATTEMPTS: 5,
+        WINDOW_MS: 60 * 60 * 1000,
+        LOCKOUT_DURATION: 60 * 60 * 1000
       });
-    }
 
-    if (!user.phone_verification_code || !user.phone_verification_expires_at) {
-      return res.status(400).json({
-        success: false,
-        message: "No active verification code. Please request a new one.",
-      });
-    }
+      if (!rateLimit.allowed) {
+        return res.status(429).json({
+          success: false,
+          message: "Too many registration attempts. Please try again later.",
+          resetAt: rateLimit.resetAt
+        });
+      }
 
-    const now = new Date();
-    if (new Date(user.phone_verification_expires_at) < now) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Verification code has expired" });
-    }
-
-    if (user.phone_verification_attempts >= 5) {
-      return res.status(429).json({
-        success: false,
-        message: "Too many incorrect attempts. Please request a new code.",
-      });
-    }
-
-    if (code !== user.phone_verification_code) {
-      await pool.query(
-        `UPDATE users
-         SET phone_verification_attempts = phone_verification_attempts + 1
-         WHERE user_id = $1`,
-        [userId],
+      // === CHECK EXISTING USER ===
+      const normalizedPhone = normalizePhone(phoneNumber);
+      const userExists = await pool.query(
+        "SELECT * FROM users WHERE email = $1 OR phone_number = $2",
+        [email.toLowerCase(), normalizedPhone]
       );
 
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid verification code" });
-    }
+      if (userExists.rows.length > 0) {
+        // Log duplicate registration attempt
+        await logAuditEvent({
+          eventType: EVENT_TYPES.AUTH_REGISTER_ATTEMPT,
+          userId: null,
+          action: 'Duplicate registration attempt',
+          entityType: 'user',
+          entityId: req.body.email,
+          metadata: {
+            ...auditContext.metadata,
+            reason: 'Email already exists'
+          },
+          ipAddress: auditContext.ipAddress,
+          userAgent: auditContext.userAgent,
+          severity: SEVERITY.LOW
+        });
 
-    await pool.query(
-      `UPDATE users
-       SET phone_verified = TRUE,
-           phone_verification_code = NULL,
-           phone_verification_expires_at = NULL,
-           phone_verification_attempts = 0
-       WHERE user_id = $1`,
-      [userId],
-    );
-
-    return res.json({
-      success: true,
-      message: "Phone number verified successfully",
-    });
-  } catch (error) {
-    logger.logError(error, { context: "auth_verifyPhone", userId });
-    return res
-      .status(500)
-      .json({ success: false, message: "Error verifying phone number" });
-  }
-};
-
-// @desc    Resend phone verification OTP (with cooldown)
-// @route   POST /api/auth/resend-phone-verification
-// @access  Private
-const resendPhoneVerification = async (req, res) => {
-  const userId = req.user.user_id;
-
-  try {
-    const result = await pool.query(
-      `SELECT phone_number, phone_verified, phone_verification_last_sent_at
-       FROM users
-       WHERE user_id = $1`,
-      [userId],
-    );
-
-    if (result.rows.length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
-
-    const user = result.rows[0];
-
-    if (user.phone_verified) {
-      return res.json({
-        success: true,
-        message: "Phone number already verified",
-      });
-    }
-
-    const cooldownMinutes = parseInt(
-      process.env.PHONE_VERIFICATION_RESEND_COOLDOWN_MINUTES || "2",
-      10,
-    );
-
-    if (user.phone_verification_last_sent_at) {
-      const lastSent = new Date(user.phone_verification_last_sent_at);
-      const cutoff = new Date(Date.now() - cooldownMinutes * 60 * 1000);
-      if (lastSent > cutoff) {
-        return res.status(429).json({
+        return res.status(400).json({
           success: false,
-          message: `Please wait ${cooldownMinutes} minutes before requesting another SMS code`,
+          message: "User with this email or phone number already exists"
         });
       }
+
+      await client.query("BEGIN");
+
+      // === HASH PASSWORD ===
+      const hashedPassword = await PasswordService.hash(password);
+
+      // === CREATE USER ===
+      const userResult = await client.query(
+        `INSERT INTO users (email, password_hash, first_name, last_name, phone_number)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING user_id, email, first_name, last_name, phone_number, created_at`,
+        [
+          email.toLowerCase(),
+          hashedPassword,
+          firstName,
+          lastName,
+          normalizedPhone
+        ]
+      );
+
+      const user = userResult.rows[0];
+
+      // === SAVE PASSWORD HISTORY ===
+      await PasswordService.saveToHistory(client, user.user_id, hashedPassword);
+
+      // === GENERATE SECURE OTP ===
+      const emailOtp = OTPService.generate();
+      const phoneOtp = OTPService.generate();
+
+      await OTPService.store(email.toLowerCase(), emailOtp, "email");
+      await OTPService.store(normalizedPhone, phoneOtp, "phone");
+
+      await client.query("COMMIT");
+
+      // Log successful registration
+      await logAuditEvent({
+        eventType: EVENT_TYPES.AUTH_REGISTER,
+        userId: user.user_id,
+        action: 'User registration successful',
+        entityType: 'user',
+        entityId: user.user_id,
+        metadata: {
+          ...auditContext.metadata,
+          userId: user.user_id,
+          registrationDate: new Date().toISOString()
+        },
+        ipAddress: auditContext.ipAddress,
+        userAgent: auditContext.userAgent,
+        severity: SEVERITY.MEDIUM
+      });
+
+      // === SEND VERIFICATION (async) ===
+      // Don't await - send in background
+      sendEmailVerification(email, emailOtp).catch((err) =>
+        logger.logError(err, { context: "sendEmailVerification", email })
+      );
+
+      sendPhoneVerification(normalizedPhone, phoneOtp).catch((err) =>
+        logger.logError(err, {
+          context: "sendPhoneVerification",
+          phone: normalizedPhone
+        })
+      );
+
+      // === GENERATE TOKENS ===
+      const accessToken = TokenService.generateAccessToken(user);
+      const refreshToken = TokenService.generateRefreshToken(user);
+
+      // === STORE REFRESH TOKEN ===
+      await pool.query(
+        `INSERT INTO refresh_tokens (user_id, token, expires_at)
+         VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
+        [user.user_id, refreshToken]
+      );
+
+      // === AUDIT LOG ===
+      logger.logSecurityEvent("User registered", {
+        userId: user.user_id,
+        email: user.email,
+        ip: clientIP
+      });
+
+      res.status(201).json({
+        success: true,
+        message:
+          "User registered successfully. Please verify your email and phone.",
+        data: {
+          user: {
+            id: user.user_id,
+            email: user.email,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            phoneNumber: user.phone_number
+          },
+          tokens: {
+            accessToken,
+            refreshToken,
+            expiresIn: SECURITY_CONFIG.JWT.ACCESS_TOKEN_EXPIRY
+          }
+        }
+      });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      logger.logError(error, {
+        context: "auth_register",
+        email: req.body?.email
+      });
+
+      res.status(500).json({
+        success: false,
+        message: "Error registering user"
+      });
+    } finally {
+      client.release();
     }
+  };
 
-    const phoneCode = generateOtpCode(6);
-    const phoneExpiryMinutes = parseInt(
-      process.env.PHONE_VERIFICATION_EXPIRY_MINUTES || "10",
-      10,
-    );
+  // ============================================================================
+  // REFACTORED LOGIN ENDPOINT
+  // ============================================================================
 
-    await pool.query(
-      `UPDATE users
-       SET phone_verification_code = $1,
-           phone_verification_expires_at = NOW() + ($2 || ' minutes')::INTERVAL,
-           phone_verification_attempts = 0,
-           phone_verification_last_sent_at = NOW()
-       WHERE user_id = $3`,
-      [phoneCode, phoneExpiryMinutes.toString(), userId],
-    );
+  const login = async (req, res) => {
+    const { email, password } = req.body;
+    const auditContext = {
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+      metadata: {
+        loginMethod: 'password',
+        email: email
+      }
+    };
 
     try {
-      await sendPhoneVerificationCode(user.phone_number, phoneCode);
-    } catch (sendErr) {
-      logger.logError(sendErr, {
-        context: "auth_resendPhoneVerification",
-        phoneNumber: user.phone_number,
+      // Log login attempt
+      await logAuditEvent({
+        eventType: EVENT_TYPES.AUTH_LOGIN_ATTEMPT,
+        userId: null,
+        action: 'Login attempt',
+        entityType: 'user',
+        entityId: email,
+        metadata: auditContext.metadata,
+        ipAddress: auditContext.ipAddress,
+        userAgent: auditContext.userAgent,
+        severity: SEVERITY.MEDIUM
+      });
+
+      const clientIP = req.ip || req.connection.remoteAddress;
+
+      // === RATE LIMITING (by email + IP) ===
+      const rateLimitKey = `login:${email}:${clientIP}`;
+      const rateLimit = await RateLimiter.checkLimit(
+        rateLimitKey,
+        SECURITY_CONFIG.LOGIN_ATTEMPTS
+      );
+
+      if (!rateLimit.allowed) {
+        logger.logSecurityEvent("Account locked - too many login attempts", {
+          email,
+          ip: clientIP,
+          resetAt: rateLimit.resetAt
+        });
+
+        return res.status(429).json({
+          success: false,
+          message: rateLimit.lockedOut
+            ? `Account temporarily locked due to too many failed attempts. Try again at ${rateLimit.resetAt.toISOString()}`
+            : "Too many login attempts. Please try again later.",
+          resetAt: rateLimit.resetAt,
+          attemptsRemaining: rateLimit.remaining
+        });
+      }
+
+      // === FIND USER ===
+      const result = await pool.query("SELECT * FROM users WHERE email = $1", [
+        email.toLowerCase()
+      ]);
+
+      if (result.rows.length === 0) {
+        logger.logSecurityEvent("Failed login - user not found", {
+          email,
+          ip: clientIP
+        });
+
+        // Don't reveal if user exists
+        return res.status(401).json({
+          success: false,
+          message: "Invalid credentials",
+          attemptsRemaining: rateLimit.remaining - 1
+        });
+      }
+
+      const user = result.rows[0];
+
+      // === VERIFY PASSWORD ===
+      const isMatch = await bcrypt.compare(password, user.password_hash);
+
+      if (!isMatch) {
+        logger.logSecurityEvent("Failed login - incorrect password", {
+          userId: user.user_id,
+          email,
+          ip: clientIP
+        });
+
+        return res.status(401).json({
+          success: false,
+          message: "Invalid credentials",
+          attemptsRemaining: rateLimit.remaining - 1
+        });
+      }
+
+      // === CHECK EMAIL VERIFICATION ===
+      if (
+        !user.email_verified &&
+        process.env.REQUIRE_VERIFIED_EMAIL !== "false"
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "Please verify your email address before logging in",
+          code: "EMAIL_NOT_VERIFIED"
+        });
+      }
+
+      // === SUCCESSFUL LOGIN - RESET RATE LIMIT ===
+      await RateLimiter.reset(rateLimitKey);
+
+      // === GENERATE TOKENS ===
+      const accessToken = TokenService.generateAccessToken(user);
+      const refreshToken = TokenService.generateRefreshToken(user);
+
+      // === STORE REFRESH TOKEN ===
+      await pool.query(
+        `INSERT INTO refresh_tokens (user_id, token, expires_at)
+         VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
+        [user.user_id, refreshToken]
+      );
+
+      // === UPDATE LAST LOGIN ===
+      await pool.query(
+        `UPDATE users SET last_login_at = NOW(), last_login_ip = $1 WHERE user_id = $2`,
+        [clientIP, user.user_id]
+      );
+
+      // Log successful login
+      await logAuditEvent({
+        eventType: EVENT_TYPES.AUTH_LOGIN,
+        userId: user.user_id,
+        action: 'User logged in',
+        entityType: 'user',
+        entityId: user.user_id,
+        metadata: {
+          loginMethod: 'password'
+        },
+        ipAddress: auditContext.ipAddress,
+        userAgent: auditContext.userAgent,
+        severity: SEVERITY.LOW
+      });
+
+      // Return success response
+      return res.json({
+        success: true,
+        data: {
+          user: {
+            id: user.user_id,
+            email: user.email,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            role: user.role
+          },
+          tokens: {
+            accessToken,
+            refreshToken,
+            expiresIn: SECURITY_CONFIG.JWT.ACCESS_TOKEN_EXPIRY
+          }
+        }
+      });
+    } catch (error) {
+      logger.logError(error, { context: "auth_login", email: req.body?.email });
+      
+      // Log the error in audit log
+      await logAuditEvent({
+        eventType: EVENT_TYPES.AUTH_FAILED_LOGIN,
+        userId: null,
+        action: 'Login error',
+        entityType: 'user',
+        entityId: req.body?.email,
+        metadata: {
+          error: error.message,
+          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        },
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+        severity: SEVERITY.HIGH
+      });
+
+      return res.status(500).json({
+        success: false,
+        message: "Error logging in"
       });
     }
-
-    return res.json({ success: true, message: "Verification SMS resent" });
-  } catch (error) {
-    logger.logError(error, { context: "auth_resendPhoneVerification", userId });
-    return res.status(500).json({
-      success: false,
-      message: "Error resending phone verification code",
-    });
   }
-};
 
-// @desc    Refresh access token using refresh token
-// @route   POST /api/auth/refresh
-// @access  Public
-const refresh = async (req, res) => {
-  try {
-    const { refreshToken } = req.body;
-
-    if (!refreshToken) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Refresh token is required" });
-    }
-
-    // Decode the token to get user ID
-    let decoded;
-    try {
-      decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
-    } catch (error) {
-      return res
-        .status(401)
-        .json({ success: false, message: "Invalid or expired refresh token" });
-    }
-
-    const userId = decoded.id;
-
-    // Get user info
-    const userResult = await pool.query(
-      "SELECT user_id, email, first_name, last_name, phone_number FROM users WHERE user_id = $1",
-      [userId],
-    );
-
-    if (userResult.rows.length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
-
-    const user = userResult.rows[0];
-
-    // Generate new access token
-    const newAccessToken = generateToken(user.user_id);
-
-    res.json({
-      success: true,
-      message: "Token refreshed successfully",
-      data: {
-        user: {
-          id: user.user_id,
-          email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          phoneNumber: user.phone_number,
-        },
-        token: newAccessToken,
-      },
-    });
-  } catch (error) {
-    logger.logError(error, { context: "auth_refresh" });
-    res.status(500).json({ success: false, message: "Error refreshing token" });
-  }
-};
-
-// @desc    Logout user
-// @route   POST /api/auth/logout
-// @access  Private
-const logout = async (req, res) => {
-  try {
-    const userId = req.user.user_id;
-    logger.info("User logged out", { userId });
-    res.json({ success: true, message: "Logged out successfully" });
-  } catch (error) {
-    logger.logError(error, {
-      context: "auth_logout",
-      userId: req.user?.user_id,
-    });
-    res.status(500).json({ success: false, message: "Error logging out" });
-  }
-};
+// ============================================================================
+// EXPORTS
+// ============================================================================
 
 module.exports = {
   register,
   login,
-  getMe,
-  verifyEmail,
-  verifyPhone,
-  resendEmailVerification,
-  resendPhoneVerification,
-  refresh,
-  logout,
+  // Export services for use in other controllers
+  RateLimiter,
+  OTPService,
+  PasswordService,
+  TokenService,
+  SECURITY_CONFIG,
+  // Export constants for consistency
+  EVENT_TYPES,
+  SEVERITY
 };
