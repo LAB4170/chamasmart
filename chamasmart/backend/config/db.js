@@ -3,11 +3,19 @@ require("dotenv").config();
 
 const logger = require("../utils/logger");
 
+console.log("Database connection config:", {
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT,
+  password: process.env.DB_PASSWORD ? "***" : "not set",
+});
+
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
   database: process.env.DB_NAME,
-  password: String(process.env.DB_PASSWORD),
+  password: String(process.env.DB_PASSWORD || ""), // Ensure it's a string
   port: process.env.DB_PORT,
   max: 20, // Max clients in the pool
   idleTimeoutMillis: 30000,
@@ -46,7 +54,7 @@ pool.on("error", (err) => {
 const originalQuery = pool.query.bind(pool);
 pool.query = async (...args) => {
   const start = Date.now();
-  const queryText = typeof args[0] === 'string' ? args[0] : args[0].text;
+  const queryText = typeof args[0] === "string" ? args[0] : args[0].text;
 
   try {
     const result = await originalQuery(...args);
@@ -54,7 +62,7 @@ pool.query = async (...args) => {
 
     // Log slow queries
     if (duration > 1000) {
-      logger.warn('Slow database query detected', {
+      logger.warn("Slow database query detected", {
         query: queryText.substring(0, 200),
         duration: `${duration}ms`,
         rowCount: result.rowCount,
@@ -63,7 +71,7 @@ pool.query = async (...args) => {
 
     return result;
   } catch (error) {
-    logger.error('Database query error', {
+    logger.error("Database query error", {
       query: queryText.substring(0, 200),
       error: error.message,
     });

@@ -4,8 +4,6 @@
  */
 
 const rateLimit = require("express-rate-limit");
-const RedisStore = require("rate-limit-redis");
-const redis = require("../config/redis");
 const logger = require("../utils/logger");
 
 // ============================================================================
@@ -14,10 +12,6 @@ const logger = require("../utils/logger");
 
 // Zone 1: Signup (5 attempts per hour per IP)
 const signupLimiter = rateLimit({
-  store: new RedisStore({
-    client: redis,
-    prefix: "rate-limit:signup:",
-  }),
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 5, // 5 attempts per hour
   message: {
@@ -28,8 +22,8 @@ const signupLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Skip for development/testing
-    return process.env.NODE_ENV === "test";
+    // Skip rate limiting for development environment
+    return process.env.NODE_ENV === "development";
   },
   keyGenerator: (req) => {
     // Rate limit by IP address for signup
@@ -50,10 +44,6 @@ const signupLimiter = rateLimit({
 
 // Zone 2: Login (5 attempts per 15 minutes per email + IP combination)
 const loginLimiter = rateLimit({
-  store: new RedisStore({
-    client: redis,
-    prefix: "rate-limit:login:",
-  }),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5,
   message: {
@@ -85,10 +75,6 @@ const loginLimiter = rateLimit({
 
 // Zone 3: OTP Verification (3 attempts per 15 minutes per contact)
 const otpVerifyLimiter = rateLimit({
-  store: new RedisStore({
-    client: redis,
-    prefix: "rate-limit:otp-verify:",
-  }),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 3,
   message: {
@@ -123,10 +109,6 @@ const otpVerifyLimiter = rateLimit({
 
 // Zone 4: OTP Resend (1 attempt per 30 seconds)
 const otpResendLimiter = rateLimit({
-  store: new RedisStore({
-    client: redis,
-    prefix: "rate-limit:otp-resend:",
-  }),
   windowMs: 30 * 1000, // 30 seconds
   max: 1,
   message: {
@@ -158,10 +140,6 @@ const otpResendLimiter = rateLimit({
 
 // Zone 5: API General (100 requests per minute per user)
 const apiLimiter = rateLimit({
-  store: new RedisStore({
-    client: redis,
-    prefix: "rate-limit:api:",
-  }),
   windowMs: 60 * 1000, // 1 minute
   max: 100,
   message: {
@@ -207,20 +185,15 @@ const resetRateLimit = async (req, res) => {
       });
     }
 
-    // Find and delete all matching keys
-    const pattern = `rate-limit:*${key}*`;
-    const keys = await redis.keys(pattern);
-
-    if (keys.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No rate limit records found for this key",
-      });
-    }
-
-    await redis.del(...keys);
-
-    logger.info("✅ Rate limit reset", { key, keysDeleted: keys.length });
+    // In-memory store doesn't support key pattern matching
+    logger.info("⚠️ Rate limit reset not supported with in-memory store", {
+      key,
+    });
+    return res.status(200).json({
+      success: true,
+      message:
+        "Rate limit reset not supported with in-memory store in development mode.",
+    });
 
     res.json({
       success: true,

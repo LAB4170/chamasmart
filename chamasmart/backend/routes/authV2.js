@@ -15,7 +15,7 @@ const {
   revokeAPIKey,
   deleteAPIKey,
 } = require("../middleware/apiKeyAuth");
-const authMiddleware = require("../middleware/auth");
+const { protect } = require("../middleware/auth");
 
 // ============================================================================
 // PUBLIC SIGNUP ROUTES (with rate limiting)
@@ -56,16 +56,16 @@ router.post("/refresh-token", authControllerV2.refreshAccessToken);
 // ============================================================================
 
 // Create new API key
-router.post("/api-keys", authMiddleware, createAPIKey);
+router.post("/api-keys", protect, createAPIKey);
 
 // List all API keys for authenticated user
-router.get("/api-keys", authMiddleware, listAPIKeys);
+router.get("/api-keys", protect, listAPIKeys);
 
 // Revoke API key
-router.delete("/api-keys/:keyId/revoke", authMiddleware, revokeAPIKey);
+router.delete("/api-keys/:keyId/revoke", protect, revokeAPIKey);
 
 // Delete API key
-router.delete("/api-keys/:keyId", authMiddleware, deleteAPIKey);
+router.delete("/api-keys/:keyId", protect, deleteAPIKey);
 
 // ============================================================================
 // PROTECTED ROUTES (using API key or JWT)

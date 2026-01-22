@@ -2,9 +2,9 @@
  * Startup Health Check - Diagnoses connection and configuration issues
  */
 
-const pool = require("./config/db");
-const redis = require("./config/redis");
-const logger = require("./utils/logger");
+const pool = require("../config/db");
+const redis = require("../config/redis");
+const logger = require("./logger");
 
 async function performHealthCheck() {
   console.log("\n🔍 PERFORMING STARTUP HEALTH CHECKS...\n");

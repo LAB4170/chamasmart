@@ -21,37 +21,59 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Handle response errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Only handle 401 Unauthorized errors (not 404, etc.)
     if (error.response?.status === 401) {
-      // Unauthorized - clear token and redirect to login (avoid redirect loops)
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      // Only clear and redirect if we're not already on the login/register page
       if (
         window.location.pathname !== "/login" &&
         window.location.pathname !== "/register"
       ) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
         window.location.replace("/login");
       }
     }
+    // For 404 errors, just return the error without redirecting
     return Promise.reject(error);
-  }
+  },
 );
 
 // Auth API calls
 export const authAPI = {
-  register: (userData) => api.post("/auth/register", userData),
-  login: (credentials) => api.post("/auth/login", credentials),
-  getMe: () => api.get("/auth/me"),
-  verifyEmail: (payload) => api.post("/auth/verify-email", payload),
-  verifyPhone: (payload) => api.post("/auth/verify-phone", payload),
-  resendEmailVerification: () => api.post("/auth/resend-email-verification"),
-  resendPhoneVerification: () => api.post("/auth/resend-phone-verification"),
+  // Start the signup process (step 1)
+  register: (userData) =>
+    api.post("/auth/v2/signup/start", {
+      email: userData.email,
+      phone: userData.phoneNumber, // Changed from phoneNumber to phone to match backend
+      name: `${userData.firstName} ${userData.lastName}`, // Combine first and last name as name
+      password: userData.password,
+      authMethod: "email", // Required by backend
+    }),
+
+  // Verify OTP (step 2)
+  verifyOTP: (email, otp) =>
+    api.post("/auth/v2/signup/verify-otp", { email, otp }),
+
+  // Resend OTP
+  resendOTP: (email) => api.post("/auth/v2/signup/resend-otp", { email }),
+
+  // Login
+  login: (credentials) =>
+    api.post("/auth/login", {
+      email: credentials.email,
+      password: credentials.password,
+    }),
+
+  // Token refresh
+  refreshToken: (refreshToken) =>
+    api.post("/auth/v2/refresh-token", { refreshToken }),
 };
 
 // Chama API calls
@@ -101,8 +123,9 @@ export const meetingAPI = {
 
 // Invite API calls
 export const inviteAPI = {
-  generate: (chamaId, inviteData) => api.post(`/invites/${chamaId}/generate`, inviteData),
-  join: (inviteCode) => api.post('/invites/join', { inviteCode }),
+  generate: (chamaId, inviteData) =>
+    api.post(`/invites/${chamaId}/generate`, inviteData),
+  join: (inviteCode) => api.post("/invites/join", { inviteCode }),
   getAll: (chamaId) => api.get(`/invites/${chamaId}`),
   deactivate: (inviteId) => api.delete(`/invites/${inviteId}`),
   send: (chamaId, email) => api.post(`/invites/${chamaId}/send`, { email }),
@@ -118,28 +141,33 @@ export const loanAPI = {
 
   // Table Banking configuration
   getConfig: (chamaId) => api.get(`/loans/${chamaId}/config`),
-  updateConfig: (chamaId, config) => api.put(`/loans/${chamaId}/config`, config),
+  updateConfig: (chamaId, config) =>
+    api.put(`/loans/${chamaId}/config`, config),
 
   // Guarantor flows
   getGuarantors: (loanId) => api.get(`/loans/${loanId}/guarantors`),
   respondGuarantor: (loanId, decision) =>
     api.post(`/loans/${loanId}/guarantors/respond`, { decision }),
-  getMyGuarantees: () => api.get('/loans/my/guarantees'),
-  exportReport: (chamaId) => api.get(`/loans/${chamaId}/report`, { responseType: 'blob' }),
+  getMyGuarantees: () => api.get("/loans/my/guarantees"),
+  exportReport: (chamaId) =>
+    api.get(`/loans/${chamaId}/report`, { responseType: "blob" }),
 };
 
 // Payout API calls
 export const payoutAPI = {
   getEligible: (chamaId) => api.get(`/payouts/${chamaId}/eligible`),
-  process: (chamaId, payoutData) => api.post(`/payouts/${chamaId}/process`, payoutData),
+  process: (chamaId, payoutData) =>
+    api.post(`/payouts/${chamaId}/process`, payoutData),
   getAll: (chamaId) => api.get(`/payouts/${chamaId}`),
 };
 
 // Join Request API calls
 export const joinRequestAPI = {
-  request: (chamaId, message) => api.post(`/join-requests/${chamaId}/request`, { message }),
+  request: (chamaId, message) =>
+    api.post(`/join-requests/${chamaId}/request`, { message }),
   getAll: (chamaId) => api.get(`/join-requests/${chamaId}`),
-  respond: (requestId, status) => api.put(`/join-requests/${requestId}/respond`, { status }),
+  respond: (requestId, status) =>
+    api.put(`/join-requests/${requestId}/respond`, { status }),
   getMyRequests: () => api.get("/join-requests/my-requests"),
 };
 
@@ -151,33 +179,40 @@ export const notificationAPI = {
   markAllAsRead: () => api.put("/notifications/read-all"),
 };
 
-
 // ROSCA API calls
 export const roscaAPI = {
   getCycles: (chamaId) => api.get(`/rosca/chama/${chamaId}/cycles`),
-  createCycle: (cycleData) => api.post(`/rosca/chama/${cycleData.chama_id}/cycles`, cycleData),
+  createCycle: (cycleData) =>
+    api.post(`/rosca/chama/${cycleData.chama_id}/cycles`, cycleData),
   getRoster: (cycleId) => api.get(`/rosca/cycles/${cycleId}/roster`),
-  requestSwap: (cycleId, swapData) => api.post(`/rosca/cycles/${cycleId}/swap-request`, swapData),
-  getSwapRequests: () => api.get('/rosca/swap-requests'),
-  respondToSwap: (requestId, action) => api.put(`/rosca/swap-requests/${requestId}/respond`, { action }),
-  processPayout: (cycleId, payoutData) => api.post(`/rosca/cycles/${cycleId}/payout`, payoutData),
+  requestSwap: (cycleId, swapData) =>
+    api.post(`/rosca/cycles/${cycleId}/swap-request`, swapData),
+  getSwapRequests: () => api.get("/rosca/swap-requests"),
+  respondToSwap: (requestId, action) =>
+    api.put(`/rosca/swap-requests/${requestId}/respond`, { action }),
+  processPayout: (cycleId, payoutData) =>
+    api.post(`/rosca/cycles/${cycleId}/payout`, payoutData),
   deleteCycle: (cycleId) => api.delete(`/rosca/cycles/${cycleId}`),
 };
 
 // ASCA API calls
 export const ascaAPI = {
-  buyShares: (chamaId, payload) => api.post(`/asca/${chamaId}/buy-shares`, payload),
+  buyShares: (chamaId, payload) =>
+    api.post(`/asca/${chamaId}/buy-shares`, payload),
   getEquity: (chamaId) => api.get(`/asca/${chamaId}/equity`),
   getProposals: (chamaId) => api.get(`/asca/${chamaId}/proposals`),
-  createProposal: (chamaId, payload) => api.post(`/asca/${chamaId}/proposals`, payload),
-  voteOnProposal: (proposalId, choice) => api.post(`/asca/proposals/${proposalId}/vote`, { choice }),
+  createProposal: (chamaId, payload) =>
+    api.post(`/asca/${chamaId}/proposals`, payload),
+  voteOnProposal: (proposalId, choice) =>
+    api.post(`/asca/proposals/${proposalId}/vote`, { choice }),
   getAssets: (chamaId) => api.get(`/asca/${chamaId}/assets`),
-  createAsset: (chamaId, payload) => api.post(`/asca/${chamaId}/assets`, payload),
+  createAsset: (chamaId, payload) =>
+    api.post(`/asca/${chamaId}/assets`, payload),
 };
 
 // User API calls
 export const userAPI = {
-  search: (query) => api.get('/users/search', { params: { query } }),
+  search: (query) => api.get("/users/search", { params: { query } }),
 };
 
 export default api;

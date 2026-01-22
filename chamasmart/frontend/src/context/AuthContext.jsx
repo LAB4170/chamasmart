@@ -58,7 +58,8 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.verifyEmail({ token });
       return { success: true, message: response.data.message };
     } catch (err) {
-      const message = err.response?.data?.message || "Email verification failed";
+      const message =
+        err.response?.data?.message || "Email verification failed";
       setError(message);
       return { success: false, error: message };
     }
@@ -76,7 +77,8 @@ export const AuthProvider = ({ children }) => {
       }
       return { success: true, message: response.data.message };
     } catch (err) {
-      const message = err.response?.data?.message || "Phone verification failed";
+      const message =
+        err.response?.data?.message || "Phone verification failed";
       setError(message);
       return { success: false, error: message };
     }
@@ -114,22 +116,40 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       const response = await authAPI.login(credentials);
 
+      // The backend should return user data in response.data.data
       const { user: loggedInUser, token } = response.data.data;
 
+      if (!token || !loggedInUser) {
+        throw new Error("Invalid login response from server");
+      }
+
+      // Store the token and user data
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(loggedInUser));
       setUser(loggedInUser);
 
       return { success: true };
     } catch (err) {
+      console.error("Login error:", err);
       const status = err.response?.status;
       const apiMessage = err.response?.data?.message;
       const code = err.response?.data?.code;
-      const message = apiMessage || "Login failed";
+      const message =
+        apiMessage ||
+        "Login failed. Please check your credentials and try again.";
       const unverified = status === 403 && code === "EMAIL_NOT_VERIFIED";
 
+      // Clear any existing auth data on error
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      setUser(null);
       setError(message);
-      return { success: false, error: message, unverified };
+
+      return {
+        success: false,
+        error: message,
+        unverified,
+      };
     }
   };
 
