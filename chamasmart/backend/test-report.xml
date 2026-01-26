@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testExecutions version="1">
+  <file path="C:\Users\lewis\Desktop\chamasmart\backend\tests\integration\auth\socketAuth.test.js">
+  </file>
+  <file path="C:\Users\lewis\Desktop\chamasmart\backend\tests\integration\auth\security.test.js">
+  </file>
+  <file path="C:\Users\lewis\Desktop\chamasmart\backend\tests\integration\auth\authVerification.test.js">
+  </file>
+  <file path="C:\Users\lewis\Desktop\chamasmart\backend\tests\integration\auth\authErrors.test.js">
+  </file>
+  <file path="C:\Users\lewis\Desktop\chamasmart\backend\tests\integration\auth\auth.test.js">
+  </file>
+  <file path="C:\Users\lewis\Desktop\chamasmart\backend\tests\integration\auth\auth-v2.test.js">
+  </file>
+  <file path="C:\Users\lewis\Desktop\chamasmart\backend\tests\integration\api\roscaRoutes.int.test.js">
+  </file>
+  <file path="C:\Users\lewis\Desktop\chamasmart\backend\tests\integration\api\roscaController.test.js">
+  </file>
+  <file path="C:\Users\lewis\Desktop\chamasmart\backend\tests\integration\api\proposalController.test.js">
+  </file>
+  <file path="C:\Users\lewis\Desktop\chamasmart\backend\tests\integration\api\ascaRoutes.int.test.js">
+  </file>
+  <file path="C:\Users\lewis\Desktop\chamasmart\backend\tests\integration\api\ascaController.test.js">
+  </file>
+  <file path="C:\Users\lewis\Desktop\chamasmart\backend\tests\unit\simple.test.js">
+  </file>
+  <file path="C:\Users\lewis\Desktop\chamasmart\backend\tests\unit\example.test.js">
+  </file>
+  <file path="C:\Users\lewis\Desktop\chamasmart\backend\tests\rosca_controller_fixed.test.js">
+  </file>
+  <file path="C:\Users\lewis\Desktop\chamasmart\backend\tests\metrics.test.js">
+  </file>
+</testExecutions>

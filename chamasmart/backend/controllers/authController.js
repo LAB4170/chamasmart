@@ -277,6 +277,32 @@ class OTPService {
 
     return true;
   }
+
+  /**
+   * Verify phone OTP specifically
+   */
+  static async verifyPhoneOTP(userId, inputOtp) {
+    try {
+      // Get user's phone number from database
+      const userResult = await pool.query(
+        "SELECT phone_number FROM users WHERE user_id = $1",
+        [userId],
+      );
+
+      if (userResult.rows.length === 0) {
+        return { valid: false, message: "User not found" };
+      }
+
+      const phone = userResult.rows[0].phone_number;
+
+      // Verify OTP using the general verify method
+      await this.verify(phone, inputOtp, "phone");
+
+      return { valid: true, message: "Phone verified successfully" };
+    } catch (error) {
+      return { valid: false, message: error.message };
+    }
+  }
 }
 
 // ============================================================================
@@ -531,6 +557,84 @@ class TokenService {
       return true; // Treat invalid tokens as blacklisted
     }
   }
+
+  /**
+   * Generate email verification token
+   */
+  static generateEmailVerificationToken(email) {
+    const payload = {
+      type: "email_verification",
+      email: email,
+      userId: email, // Will be updated when we have user ID
+    };
+
+    return jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: "24h",
+      issuer: SECURITY_CONFIG.JWT.ISSUER,
+      audience: SECURITY_CONFIG.JWT.AUDIENCE,
+      jwtid: this.generateJTI(),
+    });
+  }
+
+  /**
+   * Generate phone verification token
+   */
+  static generatePhoneVerificationToken(userId, phone) {
+    const payload = {
+      type: "phone_verification",
+      userId: userId,
+      phone: phone,
+    };
+
+    return jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+      issuer: SECURITY_CONFIG.JWT.ISSUER,
+      audience: SECURITY_CONFIG.JWT.AUDIENCE,
+      jwtid: this.generateJTI(),
+    });
+  }
+
+  /**
+   * Verify email/phone verification token
+   */
+  static verify(token, type = "access") {
+    const decoded = jwt.verify(token, this.getSecret(type), {
+      issuer: SECURITY_CONFIG.JWT.ISSUER,
+      audience: SECURITY_CONFIG.JWT.AUDIENCE,
+    });
+
+    // Additional verification for specific token types
+    if (
+      type === "email_verification" &&
+      decoded.type !== "email_verification"
+    ) {
+      throw new Error("Invalid token type");
+    }
+
+    if (
+      type === "phone_verification" &&
+      decoded.type !== "phone_verification"
+    ) {
+      throw new Error("Invalid token type");
+    }
+
+    return decoded;
+  }
+
+  /**
+   * Get secret based on token type
+   */
+  static getSecret(type) {
+    switch (type) {
+      case "refresh":
+        return process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+      case "email_verification":
+      case "phone_verification":
+        return process.env.JWT_SECRET;
+      default:
+        return process.env.JWT_SECRET;
+    }
+  }
 }
 // REFACTORED REGISTRATION ENDPOINT
 // ============================================================================
@@ -538,11 +642,11 @@ class TokenService {
 const register = async (req, res) => {
   const auditContext = {
     ipAddress: req.ip,
-    userAgent: req.get('user-agent'),
+    userAgent: req.get("user-agent"),
     metadata: {
-      registrationMethod: 'email',
-      ...sanitizeMetadata(req.body)
-    }
+      registrationMethod: "email",
+      ...sanitizeMetadata(req.body),
+    },
   };
 
   try {
@@ -550,13 +654,13 @@ const register = async (req, res) => {
     await logAuditEvent({
       eventType: EVENT_TYPES.AUTH_REGISTER_ATTEMPT,
       userId: null,
-      action: 'Registration attempt',
-      entityType: 'user',
+      action: "Registration attempt",
+      entityType: "user",
       entityId: req.body.email,
       metadata: auditContext.metadata,
       ipAddress: auditContext.ipAddress,
       userAgent: auditContext.userAgent,
-      severity: SEVERITY.MEDIUM
+      severity: SEVERITY.MEDIUM,
     });
 
     const client = await pool.connect();
@@ -568,21 +672,21 @@ const register = async (req, res) => {
       if (!email || !password || !firstName || !lastName || !phoneNumber) {
         return res.status(400).json({
           success: false,
-          message: "Please provide all required fields"
+          message: "Please provide all required fields",
         });
       }
 
       if (!isValidEmail(email)) {
         return res.status(400).json({
           success: false,
-          message: "Invalid email address"
+          message: "Invalid email address",
         });
       }
 
       if (!isValidPhone(phoneNumber)) {
         return res.status(400).json({
           success: false,
-          message: "Invalid phone number"
+          message: "Invalid phone number",
         });
       }
 
@@ -592,7 +696,7 @@ const register = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: "Password does not meet security requirements",
-          errors: passwordValidation.errors
+          errors: passwordValidation.errors,
         });
       }
 
@@ -601,7 +705,7 @@ const register = async (req, res) => {
       if (breachCheck.breached) {
         return res.status(400).json({
           success: false,
-          message: breachCheck.message
+          message: breachCheck.message,
         });
       }
 
@@ -610,14 +714,14 @@ const register = async (req, res) => {
       const rateLimit = await RateLimiter.checkLimit(`register:${clientIP}`, {
         MAX_ATTEMPTS: 5,
         WINDOW_MS: 60 * 60 * 1000,
-        LOCKOUT_DURATION: 60 * 60 * 1000
+        LOCKOUT_DURATION: 60 * 60 * 1000,
       });
 
       if (!rateLimit.allowed) {
         return res.status(429).json({
           success: false,
           message: "Too many registration attempts. Please try again later.",
-          resetAt: rateLimit.resetAt
+          resetAt: rateLimit.resetAt,
         });
       }
 
@@ -625,7 +729,7 @@ const register = async (req, res) => {
       const normalizedPhone = normalizePhone(phoneNumber);
       const userExists = await pool.query(
         "SELECT * FROM users WHERE email = $1 OR phone_number = $2",
-        [email.toLowerCase(), normalizedPhone]
+        [email.toLowerCase(), normalizedPhone],
       );
 
       if (userExists.rows.length > 0) {
@@ -633,21 +737,21 @@ const register = async (req, res) => {
         await logAuditEvent({
           eventType: EVENT_TYPES.AUTH_REGISTER_ATTEMPT,
           userId: null,
-          action: 'Duplicate registration attempt',
-          entityType: 'user',
+          action: "Duplicate registration attempt",
+          entityType: "user",
           entityId: req.body.email,
           metadata: {
             ...auditContext.metadata,
-            reason: 'Email already exists'
+            reason: "Email already exists",
           },
           ipAddress: auditContext.ipAddress,
           userAgent: auditContext.userAgent,
-          severity: SEVERITY.LOW
+          severity: SEVERITY.LOW,
         });
 
         return res.status(400).json({
           success: false,
-          message: "User with this email or phone number already exists"
+          message: "User with this email or phone number already exists",
         });
       }
 
@@ -666,8 +770,8 @@ const register = async (req, res) => {
           hashedPassword,
           firstName,
           lastName,
-          normalizedPhone
-        ]
+          normalizedPhone,
+        ],
       );
 
       const user = userResult.rows[0];
@@ -688,30 +792,30 @@ const register = async (req, res) => {
       await logAuditEvent({
         eventType: EVENT_TYPES.AUTH_REGISTER,
         userId: user.user_id,
-        action: 'User registration successful',
-        entityType: 'user',
+        action: "User registration successful",
+        entityType: "user",
         entityId: user.user_id,
         metadata: {
           ...auditContext.metadata,
           userId: user.user_id,
-          registrationDate: new Date().toISOString()
+          registrationDate: new Date().toISOString(),
         },
         ipAddress: auditContext.ipAddress,
         userAgent: auditContext.userAgent,
-        severity: SEVERITY.MEDIUM
+        severity: SEVERITY.MEDIUM,
       });
 
       // === SEND VERIFICATION (async) ===
       // Don't await - send in background
       sendEmailVerification(email, emailOtp).catch((err) =>
-        logger.logError(err, { context: "sendEmailVerification", email })
+        logger.logError(err, { context: "sendEmailVerification", email }),
       );
 
       sendPhoneVerification(normalizedPhone, phoneOtp).catch((err) =>
         logger.logError(err, {
           context: "sendPhoneVerification",
-          phone: normalizedPhone
-        })
+          phone: normalizedPhone,
+        }),
       );
 
       // === GENERATE TOKENS ===
@@ -722,14 +826,14 @@ const register = async (req, res) => {
       await pool.query(
         `INSERT INTO refresh_tokens (user_id, token, expires_at)
          VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
-        [user.user_id, refreshToken]
+        [user.user_id, refreshToken],
       );
 
       // === AUDIT LOG ===
       logger.logSecurityEvent("User registered", {
         userId: user.user_id,
         email: user.email,
-        ip: clientIP
+        ip: clientIP,
       });
 
       res.status(201).json({
@@ -742,30 +846,40 @@ const register = async (req, res) => {
             email: user.email,
             firstName: user.first_name,
             lastName: user.last_name,
-            phoneNumber: user.phone_number
+            phoneNumber: user.phone_number,
           },
           tokens: {
             accessToken,
             refreshToken,
-            expiresIn: SECURITY_CONFIG.JWT.ACCESS_TOKEN_EXPIRY
-          }
-        }
+            expiresIn: SECURITY_CONFIG.JWT.ACCESS_TOKEN_EXPIRY,
+          },
+        },
       });
     } catch (error) {
       await client.query("ROLLBACK");
       logger.logError(error, {
         context: "auth_register",
-        email: req.body?.email
+        email: req.body?.email,
       });
 
       res.status(500).json({
         success: false,
-        message: "Error registering user"
+        message: "Error registering user",
       });
     } finally {
       client.release();
     }
-  };
+  } catch (error) {
+    logger.logError(error, {
+      context: "register_outer",
+      email: req.body?.email,
+    });
+
+    res.status(500).json({
+      success: false,
+      message: "Registration service error",
+    });
+  }
 
   // ============================================================================
   // REFACTORED LOGIN ENDPOINT
@@ -775,11 +889,11 @@ const register = async (req, res) => {
     const { email, password } = req.body;
     const auditContext = {
       ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
+      userAgent: req.get("user-agent"),
       metadata: {
-        loginMethod: 'password',
-        email: email
-      }
+        loginMethod: "password",
+        email: email,
+      },
     };
 
     try {
@@ -787,13 +901,13 @@ const register = async (req, res) => {
       await logAuditEvent({
         eventType: EVENT_TYPES.AUTH_LOGIN_ATTEMPT,
         userId: null,
-        action: 'Login attempt',
-        entityType: 'user',
+        action: "Login attempt",
+        entityType: "user",
         entityId: email,
         metadata: auditContext.metadata,
         ipAddress: auditContext.ipAddress,
         userAgent: auditContext.userAgent,
-        severity: SEVERITY.MEDIUM
+        severity: SEVERITY.MEDIUM,
       });
 
       const clientIP = req.ip || req.connection.remoteAddress;
@@ -802,14 +916,14 @@ const register = async (req, res) => {
       const rateLimitKey = `login:${email}:${clientIP}`;
       const rateLimit = await RateLimiter.checkLimit(
         rateLimitKey,
-        SECURITY_CONFIG.LOGIN_ATTEMPTS
+        SECURITY_CONFIG.LOGIN_ATTEMPTS,
       );
 
       if (!rateLimit.allowed) {
         logger.logSecurityEvent("Account locked - too many login attempts", {
           email,
           ip: clientIP,
-          resetAt: rateLimit.resetAt
+          resetAt: rateLimit.resetAt,
         });
 
         return res.status(429).json({
@@ -818,26 +932,26 @@ const register = async (req, res) => {
             ? `Account temporarily locked due to too many failed attempts. Try again at ${rateLimit.resetAt.toISOString()}`
             : "Too many login attempts. Please try again later.",
           resetAt: rateLimit.resetAt,
-          attemptsRemaining: rateLimit.remaining
+          attemptsRemaining: rateLimit.remaining,
         });
       }
 
       // === FIND USER ===
       const result = await pool.query("SELECT * FROM users WHERE email = $1", [
-        email.toLowerCase()
+        email.toLowerCase(),
       ]);
 
       if (result.rows.length === 0) {
         logger.logSecurityEvent("Failed login - user not found", {
           email,
-          ip: clientIP
+          ip: clientIP,
         });
 
         // Don't reveal if user exists
         return res.status(401).json({
           success: false,
           message: "Invalid credentials",
-          attemptsRemaining: rateLimit.remaining - 1
+          attemptsRemaining: rateLimit.remaining - 1,
         });
       }
 
@@ -850,13 +964,13 @@ const register = async (req, res) => {
         logger.logSecurityEvent("Failed login - incorrect password", {
           userId: user.user_id,
           email,
-          ip: clientIP
+          ip: clientIP,
         });
 
         return res.status(401).json({
           success: false,
           message: "Invalid credentials",
-          attemptsRemaining: rateLimit.remaining - 1
+          attemptsRemaining: rateLimit.remaining - 1,
         });
       }
 
@@ -868,7 +982,7 @@ const register = async (req, res) => {
         return res.status(403).json({
           success: false,
           message: "Please verify your email address before logging in",
-          code: "EMAIL_NOT_VERIFIED"
+          code: "EMAIL_NOT_VERIFIED",
         });
       }
 
@@ -883,28 +997,28 @@ const register = async (req, res) => {
       await pool.query(
         `INSERT INTO refresh_tokens (user_id, token, expires_at)
          VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
-        [user.user_id, refreshToken]
+        [user.user_id, refreshToken],
       );
 
       // === UPDATE LAST LOGIN ===
       await pool.query(
         `UPDATE users SET last_login_at = NOW(), last_login_ip = $1 WHERE user_id = $2`,
-        [clientIP, user.user_id]
+        [clientIP, user.user_id],
       );
 
       // Log successful login
       await logAuditEvent({
         eventType: EVENT_TYPES.AUTH_LOGIN,
         userId: user.user_id,
-        action: 'User logged in',
-        entityType: 'user',
+        action: "User logged in",
+        entityType: "user",
         entityId: user.user_id,
         metadata: {
-          loginMethod: 'password'
+          loginMethod: "password",
         },
         ipAddress: auditContext.ipAddress,
         userAgent: auditContext.userAgent,
-        severity: SEVERITY.LOW
+        severity: SEVERITY.LOW,
       });
 
       // Return success response
@@ -916,40 +1030,200 @@ const register = async (req, res) => {
             email: user.email,
             firstName: user.first_name,
             lastName: user.last_name,
-            role: user.role
+            role: user.role,
           },
           tokens: {
             accessToken,
             refreshToken,
-            expiresIn: SECURITY_CONFIG.JWT.ACCESS_TOKEN_EXPIRY
-          }
-        }
+            expiresIn: SECURITY_CONFIG.JWT.ACCESS_TOKEN_EXPIRY,
+          },
+        },
       });
     } catch (error) {
       logger.logError(error, { context: "auth_login", email: req.body?.email });
-      
+
       // Log the error in audit log
       await logAuditEvent({
         eventType: EVENT_TYPES.AUTH_FAILED_LOGIN,
         userId: null,
-        action: 'Login error',
-        entityType: 'user',
+        action: "Login error",
+        entityType: "user",
         entityId: req.body?.email,
         metadata: {
           error: error.message,
-          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+          stack:
+            process.env.NODE_ENV === "development" ? error.stack : undefined,
         },
         ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-        severity: SEVERITY.HIGH
+        userAgent: req.get("user-agent"),
+        severity: SEVERITY.HIGH,
       });
 
       return res.status(500).json({
         success: false,
-        message: "Error logging in"
+        message: "Error logging in",
       });
     }
+  };
+
+  // ============================================================================
+  // EMAIL VERIFICATION ENDPOINT
+  // ============================================================================
+
+  const verifyEmail = async (req, res) => {
+    const { token } = req.body;
+    const userId = req.user?.user_id;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "Verification token is required",
+      });
+    }
+
+    try {
+      // Verify the email verification token
+      const decoded = TokenService.verify(token, "email_verification");
+
+      if (decoded.userId !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: "Invalid verification token",
+        });
+      }
+
+      // Update user's email verification status
+      await pool.query(
+        "UPDATE users SET email_verified = true, updated_at = NOW() WHERE user_id = $1",
+        [userId],
+      );
+
+      // Log successful verification
+      await logAuditEvent({
+        eventType: EVENT_TYPES.AUTH_EMAIL_VERIFIED,
+        userId: userId,
+        action: "Email verified",
+        entityType: "user",
+        entityId: userId,
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent"),
+        severity: SEVERITY.LOW,
+      });
+
+      res.json({
+        success: true,
+        message: "Email verified successfully",
+      });
+    } catch (error) {
+      logger.logError(error, {
+        context: "verifyEmail",
+        userId,
+        token: token.substring(0, 10) + "...",
+      });
+
+      res.status(400).json({
+        success: false,
+        message: "Invalid or expired verification token",
+      });
+    }
+  };
+
+  // ============================================================================
+  // PHONE VERIFICATION ENDPOINT
+  // ============================================================================
+
+  const verifyPhone = async (req, res) => {
+    const { otp } = req.body;
+    const userId = req.user?.user_id;
+
+    if (!otp) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP is required",
+      });
+    }
+
+    try {
+      // Verify the phone OTP
+      const result = await OTPService.verifyPhoneOTP(userId, otp);
+
+      if (!result.valid) {
+        return res.status(400).json({
+          success: false,
+          message: result.message || "Invalid OTP",
+        });
+      }
+
+      // Update user's phone verification status
+      await pool.query(
+        "UPDATE users SET phone_verified = true, updated_at = NOW() WHERE user_id = $1",
+        [userId],
+      );
+
+      // Log successful verification
+      await logAuditEvent({
+        eventType: EVENT_TYPES.AUTH_PHONE_VERIFIED,
+        userId: userId,
+        action: "Phone verified",
+        entityType: "user",
+        entityId: userId,
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent"),
+        severity: SEVERITY.LOW,
+      });
+
+      res.json({
+        success: true,
+        message: "Phone verified successfully",
+      });
+    } catch (error) {
+      logger.logError(error, { context: "verifyPhone", userId });
+
+      res.status(400).json({
+        success: false,
+        message: "Failed to verify phone number",
+      });
+    }
+  };
+};
+
+// Helper function to send email verification
+const sendEmailVerification = async (email, otp) => {
+  try {
+    // Generate email verification token
+    const token = TokenService.generateEmailVerificationToken(email);
+
+    // TODO: Implement actual email sending
+    // For now, just log the token (in production, use email service)
+    logger.info("Email verification token generated", {
+      email,
+      token: token.substring(0, 20) + "...",
+      otp: otp.substring(0, 4) + "...",
+    });
+
+    // In production, send actual email
+    // await emailService.sendVerificationEmail(email, token, otp);
+  } catch (error) {
+    logger.logError(error, { context: "sendEmailVerification", email });
   }
+};
+
+// Helper function to send phone verification
+const sendPhoneVerification = async (phone, otp) => {
+  try {
+    // TODO: Implement actual SMS sending
+    // For now, just log the OTP
+    logger.info("Phone verification OTP generated", {
+      phone: phone.replace(/(\d{3})\d{4}(\d{3})/, "$1****$2"),
+      otp: otp.substring(0, 2) + "**",
+    });
+
+    // In production, send actual SMS
+    // await smsService.sendVerificationSMS(phone, otp);
+  } catch (error) {
+    logger.logError(error, { context: "sendPhoneVerification", phone });
+  }
+};
 
 // ============================================================================
 // EXPORTS
@@ -958,6 +1232,8 @@ const register = async (req, res) => {
 module.exports = {
   register,
   login,
+  verifyEmail,
+  verifyPhone,
   // Export services for use in other controllers
   RateLimiter,
   OTPService,
@@ -966,5 +1242,5 @@ module.exports = {
   SECURITY_CONFIG,
   // Export constants for consistency
   EVENT_TYPES,
-  SEVERITY
+  SEVERITY,
 };

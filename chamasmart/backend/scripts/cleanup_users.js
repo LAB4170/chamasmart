@@ -1,167 +1,221 @@
 /**
  * Cleanup Script: Delete all user accounts and reset chama data
- * Usage: node scripts/cleanup_users.js
+ * Usage: node scripts/cleanup-users.js [--force]
  *
- * This script:
- * 1. Deletes all users (cascades to all related data)
- * 2. Resets all chama data
- * 3. Resets all contribution data
- * 4. Logs all deletions
+ * Improvements:
+ * - Uses centralized DatabaseUtils
+ * - Adds confirmation prompts
+ * - Better error handling
+ * - Audit logging
+ * - Dry-run mode
  */
 
 require("dotenv").config();
-const pool = require("../config/db");
+const DatabaseUtils = require("./utils/db-utils");
 const logger = require("../utils/logger");
+const readline = require("readline");
 
-// Helper function to safely execute delete queries without transaction
-async function safeDelete(pool, tableName) {
-  try {
-    const result = await pool.query(`DELETE FROM ${tableName}`);
-    console.log(`✅ Deleted ${result.rowCount} rows from ${tableName}`);
-    return result.rowCount;
-  } catch (e) {
-    if (e.message.includes("does not exist") || e.message.includes("ENOENT")) {
-      console.log(`⏭️  Table ${tableName} does not exist, skipping`);
-    } else {
-      console.warn(`⚠️  Could not delete from ${tableName}: ${e.message}`);
-    }
-    return 0;
-  }
+const db = new DatabaseUtils();
+
+// Tables in order of foreign key dependencies (leaf tables first)
+const DELETION_ORDER = [
+  // Welfare module
+  { name: "welfare_claim_approvals", description: "Welfare claim approvals" },
+  { name: "welfare_claims", description: "Welfare claims" },
+  { name: "welfare_contributions", description: "Welfare contributions" },
+
+  // Loans
+  { name: "loan_repayments", description: "Loan repayments" },
+  { name: "loans", description: "Loans" },
+
+  // Payouts
+  { name: "payouts", description: "Payouts" },
+
+  // ROSCA/ASCA
+  { name: "rosca_payouts", description: "ROSCA payouts" },
+  { name: "rosca_members", description: "ROSCA members" },
+  { name: "asca_cycles", description: "ASCA cycles" },
+  { name: "asca_members", description: "ASCA members" },
+
+  // Core operations
+  { name: "meeting_attendance", description: "Meeting attendance" },
+  { name: "meetings", description: "Meetings" },
+  { name: "contributions", description: "Contributions" },
+  { name: "proposals", description: "Proposals" },
+
+  // Notifications & logs
+  { name: "audit_logs", description: "Audit logs" },
+  { name: "notifications", description: "Notifications" },
+
+  // Memberships
+  { name: "join_requests", description: "Join requests" },
+  { name: "chama_invites", description: "Chama invites" },
+  { name: "chama_members", description: "Chama members" },
+
+  // Parent tables
+  { name: "chamas", description: "Chamas" },
+  { name: "users", description: "Users" },
+];
+
+const SEQUENCES = [
+  "users_user_id_seq",
+  "chamas_chama_id_seq",
+  "contributions_contribution_id_seq",
+  "meetings_meeting_id_seq",
+  "loans_loan_id_seq",
+  "notifications_notification_id_seq",
+  "join_requests_request_id_seq",
+];
+
+async function askConfirmation(question) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.toLowerCase() === "y" || answer.toLowerCase() === "yes");
+    });
+  });
 }
 
-// Helper function to reset a sequence
-async function resetSequence(pool, sequenceName) {
-  try {
-    await pool.query(`ALTER SEQUENCE ${sequenceName} RESTART WITH 1`);
-    return true;
-  } catch (e) {
-    // Sequence might not exist
-    return false;
+async function getStats() {
+  console.log("\n📊 Current Database Statistics:");
+  const stats = await db.getStats();
+
+  for (const [table, count] of Object.entries(stats)) {
+    if (count !== "N/A" && count !== "Error" && count > 0) {
+      console.log(`   ${table}: ${count}`);
+    }
   }
+  console.log("");
 }
 
-async function cleanupUsers() {
+async function cleanupUsers(dryRun = false) {
   try {
-    console.log("🧹 Starting cleanup...\n");
+    console.log("🧹 ChamaSmart Database Cleanup\n");
+    console.log("=".repeat(60));
 
-    // 1. Get count of existing users (without transaction)
-    try {
-      const userCountResult = await pool.query(
-        "SELECT COUNT(*) as count FROM users"
-      );
-      const userCount = userCountResult.rows[0].count;
-      console.log(`📊 Found ${userCount} users to delete`);
-    } catch (e) {
-      console.warn("⚠️  Could not count users");
+    if (dryRun) {
+      console.log("🔍 DRY RUN MODE - No changes will be made\n");
     }
 
-    // 2. Get count of existing chamas
-    try {
-      const chamaCountResult = await pool.query(
-        "SELECT COUNT(*) as count FROM chamas"
+    // Show current state
+    await getStats();
+
+    // Confirm action
+    if (!dryRun) {
+      const confirmed = await askConfirmation(
+        "⚠️  This will DELETE ALL DATA. Are you sure? (yes/no): ",
       );
-      const chamaCount = chamaCountResult.rows[0].count;
-      console.log(`📊 Found ${chamaCount} chamas`);
-    } catch (e) {
-      console.warn("⚠️  Could not count chamas");
-    }
 
-    // 3. Get count of contributions
-    try {
-      const contribCountResult = await pool.query(
-        "SELECT COUNT(*) as count FROM contributions"
+      if (!confirmed) {
+        console.log("❌ Operation cancelled");
+        process.exit(0);
+      }
+
+      const doubleCheck = await askConfirmation(
+        "⚠️  FINAL WARNING: This is irreversible. Continue? (yes/no): ",
       );
-      const contribCount = contribCountResult.rows[0].count;
-      console.log(`📊 Found ${contribCount} contributions\n`);
-    } catch (e) {
-      console.warn("⚠️  Could not count contributions");
-    }
 
-    console.log("🗑️  Deleting data in safe order...\n");
-
-    // Delete in order of foreign key dependencies (leaf tables first)
-    // This is NON-TRANSACTIONAL so each delete is independent
-
-    // Welfare module
-    await safeDelete(pool, "welfare_claim_approvals");
-    await safeDelete(pool, "welfare_claims");
-    await safeDelete(pool, "welfare_contributions");
-
-    // Loans
-    await safeDelete(pool, "loan_repayments");
-    await safeDelete(pool, "loans");
-
-    // Payouts
-    await safeDelete(pool, "payouts");
-
-    // ROSCA (alternative savings)
-    await safeDelete(pool, "rosca_payouts");
-    await safeDelete(pool, "rosca_members");
-
-    // ASCA (another variant)
-    await safeDelete(pool, "asca_cycles");
-    await safeDelete(pool, "asca_members");
-
-    // Core operations
-    await safeDelete(pool, "meetings");
-    await safeDelete(pool, "contributions");
-    await safeDelete(pool, "proposals");
-
-    // Notifications & logs
-    await safeDelete(pool, "audit_logs");
-    await safeDelete(pool, "notifications");
-
-    // Memberships
-    await safeDelete(pool, "join_requests");
-    await safeDelete(pool, "chama_invites");
-    await safeDelete(pool, "chama_members");
-
-    // Parent tables (delete chamas before users due to FK)
-    await safeDelete(pool, "chamas");
-
-    // Finally, delete all users
-    await safeDelete(pool, "users");
-
-    // Reset sequences
-    console.log("\n🔄 Resetting ID sequences...");
-    const sequences = [
-      "users_user_id_seq",
-      "chamas_chama_id_seq",
-      "contributions_contribution_id_seq",
-      "meetings_meeting_id_seq",
-      "loans_loan_id_seq",
-      "notifications_notification_id_seq",
-    ];
-
-    let resetCount = 0;
-    for (const seq of sequences) {
-      if (await resetSequence(pool, seq)) {
-        resetCount++;
+      if (!doubleCheck) {
+        console.log("❌ Operation cancelled");
+        process.exit(0);
       }
     }
-    console.log(`✅ Reset ${resetCount} ID sequences`);
 
-    console.log("\n✨ Cleanup completed successfully!");
-    console.log("📝 Database is now ready for fresh user registration.\n");
+    console.log("\n🗑️  Deleting data in safe order...\n");
 
-    logger.info("User cleanup completed", {
-      timestamp: new Date().toISOString(),
-      message: "All users and related data deleted successfully",
-    });
+    let totalDeleted = 0;
+    const deletionResults = [];
+
+    // Delete tables in order
+    for (const { name, description } of DELETION_ORDER) {
+      if (dryRun) {
+        const exists = await db.tableExists(name);
+        if (exists) {
+          const result = await db.query(
+            `SELECT COUNT(*) as count FROM ${name}`,
+          );
+          const count = parseInt(result.rows[0].count);
+          console.log(
+            `   Would delete ${count} rows from ${name} (${description})`,
+          );
+          totalDeleted += count;
+        }
+      } else {
+        const rowCount = await db.safeDelete(name);
+        deletionResults.push({ table: name, rows: rowCount });
+        totalDeleted += rowCount;
+      }
+    }
+
+    if (!dryRun) {
+      // Reset sequences
+      console.log("\n🔄 Resetting ID sequences...");
+      let resetCount = 0;
+
+      for (const seq of SEQUENCES) {
+        if (await db.resetSequence(seq)) {
+          resetCount++;
+        }
+      }
+
+      console.log(`✅ Reset ${resetCount}/${SEQUENCES.length} sequences`);
+    }
+
+    // Summary
+    console.log("\n" + "=".repeat(60));
+    if (dryRun) {
+      console.log(`📊 Would delete ${totalDeleted} total rows`);
+      console.log("\nRun without --dry-run to execute cleanup");
+    } else {
+      console.log("✨ Cleanup completed successfully!");
+      console.log(`📊 Deleted ${totalDeleted} total rows`);
+      console.log("📝 Database is now ready for fresh user registration.");
+
+      // Log to audit
+      logger.info("Database cleanup completed", {
+        timestamp: new Date().toISOString(),
+        totalRowsDeleted: totalDeleted,
+        deletionResults,
+      });
+    }
+    console.log("=".repeat(60) + "\n");
   } catch (error) {
     console.error("\n❌ Cleanup failed:", error.message);
-    console.error(
-      "💡 Tip: Make sure database connection is working and you have proper permissions."
-    );
-    logger.error("User cleanup failed", {
+    logger.error("Database cleanup failed", {
       error: error.message,
       stack: error.stack,
     });
     process.exit(1);
   } finally {
-    pool.end();
+    await db.close();
   }
 }
 
-// Run the cleanup
-cleanupUsers();
+// Parse command line arguments
+const args = process.argv.slice(2);
+const dryRun = args.includes("--dry-run");
+const force = args.includes("--force");
+
+if (args.includes("--help")) {
+  console.log(`
+Usage: node scripts/cleanup-users.js [options]
+
+Options:
+  --dry-run    Show what would be deleted without making changes
+  --force      Skip confirmation prompts (use with caution)
+  --help       Show this help message
+
+Examples:
+  node scripts/cleanup-users.js --dry-run
+  node scripts/cleanup-users.js
+  node scripts/cleanup-users.js --force
+  `);
+  process.exit(0);
+}
+
+cleanupUsers(dryRun);

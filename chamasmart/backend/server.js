@@ -165,9 +165,6 @@ app.get("/api/ping", (req, res) =>
 // Legacy auth routes (existing)
 app.use("/api/auth", require("./routes/auth"));
 
-// NEW: Multi-option auth routes (Email OTP, Phone OTP, Google OAuth, API Keys)
-app.use("/api/auth/v2", require("./routes/authV2"));
-
 app.use("/api/chamas", require("./routes/chamas"));
 app.use("/api/members", require("./routes/members"));
 app.use("/api/contributions", require("./routes/contributions"));

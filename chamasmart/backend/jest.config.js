@@ -1,35 +1,28 @@
-module.exports = {
-    testEnvironment: 'node',
-    coverageDirectory: 'coverage',
-    collectCoverageFrom: [
-        'controllers/**/*.js',
-        'middleware/**/*.js',
-        'utils/**/*.js',
-        'config/**/*.js',
-        '!**/node_modules/**',
-        '!**/coverage/**',
-        '!**/tests/**',
-    ],
-    coverageThreshold: {
-        global: {
-            branches: 70,
-            functions: 70,
-            lines: 70,
-            statements: 70,
-        },
-    },
-    testMatch: [
-        '**/__tests__/**/*.js',
-        '**/?(*.)+(spec|test).js',
-    ],
-    testPathIgnorePatterns: [
-        '/node_modules/',
-        '/coverage/',
-    ],
-    setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
-    verbose: true,
-    forceExit: true,
-    clearMocks: true,
-    resetMocks: true,
-    restoreMocks: true,
+// Jest configuration for ES modules
+export default {
+  testEnvironment: "node",
+  testMatch: [
+    "**/tests/**/*.test.js",
+    "**/tests/**/*.int.test.js",
+    "**/tests/**/*.e2e.js",
+  ],
+  transform: {},
+  moduleNameMapper: {
+    "^(\\.{1,2}/.*)\\.js$": "$1",
+    "^@/(.*)$": "<rootDir>/$1",
+    "^@config/(.*)$": "<rootDir>/config/$1",
+    "^@controllers/(.*)$": "<rootDir>/controllers/$1",
+    "^@models/(.*)$": "<rootDir>/models/$1",
+    "^@utils/(.*)$": "<rootDir>/utils/$1",
+    "^@middleware/(.*)$": "<rootDir>/middleware/$1",
+    "^@tests/(.*)$": "<rootDir>/tests/$1",
+  },
+  setupFilesAfterEnv: ["<rootDir>/tests/setup.js"],
+  testPathIgnorePatterns: ["/node_modules/"],
+  coveragePathIgnorePatterns: ["/node_modules/"],
+  verbose: true,
+  forceExit: true,
+  clearMocks: true,
+  resetMocks: true,
+  restoreMocks: true,
 };

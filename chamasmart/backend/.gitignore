@@ -1,9 +1,14 @@
-
 # Logs
 logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Debug and test output files
+*.txt
+!README.md
+!LICENSE.md
 
 
 # Added by Phase 1 Security Fix

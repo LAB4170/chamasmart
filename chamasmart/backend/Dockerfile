@@ -13,8 +13,8 @@ RUN npm install --legacy-peer-deps
 # Copy source code
 COPY . .
 
-# Expose port
-EXPOSE 5000
+# Expose port (matches backend PORT=5005)
+EXPOSE 5005
 
-# Start command (dev mode for hot reload)
-CMD [ "npm", "run", "dev" ]
+# Start command (use environment to determine mode)
+CMD [ "sh", "-c", "if [ \"$NODE_ENV\" = \"production\" ]; then npm start; else npm run dev; fi" ]

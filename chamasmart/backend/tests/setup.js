@@ -1,71 +1,32 @@
 // Test setup file
+import { jest } from "@jest/globals";
+
+// Set test environment variables
 process.env.NODE_ENV = "test";
+process.env.JWT_SECRET =
+  "test_jwt_secret_8113dd7319b6769718fa08b1f1c589cb8e230528cb32186ab6293a64fcf8137cfe964abb869a0fa999f62fa621afdf80f824dd31445cff3cf7f93916ecc2db493";
+process.env.DATABASE_URL =
+  "postgresql://test:test@localhost:5432/chamasmart_test";
 
-// Require crypto early so it can be used to generate test secrets
-const crypto = require("crypto");
-
-// Use environment variables for secrets, with fallback to test-safe values
-process.env.JWT_SECRET_V1 =
-  process.env.JWT_SECRET_V1 ||
-  "test-jwt-secret-v1-" + crypto.randomBytes(16).toString("hex");
-process.env.JWT_SECRET_V2 =
-  process.env.JWT_SECRET_V2 ||
-  "test-jwt-secret-v2-" + crypto.randomBytes(16).toString("hex");
-process.env.SESSION_SECRET =
-  process.env.SESSION_SECRET ||
-  "test-session-secret-" + crypto.randomBytes(16).toString("hex");
-process.env.ENCRYPTION_KEY =
-  process.env.ENCRYPTION_KEY || Buffer.alloc(32).toString("base64");
-
-// Database test configuration
-process.env.DB_HOST = process.env.DB_HOST || "localhost";
-process.env.DB_NAME = process.env.DB_NAME || "chamasmart_test";
-process.env.DB_USER = process.env.DB_USER || "postgres";
-process.env.DB_PASSWORD = process.env.DB_PASSWORD || "test";
-process.env.DB_PORT = process.env.DB_PORT || "5432";
-
-// Other test config
-process.env.REDIS_HOST = process.env.REDIS_HOST || "localhost";
-process.env.REDIS_PORT = process.env.REDIS_PORT || "6379";
-process.env.REDIS_PASSWORD = process.env.REDIS_PASSWORD || "";
-
-// Metrics test token (for tests only)
-process.env.METRICS_AUTH_TOKEN =
-  process.env.METRICS_AUTH_TOKEN ||
-  "test-metrics-token-" + crypto.randomBytes(16).toString("hex");
-
-// Mock logger to reduce noise in tests
-jest.mock("../utils/logger", () => ({
-  info: jest.fn(),
-  error: jest.fn(),
-  warn: jest.fn(),
-  debug: jest.fn(),
-  logRequest: jest.fn(),
-  logError: jest.fn(),
-  logDatabaseQuery: jest.fn(),
-  logSecurityEvent: jest.fn(),
+// Mock database connection
+jest.mock("../config/db.js", () => ({
+  query: jest.fn(() => Promise.resolve({ rows: [] })),
+  connect: jest.fn(() => Promise.resolve()),
+  end: jest.fn(() => Promise.resolve()),
 }));
 
-// Mock database - using __mocks__/db.js
-jest.mock("../config/db");
+// Global test setup
+beforeEach(() => {
+  // Clear all mocks before each test
+  jest.clearAllMocks();
 
-// Global afterAll to close server
-afterAll(async () => {
-  // Close any open servers
-  try {
-    const serverModule = require("../server");
-    if (serverModule && serverModule.server) {
-      await new Promise((resolve, reject) => {
-        serverModule.server.close((err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-    }
-  } catch (err) {
-    // Ignore errors if server wasn't started
-  }
+  // Add any other global test setup here
 });
 
-// Global test timeout
-jest.setTimeout(10000);
+afterAll(async () => {
+  // Cleanup after all tests
+  jest.resetAllMocks();
+});
+
+// Global test utilities
+global.sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

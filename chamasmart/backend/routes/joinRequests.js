@@ -1,40 +1,70 @@
 const express = require("express");
 const router = express.Router();
-const { protect, isOfficial } = require("../middleware/auth");
+const { protect, authorize } = require("../middleware/auth");
 const {
   requestToJoin,
   getJoinRequests,
   respondToRequest,
   getMyRequests,
+  cancelRequest,
 } = require("../controllers/joinRequestController");
-
 const validate = require("../middleware/validate");
 const {
   requestToJoinSchema,
   respondToJoinRequestSchema,
 } = require("../utils/validationSchemas");
+const { applyRateLimiting } = require("../middleware/rateLimiting");
 
-// IMPORTANT: Specific routes MUST come BEFORE parameterized routes
+// ============================================================================
+// ALL ROUTES REQUIRE AUTHENTICATION
+// ============================================================================
+
+router.use(protect);
+
+// ============================================================================
+// IMPORTANT: SPECIFIC ROUTES MUST COME BEFORE PARAMETERIZED ROUTES
 // /my-requests must come before /:chamaId to prevent route shadowing
+// ============================================================================
 
-// User's specific routes (FIRST - most specific)
-router.get("/my-requests", protect, getMyRequests);
+// ============================================================================
+// USER-SPECIFIC ROUTES (FIRST - most specific)
+// ============================================================================
+
+// Get current user's join requests across all chamas
+router.get("/my-requests", getMyRequests);
+
+// Cancel own join request
+router.delete("/:requestId/cancel", cancelRequest);
+
+// ============================================================================
+// RESPONDING TO JOIN REQUESTS (Officials only)
+// ============================================================================
+
+// Respond to join request (approve/reject)
 router.put(
   "/:requestId/respond",
-  protect,
+  authorize("admin", "treasurer", "chairperson"),
   validate(respondToJoinRequestSchema),
-  respondToRequest
+  respondToRequest,
 );
 
-// Chama-specific routes (parameterized)
+// ============================================================================
+// CHAMA-SPECIFIC ROUTES (Parameterized - come after specific routes)
+// ============================================================================
+
+// Submit join request to a chama (with rate limiting)
 router.post(
   "/:chamaId/request",
-  protect,
+  applyRateLimiting,
   validate(requestToJoinSchema),
-  requestToJoin
+  requestToJoin,
 );
 
-// Official routes
-router.get("/:chamaId", protect, isOfficial, getJoinRequests);
+// Get all join requests for a chama (officials only)
+router.get(
+  "/:chamaId",
+  authorize("admin", "treasurer", "chairperson"),
+  getJoinRequests,
+);
 
 module.exports = router;

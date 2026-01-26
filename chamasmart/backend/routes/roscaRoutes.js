@@ -1,42 +1,125 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize } = require("../middleware/auth");
 const {
-    createCycle,
-    getChamaCycles,
-    getCycleRoster,
-    processPayout,
-    requestPositionSwap,
-    respondToSwapRequest,
-    getSwapRequests
-} = require('../controllers/roscaController');
+  createCycle,
+  getChamaCycles,
+  getCycleById,
+  deleteCycle,
+  getCycleRoster,
+  processPayout,
+  requestPositionSwap,
+  respondToSwapRequest,
+  getSwapRequests,
+  updateCycleRoster,
+} = require("../controllers/roscaController");
+const validate = require("../middleware/validate");
+const {
+  createCycleSchema,
+  processPayoutSchema,
+  requestPositionSwapSchema,
+  respondToSwapRequestSchema,
+  updateCycleRosterSchema,
+} = require("../utils/validationSchemas");
+const {
+  applyFinancialRateLimiting,
+  applyRateLimiting,
+} = require("../middleware/rateLimiting");
 
-// All routes are protected and require authentication
+// ============================================================================
+// ALL ROUTES REQUIRE AUTHENTICATION
+// ============================================================================
+
 router.use(protect);
 
-// Chama cycles
-router.route('/chama/:chamaId/cycles')
-    .get(authorize('MEMBER'), getChamaCycles)
-    .post(authorize('ADMIN', 'TREASURER'), createCycle);
+// ============================================================================
+// ROSCA CYCLE MANAGEMENT
+// ============================================================================
 
-router.delete('/cycles/:cycleId', authorize('ADMIN', 'TREASURER'), require('../controllers/roscaController').deleteCycle);
+// Get all cycles for a chama
+router.get(
+  "/chama/:chamaId/cycles",
+  authorize("member", "admin", "treasurer", "chairperson"),
+  getChamaCycles,
+);
 
-// Cycle roster
-router.get('/cycles/:cycleId/roster', authorize('MEMBER'), getCycleRoster);
+// Create new ROSCA cycle (officials only)
+router.post(
+  "/chama/:chamaId/cycles",
+  authorize("admin", "treasurer", "chairperson"),
+  applyRateLimiting,
+  validate(createCycleSchema),
+  createCycle,
+);
 
-// Payouts
-router.post('/cycles/:cycleId/payout', authorize('TREASURER'), processPayout);
+// Get specific cycle by ID
+router.get(
+  "/cycles/:cycleId",
+  authorize("member", "admin", "treasurer", "chairperson"),
+  getCycleById,
+);
 
-// Swap requests
-router.route('/cycles/:cycleId/swap-request')
-    .post(authorize('MEMBER'), requestPositionSwap);
+// Delete cycle (admin only)
+router.delete("/cycles/:cycleId", authorize("admin", "treasurer"), deleteCycle);
 
-router.route('/swap-requests')
-    .get(authorize('MEMBER'), getSwapRequests);
+// ============================================================================
+// CYCLE ROSTER MANAGEMENT
+// ============================================================================
 
-router.put('/swap-requests/:requestId/respond',
-    authorize('MEMBER'),
-    respondToSwapRequest
+// Get cycle roster (payout order)
+router.get(
+  "/cycles/:cycleId/roster",
+  authorize("member", "admin", "treasurer", "chairperson"),
+  getCycleRoster,
+);
+
+// Update cycle roster (officials only)
+router.put(
+  "/cycles/:cycleId/roster",
+  authorize("admin", "treasurer", "chairperson"),
+  validate(updateCycleRosterSchema),
+  updateCycleRoster,
+);
+
+// ============================================================================
+// PAYOUT PROCESSING
+// ============================================================================
+
+// Process payout for current cycle position (treasurer only)
+router.post(
+  "/cycles/:cycleId/payout",
+  authorize("treasurer", "admin"),
+  applyFinancialRateLimiting,
+  validate(processPayoutSchema),
+  processPayout,
+);
+
+// ============================================================================
+// POSITION SWAP REQUESTS
+// ============================================================================
+
+// Request position swap with another member
+router.post(
+  "/cycles/:cycleId/swap-request",
+  authorize("member", "admin", "treasurer", "chairperson"),
+  applyRateLimiting,
+  validate(requestPositionSwapSchema),
+  requestPositionSwap,
+);
+
+// Get all swap requests (for user or chama)
+router.get(
+  "/swap-requests",
+  authorize("member", "admin", "treasurer", "chairperson"),
+  getSwapRequests,
+);
+
+// Respond to swap request (accept/reject)
+router.put(
+  "/swap-requests/:requestId/respond",
+  authorize("member", "admin", "treasurer", "chairperson"),
+  validate(respondToSwapRequestSchema),
+  respondToSwapRequest,
 );
 
 module.exports = router;

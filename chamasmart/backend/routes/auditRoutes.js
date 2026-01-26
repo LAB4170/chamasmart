@@ -8,26 +8,27 @@ const {
   getChamaSummary,
   exportChamaLogs,
 } = require("../controllers/auditController");
+const { applyRateLimiting } = require("../middleware/rateLimiting");
 
 // ============================================================================
-// ROUTES WITH AUTHENTICATION & AUTHORIZATION
+// AUDIT LOG ROUTES WITH AUTHENTICATION & AUTHORIZATION
 // ============================================================================
 
-// User's own audit logs (user can see their own, admin can see any)
-router.get("/users/:userId", protect, getUserLogs);
+// User's own audit logs (users can see their own, admins can see any)
+router.get("/users/:userId", protect, applyRateLimiting, getUserLogs);
 
-// Chama audit logs (chama members can view)
+// Chama audit logs (chama members and officials can view)
 router.get(
   "/chamas/:chamaId",
   protect,
-  authorize("member", "admin"),
+  authorize("member", "admin", "treasurer", "chairperson"),
   getChamaLogs,
 );
 
-// Security events (admin only)
+// Security events (admin only - critical security monitoring)
 router.get("/security", protect, authorize("admin"), getSecurityLogs);
 
-// Chama audit summary (chama officials)
+// Chama audit summary (chama officials only)
 router.get(
   "/chamas/:chamaId/summary",
   protect,
@@ -35,11 +36,12 @@ router.get(
   getChamaSummary,
 );
 
-// Export chama logs (treasurer/chairperson only)
+// Export chama logs (officials only - with rate limiting to prevent abuse)
 router.get(
   "/chamas/:chamaId/export",
   protect,
   authorize("treasurer", "chairperson", "admin"),
+  applyRateLimiting,
   exportChamaLogs,
 );
 

@@ -21,12 +21,13 @@ try {
     file: () => ({
       createWriteStream: () => ({
         on: (event, cb) => {
-          if (event === 'error') setTimeout(() => cb(new Error("GCS not configured")), 10);
+          if (event === "error")
+            setTimeout(() => cb(new Error("GCS not configured")), 10);
         },
-        end: () => { }
+        end: () => {},
       }),
-      delete: async () => true
-    })
+      delete: async () => true,
+    }),
   };
 }
 
@@ -41,7 +42,7 @@ const uploadToStorage = async (file, destinationPath) => {
     // Generate a unique filename
     const extension = path.extname(file.originalname);
     const filename = `${Date.now()}-${Math.round(
-      Math.random() * 1e9
+      Math.random() * 1e9,
     )}${extension}`;
     const destination = `${destinationPath}/${filename}`;
 
@@ -94,7 +95,7 @@ const deleteFromStorage = async (fileUrl) => {
     // Extract the file path from the URL
     const filePath = fileUrl.replace(
       `https://storage.googleapis.com/${bucketName}/`,
-      ""
+      "",
     );
 
     await bucket.file(filePath).delete();

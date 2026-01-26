@@ -17,5 +17,5 @@ COPY . .
 EXPOSE 5173
 EXPOSE 4173
 
-# Start command (dev mode with host binding)
-CMD [ "npm", "run", "dev", "--", "--host" ]
+# Start command (use environment to determine mode)
+CMD [ "sh", "-c", "if [ \"$NODE_ENV\" = \"production\" ]; then npm run build && npm run preview -- --host 0.0.0.0; else npm run dev -- --host 0.0.0.0; fi" ]

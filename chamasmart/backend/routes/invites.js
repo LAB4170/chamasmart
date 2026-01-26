@@ -1,27 +1,73 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 const {
-    generateInvite,
-    joinWithInvite,
-    getChamaInvites,
-    deactivateInvite,
-    sendInvite
-} = require('../controllers/inviteController');
-const { protect, isOfficial } = require('../middleware/auth');
+  generateInvite,
+  joinWithInvite,
+  getChamaInvites,
+  deactivateInvite,
+  sendInvite,
+} = require("../controllers/inviteController");
+const { protect, authorize } = require("../middleware/auth");
+const validate = require("../middleware/validate");
+const {
+  generateInviteSchema,
+  sendInviteSchema,
+  joinWithInviteSchema,
+} = require("../utils/validationSchemas");
+const { applyRateLimiting } = require("../middleware/rateLimiting");
 
-// Generate invite (Officials only)
-router.post('/:chamaId/generate', protect, isOfficial, generateInvite);
+// ============================================================================
+// ALL ROUTES REQUIRE AUTHENTICATION
+// ============================================================================
 
-// Send invite via email (Officials only)
-router.post('/:chamaId/send', protect, isOfficial, sendInvite);
+router.use(protect);
 
-// Join with invite code (Any logged-in user)
-router.post('/join', protect, joinWithInvite);
+// ============================================================================
+// INVITE GENERATION (Officials only)
+// ============================================================================
 
-// Get chama invites (Officials only)
-router.get('/:chamaId', protect, isOfficial, getChamaInvites);
+// Generate new invite code
+router.post(
+  "/:chamaId/generate",
+  authorize("admin", "treasurer", "chairperson"),
+  applyRateLimiting,
+  validate(generateInviteSchema),
+  generateInvite,
+);
 
-// Deactivate invite (Officials only)
-router.delete('/:inviteId', protect, isOfficial, deactivateInvite);
+// Send invite via email/SMS
+router.post(
+  "/:chamaId/send",
+  authorize("admin", "treasurer", "chairperson"),
+  applyRateLimiting,
+  validate(sendInviteSchema),
+  sendInvite,
+);
+
+// Get all invites for a chama
+router.get(
+  "/:chamaId",
+  authorize("admin", "treasurer", "chairperson"),
+  getChamaInvites,
+);
+
+// Deactivate/revoke an invite
+router.delete(
+  "/:inviteId",
+  authorize("admin", "treasurer", "chairperson"),
+  deactivateInvite,
+);
+
+// ============================================================================
+// JOINING WITH INVITE (Any authenticated user)
+// ============================================================================
+
+// Join chama using invite code
+router.post(
+  "/join",
+  applyRateLimiting,
+  validate(joinWithInviteSchema),
+  joinWithInvite,
+);
 
 module.exports = router;
