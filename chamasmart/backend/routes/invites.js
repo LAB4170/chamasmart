@@ -1,4 +1,5 @@
-const express = require("express");
+const express = require('express');
+
 const router = express.Router();
 const {
   generateInvite,
@@ -6,15 +7,15 @@ const {
   getChamaInvites,
   deactivateInvite,
   sendInvite,
-} = require("../controllers/inviteController");
-const { protect, authorize } = require("../middleware/auth");
-const validate = require("../middleware/validate");
+} = require('../controllers/inviteController');
+const { protect, authorize } = require('../middleware/auth');
+const validate = require('../middleware/validate');
 const {
   generateInviteSchema,
   sendInviteSchema,
   joinWithInviteSchema,
-} = require("../utils/validationSchemas");
-const { applyRateLimiting } = require("../middleware/rateLimiting");
+} = require('../utils/validationSchemas');
+const { applyRateLimiting } = require('../middleware/rateLimiting');
 
 // ============================================================================
 // ALL ROUTES REQUIRE AUTHENTICATION
@@ -28,8 +29,8 @@ router.use(protect);
 
 // Generate new invite code
 router.post(
-  "/:chamaId/generate",
-  authorize("admin", "treasurer", "chairperson"),
+  '/:chamaId/generate',
+  authorize('admin', 'treasurer', 'chairperson'),
   applyRateLimiting,
   validate(generateInviteSchema),
   generateInvite,
@@ -37,8 +38,8 @@ router.post(
 
 // Send invite via email/SMS
 router.post(
-  "/:chamaId/send",
-  authorize("admin", "treasurer", "chairperson"),
+  '/:chamaId/send',
+  authorize('admin', 'treasurer', 'chairperson'),
   applyRateLimiting,
   validate(sendInviteSchema),
   sendInvite,
@@ -46,15 +47,15 @@ router.post(
 
 // Get all invites for a chama
 router.get(
-  "/:chamaId",
-  authorize("admin", "treasurer", "chairperson"),
+  '/:chamaId',
+  authorize('admin', 'treasurer', 'chairperson'),
   getChamaInvites,
 );
 
 // Deactivate/revoke an invite
 router.delete(
-  "/:inviteId",
-  authorize("admin", "treasurer", "chairperson"),
+  '/:inviteId',
+  authorize('admin', 'treasurer', 'chairperson'),
   deactivateInvite,
 );
 
@@ -64,7 +65,7 @@ router.delete(
 
 // Join chama using invite code
 router.post(
-  "/join",
+  '/join',
   applyRateLimiting,
   validate(joinWithInviteSchema),
   joinWithInvite,

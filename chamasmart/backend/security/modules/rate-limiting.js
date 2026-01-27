@@ -10,19 +10,19 @@
  * - Easy to test and maintain
  */
 
-const rateLimit = require("express-rate-limit");
-const logger = require("../../utils/logger");
+const rateLimit = require('express-rate-limit');
+const logger = require('../../utils/logger');
 
 // Optional Redis support
 let RedisStore = null;
 let redisClient = null;
 
 try {
-  RedisStore = require("rate-limit-redis");
-  const Redis = require("ioredis");
+  RedisStore = require('rate-limit-redis');
+  const Redis = require('ioredis');
 
   redisClient = new Redis({
-    host: process.env.REDIS_HOST || "localhost",
+    host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT) || 6379,
     password: process.env.REDIS_PASSWORD,
     enableOfflineQueue: false,
@@ -30,16 +30,16 @@ try {
     lazyConnect: true,
   });
 
-  redisClient.on("error", (err) => {
-    logger.warn("Redis rate limiting unavailable", { error: err.message });
+  redisClient.on('error', err => {
+    logger.warn('Redis rate limiting unavailable', { error: err.message });
     redisClient = null;
   });
 
-  redisClient.on("connect", () => {
-    logger.info("Redis rate limiting active");
+  redisClient.on('connect', () => {
+    logger.info('Redis rate limiting active');
   });
 } catch (error) {
-  logger.info("Rate limiting using in-memory store (Redis not available)");
+  logger.info('Rate limiting using in-memory store (Redis not available)');
 }
 
 /**
@@ -52,14 +52,14 @@ function createStore(prefix) {
 
   try {
     // Handle different versions of rate-limit-redis
-    if (typeof RedisStore === "function") {
+    if (typeof RedisStore === 'function') {
       return new RedisStore({ client: redisClient, prefix });
-    } else if (RedisStore.default) {
+    } if (RedisStore.default) {
       return new RedisStore.default({ client: redisClient, prefix });
     }
     return RedisStore({ client: redisClient, prefix });
   } catch (error) {
-    logger.warn("Failed to create Redis store, using memory", {
+    logger.warn('Failed to create Redis store, using memory', {
       error: error.message,
     });
     return undefined;
@@ -75,21 +75,21 @@ const RATE_LIMITS = {
   login: {
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 5,
-    message: "Too many login attempts. Please try again in 15 minutes.",
+    message: 'Too many login attempts. Please try again in 15 minutes.',
     skipSuccessfulRequests: false,
   },
 
   registration: {
     windowMs: 60 * 60 * 1000, // 1 hour
     max: 3,
-    message: "Too many registration attempts. Please try again in 1 hour.",
+    message: 'Too many registration attempts. Please try again in 1 hour.',
     skipSuccessfulRequests: false,
   },
 
   passwordReset: {
     windowMs: 60 * 60 * 1000, // 1 hour
     max: 3,
-    message: "Too many password reset attempts. Please try again in 1 hour.",
+    message: 'Too many password reset attempts. Please try again in 1 hour.',
     skipSuccessfulRequests: false,
   },
 
@@ -97,14 +97,14 @@ const RATE_LIMITS = {
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 5,
     message:
-      "Too many OTP verification attempts. Please try again in 15 minutes.",
+      'Too many OTP verification attempts. Please try again in 15 minutes.',
     skipSuccessfulRequests: false,
   },
 
   otpResend: {
     windowMs: 60 * 1000, // 1 minute
     max: 1,
-    message: "Please wait 1 minute before requesting another OTP.",
+    message: 'Please wait 1 minute before requesting another OTP.',
     skipSuccessfulRequests: true,
   },
 
@@ -113,14 +113,14 @@ const RATE_LIMITS = {
     windowMs: 10 * 60 * 1000, // 10 minutes
     max: 20,
     message:
-      "Too many financial transactions. Please wait before trying again.",
+      'Too many financial transactions. Please wait before trying again.',
     skipSuccessfulRequests: true,
   },
 
   loanApplication: {
     windowMs: 24 * 60 * 60 * 1000, // 24 hours
     max: 5,
-    message: "Too many loan applications. Maximum 5 per day.",
+    message: 'Too many loan applications. Maximum 5 per day.',
     skipSuccessfulRequests: false,
   },
 
@@ -128,7 +128,7 @@ const RATE_LIMITS = {
   apiGeneral: {
     windowMs: 60 * 1000, // 1 minute
     max: 100,
-    message: "Too many API requests. Please slow down.",
+    message: 'Too many API requests. Please slow down.',
     skipSuccessfulRequests: true,
   },
 
@@ -136,7 +136,7 @@ const RATE_LIMITS = {
   dataExport: {
     windowMs: 24 * 60 * 60 * 1000, // 24 hours
     max: 5,
-    message: "Too many data export requests. Maximum 5 per day.",
+    message: 'Too many data export requests. Maximum 5 per day.',
     skipSuccessfulRequests: false,
   },
 
@@ -144,7 +144,7 @@ const RATE_LIMITS = {
   search: {
     windowMs: 60 * 1000, // 1 minute
     max: 30,
-    message: "Too many search requests.",
+    message: 'Too many search requests.',
     skipSuccessfulRequests: true,
   },
 };
@@ -170,9 +170,9 @@ function createRateLimiter(name, customConfig = {}) {
     standardHeaders: true,
     legacyHeaders: false,
     skipSuccessfulRequests: config.skipSuccessfulRequests,
-    skip: (req) => {
+    skip: req => {
       // Skip in test environment
-      if (process.env.NODE_ENV === "test") {
+      if (process.env.NODE_ENV === 'test') {
         return true;
       }
       return false;
@@ -182,7 +182,7 @@ function createRateLimiter(name, customConfig = {}) {
   };
 
   // Add custom handler for important endpoints
-  if (["login", "registration", "passwordReset"].includes(name)) {
+  if (['login', 'registration', 'passwordReset'].includes(name)) {
     limiterConfig.handler = (req, res) => {
       logger.warn(`Rate limit exceeded: ${name}`, {
         ip: req.ip,
@@ -207,20 +207,16 @@ function createRateLimiter(name, customConfig = {}) {
  */
 const keyGenerators = {
   // For login - use email if available, otherwise IP
-  login: (req) => {
-    const email = req.body?.email || "";
+  login: req => {
+    const email = req.body?.email || '';
     return `login:${email}:${req.ip}`;
   },
 
   // For authenticated endpoints - use user ID
-  authenticated: (req) => {
-    return `user:${req.user?.user_id || "anonymous"}:${req.ip}`;
-  },
+  authenticated: req => `user:${req.user?.user_id || 'anonymous'}:${req.ip}`,
 
   // For IP-based limiting
-  ip: (req) => {
-    return req.ip;
-  },
+  ip: req => req.ip,
 };
 
 /**
@@ -228,62 +224,58 @@ const keyGenerators = {
  */
 module.exports = {
   // Authentication
-  loginLimiter: createRateLimiter("login", {
+  loginLimiter: createRateLimiter('login', {
     keyGenerator: keyGenerators.login,
   }),
 
-  registerLimiter: createRateLimiter("registration", {
+  registerLimiter: createRateLimiter('registration', {
     keyGenerator: keyGenerators.ip,
   }),
 
-  passwordResetLimiter: createRateLimiter("passwordReset", {
+  passwordResetLimiter: createRateLimiter('passwordReset', {
     keyGenerator: keyGenerators.login,
   }),
 
-  otpVerificationLimiter: createRateLimiter("otpVerification", {
+  otpVerificationLimiter: createRateLimiter('otpVerification', {
     keyGenerator: keyGenerators.authenticated,
   }),
 
-  otpResendLimiter: createRateLimiter("otpResend", {
+  otpResendLimiter: createRateLimiter('otpResend', {
     keyGenerator: keyGenerators.authenticated,
   }),
 
   // Financial
-  financialTransactionLimiter: createRateLimiter("financialTransaction", {
+  financialTransactionLimiter: createRateLimiter('financialTransaction', {
     keyGenerator: keyGenerators.authenticated,
   }),
 
-  loanApplicationLimiter: createRateLimiter("loanApplication", {
+  loanApplicationLimiter: createRateLimiter('loanApplication', {
     keyGenerator: keyGenerators.authenticated,
   }),
 
   // General
-  apiLimiter: createRateLimiter("apiGeneral", {
+  apiLimiter: createRateLimiter('apiGeneral', {
     keyGenerator: keyGenerators.authenticated,
   }),
 
-  dataExportLimiter: createRateLimiter("dataExport", {
+  dataExportLimiter: createRateLimiter('dataExport', {
     keyGenerator: keyGenerators.authenticated,
   }),
 
-  searchLimiter: createRateLimiter("search", {
+  searchLimiter: createRateLimiter('search', {
     keyGenerator: keyGenerators.authenticated,
   }),
 
   // Utility functions
-  createCustomLimiter: (config) => {
-    return rateLimit({
-      ...config,
-      store: createStore("rl:custom:"),
-      standardHeaders: true,
-      legacyHeaders: false,
-    });
-  },
+  createCustomLimiter: config => rateLimit({
+    ...config,
+    store: createStore('rl:custom:'),
+    standardHeaders: true,
+    legacyHeaders: false,
+  }),
 
   // Get current config
-  getConfig: (name) => {
-    return RATE_LIMITS[name];
-  },
+  getConfig: name => RATE_LIMITS[name],
 
   // Update config (for testing/admin)
   updateConfig: (name, updates) => {
@@ -294,12 +286,10 @@ module.exports = {
   },
 
   // Health check
-  healthCheck: async () => {
-    return {
-      redisAvailable: !!redisClient,
-      redisConnected: redisClient?.status === "ready",
-      configuredLimits: Object.keys(RATE_LIMITS),
-      timestamp: new Date().toISOString(),
-    };
-  },
+  healthCheck: async () => ({
+    redisAvailable: !!redisClient,
+    redisConnected: redisClient?.status === 'ready',
+    configuredLimits: Object.keys(RATE_LIMITS),
+    timestamp: new Date().toISOString(),
+  }),
 };

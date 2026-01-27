@@ -10,61 +10,61 @@
  * - Dry-run mode
  */
 
-require("dotenv").config();
-const DatabaseUtils = require("./utils/db-utils");
-const logger = require("../utils/logger");
-const readline = require("readline");
+require('dotenv').config();
+const readline = require('readline');
+const DatabaseUtils = require('./utils/db-utils');
+const logger = require('../utils/logger');
 
 const db = new DatabaseUtils();
 
 // Tables in order of foreign key dependencies (leaf tables first)
 const DELETION_ORDER = [
   // Welfare module
-  { name: "welfare_claim_approvals", description: "Welfare claim approvals" },
-  { name: "welfare_claims", description: "Welfare claims" },
-  { name: "welfare_contributions", description: "Welfare contributions" },
+  { name: 'welfare_claim_approvals', description: 'Welfare claim approvals' },
+  { name: 'welfare_claims', description: 'Welfare claims' },
+  { name: 'welfare_contributions', description: 'Welfare contributions' },
 
   // Loans
-  { name: "loan_repayments", description: "Loan repayments" },
-  { name: "loans", description: "Loans" },
+  { name: 'loan_repayments', description: 'Loan repayments' },
+  { name: 'loans', description: 'Loans' },
 
   // Payouts
-  { name: "payouts", description: "Payouts" },
+  { name: 'payouts', description: 'Payouts' },
 
   // ROSCA/ASCA
-  { name: "rosca_payouts", description: "ROSCA payouts" },
-  { name: "rosca_members", description: "ROSCA members" },
-  { name: "asca_cycles", description: "ASCA cycles" },
-  { name: "asca_members", description: "ASCA members" },
+  { name: 'rosca_payouts', description: 'ROSCA payouts' },
+  { name: 'rosca_members', description: 'ROSCA members' },
+  { name: 'asca_cycles', description: 'ASCA cycles' },
+  { name: 'asca_members', description: 'ASCA members' },
 
   // Core operations
-  { name: "meeting_attendance", description: "Meeting attendance" },
-  { name: "meetings", description: "Meetings" },
-  { name: "contributions", description: "Contributions" },
-  { name: "proposals", description: "Proposals" },
+  { name: 'meeting_attendance', description: 'Meeting attendance' },
+  { name: 'meetings', description: 'Meetings' },
+  { name: 'contributions', description: 'Contributions' },
+  { name: 'proposals', description: 'Proposals' },
 
   // Notifications & logs
-  { name: "audit_logs", description: "Audit logs" },
-  { name: "notifications", description: "Notifications" },
+  { name: 'audit_logs', description: 'Audit logs' },
+  { name: 'notifications', description: 'Notifications' },
 
   // Memberships
-  { name: "join_requests", description: "Join requests" },
-  { name: "chama_invites", description: "Chama invites" },
-  { name: "chama_members", description: "Chama members" },
+  { name: 'join_requests', description: 'Join requests' },
+  { name: 'chama_invites', description: 'Chama invites' },
+  { name: 'chama_members', description: 'Chama members' },
 
   // Parent tables
-  { name: "chamas", description: "Chamas" },
-  { name: "users", description: "Users" },
+  { name: 'chamas', description: 'Chamas' },
+  { name: 'users', description: 'Users' },
 ];
 
 const SEQUENCES = [
-  "users_user_id_seq",
-  "chamas_chama_id_seq",
-  "contributions_contribution_id_seq",
-  "meetings_meeting_id_seq",
-  "loans_loan_id_seq",
-  "notifications_notification_id_seq",
-  "join_requests_request_id_seq",
+  'users_user_id_seq',
+  'chamas_chama_id_seq',
+  'contributions_contribution_id_seq',
+  'meetings_meeting_id_seq',
+  'loans_loan_id_seq',
+  'notifications_notification_id_seq',
+  'join_requests_request_id_seq',
 ];
 
 async function askConfirmation(question) {
@@ -73,33 +73,33 @@ async function askConfirmation(question) {
     output: process.stdout,
   });
 
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
+  return new Promise(resolve => {
+    rl.question(question, answer => {
       rl.close();
-      resolve(answer.toLowerCase() === "y" || answer.toLowerCase() === "yes");
+      resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');
     });
   });
 }
 
 async function getStats() {
-  console.log("\n📊 Current Database Statistics:");
+  console.log('\n📊 Current Database Statistics:');
   const stats = await db.getStats();
 
   for (const [table, count] of Object.entries(stats)) {
-    if (count !== "N/A" && count !== "Error" && count > 0) {
+    if (count !== 'N/A' && count !== 'Error' && count > 0) {
       console.log(`   ${table}: ${count}`);
     }
   }
-  console.log("");
+  console.log('');
 }
 
 async function cleanupUsers(dryRun = false) {
   try {
-    console.log("🧹 ChamaSmart Database Cleanup\n");
-    console.log("=".repeat(60));
+    console.log('🧹 ChamaSmart Database Cleanup\n');
+    console.log('='.repeat(60));
 
     if (dryRun) {
-      console.log("🔍 DRY RUN MODE - No changes will be made\n");
+      console.log('🔍 DRY RUN MODE - No changes will be made\n');
     }
 
     // Show current state
@@ -108,25 +108,25 @@ async function cleanupUsers(dryRun = false) {
     // Confirm action
     if (!dryRun) {
       const confirmed = await askConfirmation(
-        "⚠️  This will DELETE ALL DATA. Are you sure? (yes/no): ",
+        '⚠️  This will DELETE ALL DATA. Are you sure? (yes/no): ',
       );
 
       if (!confirmed) {
-        console.log("❌ Operation cancelled");
+        console.log('❌ Operation cancelled');
         process.exit(0);
       }
 
       const doubleCheck = await askConfirmation(
-        "⚠️  FINAL WARNING: This is irreversible. Continue? (yes/no): ",
+        '⚠️  FINAL WARNING: This is irreversible. Continue? (yes/no): ',
       );
 
       if (!doubleCheck) {
-        console.log("❌ Operation cancelled");
+        console.log('❌ Operation cancelled');
         process.exit(0);
       }
     }
 
-    console.log("\n🗑️  Deleting data in safe order...\n");
+    console.log('\n🗑️  Deleting data in safe order...\n');
 
     let totalDeleted = 0;
     const deletionResults = [];
@@ -154,7 +154,7 @@ async function cleanupUsers(dryRun = false) {
 
     if (!dryRun) {
       // Reset sequences
-      console.log("\n🔄 Resetting ID sequences...");
+      console.log('\n🔄 Resetting ID sequences...');
       let resetCount = 0;
 
       for (const seq of SEQUENCES) {
@@ -167,26 +167,26 @@ async function cleanupUsers(dryRun = false) {
     }
 
     // Summary
-    console.log("\n" + "=".repeat(60));
+    console.log(`\n${'='.repeat(60)}`);
     if (dryRun) {
       console.log(`📊 Would delete ${totalDeleted} total rows`);
-      console.log("\nRun without --dry-run to execute cleanup");
+      console.log('\nRun without --dry-run to execute cleanup');
     } else {
-      console.log("✨ Cleanup completed successfully!");
+      console.log('✨ Cleanup completed successfully!');
       console.log(`📊 Deleted ${totalDeleted} total rows`);
-      console.log("📝 Database is now ready for fresh user registration.");
+      console.log('📝 Database is now ready for fresh user registration.');
 
       // Log to audit
-      logger.info("Database cleanup completed", {
+      logger.info('Database cleanup completed', {
         timestamp: new Date().toISOString(),
         totalRowsDeleted: totalDeleted,
         deletionResults,
       });
     }
-    console.log("=".repeat(60) + "\n");
+    console.log(`${'='.repeat(60)}\n`);
   } catch (error) {
-    console.error("\n❌ Cleanup failed:", error.message);
-    logger.error("Database cleanup failed", {
+    console.error('\n❌ Cleanup failed:', error.message);
+    logger.error('Database cleanup failed', {
       error: error.message,
       stack: error.stack,
     });
@@ -198,10 +198,10 @@ async function cleanupUsers(dryRun = false) {
 
 // Parse command line arguments
 const args = process.argv.slice(2);
-const dryRun = args.includes("--dry-run");
-const force = args.includes("--force");
+const dryRun = args.includes('--dry-run');
+const force = args.includes('--force');
 
-if (args.includes("--help")) {
+if (args.includes('--help')) {
   console.log(`
 Usage: node scripts/cleanup-users.js [options]
 

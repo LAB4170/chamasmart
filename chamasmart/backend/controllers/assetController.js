@@ -1,4 +1,4 @@
-const pool = require("../config/db");
+const pool = require('../config/db');
 
 // GET /api/asca/:chamaId/assets
 const listAssets = async (req, res, next) => {
@@ -10,7 +10,7 @@ const listAssets = async (req, res, next) => {
        FROM assets
        WHERE chama_id = $1
        ORDER BY created_at DESC`,
-      [chamaId]
+      [chamaId],
     );
 
     res.json({ success: true, data: result.rows });
@@ -23,7 +23,9 @@ const listAssets = async (req, res, next) => {
 const createAsset = async (req, res, next) => {
   try {
     const { chamaId } = req.params;
-    const { name, purchase_price, purchase_date, current_valuation, document_url } = req.body;
+    const {
+      name, purchase_price, purchase_date, current_valuation, document_url,
+    } = req.body;
 
     if (!name) {
       return res.status(400).json({ success: false, message: 'Asset name is required' });
@@ -40,7 +42,7 @@ const createAsset = async (req, res, next) => {
         purchase_date || null,
         current_valuation || null,
         document_url || null,
-      ]
+      ],
     );
 
     res.status(201).json({ success: true, data: result.rows[0] });

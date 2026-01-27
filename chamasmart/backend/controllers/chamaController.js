@@ -1,29 +1,29 @@
-const pool = require("../config/db");
+const NodeCache = require('node-cache');
+const pool = require('../config/db');
 const {
   isValidChamaType,
   isValidFrequency,
   isValidAmount,
-} = require("../utils/validators");
+} = require('../utils/validators');
 const {
   parsePagination,
   formatPaginationMeta,
   getTotal,
-} = require("../utils/pagination");
-const NodeCache = require("node-cache");
+} = require('../utils/pagination');
 
 // Initialize cache with 5 minutes (300 seconds) standard TTL
 const cache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
 
 // Helper to clear chama-related cache
-const clearChamaCache = (chamaId) => {
+const clearChamaCache = chamaId => {
   if (chamaId) {
     cache.del(`chama_${chamaId}`);
     cache.del(`chama_stats_${chamaId}`);
     cache.del(`chama_members_${chamaId}`);
   }
   // Also clear general lists
-  cache.del("all_chamas");
-  cache.del("public_chamas");
+  cache.del('all_chamas');
+  cache.del('public_chamas');
 };
 
 // @desc    Get all chamas
@@ -40,7 +40,7 @@ const getAllChamas = async (req, res) => {
 
     // Get total count
     const countResult = await pool.query(
-      `SELECT COUNT(*) as count FROM chamas WHERE is_active = true`,
+      'SELECT COUNT(*) as count FROM chamas WHERE is_active = true',
     );
     const total = parseInt(countResult.rows[0].count);
 
@@ -69,11 +69,11 @@ const getAllChamas = async (req, res) => {
       paginatedData.pagination.page,
       paginatedData.pagination.limit,
       paginatedData.pagination.total,
-      "Chamas retrieved successfully",
+      'Chamas retrieved successfully',
     );
   } catch (error) {
-    console.error("Get all chamas error:", error);
-    res.error("Error fetching chamas", 500);
+    console.error('Get all chamas error:', error);
+    res.error('Error fetching chamas', 500);
   }
 };
 
@@ -104,7 +104,7 @@ const getChamaById = async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Chama not found",
+        message: 'Chama not found',
       });
     }
 
@@ -115,10 +115,10 @@ const getChamaById = async (req, res) => {
       data: result.rows[0],
     });
   } catch (error) {
-    console.error("Get chama error:", error);
+    console.error('Get chama error:', error);
     res.status(500).json({
       success: false,
-      message: "Error fetching chama",
+      message: 'Error fetching chama',
     });
   }
 };
@@ -138,50 +138,50 @@ const createChama = async (req, res) => {
       contributionFrequency,
       meetingDay,
       meetingTime,
-      visibility = "PRIVATE",
+      visibility = 'PRIVATE',
     } = req.body;
 
     // Validation
     if (
-      !chamaName ||
-      !chamaType ||
-      !contributionAmount ||
-      !contributionFrequency
+      !chamaName
+      || !chamaType
+      || !contributionAmount
+      || !contributionFrequency
     ) {
       return res.status(400).json({
         success: false,
-        message: "Please provide all required fields",
+        message: 'Please provide all required fields',
       });
     }
 
     if (!isValidChamaType(chamaType)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid chama type",
+        message: 'Invalid chama type',
       });
     }
 
     if (!isValidFrequency(contributionFrequency)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid contribution frequency",
+        message: 'Invalid contribution frequency',
       });
     }
 
     if (!isValidAmount(contributionAmount)) {
       return res.status(400).json({
         success: false,
-        message: "Contribution amount must be a positive number",
+        message: 'Contribution amount must be a positive number',
       });
     }
 
-    await client.query("BEGIN");
+    await client.query('BEGIN');
 
     // Validate visibility
-    if (!["PUBLIC", "PRIVATE"].includes(visibility)) {
+    if (!['PUBLIC', 'PRIVATE'].includes(visibility)) {
       return res.status(400).json({
         success: false,
-        message: "Visibility must be PUBLIC or PRIVATE",
+        message: 'Visibility must be PUBLIC or PRIVATE',
       });
     }
 
@@ -218,22 +218,22 @@ const createChama = async (req, res) => {
       [chama.chama_id, req.user.user_id],
     );
 
-    await client.query("COMMIT");
+    await client.query('COMMIT');
 
     // Clear relevant caches
     clearChamaCache();
 
     res.status(201).json({
       success: true,
-      message: "Chama created successfully",
+      message: 'Chama created successfully',
       data: chama,
     });
   } catch (error) {
-    await client.query("ROLLBACK");
-    console.error("Create chama error:", error);
+    await client.query('ROLLBACK');
+    console.error('Create chama error:', error);
     res.status(500).json({
       success: false,
-      message: "Error creating chama",
+      message: 'Error creating chama',
       error: error.message,
     });
   } finally {
@@ -275,7 +275,7 @@ const updateChama = async (req, res) => {
       if (!isValidAmount(contributionAmount)) {
         return res.status(400).json({
           success: false,
-          message: "Invalid contribution amount",
+          message: 'Invalid contribution amount',
         });
       }
       updates.push(`contribution_amount = $${paramCount++}`);
@@ -285,7 +285,7 @@ const updateChama = async (req, res) => {
       if (!isValidFrequency(contributionFrequency)) {
         return res.status(400).json({
           success: false,
-          message: "Invalid contribution frequency",
+          message: 'Invalid contribution frequency',
         });
       }
       updates.push(`contribution_frequency = $${paramCount++}`);
@@ -300,10 +300,10 @@ const updateChama = async (req, res) => {
       values.push(meetingTime);
     }
     if (visibility) {
-      if (!["PUBLIC", "PRIVATE"].includes(visibility)) {
+      if (!['PUBLIC', 'PRIVATE'].includes(visibility)) {
         return res.status(400).json({
           success: false,
-          message: "Visibility must be PUBLIC or PRIVATE",
+          message: 'Visibility must be PUBLIC or PRIVATE',
         });
       }
       updates.push(`visibility = $${paramCount++}`);
@@ -317,14 +317,14 @@ const updateChama = async (req, res) => {
     if (updates.length === 0) {
       return res.status(400).json({
         success: false,
-        message: "No fields to update",
+        message: 'No fields to update',
       });
     }
 
     values.push(chamaId);
 
     const query = `UPDATE chamas SET ${updates.join(
-      ", ",
+      ', ',
     )} WHERE chama_id = $${paramCount} RETURNING *`;
 
     const result = await pool.query(query, values);
@@ -334,14 +334,14 @@ const updateChama = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Chama updated successfully",
+      message: 'Chama updated successfully',
       data: result.rows[0],
     });
   } catch (error) {
-    console.error("Update chama error:", error);
+    console.error('Update chama error:', error);
     res.status(500).json({
       success: false,
-      message: "Error updating chama",
+      message: 'Error updating chama',
     });
   }
 };
@@ -354,7 +354,7 @@ const deleteChama = async (req, res) => {
     const { chamaId } = req.params;
 
     await pool.query(
-      "UPDATE chamas SET is_active = false WHERE chama_id = $1",
+      'UPDATE chamas SET is_active = false WHERE chama_id = $1',
       [chamaId],
     );
 
@@ -363,13 +363,13 @@ const deleteChama = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Chama deactivated successfully",
+      message: 'Chama deactivated successfully',
     });
   } catch (error) {
-    console.error("Delete chama error:", error);
+    console.error('Delete chama error:', error);
     res.status(500).json({
       success: false,
-      message: "Error deleting chama",
+      message: 'Error deleting chama',
     });
   }
 };
@@ -421,11 +421,11 @@ const getMyChamas = async (req, res) => {
       paginatedData.pagination.page,
       paginatedData.pagination.limit,
       paginatedData.pagination.total,
-      "Chamas retrieved successfully",
+      'Chamas retrieved successfully',
     );
   } catch (error) {
-    console.error("Get my chamas error:", error);
-    res.error("Error fetching your chamas", 500);
+    console.error('Get my chamas error:', error);
+    res.error('Error fetching your chamas', 500);
   }
 };
 
@@ -471,10 +471,10 @@ const getChamaMembers = async (req, res) => {
       data: result.rows,
     });
   } catch (error) {
-    console.error("Get chama members error:", error);
+    console.error('Get chama members error:', error);
     res.status(500).json({
       success: false,
-      message: "Error fetching chama members",
+      message: 'Error fetching chama members',
     });
   }
 };
@@ -518,7 +518,7 @@ const getChamaStats = async (req, res) => {
     if (statsResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Chama not found",
+        message: 'Chama not found',
       });
     }
 
@@ -533,13 +533,13 @@ const getChamaStats = async (req, res) => {
 
     res.json({
       success: true,
-      data: data,
+      data,
     });
   } catch (error) {
-    console.error("Get chama stats error:", error);
+    console.error('Get chama stats error:', error);
     res.status(500).json({
       success: false,
-      message: "Error fetching chama statistics",
+      message: 'Error fetching chama statistics',
     });
   }
 };
@@ -582,7 +582,7 @@ const getPublicChamas = async (req, res) => {
       paramIndex++;
     }
 
-    query += ` ORDER BY c.created_at DESC`;
+    query += ' ORDER BY c.created_at DESC';
 
     const result = await pool.query(query, params);
 
@@ -592,10 +592,10 @@ const getPublicChamas = async (req, res) => {
       data: result.rows,
     });
   } catch (error) {
-    console.error("Get public chamas error:", error);
+    console.error('Get public chamas error:', error);
     return res.status(500).json({
       success: false,
-      message: "Error fetching public chamas",
+      message: 'Error fetching public chamas',
       error: error.message,
     });
   }

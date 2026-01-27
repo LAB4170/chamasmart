@@ -1,13 +1,12 @@
-const pool = require("../config/db");
-const logger = require("./logger");
-const { getIo } = require("../socket");
+const pool = require('../config/db');
+const logger = require('./logger');
+const { getIo } = require('../socket');
 
 /**
  * Small helper to insert notifications in a consistent, safe way.
  * Can accept either a dedicated client (inside a transaction) or fall back to the pool.
  */
-const getExecutor = (client) =>
-  client && typeof client.query === "function" ? client : pool;
+const getExecutor = client => (client && typeof client.query === 'function' ? client : pool);
 
 /**
  * Create a notification for a single user with socket emission.
@@ -25,10 +24,12 @@ const getExecutor = (client) =>
  */
 const createNotification = async (
   client,
-  { userId, type, title, message, link, relatedId, emitSocket = true },
+  {
+    userId, type, title, message, link, relatedId, emitSocket = true,
+  },
 ) => {
   if (!userId || !type || !title) {
-    logger.warn("Missing required notification fields", {
+    logger.warn('Missing required notification fields', {
       userId,
       type,
       title,
@@ -54,13 +55,13 @@ const createNotification = async (
       try {
         const io = getIo();
         // Emit to the specific user's socket room
-        io.to(`user_${userId}`).emit("new_notification", notification);
-        logger.debug("Socket notification emitted", {
+        io.to(`user_${userId}`).emit('new_notification', notification);
+        logger.debug('Socket notification emitted', {
           userId,
           notificationId: notification.id,
         });
       } catch (socketErr) {
-        logger.error("Socket notification emit error", {
+        logger.error('Socket notification emit error', {
           error: socketErr.message,
           userId,
           notificationId: notification?.id,
@@ -71,7 +72,7 @@ const createNotification = async (
     return notification;
   } catch (error) {
     logger.logError(error, {
-      context: "createNotification",
+      context: 'createNotification',
       userId,
       type,
     });
@@ -103,7 +104,7 @@ const createBulkNotifications = async (client, notifications) => {
     return createdNotifications;
   } catch (error) {
     logger.logError(error, {
-      context: "createBulkNotifications",
+      context: 'createBulkNotifications',
       count: notifications.length,
     });
     return createdNotifications; // Return whatever was created before error
@@ -117,18 +118,20 @@ const createBulkNotifications = async (client, notifications) => {
  * @returns {Promise<object>} Paginated notifications
  */
 const getUserNotifications = async (userId, options = {}) => {
-  const { page = 1, limit = 20, unreadOnly = false, type = null } = options;
+  const {
+    page = 1, limit = 20, unreadOnly = false, type = null,
+  } = options;
 
   const offset = (page - 1) * limit;
-  let whereClause = "WHERE user_id = $1";
+  let whereClause = 'WHERE user_id = $1';
   const params = [userId];
 
   if (unreadOnly) {
-    whereClause += " AND read_at IS NULL";
+    whereClause += ' AND read_at IS NULL';
   }
 
   if (type) {
-    whereClause += " AND type = $" + (params.length + 1);
+    whereClause += ` AND type = $${params.length + 1}`;
     params.push(type);
   }
 
@@ -154,7 +157,7 @@ const getUserNotifications = async (userId, options = {}) => {
       totalPages: Math.ceil(countResult.rows[0].total / limit),
     };
   } catch (error) {
-    logger.logError(error, { context: "getUserNotifications", userId });
+    logger.logError(error, { context: 'getUserNotifications', userId });
     throw error;
   }
 };
@@ -168,13 +171,13 @@ const getUserNotifications = async (userId, options = {}) => {
 const markAsRead = async (notificationId, userId) => {
   try {
     const result = await pool.query(
-      "UPDATE notifications SET read_at = NOW() WHERE id = $1 AND user_id = $2",
+      'UPDATE notifications SET read_at = NOW() WHERE id = $1 AND user_id = $2',
       [notificationId, userId],
     );
 
     return result.rowCount > 0;
   } catch (error) {
-    logger.logError(error, { context: "markAsRead", notificationId, userId });
+    logger.logError(error, { context: 'markAsRead', notificationId, userId });
     throw error;
   }
 };
@@ -184,16 +187,16 @@ const markAsRead = async (notificationId, userId) => {
  * @param {number} userId - User ID
  * @returns {Promise<number>} Number of updated notifications
  */
-const markAllAsRead = async (userId) => {
+const markAllAsRead = async userId => {
   try {
     const result = await pool.query(
-      "UPDATE notifications SET read_at = NOW() WHERE user_id = $1 AND read_at IS NULL",
+      'UPDATE notifications SET read_at = NOW() WHERE user_id = $1 AND read_at IS NULL',
       [userId],
     );
 
     return result.rowCount;
   } catch (error) {
-    logger.logError(error, { context: "markAllAsRead", userId });
+    logger.logError(error, { context: 'markAllAsRead', userId });
     throw error;
   }
 };
@@ -203,16 +206,16 @@ const markAllAsRead = async (userId) => {
  * @param {number} userId - User ID
  * @returns {Promise<number>} Unread count
  */
-const getUnreadCount = async (userId) => {
+const getUnreadCount = async userId => {
   try {
     const result = await pool.query(
-      "SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND read_at IS NULL",
+      'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND read_at IS NULL',
       [userId],
     );
 
     return parseInt(result.rows[0].count);
   } catch (error) {
-    logger.logError(error, { context: "getUnreadCount", userId });
+    logger.logError(error, { context: 'getUnreadCount', userId });
     throw error;
   }
 };

@@ -6,8 +6,8 @@
  * Maintains backward compatibility while adding enterprise features
  */
 
-const pool = require("../config/db");
-const logger = require("./logger");
+const pool = require('../config/db');
+const logger = require('./logger');
 
 // ============================================================================
 // EVENT TYPE CONSTANTS
@@ -15,39 +15,39 @@ const logger = require("./logger");
 
 const EVENT_TYPES = {
   // Authentication
-  AUTH_LOGIN: "auth_login",
-  AUTH_LOGOUT: "auth_logout",
-  AUTH_REGISTER: "auth_register",
-  AUTH_PASSWORD_RESET: "auth_password_reset",
-  AUTH_FAILED_LOGIN: "auth_failed_login",
-  AUTH_ACCOUNT_LOCKED: "auth_account_locked",
+  AUTH_LOGIN: 'auth_login',
+  AUTH_LOGOUT: 'auth_logout',
+  AUTH_REGISTER: 'auth_register',
+  AUTH_PASSWORD_RESET: 'auth_password_reset',
+  AUTH_FAILED_LOGIN: 'auth_failed_login',
+  AUTH_ACCOUNT_LOCKED: 'auth_account_locked',
 
   // Financial Transactions
-  CONTRIBUTION_CREATED: "contribution_created",
-  CONTRIBUTION_UPDATED: "contribution_updated",
-  CONTRIBUTION_DELETED: "contribution_deleted",
-  LOAN_APPLIED: "loan_applied",
-  LOAN_APPROVED: "loan_approved",
-  LOAN_REPAYMENT: "loan_repayment",
-  LOAN_DEFAULTED: "loan_defaulted",
-  PAYOUT_PROCESSED: "payout_processed",
+  CONTRIBUTION_CREATED: 'contribution_created',
+  CONTRIBUTION_UPDATED: 'contribution_updated',
+  CONTRIBUTION_DELETED: 'contribution_deleted',
+  LOAN_APPLIED: 'loan_applied',
+  LOAN_APPROVED: 'loan_approved',
+  LOAN_REPAYMENT: 'loan_repayment',
+  LOAN_DEFAULTED: 'loan_defaulted',
+  PAYOUT_PROCESSED: 'payout_processed',
 
   // Configuration
-  CONFIG_UPDATED: "config_updated",
-  ROLE_CHANGED: "role_changed",
-  MEMBER_ADDED: "member_added",
-  MEMBER_REMOVED: "member_removed",
+  CONFIG_UPDATED: 'config_updated',
+  ROLE_CHANGED: 'role_changed',
+  MEMBER_ADDED: 'member_added',
+  MEMBER_REMOVED: 'member_removed',
 
   // Security
-  SECURITY_BREACH_ATTEMPT: "security_breach_attempt",
-  SECURITY_SUSPICIOUS_ACTIVITY: "security_suspicious_activity",
+  SECURITY_BREACH_ATTEMPT: 'security_breach_attempt',
+  SECURITY_SUSPICIOUS_ACTIVITY: 'security_suspicious_activity',
 };
 
 const SEVERITY = {
-  LOW: "low",
-  MEDIUM: "medium",
-  HIGH: "high",
-  CRITICAL: "critical",
+  LOW: 'low',
+  MEDIUM: 'medium',
+  HIGH: 'high',
+  CRITICAL: 'critical',
 };
 
 // ============================================================================
@@ -67,7 +67,7 @@ async function logAudit(event) {
     changes,
     ipAddress,
     userAgent,
-    status = "success",
+    status = 'success',
     errorMessage = null,
   } = event;
 
@@ -89,7 +89,7 @@ async function logAudit(event) {
       ],
     );
 
-    logger.info("Audit log created", {
+    logger.info('Audit log created', {
       userId,
       action,
       resource,
@@ -97,7 +97,7 @@ async function logAudit(event) {
       status,
     });
   } catch (error) {
-    logger.error("Failed to create audit log", {
+    logger.error('Failed to create audit log', {
       error: error.message,
       event,
     });
@@ -142,17 +142,16 @@ async function logAuditEvent({
         JSON.stringify(sanitizedMetadata),
         ipAddress,
         userAgent,
-        "success",
+        'success',
         severity,
         chamaId,
       ],
     );
 
     // Log to Winston for immediate visibility
-    const logLevel =
-      severity === SEVERITY.CRITICAL || severity === SEVERITY.HIGH
-        ? "warn"
-        : "info";
+    const logLevel = severity === SEVERITY.CRITICAL || severity === SEVERITY.HIGH
+      ? 'warn'
+      : 'info';
 
     logger[logLevel](`[AUDIT] ${eventType}: ${action}`, {
       userId,
@@ -163,7 +162,7 @@ async function logAuditEvent({
     });
   } catch (error) {
     // Don't let audit failures break the application
-    logger.error("Failed to write audit log", {
+    logger.error('Failed to write audit log', {
       error: error.message,
       eventType,
       userId,
@@ -180,22 +179,22 @@ async function logAuditEvent({
  * Sanitize metadata to remove sensitive information
  */
 function sanitizeMetadata(metadata) {
-  if (!metadata || typeof metadata !== "object") {
+  if (!metadata || typeof metadata !== 'object') {
     return metadata;
   }
 
   const sensitiveFields = [
-    "password",
-    "passwordHash",
-    "password_hash",
-    "token",
-    "accessToken",
-    "refreshToken",
-    "secret",
-    "apiKey",
-    "creditCard",
-    "cvv",
-    "pin",
+    'password',
+    'passwordHash',
+    'password_hash',
+    'token',
+    'accessToken',
+    'refreshToken',
+    'secret',
+    'apiKey',
+    'creditCard',
+    'cvv',
+    'pin',
   ];
 
   const sanitized = { ...metadata };
@@ -203,12 +202,10 @@ function sanitizeMetadata(metadata) {
   function redactObject(obj) {
     for (const key in obj) {
       if (
-        sensitiveFields.some((field) =>
-          key.toLowerCase().includes(field.toLowerCase()),
-        )
+        sensitiveFields.some(field => key.toLowerCase().includes(field.toLowerCase()))
       ) {
-        obj[key] = "[REDACTED]";
-      } else if (typeof obj[key] === "object" && obj[key] !== null) {
+        obj[key] = '[REDACTED]';
+      } else if (typeof obj[key] === 'object' && obj[key] !== null) {
         redactObject(obj[key]);
       }
     }
@@ -238,11 +235,10 @@ function determineSeverity(eventType) {
 
   if (criticalEvents.includes(eventType)) {
     return SEVERITY.CRITICAL;
-  } else if (highEvents.includes(eventType)) {
+  } if (highEvents.includes(eventType)) {
     return SEVERITY.HIGH;
-  } else {
-    return SEVERITY.MEDIUM;
   }
+  return SEVERITY.MEDIUM;
 }
 
 // ============================================================================
@@ -260,13 +256,13 @@ const auditMiddleware = (req, res, next) => {
   // Override send to log after response
   res.send = function (data) {
     // Only log write operations
-    if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
       // Log asynchronously after response
       setImmediate(() => {
         logAudit({
           userId: req.user?.user_id,
           action: `${req.method} ${req.path}`,
-          resource: req.path.split("/")[2] || "unknown",
+          resource: req.path.split('/')[2] || 'unknown',
           resourceId: req.params.id || req.params.chamaId || null,
           changes: {
             body: sanitizeMetadata(req.body),
@@ -274,11 +270,11 @@ const auditMiddleware = (req, res, next) => {
             query: req.query,
           },
           ipAddress: req.ip,
-          userAgent: req.get("user-agent"),
+          userAgent: req.get('user-agent'),
           status:
             res.statusCode >= 200 && res.statusCode < 300
-              ? "success"
-              : "failure",
+              ? 'success'
+              : 'failure',
           errorMessage: res.statusCode >= 400 ? data : null,
         });
       });
@@ -302,12 +298,11 @@ const auditMiddlewareEnhanced = (req, res, next) => {
   const startTime = Date.now();
 
   res.send = function (data) {
-    if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
       setImmediate(() => {
         const duration = Date.now() - startTime;
         const eventType = mapRouteToEventType(req.method, req.path);
-        const severity =
-          res.statusCode >= 400 ? SEVERITY.HIGH : determineSeverity(eventType);
+        const severity = res.statusCode >= 400 ? SEVERITY.HIGH : determineSeverity(eventType);
 
         logAuditEvent({
           eventType,
@@ -324,7 +319,7 @@ const auditMiddlewareEnhanced = (req, res, next) => {
             duration,
           },
           ipAddress: req.ip,
-          userAgent: req.get("user-agent"),
+          userAgent: req.get('user-agent'),
           severity,
           chamaId: req.params.chamaId || null,
         });
@@ -342,34 +337,34 @@ const auditMiddlewareEnhanced = (req, res, next) => {
  */
 function mapRouteToEventType(method, path) {
   // Authentication routes
-  if (path.includes("/auth/login")) return EVENT_TYPES.AUTH_LOGIN;
-  if (path.includes("/auth/register")) return EVENT_TYPES.AUTH_REGISTER;
-  if (path.includes("/auth/logout")) return EVENT_TYPES.AUTH_LOGOUT;
+  if (path.includes('/auth/login')) return EVENT_TYPES.AUTH_LOGIN;
+  if (path.includes('/auth/register')) return EVENT_TYPES.AUTH_REGISTER;
+  if (path.includes('/auth/logout')) return EVENT_TYPES.AUTH_LOGOUT;
 
   // Contribution routes
-  if (path.includes("/contributions") && method === "POST") {
+  if (path.includes('/contributions') && method === 'POST') {
     return EVENT_TYPES.CONTRIBUTION_CREATED;
   }
-  if (path.includes("/contributions") && method === "DELETE") {
+  if (path.includes('/contributions') && method === 'DELETE') {
     return EVENT_TYPES.CONTRIBUTION_DELETED;
   }
 
   // Loan routes
-  if (path.includes("/loans") && path.includes("/apply")) {
+  if (path.includes('/loans') && path.includes('/apply')) {
     return EVENT_TYPES.LOAN_APPLIED;
   }
-  if (path.includes("/loans") && path.includes("/approve")) {
+  if (path.includes('/loans') && path.includes('/approve')) {
     return EVENT_TYPES.LOAN_APPROVED;
   }
-  if (path.includes("/loans") && path.includes("/repay")) {
+  if (path.includes('/loans') && path.includes('/repay')) {
     return EVENT_TYPES.LOAN_REPAYMENT;
   }
 
   // Member routes
-  if (path.includes("/members") && method === "POST") {
+  if (path.includes('/members') && method === 'POST') {
     return EVENT_TYPES.MEMBER_ADDED;
   }
-  if (path.includes("/members") && method === "DELETE") {
+  if (path.includes('/members') && method === 'DELETE') {
     return EVENT_TYPES.MEMBER_REMOVED;
   }
 
@@ -381,18 +376,18 @@ function mapRouteToEventType(method, path) {
  * Extract entity type from path
  */
 function extractEntityType(path) {
-  const segments = path.split("/").filter(Boolean);
+  const segments = path.split('/').filter(Boolean);
   // Usually the entity type is the second or third segment
   // e.g., /api/chamas/:id -> 'chama'
   // e.g., /api/loans/:id/repay -> 'loan'
 
-  if (segments.includes("chamas")) return "chama";
-  if (segments.includes("loans")) return "loan";
-  if (segments.includes("contributions")) return "contribution";
-  if (segments.includes("members")) return "member";
-  if (segments.includes("users")) return "user";
+  if (segments.includes('chamas')) return 'chama';
+  if (segments.includes('loans')) return 'loan';
+  if (segments.includes('contributions')) return 'contribution';
+  if (segments.includes('members')) return 'member';
+  if (segments.includes('users')) return 'user';
 
-  return segments[1] || "unknown";
+  return segments[1] || 'unknown';
 }
 
 // ============================================================================
@@ -561,9 +556,9 @@ async function createAuditLogsTable() {
       CREATE INDEX IF NOT EXISTS idx_audit_logs_chama_id ON audit_logs(chama_id);
     `);
 
-    logger.info("Audit logs table created/updated successfully");
+    logger.info('Audit logs table created/updated successfully');
   } catch (error) {
-    logger.error("Failed to create/update audit logs table", {
+    logger.error('Failed to create/update audit logs table', {
       error: error.message,
     });
   }

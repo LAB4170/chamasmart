@@ -3,7 +3,7 @@ const pool = require('./config/db');
 const fixSchema = async () => {
   const client = await pool.connect();
   try {
-    console.log("Checking and fixing database schema...");
+    console.log('Checking and fixing database schema...');
     await client.query('BEGIN');
 
     // 2. Ensure chamas table has required refined columns
@@ -73,14 +73,14 @@ const fixSchema = async () => {
     `);
 
     // 6. Ensure Indexes exist
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_invite_code ON chama_invites(invite_code);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_chama_invites ON chama_invites(chama_id);`);
+    await client.query('CREATE INDEX IF NOT EXISTS idx_invite_code ON chama_invites(invite_code);');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_chama_invites ON chama_invites(chama_id);');
 
     await client.query('COMMIT');
-    console.log("✅ Database schema verified and fixed!");
+    console.log('✅ Database schema verified and fixed!');
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error("❌ Error fixing schema:", err);
+    console.error('❌ Error fixing schema:', err);
   } finally {
     client.release();
     // Close pool to allow script to exit

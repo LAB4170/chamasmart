@@ -12,37 +12,35 @@ const redis = require('../config/redis');
 const HEALTH_CHECKS = {
   server: {
     name: 'API Server',
-    check: async () => {
-      return new Promise((resolve) => {
-        const options = {
-          hostname: 'localhost',
-          port: process.env.PORT || 5005,
-          path: '/api/ping',
-          method: 'GET',
-          timeout: 5000,
-        };
+    check: async () => new Promise(resolve => {
+      const options = {
+        hostname: 'localhost',
+        port: process.env.PORT || 5005,
+        path: '/api/ping',
+        method: 'GET',
+        timeout: 5000,
+      };
 
-        const req = http.request(options, (res) => {
-          resolve({
-            status: res.statusCode === 200 ? 'healthy' : 'unhealthy',
-            responseTime: Date.now() - startTime,
-            statusCode: res.statusCode,
-          });
+      const req = http.request(options, res => {
+        resolve({
+          status: res.statusCode === 200 ? 'healthy' : 'unhealthy',
+          responseTime: Date.now() - startTime,
+          statusCode: res.statusCode,
         });
-
-        req.on('error', () => {
-          resolve({ status: 'unhealthy', error: 'Connection failed' });
-        });
-
-        req.on('timeout', () => {
-          req.destroy();
-          resolve({ status: 'unhealthy', error: 'Timeout' });
-        });
-
-        const startTime = Date.now();
-        req.end();
       });
-    },
+
+      req.on('error', () => {
+        resolve({ status: 'unhealthy', error: 'Connection failed' });
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        resolve({ status: 'unhealthy', error: 'Timeout' });
+      });
+
+      const startTime = Date.now();
+      req.end();
+    }),
   },
 
   database: {
@@ -99,7 +97,7 @@ const HEALTH_CHECKS = {
       const memUsage = process.memoryUsage();
       const totalMem = require('os').totalmem();
       const freeMem = require('os').freemem();
-      
+
       return {
         status: 'healthy', // Memory is always "healthy" unless critical
         memory: {
@@ -122,7 +120,7 @@ const HEALTH_CHECKS = {
       try {
         const fs = require('fs').promises;
         const stats = await fs.stat('.');
-        
+
         return {
           status: 'healthy',
           disk: {
@@ -161,7 +159,7 @@ async function runHealthChecks() {
       const status = result.status === 'healthy' ? '✅' : '❌';
       const responseTime = result.responseTime ? ` (${result.responseTime}ms)` : '';
       const error = result.error ? ` - ${result.error}` : '';
-      
+
       console.log(`${status} ${check.name}${responseTime}${error}`);
 
       // Display additional info
@@ -182,8 +180,8 @@ async function runHealthChecks() {
     }
   }
 
-  console.log('\n' + '='.repeat(50));
-  
+  console.log(`\n${'='.repeat(50)}`);
+
   if (overallStatus === 'healthy') {
     console.log('🎉 All systems operational!');
     process.exit(0);
@@ -195,7 +193,7 @@ async function runHealthChecks() {
 
 // Run health checks if called directly
 if (require.main === module) {
-  runHealthChecks().catch((error) => {
+  runHealthChecks().catch(error => {
     console.error('Health check failed:', error);
     process.exit(1);
   });

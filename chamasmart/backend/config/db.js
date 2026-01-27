@@ -1,8 +1,8 @@
-const { Pool } = require("pg");
-require("dotenv").config();
+const { Pool } = require('pg');
+require('dotenv').config();
 
 // Database configuration with enhanced security
-const requiredEnvVars = ["DB_USER", "DB_PASSWORD", "DB_NAME", "DB_HOST"];
+const requiredEnvVars = ['DB_USER', 'DB_PASSWORD', 'DB_NAME', 'DB_HOST'];
 
 // Validate required environment variables
 for (const envVar of requiredEnvVars) {
@@ -24,23 +24,23 @@ const pool = new Pool({
   idleTimeoutMillis: 10000,
   connectionTimeoutMillis: 15000,
   ssl:
-    process.env.NODE_ENV === "production"
+    process.env.NODE_ENV === 'production'
       ? { rejectUnauthorized: false }
       : false,
   // Enhanced security settings
   statement_timeout: 30000,
   query_timeout: 30000,
-  application_name: "chamasmart-backend",
+  application_name: 'chamasmart-backend',
 });
 
 // Handle pool errors gracefully
-pool.on("error", (err) => {
-  console.error("Database pool error:", err.message);
+pool.on('error', err => {
+  console.error('Database pool error:', err.message);
   // Don't exit process immediately, log and continue
-  if (err.code === "ECONNRESET" || err.code === "ENOTFOUND") {
-    console.log("Database connection lost, will retry on next query");
+  if (err.code === 'ECONNRESET' || err.code === 'ENOTFOUND') {
+    console.log('Database connection lost, will retry on next query');
   } else {
-    console.error("Critical database error:", err);
+    console.error('Critical database error:', err);
   }
 });
 
@@ -49,9 +49,9 @@ const testConnection = async (retries = 3) => {
   for (let i = 0; i < retries; i++) {
     try {
       const client = await pool.connect();
-      const result = await client.query("SELECT NOW()");
+      const result = await client.query('SELECT NOW()');
       client.release();
-      console.log("✅ Database connected successfully");
+      console.log('✅ Database connected successfully');
       return true;
     } catch (err) {
       console.error(
@@ -62,11 +62,11 @@ const testConnection = async (retries = 3) => {
         console.log(
           `Retrying in 5 seconds... (${retries - i - 1} attempts left)`,
         );
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+        await new Promise(resolve => setTimeout(resolve, 5000));
       }
     }
   }
-  console.error("❌ Failed to connect to database after multiple attempts");
+  console.error('❌ Failed to connect to database after multiple attempts');
   return false;
 };
 
@@ -78,7 +78,7 @@ module.exports = {
     try {
       return await pool.query(text, params);
     } catch (err) {
-      console.error("Database query error:", err.message);
+      console.error('Database query error:', err.message);
       throw err;
     }
   },

@@ -5,13 +5,13 @@
  * File: backend/security/keyManagement.js
  */
 
-const crypto = require("crypto");
-const logger = require("../utils/logger");
+const crypto = require('crypto');
+const logger = require('../utils/logger');
 
 class JWTKeyManager {
   constructor() {
     // Current active key version
-    this.activeKeyVersion = parseInt(process.env.JWT_KEY_VERSION || "1");
+    this.activeKeyVersion = parseInt(process.env.JWT_KEY_VERSION || '1');
 
     // Load all key versions from environment
     // Format: JWT_SECRET_V1, JWT_SECRET_V2, JWT_SECRET_V3
@@ -27,14 +27,14 @@ class JWTKeyManager {
 
     // Ensure we have at least the active key
     if (!this.keys[this.activeKeyVersion]) {
-      logger.error("Active JWT key version not found in environment!", {
+      logger.error('Active JWT key version not found in environment!', {
         activeVersion: this.activeKeyVersion,
         availableVersions: Object.keys(this.keys),
       });
       throw new Error(`JWT_SECRET_V${this.activeKeyVersion} not configured`);
     }
 
-    logger.info("JWT Key Manager initialized", {
+    logger.info('JWT Key Manager initialized', {
       activeVersion: this.activeKeyVersion,
       availableVersions: Object.keys(this.keys),
       environmentInfo: {
@@ -60,7 +60,7 @@ class JWTKeyManager {
     const key = this.keys[version];
 
     if (!key) {
-      logger.warn("Requested JWT key version not available", {
+      logger.warn('Requested JWT key version not available', {
         requestedVersion: version,
         activeVersion: this.activeKeyVersion,
         availableVersions: Object.keys(this.keys),
@@ -99,7 +99,7 @@ class JWTKeyManager {
     });
 
     if (issues.length > 0) {
-      logger.warn("JWT key validation issues found:", { issues });
+      logger.warn('JWT key validation issues found:', { issues });
     }
 
     return issues;
@@ -123,7 +123,7 @@ class JWTKeyManager {
   getTokenSigningParams() {
     return {
       key: this.getActiveKey(),
-      algorithm: "HS256",
+      algorithm: 'HS256',
       keyid: this.activeKeyVersion.toString(),
     };
   }
@@ -137,8 +137,8 @@ function getKeyManager() {
     instance = new JWTKeyManager();
     // Validate on initialization
     const issues = instance.validateKeys();
-    if (process.env.NODE_ENV === "production" && issues.length > 0) {
-      logger.error("Critical key validation errors in production", { issues });
+    if (process.env.NODE_ENV === 'production' && issues.length > 0) {
+      logger.error('Critical key validation errors in production', { issues });
       process.exit(1);
     }
   }

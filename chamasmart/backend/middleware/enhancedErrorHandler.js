@@ -3,9 +3,9 @@
  * Provides comprehensive error handling with proper logging and user feedback
  */
 
-const logger = require("../utils/logger");
-const { logAuditEvent, EVENT_TYPES, SEVERITY } = require("../utils/auditLog");
-const { HTTP_STATUS, ERROR_CODES } = require("./constants");
+const logger = require('../utils/logger');
+const { logAuditEvent, EVENT_TYPES, SEVERITY } = require('../utils/auditLog');
+const { HTTP_STATUS, ERROR_CODES } = require('./constants');
 
 /**
  * Custom API Error Class
@@ -16,7 +16,7 @@ class APIError extends Error {
     statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR,
     errorCode = ERROR_CODES.INTERNAL_ERROR,
     errors = [],
-    isOperational = true
+    isOperational = true,
   ) {
     super(message);
     this.name = this.constructor.name;
@@ -25,7 +25,7 @@ class APIError extends Error {
     this.errors = errors;
     this.isOperational = isOperational;
     this.timestamp = new Date().toISOString();
-    
+
     Error.captureStackTrace(this, this.constructor);
   }
 }
@@ -36,16 +36,16 @@ class APIError extends Error {
 class DatabaseError extends APIError {
   constructor(message, originalError = null) {
     super(message, HTTP_STATUS.INTERNAL_SERVER_ERROR, ERROR_CODES.DATABASE_ERROR);
-    this.name = "DatabaseError";
+    this.name = 'DatabaseError';
     this.originalError = originalError;
-    
+
     // Log database errors with full context
-    logger.error("Database Error:", {
+    logger.error('Database Error:', {
       message,
       stack: originalError?.stack,
       query: originalError?.query,
       parameters: originalError?.parameters,
-      severity: "HIGH"
+      severity: 'HIGH',
     });
   }
 }
@@ -54,9 +54,9 @@ class DatabaseError extends APIError {
  * Validation Error Handler
  */
 class ValidationError extends APIError {
-  constructor(errors, message = "Validation failed") {
+  constructor(errors, message = 'Validation failed') {
     super(message, HTTP_STATUS.BAD_REQUEST, ERROR_CODES.VALIDATION_ERROR, errors);
-    this.name = "ValidationError";
+    this.name = 'ValidationError';
   }
 }
 
@@ -64,9 +64,9 @@ class ValidationError extends APIError {
  * Authentication Error Handler
  */
 class AuthenticationError extends APIError {
-  constructor(message = "Authentication failed") {
+  constructor(message = 'Authentication failed') {
     super(message, HTTP_STATUS.UNAUTHORIZED, ERROR_CODES.AUTHENTICATION_ERROR);
-    this.name = "AuthenticationError";
+    this.name = 'AuthenticationError';
   }
 }
 
@@ -74,9 +74,9 @@ class AuthenticationError extends APIError {
  * Authorization Error Handler
  */
 class AuthorizationError extends APIError {
-  constructor(message = "Access denied") {
+  constructor(message = 'Access denied') {
     super(message, HTTP_STATUS.FORBIDDEN, ERROR_CODES.AUTHORIZATION_ERROR);
-    this.name = "AuthorizationError";
+    this.name = 'AuthorizationError';
   }
 }
 
@@ -84,9 +84,9 @@ class AuthorizationError extends APIError {
  * Resource Not Found Error Handler
  */
 class NotFoundError extends APIError {
-  constructor(resource = "Resource") {
+  constructor(resource = 'Resource') {
     super(`${resource} not found`, HTTP_STATUS.NOT_FOUND, ERROR_CODES.NOT_FOUND);
-    this.name = "NotFoundError";
+    this.name = 'NotFoundError';
   }
 }
 
@@ -94,9 +94,9 @@ class NotFoundError extends APIError {
  * Conflict Error Handler
  */
 class ConflictError extends APIError {
-  constructor(message = "Resource conflict") {
+  constructor(message = 'Resource conflict') {
     super(message, HTTP_STATUS.CONFLICT, ERROR_CODES.CONFLICT);
-    this.name = "ConflictError";
+    this.name = 'ConflictError';
   }
 }
 
@@ -104,9 +104,9 @@ class ConflictError extends APIError {
  * Rate Limit Error Handler
  */
 class RateLimitError extends APIError {
-  constructor(message = "Rate limit exceeded") {
+  constructor(message = 'Rate limit exceeded') {
     super(message, HTTP_STATUS.TOO_MANY_REQUESTS, ERROR_CODES.RATE_LIMIT_EXCEEDED);
-    this.name = "RateLimitError";
+    this.name = 'RateLimitError';
   }
 }
 
@@ -114,17 +114,17 @@ class RateLimitError extends APIError {
  * Central Error Handler Middleware
  */
 const errorHandler = (err, req, res, next) => {
-  let error = { ...err };
+  const error = { ...err };
   error.message = err.message;
 
   // Log error details
-  logger.error("Error occurred:", {
+  logger.error('Error occurred:', {
     message: err.message,
     stack: err.stack,
     url: req.url,
     method: req.method,
     ip: req.ip,
-    userAgent: req.get("user-agent"),
+    userAgent: req.get('user-agent'),
     userId: req.user?.id,
     body: req.body,
     params: req.params,
@@ -134,7 +134,7 @@ const errorHandler = (err, req, res, next) => {
   // Default error response
   let statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR;
   let errorCode = ERROR_CODES.INTERNAL_ERROR;
-  let message = "Internal server error";
+  let message = 'Internal server error';
   let errors = [];
 
   // Handle specific error types
@@ -143,41 +143,41 @@ const errorHandler = (err, req, res, next) => {
     errorCode = err.errorCode;
     message = err.message;
     errors = err.errors;
-  } else if (err.name === "ValidationError") {
+  } else if (err.name === 'ValidationError') {
     statusCode = HTTP_STATUS.BAD_REQUEST;
     errorCode = ERROR_CODES.VALIDATION_ERROR;
-    message = "Validation failed";
+    message = 'Validation failed';
     errors = err.details?.map(detail => ({
-      field: detail.path?.join("."),
-      message: detail.message
+      field: detail.path?.join('.'),
+      message: detail.message,
     }));
-  } else if (err.code === "23505") { // PostgreSQL unique violation
+  } else if (err.code === '23505') { // PostgreSQL unique violation
     statusCode = HTTP_STATUS.CONFLICT;
     errorCode = ERROR_CODES.CONFLICT;
-    message = "Resource already exists";
-    errors = [{ field: "unique", message: "A record with this value already exists" }];
-  } else if (err.code === "23503") { // PostgreSQL foreign key violation
+    message = 'Resource already exists';
+    errors = [{ field: 'unique', message: 'A record with this value already exists' }];
+  } else if (err.code === '23503') { // PostgreSQL foreign key violation
     statusCode = HTTP_STATUS.BAD_REQUEST;
     errorCode = ERROR_CODES.VALIDATION_ERROR;
-    message = "Invalid reference";
-    errors = [{ field: "foreign_key", message: "Referenced resource does not exist" }];
-  } else if (err.code === "23502") { // PostgreSQL not null violation
+    message = 'Invalid reference';
+    errors = [{ field: 'foreign_key', message: 'Referenced resource does not exist' }];
+  } else if (err.code === '23502') { // PostgreSQL not null violation
     statusCode = HTTP_STATUS.BAD_REQUEST;
     errorCode = ERROR_CODES.VALIDATION_ERROR;
-    message = "Required field missing";
-    errors = [{ field: "not_null", message: "A required field is missing" }];
-  } else if (err.name === "JsonWebTokenError") {
+    message = 'Required field missing';
+    errors = [{ field: 'not_null', message: 'A required field is missing' }];
+  } else if (err.name === 'JsonWebTokenError') {
     statusCode = HTTP_STATUS.UNAUTHORIZED;
     errorCode = ERROR_CODES.AUTHENTICATION_ERROR;
-    message = "Invalid token";
-  } else if (err.name === "TokenExpiredError") {
+    message = 'Invalid token';
+  } else if (err.name === 'TokenExpiredError') {
     statusCode = HTTP_STATUS.UNAUTHORIZED;
     errorCode = ERROR_CODES.AUTHENTICATION_ERROR;
-    message = "Token expired";
-  } else if (err.name === "CastError") {
+    message = 'Token expired';
+  } else if (err.name === 'CastError') {
     statusCode = HTTP_STATUS.BAD_REQUEST;
     errorCode = ERROR_CODES.VALIDATION_ERROR;
-    message = "Invalid data format";
+    message = 'Invalid data format';
   }
 
   // Log audit event for security-related errors
@@ -186,18 +186,18 @@ const errorHandler = (err, req, res, next) => {
       eventType: statusCode === 401 ? EVENT_TYPES.AUTH_FAILED : EVENT_TYPES.SYSTEM_ERROR,
       userId: req.user?.id || null,
       action: `Error: ${message}`,
-      entityType: "system",
+      entityType: 'system',
       entityId: null,
       metadata: {
         url: req.url,
         method: req.method,
         statusCode,
         errorCode,
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
       },
       severity: statusCode >= 500 ? SEVERITY.HIGH : SEVERITY.MEDIUM,
     }).catch(auditError => {
-      logger.error("Failed to log audit event:", auditError);
+      logger.error('Failed to log audit event:', auditError);
     });
   }
 
@@ -210,7 +210,7 @@ const errorHandler = (err, req, res, next) => {
   };
 
   // Include errors in development
-  if (process.env.NODE_ENV === "development") {
+  if (process.env.NODE_ENV === 'development') {
     errorResponse.errors = errors;
     errorResponse.stack = err.stack;
   } else if (errors.length > 0) {
@@ -233,7 +233,7 @@ const notFoundHandler = (req, res, next) => {
  * Async Error Wrapper
  * Wraps async functions to catch errors automatically
  */
-const asyncHandler = (fn) => (req, res, next) => {
+const asyncHandler = fn => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
@@ -241,12 +241,12 @@ const asyncHandler = (fn) => (req, res, next) => {
  * Validation Error Handler
  * Converts Joi validation errors to our format
  */
-const validationErrorHandler = (error) => {
+const validationErrorHandler = error => {
   if (error.details) {
     const errors = error.details.map(detail => ({
-      field: detail.path.join("."),
+      field: detail.path.join('.'),
       message: detail.message,
-      value: detail.context?.value
+      value: detail.context?.value,
     }));
     throw new ValidationError(errors);
   }
@@ -263,7 +263,7 @@ module.exports = {
   NotFoundError,
   ConflictError,
   RateLimitError,
-  
+
   // Middleware
   errorHandler,
   notFoundHandler,

@@ -1,21 +1,23 @@
-const pool = require("../config/db");
+const pool = require('../config/db');
 
 // POST /api/asca/:chamaId/proposals
 const createProposal = async (req, res, next) => {
   try {
     const { chamaId } = req.params;
-    const { title, description, amount_required, deadline } = req.body;
+    const {
+      title, description, amount_required, deadline,
+    } = req.body;
     const userId = req.user.user_id;
 
     if (!title) {
-      return res.status(400).json({ success: false, message: "Title is required" });
+      return res.status(400).json({ success: false, message: 'Title is required' });
     }
 
     const result = await pool.query(
       `INSERT INTO proposals (chama_id, created_by, title, description, amount_required, deadline)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [chamaId, userId, title, description || null, amount_required || null, deadline || null]
+      [chamaId, userId, title, description || null, amount_required || null, deadline || null],
     );
 
     res.status(201).json({ success: true, data: result.rows[0] });
@@ -41,7 +43,7 @@ const listProposals = async (req, res, next) => {
        WHERE p.chama_id = $1
        GROUP BY p.id, u.first_name, u.last_name
        ORDER BY p.created_at DESC NULLS LAST, p.deadline ASC NULLS LAST`,
-      [chamaId]
+      [chamaId],
     );
 
     res.json({ success: true, data: result.rows });
@@ -64,7 +66,7 @@ const castVote = async (req, res, next) => {
     // Load proposal and its chama for membership validation
     const proposalRes = await pool.query(
       'SELECT id, chama_id, status, deadline FROM proposals WHERE id = $1',
-      [proposalId]
+      [proposalId],
     );
 
     if (proposalRes.rows.length === 0) {
@@ -77,7 +79,7 @@ const castVote = async (req, res, next) => {
     const membershipRes = await pool.query(
       `SELECT 1 FROM chama_members
        WHERE chama_id = $1 AND user_id = $2 AND is_active = true`,
-      [proposal.chama_id, userId]
+      [proposal.chama_id, userId],
     );
 
     if (membershipRes.rows.length === 0) {
@@ -95,7 +97,7 @@ const castVote = async (req, res, next) => {
     try {
       await pool.query(
         'INSERT INTO votes (proposal_id, user_id, vote_choice) VALUES ($1, $2, $3)',
-        [proposalId, userId, choice]
+        [proposalId, userId, choice],
       );
     } catch (err) {
       if (err.code === '23505') {

@@ -3,15 +3,15 @@
 // Author: Security Team
 // Last Updated: 2026-01-18
 
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
-const { v4: uuidv4 } = require("uuid");
-const speakeasy = require("speakeasy"); // For TOTP/Google Authenticator
-const QRCode = require("qrcode");
-const Encryption = require("./encryption");
-const AuditLogger = require("./auditLogger");
-const pool = require("../config/db");
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const { v4: uuidv4 } = require('uuid');
+const speakeasy = require('speakeasy'); // For TOTP/Google Authenticator
+const QRCode = require('qrcode');
+const Encryption = require('./encryption');
+const AuditLogger = require('./auditLogger');
+const pool = require('../config/db');
 
 // ============================================================================
 // PASSWORD SECURITY UTILITIES
@@ -25,7 +25,7 @@ const validatePasswordPolicy = async (password, userId = null) => {
   try {
     // Get password policy (default if none specified)
     const policyResult = await pool.query(
-      "SELECT * FROM password_policies WHERE active = true ORDER BY created_at DESC LIMIT 1",
+      'SELECT * FROM password_policies WHERE active = true ORDER BY created_at DESC LIMIT 1',
     );
     const policy = policyResult.rows[0];
 
@@ -38,28 +38,28 @@ const validatePasswordPolicy = async (password, userId = null) => {
     }
 
     if (policy.require_uppercase && !/[A-Z]/.test(password)) {
-      errors.push("Password must contain uppercase letters");
+      errors.push('Password must contain uppercase letters');
     }
 
     if (policy.require_lowercase && !/[a-z]/.test(password)) {
-      errors.push("Password must contain lowercase letters");
+      errors.push('Password must contain lowercase letters');
     }
 
     if (policy.require_numbers && !/[0-9]/.test(password)) {
-      errors.push("Password must contain numbers");
+      errors.push('Password must contain numbers');
     }
 
     if (
-      policy.require_special_chars &&
-      !/[!@#$%^&*(),.?":{}|<>]/.test(password)
+      policy.require_special_chars
+      && !/[!@#$%^&*(),.?":{}|<>]/.test(password)
     ) {
-      errors.push("Password must contain special characters");
+      errors.push('Password must contain special characters');
     }
 
     // Check password history (if user exists)
     if (userId) {
       const userResult = await pool.query(
-        "SELECT password_history FROM users WHERE user_id = $1",
+        'SELECT password_history FROM users WHERE user_id = $1',
         [userId],
       );
 
@@ -92,8 +92,8 @@ const validatePasswordPolicy = async (password, userId = null) => {
       errors,
     };
   } catch (error) {
-    console.error("Password policy validation error:", error);
-    throw new Error("Password validation failed");
+    console.error('Password policy validation error:', error);
+    throw new Error('Password validation failed');
   }
 };
 
@@ -101,20 +101,20 @@ const validatePasswordPolicy = async (password, userId = null) => {
  * Check password against known breached passwords database
  * KDPA: Security of personal data
  */
-const checkPasswordBreach = async (password) => {
+const checkPasswordBreach = async password => {
   try {
     // Hash password using SHA-1 (standard for HaveIBeenPwned)
     const hash = crypto
-      .createHash("sha1")
+      .createHash('sha1')
       .update(password)
-      .digest("hex")
+      .digest('hex')
       .toUpperCase();
     const prefix = hash.substring(0, 5);
     const suffix = hash.substring(5);
 
     // Check local breach database
     const result = await pool.query(
-      "SELECT breach_count FROM password_breach_database WHERE password_hash = $1",
+      'SELECT breach_count FROM password_breach_database WHERE password_hash = $1',
       [hash],
     );
 
@@ -134,7 +134,7 @@ const checkPasswordBreach = async (password) => {
       breachCount: 0,
     };
   } catch (error) {
-    console.error("Password breach check error:", error);
+    console.error('Password breach check error:', error);
     // Fail open - allow password if service fails
     return { breached: false, breachCount: 0 };
   }
@@ -147,21 +147,20 @@ const checkPasswordBreach = async (password) => {
 const recordFailedLoginAttempt = async (userId, ipAddress, userAgent) => {
   try {
     const policy = await pool.query(
-      "SELECT * FROM password_policies WHERE active = true ORDER BY created_at DESC LIMIT 1",
+      'SELECT * FROM password_policies WHERE active = true ORDER BY created_at DESC LIMIT 1',
     );
     const maxAttempts = policy.rows[0]?.account_lockout_attempts || 5;
-    const lockoutDuration =
-      policy.rows[0]?.account_lockout_duration_minutes || 15;
+    const lockoutDuration = policy.rows[0]?.account_lockout_duration_minutes || 15;
 
     // Increment failed attempts
     await pool.query(
-      "UPDATE users SET password_attempts = password_attempts + 1 WHERE user_id = $1",
+      'UPDATE users SET password_attempts = password_attempts + 1 WHERE user_id = $1',
       [userId],
     );
 
     // Get current attempt count
     const result = await pool.query(
-      "SELECT password_attempts FROM users WHERE user_id = $1",
+      'SELECT password_attempts FROM users WHERE user_id = $1',
       [userId],
     );
     const attempts = result.rows[0]?.password_attempts || 0;
@@ -170,14 +169,14 @@ const recordFailedLoginAttempt = async (userId, ipAddress, userAgent) => {
     if (attempts >= maxAttempts) {
       const lockUntil = new Date(Date.now() + lockoutDuration * 60 * 1000);
       await pool.query(
-        "UPDATE users SET account_locked = true, account_locked_until = $1 WHERE user_id = $1",
+        'UPDATE users SET account_locked = true, account_locked_until = $1 WHERE user_id = $1',
         [lockUntil, userId],
       );
 
       // Log security event
       await AuditLogger.logAuthenticationEvent(
         userId,
-        "ACCOUNT_LOCKED",
+        'ACCOUNT_LOCKED',
         false,
         ipAddress,
         userAgent,
@@ -194,7 +193,7 @@ const recordFailedLoginAttempt = async (userId, ipAddress, userAgent) => {
     // Log failed attempt
     await AuditLogger.logAuthenticationEvent(
       userId,
-      "LOGIN_FAILED",
+      'LOGIN_FAILED',
       false,
       ipAddress,
       userAgent,
@@ -206,7 +205,7 @@ const recordFailedLoginAttempt = async (userId, ipAddress, userAgent) => {
       attemptsRemaining: maxAttempts - attempts,
     };
   } catch (error) {
-    console.error("Failed login attempt recording error:", error);
+    console.error('Failed login attempt recording error:', error);
     throw error;
   }
 };
@@ -215,24 +214,24 @@ const recordFailedLoginAttempt = async (userId, ipAddress, userAgent) => {
  * Reset password attempts on successful login
  * KDPA: Accountability
  */
-const resetLoginAttempts = async (userId) => {
+const resetLoginAttempts = async userId => {
   try {
     await pool.query(
-      "UPDATE users SET password_attempts = 0, account_locked = false, account_locked_until = null WHERE user_id = $1",
+      'UPDATE users SET password_attempts = 0, account_locked = false, account_locked_until = null WHERE user_id = $1',
       [userId],
     );
   } catch (error) {
-    console.error("Reset login attempts error:", error);
+    console.error('Reset login attempts error:', error);
   }
 };
 
 /**
  * Check if account is locked
  */
-const isAccountLocked = async (userId) => {
+const isAccountLocked = async userId => {
   try {
     const result = await pool.query(
-      "SELECT account_locked, account_locked_until FROM users WHERE user_id = $1",
+      'SELECT account_locked, account_locked_until FROM users WHERE user_id = $1',
       [userId],
     );
 
@@ -244,12 +243,12 @@ const isAccountLocked = async (userId) => {
     // Check if lockout period expired
     const now = new Date();
     if (
-      user.account_locked_until &&
-      new Date(user.account_locked_until) <= now
+      user.account_locked_until
+      && new Date(user.account_locked_until) <= now
     ) {
       // Unlock account
       await pool.query(
-        "UPDATE users SET account_locked = false, account_locked_until = null WHERE user_id = $1",
+        'UPDATE users SET account_locked = false, account_locked_until = null WHERE user_id = $1',
         [userId],
       );
       return { locked: false };
@@ -260,7 +259,7 @@ const isAccountLocked = async (userId) => {
       unlockTime: user.account_locked_until,
     };
   } catch (error) {
-    console.error("Account lock check error:", error);
+    console.error('Account lock check error:', error);
     throw error;
   }
 };
@@ -277,7 +276,7 @@ const enableTOTP = async (userId, userName) => {
   try {
     const secret = speakeasy.generateSecret({
       name: `ChamaSmart (${userName})`,
-      issuer: "ChamaSmart",
+      issuer: 'ChamaSmart',
       length: 32,
     });
 
@@ -287,7 +286,7 @@ const enableTOTP = async (userId, userName) => {
     // Store backup codes
     const backupCodes = generateBackupCodes(10);
     const hashedCodes = await Promise.all(
-      backupCodes.map((code) => bcrypt.hash(code, 10)),
+      backupCodes.map(code => bcrypt.hash(code, 10)),
     );
 
     // Store secret in database (encrypted)
@@ -310,10 +309,10 @@ const enableTOTP = async (userId, userName) => {
       qrCode,
       backupCodes,
       message:
-        "Scan QR code with authenticator app. Save backup codes in a safe place.",
+        'Scan QR code with authenticator app. Save backup codes in a safe place.',
     };
   } catch (error) {
-    console.error("Enable TOTP error:", error);
+    console.error('Enable TOTP error:', error);
     throw error;
   }
 };
@@ -324,21 +323,21 @@ const enableTOTP = async (userId, userName) => {
 const verifyTOTPCode = async (userId, token) => {
   try {
     // Get user's TOTP secret
-    const result = await pool.query("SELECT * FROM users WHERE user_id = $1", [
+    const result = await pool.query('SELECT * FROM users WHERE user_id = $1', [
       userId,
     ]);
     const user = result.rows[0];
 
     if (!user?.two_factor_enabled) {
-      return { valid: false, reason: "2FA not enabled" };
+      return { valid: false, reason: '2FA not enabled' };
     }
 
     // Decrypt TOTP secret (implementation depends on your encryption method)
     // This is pseudocode - actual implementation varies
     const isValid = speakeasy.totp.verify({
       secret: user.totp_secret, // This should be decrypted
-      encoding: "base32",
-      token: token,
+      encoding: 'base32',
+      token,
       window: 2, // Allow 2 windows of time drift
     });
 
@@ -351,19 +350,19 @@ const verifyTOTPCode = async (userId, token) => {
             // Remove used backup code
             user.mfa_backup_codes.splice(i, 1);
             await pool.query(
-              "UPDATE users SET mfa_backup_codes = $1 WHERE user_id = $2",
+              'UPDATE users SET mfa_backup_codes = $1 WHERE user_id = $2',
               [user.mfa_backup_codes, userId],
             );
             return { valid: true, isBackupCode: true };
           }
         }
       }
-      return { valid: false, reason: "Invalid authentication code" };
+      return { valid: false, reason: 'Invalid authentication code' };
     }
 
     return { valid: true };
   } catch (error) {
-    console.error("Verify TOTP error:", error);
+    console.error('Verify TOTP error:', error);
     throw error;
   }
 };
@@ -374,7 +373,7 @@ const verifyTOTPCode = async (userId, token) => {
 const generateBackupCodes = (count = 10) => {
   const codes = [];
   for (let i = 0; i < count; i++) {
-    const code = crypto.randomBytes(4).toString("hex").toUpperCase();
+    const code = crypto.randomBytes(4).toString('hex').toUpperCase();
     codes.push(`${code.slice(0, 4)}-${code.slice(4)}`);
   }
   return codes;
@@ -417,11 +416,11 @@ const enableSMS2FA = async (userId, phoneNumber) => {
 
     return {
       sessionId,
-      message: "SMS sent with verification code. Code expires in 10 minutes.",
+      message: 'SMS sent with verification code. Code expires in 10 minutes.',
       expiresIn: 600, // seconds
     };
   } catch (error) {
-    console.error("Enable SMS 2FA error:", error);
+    console.error('Enable SMS 2FA error:', error);
     throw error;
   }
 };
@@ -429,11 +428,9 @@ const enableSMS2FA = async (userId, phoneNumber) => {
 /**
  * Generate time-based verification code
  */
-const generateTOTP = () => {
-  return Math.floor(Math.random() * 1000000)
-    .toString()
-    .padStart(6, "0");
-};
+const generateTOTP = () => Math.floor(Math.random() * 1000000)
+  .toString()
+  .padStart(6, '0');
 
 // ============================================================================
 // SESSION AND DEVICE MANAGEMENT
@@ -453,9 +450,9 @@ const registerDevice = async (
   try {
     const deviceId = uuidv4();
     const deviceIdentifier = crypto
-      .createHash("sha256")
+      .createHash('sha256')
       .update(`${deviceType}:${userAgent}:${ipAddress}`)
-      .digest("hex");
+      .digest('hex');
 
     await pool.query(
       `INSERT INTO user_devices (user_id, device_name, device_type, device_identifier, ip_address, user_agent)
@@ -465,7 +462,7 @@ const registerDevice = async (
 
     await AuditLogger.logAuthenticationEvent(
       userId,
-      "DEVICE_REGISTERED",
+      'DEVICE_REGISTERED',
       true,
       ipAddress,
       userAgent,
@@ -474,10 +471,10 @@ const registerDevice = async (
 
     return {
       deviceId,
-      message: "Device registered successfully",
+      message: 'Device registered successfully',
     };
   } catch (error) {
-    console.error("Register device error:", error);
+    console.error('Register device error:', error);
     throw error;
   }
 };
@@ -490,34 +487,34 @@ const markDeviceTrusted = async (deviceId, userId) => {
   try {
     // Get device
     const device = await pool.query(
-      "SELECT * FROM user_devices WHERE device_id = $1 AND user_id = $2",
+      'SELECT * FROM user_devices WHERE device_id = $1 AND user_id = $2',
       [deviceId, userId],
     );
 
     if (device.rows.length === 0) {
-      throw new Error("Device not found");
+      throw new Error('Device not found');
     }
 
     // Only trust up to 5 devices per user (KDPA: limit trusted devices)
     const trustedCount = await pool.query(
-      "SELECT COUNT(*) as count FROM user_devices WHERE user_id = $1 AND is_trusted = true",
+      'SELECT COUNT(*) as count FROM user_devices WHERE user_id = $1 AND is_trusted = true',
       [userId],
     );
 
     if (trustedCount.rows[0].count >= 5) {
       throw new Error(
-        "Maximum trusted devices reached. Remove a trusted device first.",
+        'Maximum trusted devices reached. Remove a trusted device first.',
       );
     }
 
     await pool.query(
-      "UPDATE user_devices SET is_trusted = true WHERE device_id = $1",
+      'UPDATE user_devices SET is_trusted = true WHERE device_id = $1',
       [deviceId],
     );
 
-    return { message: "Device marked as trusted" };
+    return { message: 'Device marked as trusted' };
   } catch (error) {
-    console.error("Mark device trusted error:", error);
+    console.error('Mark device trusted error:', error);
     throw error;
   }
 };
@@ -526,7 +523,7 @@ const markDeviceTrusted = async (deviceId, userId) => {
  * Get all trusted devices for user
  * KDPA: User right to access
  */
-const getUserDevices = async (userId) => {
+const getUserDevices = async userId => {
   try {
     const result = await pool.query(
       `SELECT device_id, device_name, device_type, is_trusted, last_used_at, created_at
@@ -538,7 +535,7 @@ const getUserDevices = async (userId) => {
 
     return result.rows;
   } catch (error) {
-    console.error("Get user devices error:", error);
+    console.error('Get user devices error:', error);
     throw error;
   }
 };
@@ -550,22 +547,22 @@ const getUserDevices = async (userId) => {
 const revokeDevice = async (deviceId, userId) => {
   try {
     await pool.query(
-      "DELETE FROM user_devices WHERE device_id = $1 AND user_id = $2",
+      'DELETE FROM user_devices WHERE device_id = $1 AND user_id = $2',
       [deviceId, userId],
     );
 
     await AuditLogger.logAuthenticationEvent(
       userId,
-      "DEVICE_REVOKED",
+      'DEVICE_REVOKED',
       true,
       null,
       null,
       `Device: ${deviceId} revoked`,
     );
 
-    return { message: "Device revoked successfully" };
+    return { message: 'Device revoked successfully' };
   } catch (error) {
-    console.error("Revoke device error:", error);
+    console.error('Revoke device error:', error);
     throw error;
   }
 };
@@ -588,9 +585,9 @@ const createSessionBinding = (userId, ipAddress, userAgent, deviceId) => {
   };
 
   return crypto
-    .createHash("sha256")
+    .createHash('sha256')
     .update(JSON.stringify(binding))
-    .digest("hex");
+    .digest('hex');
 };
 
 /**
@@ -612,9 +609,9 @@ const verifySessionBinding = (
   };
 
   const expectedHash = crypto
-    .createHash("sha256")
+    .createHash('sha256')
     .update(JSON.stringify(binding))
-    .digest("hex");
+    .digest('hex');
 
   return token.sessionBinding === expectedHash;
 };
@@ -643,13 +640,13 @@ const logPrivilegeEscalation = async (
 
     await AuditLogger.logSensitiveOperation(
       authorizedBy,
-      "PRIVILEGE_ESCALATION",
+      'PRIVILEGE_ESCALATION',
       `user:${userId}`,
       { from_role: fromRole, to_role: toRole },
       null,
     );
   } catch (error) {
-    console.error("Log privilege escalation error:", error);
+    console.error('Log privilege escalation error:', error);
     throw error;
   }
 };

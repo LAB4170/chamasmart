@@ -1,6 +1,7 @@
-const express = require("express");
+const express = require('express');
+
 const router = express.Router();
-const { protect, authorize } = require("../middleware/auth");
+const { protect, authorize } = require('../middleware/auth');
 const {
   applyForLoan,
   getChamaLoans,
@@ -9,10 +10,10 @@ const {
   rejectLoan,
   makeRepayment,
   getUserLoans,
-} = require("../controllers/loanController");
-const validate = require("../middleware/validate");
-const { applyLoanSchema } = require("../utils/validationSchemas");
-const { applyFinancialRateLimiting } = require("../middleware/rateLimiting");
+} = require('../controllers/loanController');
+const validate = require('../middleware/validate');
+const { applyLoanSchema } = require('../utils/validationSchemas');
+const { applyFinancialRateLimiting } = require('../middleware/rateLimiting');
 
 // ============================================================================
 // ALL ROUTES REQUIRE AUTHENTICATION
@@ -25,7 +26,7 @@ router.use(protect);
 // ============================================================================
 
 // Get user's loan history
-router.get("/my-loans", getUserLoans);
+router.get('/my-loans', getUserLoans);
 
 // ============================================================================
 // CHAMA LOAN MANAGEMENT
@@ -33,22 +34,22 @@ router.get("/my-loans", getUserLoans);
 
 // Get all loans for a chama
 router.get(
-  "/:chamaId",
-  authorize("member", "admin", "treasurer", "chairperson"),
+  '/:chamaId',
+  authorize('member', 'admin', 'treasurer', 'chairperson'),
   getChamaLoans,
 );
 
 // Get specific loan details
 router.get(
-  "/:chamaId/:loanId",
-  authorize("member", "admin", "treasurer", "chairperson"),
+  '/:chamaId/:loanId',
+  authorize('member', 'admin', 'treasurer', 'chairperson'),
   getLoanById,
 );
 
 // Apply for a loan (with financial rate limiting)
 router.post(
-  "/:chamaId/apply",
-  authorize("member"),
+  '/:chamaId/apply',
+  authorize('member'),
   applyFinancialRateLimiting,
   validate(applyLoanSchema),
   applyForLoan,
@@ -60,15 +61,15 @@ router.post(
 
 // Approve loan application
 router.put(
-  "/:chamaId/:loanId/approve",
-  authorize("admin", "treasurer", "chairperson"),
+  '/:chamaId/:loanId/approve',
+  authorize('admin', 'treasurer', 'chairperson'),
   approveLoan,
 );
 
 // Reject loan application
 router.put(
-  "/:chamaId/:loanId/reject",
-  authorize("admin", "treasurer", "chairperson"),
+  '/:chamaId/:loanId/reject',
+  authorize('admin', 'treasurer', 'chairperson'),
   rejectLoan,
 );
 
@@ -78,7 +79,7 @@ router.put(
 
 // Make loan repayment
 router.post(
-  "/:chamaId/:loanId/repay",
+  '/:chamaId/:loanId/repay',
   applyFinancialRateLimiting,
   makeRepayment,
 );

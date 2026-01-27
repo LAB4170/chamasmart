@@ -13,7 +13,7 @@ describe('Chama Management Endpoints', () => {
       first_name: 'Test',
       last_name: 'User',
       email: 'chamatest@example.com',
-      password: 'SecurePass123!'
+      password: 'SecurePass123!',
     };
 
     const registerResponse = await request(app)
@@ -41,7 +41,7 @@ describe('Chama Management Endpoints', () => {
         contribution_frequency: 'MONTHLY',
         meeting_day: 'Saturday',
         meeting_time: '14:00',
-        visibility: 'PUBLIC'
+        visibility: 'PUBLIC',
       };
 
       const response = await request(app)
@@ -53,13 +53,13 @@ describe('Chama Management Endpoints', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data.chama.chama_name).toBe(chamaData.chama_name);
       expect(response.body.data.chama.chama_type).toBe(chamaData.chama_type);
-      
+
       testChamaId = response.body.data.chama.chama_id;
     });
 
     it('should return validation error for missing required fields', async () => {
       const chamaData = {
-        description: 'Incomplete chama data'
+        description: 'Incomplete chama data',
         // missing chama_name, chama_type, contribution_amount
       };
 
@@ -77,7 +77,7 @@ describe('Chama Management Endpoints', () => {
       const chamaData = {
         chama_name: 'Invalid Chama',
         chama_type: 'INVALID_TYPE',
-        contribution_amount: 5000.00
+        contribution_amount: 5000.00,
       };
 
       const response = await request(app)
@@ -94,7 +94,7 @@ describe('Chama Management Endpoints', () => {
       const chamaData = {
         chama_name: 'Unauthorized Chama',
         chama_type: 'CHAMA',
-        contribution_amount: 5000.00
+        contribution_amount: 5000.00,
       };
 
       const response = await request(app)
@@ -186,7 +186,7 @@ describe('Chama Management Endpoints', () => {
     it('should update chama successfully', async () => {
       const updateData = {
         chama_name: 'Updated Test Group',
-        description: 'Updated description'
+        description: 'Updated description',
       };
 
       const response = await request(app)
@@ -206,7 +206,7 @@ describe('Chama Management Endpoints', () => {
         first_name: 'Other',
         last_name: 'User',
         email: 'other@example.com',
-        password: 'SecurePass123!'
+        password: 'SecurePass123!',
       };
 
       const otherUserResponse = await request(app)
@@ -216,7 +216,7 @@ describe('Chama Management Endpoints', () => {
       const otherToken = otherUserResponse.body.data.tokens.accessToken;
 
       const updateData = {
-        chama_name: 'Hijacked Group'
+        chama_name: 'Hijacked Group',
       };
 
       const response = await request(app)

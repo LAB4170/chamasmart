@@ -2,8 +2,8 @@
  * OTP Utilities - Email & SMS OTP handling
  */
 
-const nodemailer = require("nodemailer");
-const logger = require("./logger");
+const nodemailer = require('nodemailer');
+const logger = require('./logger');
 
 // ============================================================================
 // EMAIL OTP HANDLER
@@ -14,7 +14,7 @@ class EmailOTP {
     this.transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
       port: process.env.EMAIL_PORT || 587,
-      secure: process.env.EMAIL_SECURE === "true", // true for 465, false for other ports
+      secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD,
@@ -22,7 +22,7 @@ class EmailOTP {
     });
   }
 
-  async send(email, otp, userName = "User") {
+  async send(email, otp, userName = 'User') {
     try {
       const htmlContent = `
         <!DOCTYPE html>
@@ -70,14 +70,14 @@ class EmailOTP {
         text: `Your ChamaSmart verification code is: ${otp}. It will expire in 10 minutes.`,
       });
 
-      logger.info("📧 OTP email sent", {
-        email: email.replace(/(.{2})(.*)(@.*)/, "$1***$3"),
+      logger.info('📧 OTP email sent', {
+        email: email.replace(/(.{2})(.*)(@.*)/, '$1***$3'),
         messageId: result.messageId,
       });
 
       return { success: true, messageId: result.messageId };
     } catch (error) {
-      logger.error("Failed to send OTP email", error);
+      logger.error('Failed to send OTP email', error);
       return { success: false, error: error.message };
     }
   }
@@ -88,16 +88,16 @@ class EmailOTP {
 // ============================================================================
 
 class SMSOTP {
-  constructor(provider = "twilio") {
+  constructor(provider = 'twilio') {
     this.provider = provider;
 
-    if (provider === "twilio") {
+    if (provider === 'twilio') {
       this.accountSid = process.env.TWILIO_ACCOUNT_SID;
       this.authToken = process.env.TWILIO_AUTH_TOKEN;
       this.fromNumber = process.env.TWILIO_PHONE_NUMBER;
       // In production, initialize Twilio client
       // this.twilioClient = require('twilio')(this.accountSid, this.authToken);
-    } else if (provider === "africas_talking") {
+    } else if (provider === 'africas_talking') {
       this.apiKey = process.env.AFRICAS_TALKING_API_KEY;
       this.username = process.env.AFRICAS_TALKING_USERNAME;
       // In production, initialize Africa's Talking client
@@ -105,45 +105,44 @@ class SMSOTP {
     }
   }
 
-  async send(phone, otp, countryCode = "+254") {
+  async send(phone, otp, countryCode = '+254') {
     try {
       const formattedPhone = this.formatPhoneNumber(phone, countryCode);
       const message = `Your ChamaSmart verification code is: ${otp}. Valid for 10 minutes. Never share this code.`;
 
-      if (this.provider === "twilio") {
+      if (this.provider === 'twilio') {
         return await this.sendViaTwilio(formattedPhone, message, otp);
-      } else if (this.provider === "africas_talking") {
+      } if (this.provider === 'africas_talking') {
         return await this.sendViaAfricasTalking(formattedPhone, message, otp);
-      } else {
-        // Development mode - log to console
-        logger.info("📱 [DEV] SMS OTP would be sent", {
-          phone: this.maskPhone(phone),
-          otp: process.env.NODE_ENV === "development" ? otp : "***",
-          message,
-        });
-        return { success: true, dev: true };
       }
+      // Development mode - log to console
+      logger.info('📱 [DEV] SMS OTP would be sent', {
+        phone: this.maskPhone(phone),
+        otp: process.env.NODE_ENV === 'development' ? otp : '***',
+        message,
+      });
+      return { success: true, dev: true };
     } catch (error) {
-      logger.error("Failed to send SMS OTP", error);
+      logger.error('Failed to send SMS OTP', error);
       return { success: false, error: error.message };
     }
   }
 
   formatPhoneNumber(phone, countryCode) {
     // Remove any non-digit characters
-    let cleaned = phone.replace(/\D/g, "");
+    let cleaned = phone.replace(/\D/g, '');
 
     // If starts with 0, replace with country code
-    if (cleaned.startsWith("0")) {
+    if (cleaned.startsWith('0')) {
       cleaned = cleaned.slice(1);
     }
 
     // Add country code if not present
-    if (!cleaned.startsWith(countryCode.replace("+", ""))) {
-      cleaned = countryCode.replace("+", "") + cleaned;
+    if (!cleaned.startsWith(countryCode.replace('+', ''))) {
+      cleaned = countryCode.replace('+', '') + cleaned;
     }
 
-    return "+" + cleaned;
+    return `+${cleaned}`;
   }
 
   maskPhone(phone) {
@@ -152,18 +151,18 @@ class SMSOTP {
 
   async sendViaTwilio(phone, message, otp) {
     // TODO: Implement Twilio integration
-    logger.warn("⚠️ Twilio SMS OTP not yet configured", {
+    logger.warn('⚠️ Twilio SMS OTP not yet configured', {
       phone: this.maskPhone(phone),
     });
-    return { success: false, error: "Twilio not configured" };
+    return { success: false, error: 'Twilio not configured' };
   }
 
   async sendViaAfricasTalking(phone, message, otp) {
     // TODO: Implement Africa's Talking integration
-    logger.warn("⚠️ Africa's Talking SMS OTP not yet configured", {
+    logger.warn('⚠️ Africa\'s Talking SMS OTP not yet configured', {
       phone: this.maskPhone(phone),
     });
-    return { success: false, error: "Africa's Talking not configured" };
+    return { success: false, error: 'Africa\'s Talking not configured' };
   }
 }
 
@@ -173,8 +172,8 @@ class SMSOTP {
 
 class OTPGenerator {
   static numeric(length = 6) {
-    const digits = "0123456789";
-    let code = "";
+    const digits = '0123456789';
+    let code = '';
     for (let i = 0; i < length; i++) {
       code += digits[Math.floor(Math.random() * digits.length)];
     }
@@ -182,8 +181,8 @@ class OTPGenerator {
   }
 
   static alphanumeric(length = 8) {
-    const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    let code = "";
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let code = '';
     for (let i = 0; i < length; i++) {
       code += chars[Math.floor(Math.random() * chars.length)];
     }

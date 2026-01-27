@@ -3,9 +3,9 @@
  * Eliminates code duplication across scripts
  */
 
-require("dotenv").config();
-const { Pool } = require("pg");
-const logger = require("../utils/logger");
+require('dotenv').config();
+const { Pool } = require('pg');
+const logger = require('../utils/logger');
 
 class DatabaseUtils {
   constructor() {
@@ -25,7 +25,7 @@ class DatabaseUtils {
     try {
       return await this.pool.query(sql, params);
     } catch (error) {
-      logger.error("Query execution failed", { error: error.message, sql });
+      logger.error('Query execution failed', { error: error.message, sql });
       throw error;
     }
   }
@@ -36,13 +36,13 @@ class DatabaseUtils {
   async transaction(callback) {
     const client = await this.pool.connect();
     try {
-      await client.query("BEGIN");
+      await client.query('BEGIN');
       const result = await callback(client);
-      await client.query("COMMIT");
+      await client.query('COMMIT');
       return result;
     } catch (error) {
-      await client.query("ROLLBACK");
-      logger.error("Transaction failed", { error: error.message });
+      await client.query('ROLLBACK');
+      logger.error('Transaction failed', { error: error.message });
       throw error;
     } finally {
       client.release();
@@ -140,9 +140,9 @@ class DatabaseUtils {
       logger.info(`✅ ${indexName} created`);
       return true;
     } catch (error) {
-      if (error.code === "42703") {
+      if (error.code === '42703') {
         logger.warn(`⚠️  ${indexName} - column doesn't exist, skipping`);
-      } else if (error.code === "42P07") {
+      } else if (error.code === '42P07') {
         logger.info(`ℹ️  ${indexName} - already exists`);
       } else {
         throw error;
@@ -174,14 +174,14 @@ class DatabaseUtils {
   async getStats() {
     const stats = {};
     const tables = [
-      "users",
-      "chamas",
-      "chama_members",
-      "contributions",
-      "loans",
-      "meetings",
-      "notifications",
-      "join_requests",
+      'users',
+      'chamas',
+      'chama_members',
+      'contributions',
+      'loans',
+      'meetings',
+      'notifications',
+      'join_requests',
     ];
 
     for (const table of tables) {
@@ -193,10 +193,10 @@ class DatabaseUtils {
           );
           stats[table] = parseInt(result.rows[0].count);
         } else {
-          stats[table] = "N/A";
+          stats[table] = 'N/A';
         }
       } catch (error) {
-        stats[table] = "Error";
+        stats[table] = 'Error';
       }
     }
 

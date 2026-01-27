@@ -1,4 +1,4 @@
-const logger = require("../utils/logger");
+const logger = require('../utils/logger');
 
 /**
  * Advanced CORS Configuration with:
@@ -43,7 +43,7 @@ class SecurityEventRateLimiter {
 
     // Log summary at threshold
     if (event.count === this.maxEvents + 1) {
-      logger.warn("CORS violation rate limit reached", {
+      logger.warn('CORS violation rate limit reached', {
         origin: key,
         count: event.count,
         windowMs: this.windowMs,
@@ -75,25 +75,25 @@ const getAllowedOrigins = () => {
   const envOrigins = process.env.ALLOWED_ORIGINS;
 
   if (envOrigins) {
-    const origins = envOrigins.split(",").map((origin) => origin.trim());
+    const origins = envOrigins.split(',').map(origin => origin.trim());
 
     // Validate origins
-    const validOrigins = origins.filter((origin) => {
+    const validOrigins = origins.filter(origin => {
       // Allow wildcards
-      if (origin.includes("*")) return true;
+      if (origin.includes('*')) return true;
 
       // Validate URL format
       try {
         new URL(origin);
         return true;
       } catch (e) {
-        logger.warn("Invalid origin in ALLOWED_ORIGINS", { origin });
+        logger.warn('Invalid origin in ALLOWED_ORIGINS', { origin });
         return false;
       }
     });
 
     if (validOrigins.length !== origins.length) {
-      logger.warn("Some origins were invalid and removed", {
+      logger.warn('Some origins were invalid and removed', {
         total: origins.length,
         valid: validOrigins.length,
       });
@@ -103,20 +103,20 @@ const getAllowedOrigins = () => {
   }
 
   // Development defaults
-  if (process.env.NODE_ENV !== "production") {
-    logger.info("Using default development CORS origins");
+  if (process.env.NODE_ENV !== 'production') {
+    logger.info('Using default development CORS origins');
     return [
-      "http://localhost:5173",
-      "http://localhost:5000",
-      "http://localhost:3000",
-      "http://127.0.0.1:5173",
-      "http://127.0.0.1:5000",
-      "http://127.0.0.1:3000",
+      'http://localhost:5173',
+      'http://localhost:5000',
+      'http://localhost:3000',
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:5000',
+      'http://127.0.0.1:3000',
     ];
   }
 
   // Production must have ALLOWED_ORIGINS
-  logger.error("ALLOWED_ORIGINS not set in production - CORS will fail");
+  logger.error('ALLOWED_ORIGINS not set in production - CORS will fail');
 
   // Return empty array to force explicit configuration
   return [];
@@ -139,18 +139,18 @@ const isOriginAllowed = (origin, allowedOrigins) => {
     }
 
     // Full wildcard (dangerous, log warning)
-    if (allowed === "*") {
-      if (process.env.NODE_ENV === "production") {
-        logger.warn("Wildcard CORS origin in production", { origin });
+    if (allowed === '*') {
+      if (process.env.NODE_ENV === 'production') {
+        logger.warn('Wildcard CORS origin in production', { origin });
       }
       return true;
     }
 
     // Wildcard subdomain matching
-    if (allowed.includes("*")) {
+    if (allowed.includes('*')) {
       const pattern = allowed
-        .replace(/\./g, "\\.") // Escape dots
-        .replace(/\*/g, "[a-zA-Z0-9-]+"); // Replace * with subdomain pattern
+        .replace(/\./g, '\\.') // Escape dots
+        .replace(/\*/g, '[a-zA-Z0-9-]+'); // Replace * with subdomain pattern
 
       const regex = new RegExp(`^${pattern}$`);
       if (regex.test(origin)) {
@@ -165,13 +165,13 @@ const isOriginAllowed = (origin, allowedOrigins) => {
 const allowedOrigins = getAllowedOrigins();
 
 // Log configured origins on startup
-logger.info("CORS configured", {
+logger.info('CORS configured', {
   environment: process.env.NODE_ENV,
   originsCount: allowedOrigins.length,
   origins:
     allowedOrigins.length <= 10
       ? allowedOrigins
-      : `${allowedOrigins.slice(0, 10).join(", ")}... (${allowedOrigins.length} total)`,
+      : `${allowedOrigins.slice(0, 10).join(', ')}... (${allowedOrigins.length} total)`,
 });
 
 /**
@@ -183,10 +183,10 @@ const corsOptions = {
     // But log in production for monitoring
     if (!origin) {
       if (
-        process.env.NODE_ENV === "production" &&
-        process.env.LOG_NO_ORIGIN === "true"
+        process.env.NODE_ENV === 'production'
+        && process.env.LOG_NO_ORIGIN === 'true'
       ) {
-        logger.debug("Request with no origin header");
+        logger.debug('Request with no origin header');
       }
       return callback(null, true);
     }
@@ -197,7 +197,7 @@ const corsOptions = {
     } else {
       // Rate-limited security logging
       if (securityRateLimiter.shouldLog(origin)) {
-        logger.logSecurityEvent("CORS_VIOLATION", {
+        logger.logSecurityEvent('CORS_VIOLATION', {
           origin,
           allowedOriginsCount: allowedOrigins.length,
           timestamp: new Date().toISOString(),
@@ -205,25 +205,25 @@ const corsOptions = {
       }
 
       // Return error
-      const error = new Error("Not allowed by CORS");
+      const error = new Error('Not allowed by CORS');
       error.statusCode = 403;
       callback(error);
     }
   },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
-    "Content-Type",
-    "Authorization",
-    "X-Requested-With",
-    "X-Request-ID",
-    "X-API-Key",
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'X-Request-ID',
+    'X-API-Key',
   ],
   exposedHeaders: [
-    "X-Request-ID",
-    "X-RateLimit-Limit",
-    "X-RateLimit-Remaining",
-    "X-RateLimit-Reset",
+    'X-Request-ID',
+    'X-RateLimit-Limit',
+    'X-RateLimit-Remaining',
+    'X-RateLimit-Reset',
   ],
   maxAge: 86400, // 24 hours - browsers cache preflight
   optionsSuccessStatus: 204, // Some legacy browsers choke on 204
@@ -236,9 +236,9 @@ const socketCorsOptions = {
   origin: (origin, callback) => {
     // WebSocket connections should have origin
     if (!origin) {
-      if (process.env.NODE_ENV === "production") {
-        logger.warn("WebSocket connection with no origin");
-        return callback(new Error("Origin required for WebSocket"));
+      if (process.env.NODE_ENV === 'production') {
+        logger.warn('WebSocket connection with no origin');
+        return callback(new Error('Origin required for WebSocket'));
       }
       return callback(null, true);
     }
@@ -247,28 +247,28 @@ const socketCorsOptions = {
       callback(null, true);
     } else {
       if (securityRateLimiter.shouldLog(origin)) {
-        logger.logSecurityEvent("SOCKET_CORS_VIOLATION", {
+        logger.logSecurityEvent('SOCKET_CORS_VIOLATION', {
           origin,
           allowedOriginsCount: allowedOrigins.length,
           timestamp: new Date().toISOString(),
         });
       }
 
-      callback(new Error("Not allowed by CORS"));
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
-  methods: ["GET", "POST"],
+  methods: ['GET', 'POST'],
 };
 
 /**
  * Dynamic origin addition (for admin/testing purposes)
  * Not recommended for production
  */
-const addAllowedOrigin = (origin) => {
+const addAllowedOrigin = origin => {
   if (!allowedOrigins.includes(origin)) {
     allowedOrigins.push(origin);
-    logger.info("Added new allowed origin", { origin });
+    logger.info('Added new allowed origin', { origin });
     return true;
   }
   return false;
@@ -277,11 +277,11 @@ const addAllowedOrigin = (origin) => {
 /**
  * Remove origin from allowed list
  */
-const removeAllowedOrigin = (origin) => {
+const removeAllowedOrigin = origin => {
   const index = allowedOrigins.indexOf(origin);
   if (index > -1) {
     allowedOrigins.splice(index, 1);
-    logger.info("Removed allowed origin", { origin });
+    logger.info('Removed allowed origin', { origin });
     return true;
   }
   return false;
@@ -290,41 +290,39 @@ const removeAllowedOrigin = (origin) => {
 /**
  * Get current CORS configuration status
  */
-const getCorsStatus = () => {
-  return {
-    environment: process.env.NODE_ENV,
-    allowedOrigins,
-    credentialsEnabled: corsOptions.credentials,
-    maxAge: corsOptions.maxAge,
-    methods: corsOptions.methods,
-    allowedHeaders: corsOptions.allowedHeaders,
-    exposedHeaders: corsOptions.exposedHeaders,
-  };
-};
+const getCorsStatus = () => ({
+  environment: process.env.NODE_ENV,
+  allowedOrigins,
+  credentialsEnabled: corsOptions.credentials,
+  maxAge: corsOptions.maxAge,
+  methods: corsOptions.methods,
+  allowedHeaders: corsOptions.allowedHeaders,
+  exposedHeaders: corsOptions.exposedHeaders,
+});
 
 /**
  * Middleware to add CORS headers manually (if needed)
  */
 const addCorsHeaders = (req, res, next) => {
-  const origin = req.headers.origin;
+  const { origin } = req.headers;
 
   if (origin && isOriginAllowed(origin, allowedOrigins)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader(
-      "Access-Control-Allow-Methods",
-      "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      'Access-Control-Allow-Methods',
+      'GET, POST, PUT, DELETE, PATCH, OPTIONS',
     );
     res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-Requested-With, X-Request-ID",
+      'Access-Control-Allow-Headers',
+      'Content-Type, Authorization, X-Requested-With, X-Request-ID',
     );
-    res.setHeader("Access-Control-Expose-Headers", "X-Request-ID");
+    res.setHeader('Access-Control-Expose-Headers', 'X-Request-ID');
   }
 
   // Handle preflight
-  if (req.method === "OPTIONS") {
-    res.setHeader("Access-Control-Max-Age", "86400");
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Max-Age', '86400');
     return res.status(204).end();
   }
 

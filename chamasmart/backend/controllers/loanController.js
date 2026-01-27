@@ -3,10 +3,10 @@
  * Fixes: Interest calculations, guarantor validation, default detection
  */
 
-const pool = require("../config/db");
-const logger = require("../utils/logger");
-const { logAuditEvent, EVENT_TYPES, SEVERITY } = require("../utils/auditLog");
-const { toCents, fromCents } = require("./contributionController");
+const pool = require('../config/db');
+const logger = require('../utils/logger');
+const { logAuditEvent, EVENT_TYPES, SEVERITY } = require('../utils/auditLog');
+const { toCents, fromCents } = require('./contributionController');
 
 // LOAN INTEREST CALCULATOR
 
@@ -63,7 +63,7 @@ class LoanCalculator {
       totalRepayable,
       monthlyPayment,
       installments,
-      method: "FLAT",
+      method: 'FLAT',
     };
   }
 
@@ -79,9 +79,8 @@ class LoanCalculator {
 
     // Calculate EMI (Equated Monthly Installment)
     // EMI = P × r × (1 + r)^n / ((1 + r)^n - 1)
-    const emiNumerator =
-      principal * monthlyRate * Math.pow(1 + monthlyRate, termMonths);
-    const emiDenominator = Math.pow(1 + monthlyRate, termMonths) - 1;
+    const emiNumerator = principal * monthlyRate * (1 + monthlyRate) ** termMonths;
+    const emiDenominator = (1 + monthlyRate) ** termMonths - 1;
     const emi = Math.round(emiNumerator / emiDenominator);
 
     const installments = [];
@@ -115,7 +114,7 @@ class LoanCalculator {
       totalRepayable: principal + totalInterest,
       monthlyPayment: emi,
       installments,
-      method: "REDUCING_BALANCE",
+      method: 'REDUCING_BALANCE',
     };
   }
 
@@ -158,7 +157,7 @@ class GuarantorService {
 
     // 1. Cannot guarantee own loan
     if (guarantorId === borrowerId) {
-      errors.push("Cannot guarantee your own loan");
+      errors.push('Cannot guarantee your own loan');
       return { valid: false, errors };
     }
 
@@ -171,7 +170,7 @@ class GuarantorService {
     );
 
     if (memberCheck.rows.length === 0 || !memberCheck.rows[0].is_active) {
-      errors.push("Guarantor is not an active member of this chama");
+      errors.push('Guarantor is not an active member of this chama');
       return { valid: false, errors };
     }
 
@@ -197,8 +196,7 @@ class GuarantorService {
       [guarantorId, chamaId],
     );
 
-    const totalGuaranteed =
-      parseInt(existingGuarantees.rows[0].total_guaranteed) || 0;
+    const totalGuaranteed = parseInt(existingGuarantees.rows[0].total_guaranteed) || 0;
 
     // 5. Maximum guarantee limit: 3x their savings
     const maxGuaranteeCapacity = guarantorSavings * 3;
@@ -222,7 +220,7 @@ class GuarantorService {
 
     if (parseInt(defaultedLoans.rows[0].count) > 0) {
       errors.push(
-        "Guarantor has defaulted loans and cannot guarantee new loans",
+        'Guarantor has defaulted loans and cannot guarantee new loans',
       );
     }
 
@@ -271,7 +269,7 @@ class GuarantorService {
       }
     }
 
-    const allValid = results.every((r) => r.valid);
+    const allValid = results.every(r => r.valid);
     const sufficientCoverage = totalValid >= requiredGuarantee;
 
     return {
@@ -297,7 +295,7 @@ class DefaultDetector {
     const client = await pool.connect();
 
     try {
-      await client.query("BEGIN");
+      await client.query('BEGIN');
 
       // Find loans with overdue installments (30+ days)
       const result = await client.query(`
@@ -343,22 +341,22 @@ class DefaultDetector {
           );
         }
 
-        logger.logSecurityEvent("Loan marked as defaulted", {
+        logger.logSecurityEvent('Loan marked as defaulted', {
           loanId: loan.loan_id,
           chamaId: loan.chama_id,
           borrowerId: loan.borrower_id,
         });
       }
 
-      await client.query("COMMIT");
+      await client.query('COMMIT');
 
       return {
         processed: result.rows.length,
-        defaults: result.rows.map((r) => r.loan_id),
+        defaults: result.rows.map(r => r.loan_id),
       };
     } catch (error) {
-      await client.query("ROLLBACK");
-      logger.logError(error, { context: "DefaultDetector.detectDefaults" });
+      await client.query('ROLLBACK');
+      logger.logError(error, { context: 'DefaultDetector.detectDefaults' });
       throw error;
     } finally {
       client.release();
@@ -372,7 +370,7 @@ class DefaultDetector {
     const client = await pool.connect();
 
     try {
-      await client.query("BEGIN");
+      await client.query('BEGIN');
 
       // Find overdue installments
       const result = await client.query(`
@@ -386,13 +384,13 @@ class DefaultDetector {
 
       for (const installment of result.rows) {
         const daysOverdue = Math.floor(
-          (Date.now() - new Date(installment.due_date).getTime()) /
-            (1000 * 60 * 60 * 24),
+          (Date.now() - new Date(installment.due_date).getTime())
+            / (1000 * 60 * 60 * 24),
         );
 
         // Get chama's penalty configuration
         const configResult = await client.query(
-          `SELECT constitution_config FROM chamas WHERE chama_id = $1`,
+          'SELECT constitution_config FROM chamas WHERE chama_id = $1',
           [installment.chama_id],
         );
 
@@ -423,14 +421,14 @@ class DefaultDetector {
         );
       }
 
-      await client.query("COMMIT");
+      await client.query('COMMIT');
 
       return {
         processed: result.rows.length,
       };
     } catch (error) {
-      await client.query("ROLLBACK");
-      logger.logError(error, { context: "DefaultDetector.applyPenalties" });
+      await client.query('ROLLBACK');
+      logger.logError(error, { context: 'DefaultDetector.applyPenalties' });
       throw error;
     } finally {
       client.release();
@@ -451,11 +449,11 @@ class LoanConfigService {
     const client = await pool.connect();
 
     try {
-      await client.query("BEGIN");
+      await client.query('BEGIN');
 
       // Get current config
       const result = await client.query(
-        `SELECT constitution_config FROM chamas WHERE chama_id = $1 FOR UPDATE`,
+        'SELECT constitution_config FROM chamas WHERE chama_id = $1 FOR UPDATE',
         [chamaId],
       );
 
@@ -476,7 +474,7 @@ class LoanConfigService {
       };
 
       await client.query(
-        `UPDATE chamas SET constitution_config = $1 WHERE chama_id = $2`,
+        'UPDATE chamas SET constitution_config = $1 WHERE chama_id = $2',
         [updatedConfig, chamaId],
       );
 
@@ -487,7 +485,7 @@ class LoanConfigService {
         [chamaId, currentConfig.loan, updatedLoanConfig, version],
       );
 
-      await client.query("COMMIT");
+      await client.query('COMMIT');
 
       return {
         version,
@@ -495,7 +493,7 @@ class LoanConfigService {
         effectiveFrom: updatedLoanConfig.effectiveFrom,
       };
     } catch (error) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       throw error;
     } finally {
       client.release();
@@ -530,14 +528,16 @@ const applyForLoan = async (req, res) => {
 
   try {
     const { chamaId } = req.params;
-    const { amount, purpose, termMonths, guarantors } = req.body;
+    const {
+      amount, purpose, termMonths, guarantors,
+    } = req.body;
     const userId = req.user.user_id;
 
     // === VALIDATION ===
     if (!amount || !termMonths) {
       return res.status(400).json({
         success: false,
-        message: "Amount and term are required",
+        message: 'Amount and term are required',
       });
     }
 
@@ -547,11 +547,11 @@ const applyForLoan = async (req, res) => {
     if (amountCents <= 0 || term <= 0) {
       return res.status(400).json({
         success: false,
-        message: "Invalid amount or term",
+        message: 'Invalid amount or term',
       });
     }
 
-    await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
+    await client.query('BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE');
 
     // === GET CHAMA CONFIG ===
     const chamaRes = await client.query(
@@ -562,27 +562,27 @@ const applyForLoan = async (req, res) => {
     );
 
     if (chamaRes.rows.length === 0) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       return res.status(404).json({
         success: false,
-        message: "Chama not found",
+        message: 'Chama not found',
       });
     }
 
     const chama = chamaRes.rows[0];
 
-    if (chama.chama_type !== "TABLE_BANKING") {
-      await client.query("ROLLBACK");
+    if (chama.chama_type !== 'TABLE_BANKING') {
+      await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: "This chama is not configured for Table Banking",
+        message: 'This chama is not configured for Table Banking',
       });
     }
 
     // Get current loan config (will be frozen for this loan)
     const loanConfig = chama.constitution_config?.loan || {
       interest_rate: 10,
-      interest_type: "FLAT",
+      interest_type: 'FLAT',
       loan_multiplier: 3,
       max_repayment_months: 6,
     };
@@ -596,10 +596,10 @@ const applyForLoan = async (req, res) => {
     );
 
     if (memberRes.rows.length === 0) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       return res.status(403).json({
         success: false,
-        message: "You are not an active member",
+        message: 'You are not an active member',
       });
     }
 
@@ -614,10 +614,10 @@ const applyForLoan = async (req, res) => {
     );
 
     if (parseInt(defaultCheck.rows[0].count) > 0) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: "You have defaulted loans",
+        message: 'You have defaulted loans',
       });
     }
 
@@ -637,18 +637,17 @@ const applyForLoan = async (req, res) => {
       [userId, chamaId],
     );
 
-    const outstanding =
-      (parseInt(outstandingRes.rows[0].principal) || 0) +
-      (parseInt(outstandingRes.rows[0].interest) || 0) +
-      (parseInt(outstandingRes.rows[0].penalty) || 0);
+    const outstanding = (parseInt(outstandingRes.rows[0].principal) || 0)
+      + (parseInt(outstandingRes.rows[0].interest) || 0)
+      + (parseInt(outstandingRes.rows[0].penalty) || 0);
 
     const availableCreditCents = maxLoanCents - outstanding;
 
     if (amountCents > availableCreditCents) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: "Requested amount exceeds your loan limit",
+        message: 'Requested amount exceeds your loan limit',
         data: {
           requestedAmount: fromCents(amountCents),
           availableCredit: fromCents(availableCreditCents),
@@ -664,7 +663,7 @@ const applyForLoan = async (req, res) => {
     let guarantorArray = Array.isArray(guarantors) ? guarantors : [];
 
     // Convert guarantor amounts to cents
-    guarantorArray = guarantorArray.map((g) => ({
+    guarantorArray = guarantorArray.map(g => ({
       userId: g.userId,
       amount: toCents(g.amount),
     }));
@@ -679,29 +678,28 @@ const applyForLoan = async (req, res) => {
       );
 
       if (!validation.valid) {
-        await client.query("ROLLBACK");
+        await client.query('ROLLBACK');
         return res.status(400).json({
           success: false,
-          message: "Guarantor validation failed",
-          errors: validation.guarantors.flatMap((g) => g.errors || []),
+          message: 'Guarantor validation failed',
+          errors: validation.guarantors.flatMap(g => g.errors || []),
           guarantors: validation.guarantors,
         });
       }
     }
 
     // === CALCULATE LOAN SCHEDULE ===
-    const schedule =
-      loanConfig.interest_type === "REDUCING_BALANCE"
-        ? LoanCalculator.calculateReducingBalance(
-            amountCents,
-            loanConfig.interest_rate,
-            term,
-          )
-        : LoanCalculator.calculateFlatInterest(
-            amountCents,
-            loanConfig.interest_rate,
-            term,
-          );
+    const schedule = loanConfig.interest_type === 'REDUCING_BALANCE'
+      ? LoanCalculator.calculateReducingBalance(
+        amountCents,
+        loanConfig.interest_rate,
+        term,
+      )
+      : LoanCalculator.calculateFlatInterest(
+        amountCents,
+        loanConfig.interest_rate,
+        term,
+      );
 
     // === CREATE LOAN ===
     const loanResult = await client.query(
@@ -725,7 +723,7 @@ const applyForLoan = async (req, res) => {
         schedule.principal,
         schedule.totalInterest,
         term,
-        requiredGuaranteeCents > 0 ? "PENDING_GUARANTOR" : "PENDING_APPROVAL",
+        requiredGuaranteeCents > 0 ? 'PENDING_GUARANTOR' : 'PENDING_APPROVAL',
         purpose,
         loanConfig, // Freeze config for this loan
       ],
@@ -774,9 +772,9 @@ const applyForLoan = async (req, res) => {
       }
     }
 
-    await client.query("COMMIT");
+    await client.query('COMMIT');
 
-    logger.logSecurityEvent("Loan application created", {
+    logger.logSecurityEvent('Loan application created', {
       loanId: loan.loan_id,
       chamaId,
       borrowerId: userId,
@@ -785,7 +783,7 @@ const applyForLoan = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Loan application submitted successfully",
+      message: 'Loan application submitted successfully',
       data: {
         loan: {
           ...loan,
@@ -798,7 +796,7 @@ const applyForLoan = async (req, res) => {
           totalInterest: fromCents(schedule.totalInterest),
           totalRepayable: fromCents(schedule.totalRepayable),
           monthlyPayment: fromCents(schedule.monthlyPayment),
-          installments: schedule.installments.map((inst) => ({
+          installments: schedule.installments.map(inst => ({
             ...inst,
             principalAmount: fromCents(inst.principalAmount),
             interestAmount: fromCents(inst.interestAmount),
@@ -809,12 +807,12 @@ const applyForLoan = async (req, res) => {
       },
     });
   } catch (error) {
-    await client.query("ROLLBACK");
-    logger.logError(error, { context: "applyForLoan" });
+    await client.query('ROLLBACK');
+    logger.logError(error, { context: 'applyForLoan' });
 
     return res.status(500).json({
       success: false,
-      message: "Error applying for loan",
+      message: 'Error applying for loan',
     });
   } finally {
     client.release();
@@ -834,11 +832,11 @@ const getChamaLoans = async (req, res) => {
     const { status, page = 1, limit = 20 } = req.query;
 
     const offset = (page - 1) * limit;
-    let whereClause = "WHERE l.chama_id = $1";
+    let whereClause = 'WHERE l.chama_id = $1';
     const params = [chamaId];
 
     if (status) {
-      whereClause += " AND l.status = $2";
+      whereClause += ' AND l.status = $2';
       params.push(status);
     }
 
@@ -862,7 +860,7 @@ const getChamaLoans = async (req, res) => {
       params,
     );
 
-    const loans = result.rows.map((loan) => ({
+    const loans = result.rows.map(loan => ({
       ...loan,
       loan_amount: fromCents(loan.loan_amount),
       total_repayable: fromCents(loan.total_repayable),
@@ -883,10 +881,10 @@ const getChamaLoans = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get chama loans error:", error);
+    console.error('Get chama loans error:', error);
     res.status(500).json({
       success: false,
-      message: "Error retrieving loans",
+      message: 'Error retrieving loans',
     });
   }
 };
@@ -914,7 +912,7 @@ const getLoanById = async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Loan not found",
+        message: 'Loan not found',
       });
     }
 
@@ -928,11 +926,11 @@ const getLoanById = async (req, res) => {
 
     // Get loan schedule
     const scheduleResult = await pool.query(
-      "SELECT * FROM loan_schedules WHERE loan_id = $1 ORDER BY installment_number",
+      'SELECT * FROM loan_schedules WHERE loan_id = $1 ORDER BY installment_number',
       [loanId],
     );
 
-    const schedule = scheduleResult.rows.map((installment) => ({
+    const schedule = scheduleResult.rows.map(installment => ({
       ...installment,
       principal_amount: fromCents(installment.principal_amount),
       interest_amount: fromCents(installment.interest_amount),
@@ -952,18 +950,18 @@ const getLoanById = async (req, res) => {
       [loanId],
     );
 
-    const guarantors = guarantorsResult.rows.map((guarantor) => ({
+    const guarantors = guarantorsResult.rows.map(guarantor => ({
       ...guarantor,
       guarantee_amount: fromCents(guarantor.guarantee_amount),
     }));
 
     // Get repayments
     const repaymentsResult = await pool.query(
-      `SELECT * FROM loan_repayments WHERE loan_id = $1 ORDER BY payment_date DESC`,
+      'SELECT * FROM loan_repayments WHERE loan_id = $1 ORDER BY payment_date DESC',
       [loanId],
     );
 
-    const repayments = repaymentsResult.rows.map((repayment) => ({
+    const repayments = repaymentsResult.rows.map(repayment => ({
       ...repayment,
       amount: fromCents(repayment.amount),
     }));
@@ -978,10 +976,10 @@ const getLoanById = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get loan by ID error:", error);
+    console.error('Get loan by ID error:', error);
     res.status(500).json({
       success: false,
-      message: "Error retrieving loan details",
+      message: 'Error retrieving loan details',
     });
   }
 };
@@ -993,40 +991,42 @@ const approveLoan = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    await client.query("BEGIN");
+    await client.query('BEGIN');
 
     const { chamaId, loanId } = req.params;
-    const { approvedAmount, interestRate, termMonths, notes } = req.body;
+    const {
+      approvedAmount, interestRate, termMonths, notes,
+    } = req.body;
     const userId = req.user.user_id;
 
     // Check if user is authorized
     const memberCheck = await client.query(
-      "SELECT role FROM memberships WHERE user_id = $1 AND chama_id = $2",
+      'SELECT role FROM memberships WHERE user_id = $1 AND chama_id = $2',
       [userId, chamaId],
     );
 
     if (
-      memberCheck.rows.length === 0 ||
-      !["CHAIRPERSON", "TREASURER", "ADMIN"].includes(memberCheck.rows[0].role)
+      memberCheck.rows.length === 0
+      || !['CHAIRPERSON', 'TREASURER', 'ADMIN'].includes(memberCheck.rows[0].role)
     ) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       return res.status(403).json({
         success: false,
-        message: "Not authorized to approve loans",
+        message: 'Not authorized to approve loans',
       });
     }
 
     // Get loan details
     const loanResult = await client.query(
-      "SELECT * FROM loans WHERE loan_id = $1 AND chama_id = $2 AND status = 'pending'",
+      'SELECT * FROM loans WHERE loan_id = $1 AND chama_id = $2 AND status = \'pending\'',
       [loanId, chamaId],
     );
 
     if (loanResult.rows.length === 0) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       return res.status(404).json({
         success: false,
-        message: "Loan not found or already processed",
+        message: 'Loan not found or already processed',
       });
     }
 
@@ -1083,18 +1083,18 @@ const approveLoan = async (req, res) => {
       );
     }
 
-    await client.query("COMMIT");
+    await client.query('COMMIT');
 
     await logAuditEvent({
       eventType: EVENT_TYPES.LOAN_APPROVED,
-      userId: userId,
-      action: "Approved loan application",
-      entityType: "loan",
+      userId,
+      action: 'Approved loan application',
+      entityType: 'loan',
       entityId: loanId,
       metadata: {
         chamaId,
         borrowerId: loan.borrower_id,
-        approvedAmount: approvedAmount,
+        approvedAmount,
         interestRate,
         termMonths,
       },
@@ -1103,7 +1103,7 @@ const approveLoan = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Loan approved successfully",
+      message: 'Loan approved successfully',
       data: {
         loanId,
         approvedAmount,
@@ -1112,11 +1112,11 @@ const approveLoan = async (req, res) => {
       },
     });
   } catch (error) {
-    await client.query("ROLLBACK");
-    console.error("Approve loan error:", error);
+    await client.query('ROLLBACK');
+    console.error('Approve loan error:', error);
     res.status(500).json({
       success: false,
-      message: "Error approving loan",
+      message: 'Error approving loan',
     });
   } finally {
     client.release();
@@ -1134,17 +1134,17 @@ const rejectLoan = async (req, res) => {
 
     // Check if user is authorized
     const memberCheck = await pool.query(
-      "SELECT role FROM memberships WHERE user_id = $1 AND chama_id = $2",
+      'SELECT role FROM memberships WHERE user_id = $1 AND chama_id = $2',
       [userId, chamaId],
     );
 
     if (
-      memberCheck.rows.length === 0 ||
-      !["CHAIRPERSON", "TREASURER", "ADMIN"].includes(memberCheck.rows[0].role)
+      memberCheck.rows.length === 0
+      || !['CHAIRPERSON', 'TREASURER', 'ADMIN'].includes(memberCheck.rows[0].role)
     ) {
       return res.status(403).json({
         success: false,
-        message: "Not authorized to reject loans",
+        message: 'Not authorized to reject loans',
       });
     }
 
@@ -1163,15 +1163,15 @@ const rejectLoan = async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Loan not found or already processed",
+        message: 'Loan not found or already processed',
       });
     }
 
     await logAuditEvent({
       eventType: EVENT_TYPES.LOAN_REJECTED,
-      userId: userId,
-      action: "Rejected loan application",
-      entityType: "loan",
+      userId,
+      action: 'Rejected loan application',
+      entityType: 'loan',
       entityId: loanId,
       metadata: {
         chamaId,
@@ -1183,13 +1183,13 @@ const rejectLoan = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Loan rejected successfully",
+      message: 'Loan rejected successfully',
     });
   } catch (error) {
-    console.error("Reject loan error:", error);
+    console.error('Reject loan error:', error);
     res.status(500).json({
       success: false,
-      message: "Error rejecting loan",
+      message: 'Error rejecting loan',
     });
   }
 };
@@ -1201,25 +1201,25 @@ const makeRepayment = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    await client.query("BEGIN");
+    await client.query('BEGIN');
 
     const { chamaId, loanId } = req.params;
-    const { amount, paymentMethod = "cash", notes } = req.body;
+    const { amount, paymentMethod = 'cash', notes } = req.body;
     const userId = req.user.user_id;
 
     const amountCents = toCents(amount);
 
     // Get loan details
     const loanResult = await client.query(
-      "SELECT * FROM loans WHERE loan_id = $1 AND chama_id = $2 AND status IN ('approved', 'disbursed')",
+      'SELECT * FROM loans WHERE loan_id = $1 AND chama_id = $2 AND status IN (\'approved\', \'disbursed\')',
       [loanId, chamaId],
     );
 
     if (loanResult.rows.length === 0) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       return res.status(404).json({
         success: false,
-        message: "Loan not found or not in repayable status",
+        message: 'Loan not found or not in repayable status',
       });
     }
 
@@ -1247,13 +1247,13 @@ const makeRepayment = async (req, res) => {
       [loanId, userId, amountCents, paymentMethod, notes],
     );
 
-    await client.query("COMMIT");
+    await client.query('COMMIT');
 
     await logAuditEvent({
       eventType: EVENT_TYPES.LOAN_REPAYMENT,
-      userId: userId,
-      action: "Made loan repayment",
-      entityType: "loan",
+      userId,
+      action: 'Made loan repayment',
+      entityType: 'loan',
       entityId: loanId,
       metadata: {
         chamaId,
@@ -1266,7 +1266,7 @@ const makeRepayment = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Repayment recorded successfully",
+      message: 'Repayment recorded successfully',
       data: {
         amount,
         remainingBalance: fromCents(newBalance),
@@ -1274,11 +1274,11 @@ const makeRepayment = async (req, res) => {
       },
     });
   } catch (error) {
-    await client.query("ROLLBACK");
-    console.error("Make repayment error:", error);
+    await client.query('ROLLBACK');
+    console.error('Make repayment error:', error);
     res.status(500).json({
       success: false,
-      message: "Error processing repayment",
+      message: 'Error processing repayment',
     });
   } finally {
     client.release();
@@ -1294,11 +1294,11 @@ const getUserLoans = async (req, res) => {
     const { status, page = 1, limit = 20 } = req.query;
 
     const offset = (page - 1) * limit;
-    let whereClause = "WHERE l.borrower_id = $1";
+    let whereClause = 'WHERE l.borrower_id = $1';
     const params = [userId];
 
     if (status) {
-      whereClause += " AND l.status = $2";
+      whereClause += ' AND l.status = $2';
       params.push(status);
     }
 
@@ -1320,7 +1320,7 @@ const getUserLoans = async (req, res) => {
       params,
     );
 
-    const loans = result.rows.map((loan) => ({
+    const loans = result.rows.map(loan => ({
       ...loan,
       loan_amount: fromCents(loan.loan_amount),
       total_repayable: fromCents(loan.total_repayable),
@@ -1341,10 +1341,10 @@ const getUserLoans = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get user loans error:", error);
+    console.error('Get user loans error:', error);
     res.status(500).json({
       success: false,
-      message: "Error retrieving loan history",
+      message: 'Error retrieving loan history',
     });
   }
 };

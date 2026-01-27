@@ -9,7 +9,7 @@ const applyAuthRateLimiting = rateLimit({
   max: 10, // Limit each IP to 10 auth requests per windowMs
   message: {
     success: false,
-    message: 'Too many authentication attempts, please try again later.'
+    message: 'Too many authentication attempts, please try again later.',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -40,8 +40,8 @@ const applyAuthRateLimiting = rateLimit({
       } catch (error) {
         console.warn('Rate limiting error:', error.message);
       }
-    }
-  }
+    },
+  },
 });
 
 /**
@@ -52,7 +52,7 @@ const applyRateLimiting = rateLimit({
   max: 100, // Limit each IP to 100 requests per windowMs
   message: {
     success: false,
-    message: 'Too many requests, please try again later.'
+    message: 'Too many requests, please try again later.',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -66,7 +66,7 @@ const applyFinancialRateLimiting = rateLimit({
   max: 20, // Limit each IP to 20 financial requests per hour
   message: {
     success: false,
-    message: 'Too many financial operations, please try again later.'
+    message: 'Too many financial operations, please try again later.',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -75,5 +75,5 @@ const applyFinancialRateLimiting = rateLimit({
 module.exports = {
   applyAuthRateLimiting,
   applyRateLimiting,
-  applyFinancialRateLimiting
+  applyFinancialRateLimiting,
 };

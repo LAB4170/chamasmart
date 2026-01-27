@@ -19,11 +19,11 @@ class SecureConfig {
   // Get environment variable with validation
   get(key, required = true, defaultValue = null) {
     const value = process.env[key];
-    
+
     if (required && !value) {
       throw new Error(`Required environment variable ${key} is missing`);
     }
-    
+
     return value || defaultValue;
   }
 
@@ -35,10 +35,10 @@ class SecureConfig {
       database: this.get('DB_NAME'),
       user: this.get('DB_USER'),
       password: this.get('DB_PASSWORD'),
-      ssl: this.isProduction ? { 
+      ssl: this.isProduction ? {
         rejectUnauthorized: false,
         // Additional SSL options for production
-        minVersion: 'TLSv1.2'
+        minVersion: 'TLSv1.2',
       } : false,
       // Connection pooling
       min: parseInt(this.get('DB_POOL_MIN')) || 2,
@@ -56,7 +56,7 @@ class SecureConfig {
       user: config.user,
       password: config.password ? '[REDACTED]' : null,
       ssl: !!config.ssl,
-      environment: this.environment
+      environment: this.environment,
     });
 
     return config;
@@ -65,19 +65,19 @@ class SecureConfig {
   // Get JWT configuration
   getJWTConfig() {
     const secret = this.get('JWT_SECRET');
-    
+
     // Validate JWT secret strength
     if (secret.length < 32) {
       throw new Error('JWT_SECRET must be at least 32 characters long');
     }
 
     return {
-      secret: secret,
+      secret,
       refreshSecret: this.get('JWT_REFRESH_SECRET'),
       expiresIn: this.get('JWT_EXPIRE', false, '7d'),
       refreshExpiresIn: this.get('JWT_REFRESH_EXPIRE', false, '30d'),
       issuer: 'chamasmart',
-      audience: 'chamasmart-users'
+      audience: 'chamasmart-users',
     };
   }
 
@@ -90,7 +90,7 @@ class SecureConfig {
       db: parseInt(this.get('REDIS_DB', false, '0')),
       retryDelayOnFailover: 100,
       maxRetriesPerRequest: 3,
-      lazyConnect: true
+      lazyConnect: true,
     };
   }
 
@@ -102,7 +102,7 @@ class SecureConfig {
       secure: this.get('EMAIL_SECURE', false, 'false') === 'true',
       user: this.get('EMAIL_USER', false),
       password: this.get('EMAIL_PASSWORD', false),
-      from: this.get('EMAIL_FROM', false, 'noreply@chamasmart.app')
+      from: this.get('EMAIL_FROM', false, 'noreply@chamasmart.app'),
     };
 
     // Validate email config for production
@@ -122,7 +122,7 @@ class SecureConfig {
       sessionSecret: this.get('SESSION_SECRET', false, crypto.randomBytes(32).toString('hex')),
       corsOrigin: this.get('CORS_ORIGIN', false, this.isDevelopment ? 'http://localhost:3000' : false),
       rateLimitWindowMs: parseInt(this.get('RATE_LIMIT_WINDOW_MS', false, '900000')), // 15 minutes
-      rateLimitMax: parseInt(this.get('RATE_LIMIT_MAX', false, '100'))
+      rateLimitMax: parseInt(this.get('RATE_LIMIT_MAX', false, '100')),
     };
   }
 
@@ -166,7 +166,7 @@ class SecureConfig {
       jwt: this.getJWTConfig(),
       redis: this.getRedisConfig(),
       email: this.getEmailConfig(),
-      security: this.getSecurityConfig()
+      security: this.getSecurityConfig(),
     };
   }
 }

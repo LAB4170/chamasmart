@@ -1,9 +1,9 @@
 const pool = require('../config/db');
 
 const applySchema = async () => {
-    try {
-        console.log("Applying schema update for chama_invites...");
-        const query = `
+  try {
+    console.log('Applying schema update for chama_invites...');
+    const query = `
       CREATE TABLE IF NOT EXISTS chama_invites (
           invite_id SERIAL PRIMARY KEY,
           chama_id INTEGER REFERENCES chamas(chama_id) ON DELETE CASCADE,
@@ -20,13 +20,13 @@ const applySchema = async () => {
       CREATE INDEX IF NOT EXISTS idx_chama_invites ON chama_invites(chama_id);
     `;
 
-        await pool.query(query);
-        console.log("Schema applied successfully!");
-        process.exit(0);
-    } catch (err) {
-        console.error("Error applying schema:", err);
-        process.exit(1);
-    }
+    await pool.query(query);
+    console.log('Schema applied successfully!');
+    process.exit(0);
+  } catch (err) {
+    console.error('Error applying schema:', err);
+    process.exit(1);
+  }
 };
 
 applySchema();

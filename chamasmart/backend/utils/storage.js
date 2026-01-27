@@ -1,12 +1,12 @@
-const { Storage } = require("@google-cloud/storage");
-const path = require("path");
-const logger = require("./logger");
-const fs = require("fs").promises;
+const { Storage } = require('@google-cloud/storage');
+const path = require('path');
+const logger = require('./logger');
+const fs = require('fs').promises;
 
 // Initialize Google Cloud Storage
 let storage;
 let bucket;
-const bucketName = process.env.GCS_BUCKET_NAME || "chamasmart-welfare-docs";
+const bucketName = process.env.GCS_BUCKET_NAME || 'chamasmart-welfare-docs';
 
 try {
   storage = new Storage({
@@ -15,14 +15,15 @@ try {
   });
   bucket = storage.bucket(bucketName);
 } catch (err) {
-  logger.warn("Failed to initialize Google Cloud Storage:", err.message);
+  logger.warn('Failed to initialize Google Cloud Storage:', err.message);
   // Mock storage for dev environment if crucial env vars are missing
   bucket = {
     file: () => ({
       createWriteStream: () => ({
         on: (event, cb) => {
-          if (event === "error")
-            setTimeout(() => cb(new Error("GCS not configured")), 10);
+          if (event === 'error') {
+            setTimeout(() => cb(new Error('GCS not configured')), 10);
+          }
         },
         end: () => {},
       }),
@@ -57,12 +58,12 @@ const uploadToStorage = async (file, destinationPath) => {
 
     // Return a promise that resolves when the upload is complete
     return new Promise((resolve, reject) => {
-      blobStream.on("error", (error) => {
-        logger.error("Error uploading to storage:", error);
+      blobStream.on('error', error => {
+        logger.error('Error uploading to storage:', error);
         reject(error);
       });
 
-      blobStream.on("finish", () => {
+      blobStream.on('finish', () => {
         // Make the file public (optional)
         blob
           .makePublic()
@@ -70,8 +71,8 @@ const uploadToStorage = async (file, destinationPath) => {
             const publicUrl = `https://storage.googleapis.com/${bucketName}/${destination}`;
             resolve(publicUrl);
           })
-          .catch((error) => {
-            logger.error("Error making file public:", error);
+          .catch(error => {
+            logger.error('Error making file public:', error);
             reject(error);
           });
       });
@@ -80,7 +81,7 @@ const uploadToStorage = async (file, destinationPath) => {
       blobStream.end(file.buffer);
     });
   } catch (error) {
-    logger.error("Error in uploadToStorage:", error);
+    logger.error('Error in uploadToStorage:', error);
     throw error;
   }
 };
@@ -90,12 +91,12 @@ const uploadToStorage = async (file, destinationPath) => {
  * @param {string} fileUrl - The public URL of the file to delete
  * @returns {Promise<boolean>} - True if deletion was successful
  */
-const deleteFromStorage = async (fileUrl) => {
+const deleteFromStorage = async fileUrl => {
   try {
     // Extract the file path from the URL
     const filePath = fileUrl.replace(
       `https://storage.googleapis.com/${bucketName}/`,
-      "",
+      '',
     );
 
     await bucket.file(filePath).delete();
@@ -106,7 +107,7 @@ const deleteFromStorage = async (fileUrl) => {
       return true;
     }
 
-    logger.error("Error deleting file from storage:", error);
+    logger.error('Error deleting file from storage:', error);
     throw error;
   }
 };

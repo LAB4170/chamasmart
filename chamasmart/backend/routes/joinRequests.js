@@ -1,18 +1,19 @@
-const express = require("express");
+const express = require('express');
+
 const router = express.Router();
-const { protect, authorize } = require("../middleware/auth");
+const { protect, authorize } = require('../middleware/auth');
 const {
   requestToJoin,
   getJoinRequests,
   respondToRequest,
   getMyRequests,
-} = require("../controllers/joinRequestController");
-const validate = require("../middleware/validate");
+} = require('../controllers/joinRequestController');
+const validate = require('../middleware/validate');
 const {
   requestToJoinSchema,
   respondToJoinRequestSchema,
-} = require("../utils/validationSchemas");
-const { applyRateLimiting } = require("../middleware/rateLimiting");
+} = require('../utils/validationSchemas');
+const { applyRateLimiting } = require('../middleware/rateLimiting');
 
 // ============================================================================
 // ALL ROUTES REQUIRE AUTHENTICATION
@@ -30,7 +31,7 @@ router.use(protect);
 // ============================================================================
 
 // Get my own join requests
-router.get("/my", getMyRequests);
+router.get('/my', getMyRequests);
 
 // ============================================================================
 // RESPONDING TO JOIN REQUESTS (Officials only)
@@ -38,8 +39,8 @@ router.get("/my", getMyRequests);
 
 // Respond to join request (approve/reject)
 router.put(
-  "/:requestId/respond",
-  authorize("admin", "treasurer", "chairperson"),
+  '/:requestId/respond',
+  authorize('admin', 'treasurer', 'chairperson'),
   validate(respondToJoinRequestSchema),
   respondToRequest,
 );
@@ -50,7 +51,7 @@ router.put(
 
 // Submit join request to a chama (with rate limiting)
 router.post(
-  "/:chamaId/request",
+  '/:chamaId/request',
   applyRateLimiting,
   validate(requestToJoinSchema),
   requestToJoin,
@@ -58,8 +59,8 @@ router.post(
 
 // Get all join requests for a chama (officials only)
 router.get(
-  "/:chamaId",
-  authorize("admin", "treasurer", "chairperson"),
+  '/:chamaId',
+  authorize('admin', 'treasurer', 'chairperson'),
   getJoinRequests,
 );
 

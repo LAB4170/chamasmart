@@ -20,7 +20,7 @@ describe('Authentication Endpoints', () => {
         last_name: 'User',
         email: 'test@example.com',
         password: 'SecurePass123!',
-        phone_number: '+254712345678'
+        phone_number: '+254712345678',
       };
 
       const response = await request(app)
@@ -38,7 +38,7 @@ describe('Authentication Endpoints', () => {
         first_name: 'Test',
         last_name: 'User',
         email: 'invalid-email',
-        password: 'SecurePass123!'
+        password: 'SecurePass123!',
       };
 
       const response = await request(app)
@@ -55,7 +55,7 @@ describe('Authentication Endpoints', () => {
         first_name: 'Test',
         last_name: 'User',
         email: 'test@example.com',
-        password: 'SecurePass123!'
+        password: 'SecurePass123!',
       };
 
       // Create first user
@@ -79,7 +79,7 @@ describe('Authentication Endpoints', () => {
         first_name: 'Test',
         last_name: 'User',
         email: 'test2@example.com',
-        password: '123'
+        password: '123',
       };
 
       const response = await request(app)
@@ -99,7 +99,7 @@ describe('Authentication Endpoints', () => {
         first_name: 'Test',
         last_name: 'User',
         email: 'logintest@example.com',
-        password: 'SecurePass123!'
+        password: 'SecurePass123!',
       };
 
       await request(app)
@@ -110,7 +110,7 @@ describe('Authentication Endpoints', () => {
     it('should login successfully with valid credentials', async () => {
       const loginData = {
         email: 'logintest@example.com',
-        password: 'SecurePass123!'
+        password: 'SecurePass123!',
       };
 
       const response = await request(app)
@@ -127,7 +127,7 @@ describe('Authentication Endpoints', () => {
     it('should return error for invalid email', async () => {
       const loginData = {
         email: 'invalid@example.com',
-        password: 'SecurePass123!'
+        password: 'SecurePass123!',
       };
 
       const response = await request(app)
@@ -142,7 +142,7 @@ describe('Authentication Endpoints', () => {
     it('should return error for invalid password', async () => {
       const loginData = {
         email: 'logintest@example.com',
-        password: 'wrongpassword'
+        password: 'wrongpassword',
       };
 
       const response = await request(app)
@@ -156,7 +156,7 @@ describe('Authentication Endpoints', () => {
 
     it('should return validation error for missing fields', async () => {
       const loginData = {
-        email: 'logintest@example.com'
+        email: 'logintest@example.com',
         // missing password
       };
 
@@ -179,7 +179,7 @@ describe('Authentication Endpoints', () => {
         first_name: 'Test',
         last_name: 'User',
         email: 'refreshtest@example.com',
-        password: 'SecurePass123!'
+        password: 'SecurePass123!',
       };
 
       const registerResponse = await request(app)
@@ -220,7 +220,7 @@ describe('Authentication Endpoints', () => {
         first_name: 'Test',
         last_name: 'User',
         email: 'logouttest@example.com',
-        password: 'SecurePass123!'
+        password: 'SecurePass123!',
       };
 
       const registerResponse = await request(app)

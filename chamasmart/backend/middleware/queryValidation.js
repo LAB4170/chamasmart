@@ -3,8 +3,8 @@
  * Validates common query parameters used across endpoints
  */
 
-const Joi = require("joi");
-const logger = require("../utils/logger");
+const Joi = require('joi');
+const logger = require('../utils/logger');
 
 /**
  * Common query parameter validation schema
@@ -12,11 +12,12 @@ const logger = require("../utils/logger");
 const querySchema = Joi.object({
   // Pagination
   page: Joi.number().integer().min(1).default(1),
-  limit: Joi.number().integer().min(1).max(100).default(20),
+  limit: Joi.number().integer().min(1).max(100)
+    .default(20),
 
   // Sorting
   sortBy: Joi.string().min(1).max(50),
-  sortOrder: Joi.string().valid("asc", "desc").default("desc"),
+  sortOrder: Joi.string().valid('asc', 'desc').default('desc'),
 
   // Search
   search: Joi.string().min(1).max(200),
@@ -42,12 +43,12 @@ const validateQueryParams = (req, res, next) => {
   });
 
   if (error) {
-    const details = error.details.map((err) => ({
-      field: err.path.join("."),
+    const details = error.details.map(err => ({
+      field: err.path.join('.'),
       message: err.message,
     }));
 
-    logger.warn("Invalid query parameters", {
+    logger.warn('Invalid query parameters', {
       path: req.path,
       query: req.query,
       errors: details,
@@ -61,7 +62,7 @@ const validateQueryParams = (req, res, next) => {
 
   // Log search queries for debugging
   if (req.query.search || req.query.query) {
-    logger.info("Search query", {
+    logger.info('Search query', {
       path: req.path,
       searchTerm: req.query.search || req.query.query,
     });
@@ -73,12 +74,12 @@ const validateQueryParams = (req, res, next) => {
 /**
  * Sanitize search terms to prevent injection
  */
-const sanitizeSearchTerm = (searchTerm) => {
-  if (!searchTerm) return "";
+const sanitizeSearchTerm = searchTerm => {
+  if (!searchTerm) return '';
 
   // Remove special characters that could cause issues
   return searchTerm
-    .replace(/[%_\\]/g, "\\$&") // Escape LIKE wildcards
+    .replace(/[%_\\]/g, '\\$&') // Escape LIKE wildcards
     .trim()
     .substring(0, 200); // Max 200 chars
 };
@@ -88,7 +89,7 @@ const sanitizeSearchTerm = (searchTerm) => {
  */
 const buildLikeClause = (field, searchTerm, caseInsensitive = true) => {
   const sanitized = sanitizeSearchTerm(searchTerm);
-  const likeOp = caseInsensitive ? "ILIKE" : "LIKE";
+  const likeOp = caseInsensitive ? 'ILIKE' : 'LIKE';
   return {
     clause: `${field} ${likeOp} $1`,
     value: `%${sanitized}%`,
@@ -107,15 +108,15 @@ const validateSortParams = (allowedFields, req) => {
 
   // Whitelist allowed sort fields to prevent SQL injection
   if (!allowedFields.includes(sortBy)) {
-    logger.warn("Invalid sort field attempted", {
+    logger.warn('Invalid sort field attempted', {
       attempted: sortBy,
       allowed: allowedFields,
     });
     return null;
   }
 
-  const order = (sortOrder || "desc").toUpperCase();
-  if (!["ASC", "DESC"].includes(order)) {
+  const order = (sortOrder || 'desc').toUpperCase();
+  if (!['ASC', 'DESC'].includes(order)) {
     return null;
   }
 

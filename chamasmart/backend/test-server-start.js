@@ -4,22 +4,22 @@
  * Test server startup with minimal routes
  */
 
-const express = require("express");
-const cors = require("cors");
-const path = require("path");
-const http = require("http");
-require("dotenv").config();
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const http = require('http');
+require('dotenv').config();
 
 // Import basic middleware
-const logger = require("./utils/logger");
-const { corsOptions } = require("./config/cors");
-const { securityMiddleware } = require("./middleware/security");
-const { responseFormatterMiddleware } = require("./utils/responseFormatter");
-const { cacheMiddleware } = require("./middleware/cache");
-const { validateQueryParams } = require("./middleware/queryValidation");
+const logger = require('./utils/logger');
+const { corsOptions } = require('./config/cors');
+const { securityMiddleware } = require('./middleware/security');
+const { responseFormatterMiddleware } = require('./utils/responseFormatter');
+const { cacheMiddleware } = require('./middleware/cache');
+const { validateQueryParams } = require('./middleware/queryValidation');
 
 // Initialize database connection
-require("./config/db");
+require('./config/db');
 
 // Create Express app
 const app = express();
@@ -30,32 +30,28 @@ const PORT = process.env.PORT || 5005;
 securityMiddleware(app);
 
 // Basic health check
-app.get("/api/ping", (req, res) =>
-  res.json({ success: true, message: "pong" }),
-);
+app.get('/api/ping', (req, res) => res.json({ success: true, message: 'pong' }));
 
-app.get("/health", (req, res) =>
-  res.json({
-    uptime: process.uptime(),
-    message: "OK",
-    timestamp: Date.now(),
-    port: PORT,
-  }),
-);
+app.get('/health', (req, res) => res.json({
+  uptime: process.uptime(),
+  message: 'OK',
+  timestamp: Date.now(),
+  port: PORT,
+}));
 
 // Trust proxy
-app.set("trust proxy", 1);
+app.set('trust proxy', 1);
 
 // Middleware
 app.use(cors(corsOptions));
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Request logging
 app.use((req, res, next) => {
   logger.info(`${req.method} ${req.originalUrl}`, {
     ip: req.ip,
-    userAgent: req.get("user-agent"),
+    userAgent: req.get('user-agent'),
   });
   next();
 });
@@ -70,14 +66,14 @@ app.use(responseFormatterMiddleware);
 app.use(cacheMiddleware());
 
 // Basic API routes
-app.get("/api/test", (req, res) => {
-  res.json({ success: true, message: "Server is working!" });
+app.get('/api/test', (req, res) => {
+  res.json({ success: true, message: 'Server is working!' });
 });
 
 // Global error handling
 app.use((err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
-  console.error("SERVER ERROR:", err.message);
+  console.error('SERVER ERROR:', err.message);
   logger.error({
     message: err.message,
     stack: err.stack,
@@ -86,13 +82,13 @@ app.use((err, req, res, next) => {
   });
   res
     .status(err.statusCode)
-    .json({ success: false, message: "Internal server error" });
+    .json({ success: false, message: 'Internal server error' });
 });
 
 // Start server
-server.on("error", (err) => {
-  console.error("SERVER FATAL ERROR:", err.message);
-  if (err.code === "EADDRINUSE") {
+server.on('error', err => {
+  console.error('SERVER FATAL ERROR:', err.message);
+  if (err.code === 'EADDRINUSE') {
     process.exit(1);
   }
 });

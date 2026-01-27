@@ -1,17 +1,17 @@
-const pool = require("../config/db");
-const logger = require("../utils/logger");
-const { uploadToStorage } = require("../utils/storage");
+const pool = require('../config/db');
+const logger = require('../utils/logger');
+const { uploadToStorage } = require('../utils/storage');
 const {
   sendNotification,
   sendChamaNotification,
   sendOfficialNotification,
   notificationTemplates,
-} = require("../utils/notifications");
+} = require('../utils/notifications');
 const {
   parsePagination,
   buildLimitClause,
   getTotal,
-} = require("../utils/pagination");
+} = require('../utils/pagination');
 
 // Welfare Configuration Management
 const getWelfareConfig = async (req, res) => {
@@ -27,10 +27,10 @@ const getWelfareConfig = async (req, res) => {
       ORDER BY wc.event_type
     `;
     const { rows } = await pool.query(query, [chamaId]);
-    return res.success(rows, "Welfare configurations retrieved successfully");
+    return res.success(rows, 'Welfare configurations retrieved successfully');
   } catch (error) {
-    logger.error("Error fetching welfare config:", error);
-    return res.error("Error fetching welfare configuration", 500);
+    logger.error('Error fetching welfare config:', error);
+    return res.error('Error fetching welfare configuration', 500);
   }
 };
 
@@ -69,13 +69,13 @@ const updateWelfareConfig = async (req, res) => {
     ]);
 
     if (rows.length === 0) {
-      return res.error("Welfare configuration not found", 404);
+      return res.error('Welfare configuration not found', 404);
     }
 
-    return res.success(rows[0], "Welfare configuration updated successfully");
+    return res.success(rows[0], 'Welfare configuration updated successfully');
   } catch (error) {
-    logger.error("Error updating welfare config:", error);
-    return res.error("Error updating welfare configuration", 500);
+    logger.error('Error updating welfare config:', error);
+    return res.error('Error updating welfare configuration', 500);
   }
 };
 
@@ -83,26 +83,25 @@ const updateWelfareConfig = async (req, res) => {
 const getWelfareFund = async (req, res) => {
   const { chamaId } = req.params;
   try {
-    const query = "SELECT * FROM welfare_fund WHERE chama_id = $1";
+    const query = 'SELECT * FROM welfare_fund WHERE chama_id = $1';
     const { rows } = await pool.query(query, [chamaId]);
 
     if (rows.length === 0) {
       // Initialize fund if it doesn't exist
-      const initQuery =
-        "INSERT INTO welfare_fund (chama_id, balance) VALUES ($1, 0) RETURNING *";
+      const initQuery = 'INSERT INTO welfare_fund (chama_id, balance) VALUES ($1, 0) RETURNING *';
       const {
         rows: [newFund],
       } = await pool.query(initQuery, [chamaId]);
       return res.success(
         newFund,
-        "Welfare fund initialized and retrieved successfully",
+        'Welfare fund initialized and retrieved successfully',
       );
     }
 
-    return res.success(rows[0], "Welfare fund retrieved successfully");
+    return res.success(rows[0], 'Welfare fund retrieved successfully');
   } catch (error) {
-    logger.error("Error fetching welfare fund:", error);
-    return res.error("Error fetching welfare fund", 500);
+    logger.error('Error fetching welfare fund:', error);
+    return res.error('Error fetching welfare fund', 500);
   }
 };
 
@@ -114,8 +113,7 @@ const submitClaim = async (req, res) => {
 
   try {
     // Verify the event type exists and is active
-    const eventQuery =
-      "SELECT * FROM welfare_config WHERE id = $1 AND chama_id = $2 AND is_active = true";
+    const eventQuery = 'SELECT * FROM welfare_config WHERE id = $1 AND chama_id = $2 AND is_active = true';
     const {
       rows: [eventType],
     } = await pool.query(eventQuery, [event_type_id, chamaId]);
@@ -123,7 +121,7 @@ const submitClaim = async (req, res) => {
     if (!eventType) {
       return res
         .status(400)
-        .json({ message: "Invalid or inactive event type" });
+        .json({ message: 'Invalid or inactive event type' });
     }
 
     // Handle file upload if present
@@ -134,8 +132,8 @@ const submitClaim = async (req, res) => {
           `welfare/${chamaId}/claims`,
         );
       } catch (uploadError) {
-        logger.error("Error uploading document:", uploadError);
-        return res.status(500).json({ message: "Error uploading document" });
+        logger.error('Error uploading document:', uploadError);
+        return res.status(500).json({ message: 'Error uploading document' });
       }
     }
 
@@ -164,8 +162,8 @@ const submitClaim = async (req, res) => {
 
     res.status(201).json(claim);
   } catch (error) {
-    logger.error("Error submitting claim:", error);
-    res.status(500).json({ message: "Error submitting claim" });
+    logger.error('Error submitting claim:', error);
+    res.status(500).json({ message: 'Error submitting claim' });
   }
 };
 
@@ -178,8 +176,8 @@ const getMemberClaims = async (req, res) => {
     const { page: pageNum, limit: limitNum } = parsePagination(page, limit);
 
     // Get total count
-    const countQuery = `SELECT COUNT(*) as count FROM welfare_claims WHERE member_id = $1 AND chama_id = $2`;
-    const totalCount = await getTotal(countQuery, [memberId, chamaId], "count");
+    const countQuery = 'SELECT COUNT(*) as count FROM welfare_claims WHERE member_id = $1 AND chama_id = $2';
+    const totalCount = await getTotal(countQuery, [memberId, chamaId], 'count');
 
     const query = `
       SELECT wc.*, wcfg.event_type, wcfg.payout_amount, 
@@ -202,11 +200,11 @@ const getMemberClaims = async (req, res) => {
       totalCount,
       pageNum,
       limitNum,
-      "Member claims retrieved successfully",
+      'Member claims retrieved successfully',
     );
   } catch (error) {
-    logger.error("Error fetching member claims:", error);
-    return res.error("Error fetching claims", 500);
+    logger.error('Error fetching member claims:', error);
+    return res.error('Error fetching claims', 500);
   }
 };
 
@@ -219,15 +217,15 @@ const getChamaClaims = async (req, res) => {
     const { page: pageNum, limit: limitNum } = parsePagination(page, limit);
 
     // Build query
-    let countQuery = `SELECT COUNT(*) as count FROM welfare_claims WHERE chama_id = $1`;
-    let countParams = [chamaId];
+    let countQuery = 'SELECT COUNT(*) as count FROM welfare_claims WHERE chama_id = $1';
+    const countParams = [chamaId];
 
     if (status) {
-      countQuery += ` AND status = $2`;
+      countQuery += ' AND status = $2';
       countParams.push(status);
     }
 
-    const totalCount = await getTotal(countQuery, countParams, "count");
+    const totalCount = await getTotal(countQuery, countParams, 'count');
 
     let query = `
       SELECT wc.*, wcfg.event_type, wcfg.payout_amount,
@@ -241,7 +239,7 @@ const getChamaClaims = async (req, res) => {
 
     const params = [chamaId];
     if (status) {
-      query += ` AND wc.status = $2`;
+      query += ' AND wc.status = $2';
       params.push(status);
     }
 
@@ -260,11 +258,11 @@ const getChamaClaims = async (req, res) => {
       totalCount,
       pageNum,
       limitNum,
-      "Chama claims retrieved successfully",
+      'Chama claims retrieved successfully',
     );
   } catch (error) {
-    logger.error("Error fetching chama claims:", error);
-    return res.error("Error fetching claims", 500);
+    logger.error('Error fetching chama claims:', error);
+    return res.error('Error fetching claims', 500);
   }
 };
 
@@ -275,7 +273,7 @@ const approveClaim = async (req, res) => {
 
   try {
     // Start transaction
-    await pool.query("BEGIN");
+    await pool.query('BEGIN');
 
     // Record approval
     const approvalQuery = `
@@ -310,12 +308,12 @@ const approveClaim = async (req, res) => {
 
     // If we have at least 2 approvals or this is the last admin to approve
     if (
-      claimInfo.approval_count >= 2 ||
-      claimInfo.approval_count >= claimInfo.total_admins
+      claimInfo.approval_count >= 2
+      || claimInfo.approval_count >= claimInfo.total_admins
     ) {
       // Update claim status to approved
       await pool.query(
-        "UPDATE welfare_claims SET status = 'APPROVED' WHERE id = $1",
+        'UPDATE welfare_claims SET status = \'APPROVED\' WHERE id = $1',
         [claimId],
       );
 
@@ -333,13 +331,13 @@ const approveClaim = async (req, res) => {
       });
     }
 
-    await pool.query("COMMIT");
+    await pool.query('COMMIT');
 
-    res.json({ message: "Approval recorded successfully" });
+    res.json({ message: 'Approval recorded successfully' });
   } catch (error) {
-    await pool.query("ROLLBACK");
-    logger.error("Error processing approval:", error);
-    res.status(500).json({ message: "Error processing approval" });
+    await pool.query('ROLLBACK');
+    logger.error('Error processing approval:', error);
+    res.status(500).json({ message: 'Error processing approval' });
   }
 };
 
@@ -362,7 +360,7 @@ async function notifyAdminsAboutNewClaim(chamaId, claimId) {
       entityId: claimId,
     });
   } catch (error) {
-    logger.error("Error notifying admins:", error);
+    logger.error('Error notifying admins:', error);
     // Don't fail the whole operation if notifications fail
   }
 }
@@ -388,13 +386,13 @@ async function processWelfarePayout(claim) {
 
     // Update the claim status
     await pool.query(
-      "UPDATE welfare_claims SET status = 'PAID', updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+      'UPDATE welfare_claims SET status = \'PAID\', updated_at = CURRENT_TIMESTAMP WHERE id = $1',
       [claim.id],
     );
 
     // Update the welfare fund balance
     await pool.query(
-      "UPDATE welfare_fund SET balance = balance - $1 WHERE chama_id = $2",
+      'UPDATE welfare_fund SET balance = balance - $1 WHERE chama_id = $2',
       [claim.claim_amount, claim.chama_id],
     );
 
@@ -402,7 +400,7 @@ async function processWelfarePayout(claim) {
       `Processed welfare payout of KES ${claim.claim_amount} for claim ${claim.id}`,
     );
   } catch (error) {
-    logger.error("Error processing welfare payout:", error);
+    logger.error('Error processing welfare payout:', error);
     // In a real implementation, you'd want to handle this error appropriately
     // and possibly retry or notify an admin
     throw error;

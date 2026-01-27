@@ -5,25 +5,25 @@
  * Usage: node scripts/security-audit.js [--fix] [--rotate-secrets]
  */
 
-require("dotenv").config();
-const fs = require("fs");
-const path = require("path");
-const crypto = require("crypto");
-const DatabaseUtils = require("./utils/db-utils");
-const logger = require("../utils/logger");
+require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const DatabaseUtils = require('./utils/db-utils');
+const logger = require('../utils/logger');
 
 const db = new DatabaseUtils();
 
 // Color codes
 const colors = {
-  reset: "\x1b[0m",
-  red: "\x1b[31m",
-  green: "\x1b[32m",
-  yellow: "\x1b[33m",
-  cyan: "\x1b[36m",
+  reset: '\x1b[0m',
+  red: '\x1b[31m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  cyan: '\x1b[36m',
 };
 
-function log(message, color = "reset") {
+function log(message, color = 'reset') {
   console.log(`${colors[color]}${message}${colors.reset}`);
 }
 
@@ -31,58 +31,58 @@ function log(message, color = "reset") {
  * Generate secure random secret
  */
 function generateSecret(length = 64) {
-  return crypto.randomBytes(length).toString("hex");
+  return crypto.randomBytes(length).toString('hex');
 }
 
 /**
  * Check for exposed secrets in files
  */
 async function checkExposedSecrets() {
-  log("\n🔍 Checking for exposed secrets...", "cyan");
+  log('\n🔍 Checking for exposed secrets...', 'cyan');
 
   const issues = [];
-  const sensitiveFiles = [".env", ".env.local", ".env.production"];
-  const projectRoot = path.join(__dirname, "..", "..");
+  const sensitiveFiles = ['.env', '.env.local', '.env.production'];
+  const projectRoot = path.join(__dirname, '..', '..');
 
   // Check if .env is in git history
   try {
-    const { execSync } = require("child_process");
-    const result = execSync("git log --all --full-history -- .env", {
+    const { execSync } = require('child_process');
+    const result = execSync('git log --all --full-history -- .env', {
       cwd: projectRoot,
-      encoding: "utf8",
+      encoding: 'utf8',
     });
 
     if (result.trim()) {
       issues.push({
-        severity: "CRITICAL",
-        message: ".env file found in git history",
-        recommendation: "Run git filter-branch to remove .env from history",
+        severity: 'CRITICAL',
+        message: '.env file found in git history',
+        recommendation: 'Run git filter-branch to remove .env from history',
       });
     } else {
-      log("  ✅ .env not in git history", "green");
+      log('  ✅ .env not in git history', 'green');
     }
   } catch (error) {
-    log("  ✅ .env not in git history", "green");
+    log('  ✅ .env not in git history', 'green');
   }
 
   // Check .gitignore
-  const gitignorePath = path.join(projectRoot, ".gitignore");
+  const gitignorePath = path.join(projectRoot, '.gitignore');
   if (fs.existsSync(gitignorePath)) {
-    const gitignoreContent = fs.readFileSync(gitignorePath, "utf8");
+    const gitignoreContent = fs.readFileSync(gitignorePath, 'utf8');
 
-    const requiredEntries = [".env", ".env.local", "*.pem", "*.key"];
+    const requiredEntries = ['.env', '.env.local', '*.pem', '*.key'];
     const missing = requiredEntries.filter(
-      (entry) => !gitignoreContent.includes(entry),
+      entry => !gitignoreContent.includes(entry),
     );
 
     if (missing.length > 0) {
       issues.push({
-        severity: "HIGH",
-        message: `.gitignore missing entries: ${missing.join(", ")}`,
-        recommendation: "Add missing entries to .gitignore",
+        severity: 'HIGH',
+        message: `.gitignore missing entries: ${missing.join(', ')}`,
+        recommendation: 'Add missing entries to .gitignore',
       });
     } else {
-      log("  ✅ .gitignore properly configured", "green");
+      log('  ✅ .gitignore properly configured', 'green');
     }
   }
 
@@ -93,23 +93,23 @@ async function checkExposedSecrets() {
     /secret\s*=\s*['"][^'"]{16,}['"]/gi,
   ];
 
-  const jsFiles = getJavaScriptFiles(path.join(__dirname, ".."));
+  const jsFiles = getJavaScriptFiles(path.join(__dirname, '..'));
 
   for (const file of jsFiles) {
-    const content = fs.readFileSync(file, "utf8");
+    const content = fs.readFileSync(file, 'utf8');
     const relativePath = path.relative(projectRoot, file);
 
     for (const pattern of searchPatterns) {
       const matches = content.match(pattern);
       if (
-        matches &&
-        !relativePath.includes("test") &&
-        !relativePath.includes("example")
+        matches
+        && !relativePath.includes('test')
+        && !relativePath.includes('example')
       ) {
         issues.push({
-          severity: "HIGH",
+          severity: 'HIGH',
           message: `Possible hardcoded secret in ${relativePath}`,
-          recommendation: "Move secrets to environment variables",
+          recommendation: 'Move secrets to environment variables',
         });
         break;
       }
@@ -117,7 +117,7 @@ async function checkExposedSecrets() {
   }
 
   if (issues.length === 0) {
-    log("  ✅ No hardcoded secrets detected", "green");
+    log('  ✅ No hardcoded secrets detected', 'green');
   }
 
   return issues;
@@ -135,15 +135,15 @@ function getJavaScriptFiles(dir) {
     const stat = fs.statSync(fullPath);
 
     if (
-      stat.isDirectory() &&
-      !item.startsWith(".") &&
-      item !== "node_modules"
+      stat.isDirectory()
+      && !item.startsWith('.')
+      && item !== 'node_modules'
     ) {
       files.push(...getJavaScriptFiles(fullPath));
     } else if (
-      item.endsWith(".js") &&
-      !item.includes(".test.") &&
-      !item.includes(".spec.")
+      item.endsWith('.js')
+      && !item.includes('.test.')
+      && !item.includes('.spec.')
     ) {
       files.push(fullPath);
     }
@@ -156,35 +156,35 @@ function getJavaScriptFiles(dir) {
  * Check JWT configuration
  */
 async function checkJWTSecurity() {
-  log("\n🔑 Checking JWT security...", "cyan");
+  log('\n🔑 Checking JWT security...', 'cyan');
 
   const issues = [];
 
   if (!process.env.JWT_SECRET) {
     issues.push({
-      severity: "CRITICAL",
-      message: "JWT_SECRET not set",
-      recommendation: "Set a strong JWT_SECRET in .env",
+      severity: 'CRITICAL',
+      message: 'JWT_SECRET not set',
+      recommendation: 'Set a strong JWT_SECRET in .env',
     });
   } else if (process.env.JWT_SECRET.length < 32) {
     issues.push({
-      severity: "HIGH",
-      message: "JWT_SECRET is too short (< 32 characters)",
-      recommendation: "Use a JWT_SECRET of at least 64 characters",
+      severity: 'HIGH',
+      message: 'JWT_SECRET is too short (< 32 characters)',
+      recommendation: 'Use a JWT_SECRET of at least 64 characters',
     });
   } else {
-    log("  ✅ JWT_SECRET properly configured", "green");
+    log('  ✅ JWT_SECRET properly configured', 'green');
   }
 
   // Check for multiple JWT secrets (key rotation)
   if (process.env.JWT_SECRET_V1 && process.env.JWT_SECRET_V2) {
-    log("  ✅ JWT key rotation configured", "green");
+    log('  ✅ JWT key rotation configured', 'green');
   } else {
     issues.push({
-      severity: "MEDIUM",
-      message: "JWT key rotation not configured",
+      severity: 'MEDIUM',
+      message: 'JWT key rotation not configured',
       recommendation:
-        "Implement JWT_SECRET_V1 and JWT_SECRET_V2 for key rotation",
+        'Implement JWT_SECRET_V1 and JWT_SECRET_V2 for key rotation',
     });
   }
 
@@ -195,48 +195,48 @@ async function checkJWTSecurity() {
  * Check database security
  */
 async function checkDatabaseSecurity() {
-  log("\n🗄️  Checking database security...", "cyan");
+  log('\n🗄️  Checking database security...', 'cyan');
 
   const issues = [];
 
   // Check database password strength
   if (!process.env.DB_PASSWORD) {
     issues.push({
-      severity: "CRITICAL",
-      message: "DB_PASSWORD not set",
-      recommendation: "Set a strong database password",
+      severity: 'CRITICAL',
+      message: 'DB_PASSWORD not set',
+      recommendation: 'Set a strong database password',
     });
   } else if (process.env.DB_PASSWORD.length < 16) {
     issues.push({
-      severity: "HIGH",
-      message: "DB_PASSWORD is weak (< 16 characters)",
-      recommendation: "Use a database password of at least 24 characters",
+      severity: 'HIGH',
+      message: 'DB_PASSWORD is weak (< 16 characters)',
+      recommendation: 'Use a database password of at least 24 characters',
     });
   } else {
-    log("  ✅ Database password properly configured", "green");
+    log('  ✅ Database password properly configured', 'green');
   }
 
   // Check SSL/TLS
-  const sslEnabled = process.env.DB_SSL === "true" || process.env.DB_SSL_MODE;
-  if (!sslEnabled && process.env.NODE_ENV === "production") {
+  const sslEnabled = process.env.DB_SSL === 'true' || process.env.DB_SSL_MODE;
+  if (!sslEnabled && process.env.NODE_ENV === 'production') {
     issues.push({
-      severity: "HIGH",
-      message: "Database SSL/TLS not enabled in production",
-      recommendation: "Enable DB_SSL=true for production",
+      severity: 'HIGH',
+      message: 'Database SSL/TLS not enabled in production',
+      recommendation: 'Enable DB_SSL=true for production',
     });
   } else if (sslEnabled) {
-    log("  ✅ Database SSL/TLS enabled", "green");
+    log('  ✅ Database SSL/TLS enabled', 'green');
   }
 
   // Check for default credentials
   if (
-    process.env.DB_USER === "postgres" &&
-    process.env.DB_PASSWORD === "postgres"
+    process.env.DB_USER === 'postgres'
+    && process.env.DB_PASSWORD === 'postgres'
   ) {
     issues.push({
-      severity: "CRITICAL",
-      message: "Using default PostgreSQL credentials",
-      recommendation: "Change from default postgres/postgres credentials",
+      severity: 'CRITICAL',
+      message: 'Using default PostgreSQL credentials',
+      recommendation: 'Change from default postgres/postgres credentials',
     });
   }
 
@@ -247,7 +247,7 @@ async function checkDatabaseSecurity() {
  * Check password hashing
  */
 async function checkPasswordHashing() {
-  log("\n🔒 Checking password hashing...", "cyan");
+  log('\n🔒 Checking password hashing...', 'cyan');
 
   const issues = [];
 
@@ -262,18 +262,18 @@ async function checkPasswordHashing() {
       // Check if password is bcrypt hashed (starts with $2a$, $2b$, or $2y$)
       if (!user.password_hash || !user.password_hash.match(/^\$2[aby]\$/)) {
         issues.push({
-          severity: "CRITICAL",
+          severity: 'CRITICAL',
           message: `User ${user.email} has improperly hashed password`,
-          recommendation: "Reset password with proper bcrypt hashing",
+          recommendation: 'Reset password with proper bcrypt hashing',
         });
       }
     }
 
     if (issues.length === 0) {
-      log("  ✅ All passwords properly hashed with bcrypt", "green");
+      log('  ✅ All passwords properly hashed with bcrypt', 'green');
     }
   } catch (error) {
-    log(`  ⚠️  Could not check password hashing: ${error.message}`, "yellow");
+    log(`  ⚠️  Could not check password hashing: ${error.message}`, 'yellow');
   }
 
   return issues;
@@ -283,24 +283,24 @@ async function checkPasswordHashing() {
  * Check session security
  */
 async function checkSessionSecurity() {
-  log("\n🎫 Checking session security...", "cyan");
+  log('\n🎫 Checking session security...', 'cyan');
 
   const issues = [];
 
   if (!process.env.SESSION_SECRET) {
     issues.push({
-      severity: "HIGH",
-      message: "SESSION_SECRET not set",
-      recommendation: "Set a strong SESSION_SECRET in .env",
+      severity: 'HIGH',
+      message: 'SESSION_SECRET not set',
+      recommendation: 'Set a strong SESSION_SECRET in .env',
     });
   } else if (process.env.SESSION_SECRET.length < 32) {
     issues.push({
-      severity: "MEDIUM",
-      message: "SESSION_SECRET is too short",
-      recommendation: "Use a SESSION_SECRET of at least 64 characters",
+      severity: 'MEDIUM',
+      message: 'SESSION_SECRET is too short',
+      recommendation: 'Use a SESSION_SECRET of at least 64 characters',
     });
   } else {
-    log("  ✅ SESSION_SECRET properly configured", "green");
+    log('  ✅ SESSION_SECRET properly configured', 'green');
   }
 
   return issues;
@@ -310,44 +310,44 @@ async function checkSessionSecurity() {
  * Generate security report
  */
 function generateReport(allIssues) {
-  log("\n" + "=".repeat(70), "cyan");
-  log("  SECURITY AUDIT REPORT", "cyan");
-  log("=".repeat(70) + "\n", "cyan");
+  log(`\n${'='.repeat(70)}`, 'cyan');
+  log('  SECURITY AUDIT REPORT', 'cyan');
+  log(`${'='.repeat(70)}\n`, 'cyan');
 
-  const critical = allIssues.filter((i) => i.severity === "CRITICAL");
-  const high = allIssues.filter((i) => i.severity === "HIGH");
-  const medium = allIssues.filter((i) => i.severity === "MEDIUM");
+  const critical = allIssues.filter(i => i.severity === 'CRITICAL');
+  const high = allIssues.filter(i => i.severity === 'HIGH');
+  const medium = allIssues.filter(i => i.severity === 'MEDIUM');
 
   log(`Total Issues Found: ${allIssues.length}\n`);
-  log(`  🔴 Critical: ${critical.length}`, "red");
-  log(`  🟠 High:     ${high.length}`, "yellow");
-  log(`  🟡 Medium:   ${medium.length}`, "yellow");
+  log(`  🔴 Critical: ${critical.length}`, 'red');
+  log(`  🟠 High:     ${high.length}`, 'yellow');
+  log(`  🟡 Medium:   ${medium.length}`, 'yellow');
 
   if (allIssues.length === 0) {
-    log("\n✅ No security issues found!", "green");
+    log('\n✅ No security issues found!', 'green');
     return;
   }
 
   // Display issues by severity
-  for (const severity of ["CRITICAL", "HIGH", "MEDIUM"]) {
-    const issues = allIssues.filter((i) => i.severity === severity);
+  for (const severity of ['CRITICAL', 'HIGH', 'MEDIUM']) {
+    const issues = allIssues.filter(i => i.severity === severity);
     if (issues.length === 0) continue;
 
-    log(`\n${severity} Issues:`, severity === "CRITICAL" ? "red" : "yellow");
+    log(`\n${severity} Issues:`, severity === 'CRITICAL' ? 'red' : 'yellow');
     issues.forEach((issue, index) => {
       log(`\n  ${index + 1}. ${issue.message}`);
-      log(`     → ${issue.recommendation}`, "cyan");
+      log(`     → ${issue.recommendation}`, 'cyan');
     });
   }
 
-  log("\n" + "=".repeat(70) + "\n", "cyan");
+  log(`\n${'='.repeat(70)}\n`, 'cyan');
 }
 
 /**
  * Rotate secrets (generate new ones)
  */
 async function rotateSecrets() {
-  log("\n🔄 Generating new secrets...", "cyan");
+  log('\n🔄 Generating new secrets...', 'cyan');
 
   const newSecrets = {
     JWT_SECRET_V1: generateSecret(64),
@@ -355,21 +355,21 @@ async function rotateSecrets() {
     SESSION_SECRET: generateSecret(64),
     DB_PASSWORD: generateSecret(32),
     REDIS_PASSWORD: generateSecret(32),
-    ENCRYPTION_KEY: crypto.randomBytes(32).toString("base64"),
+    ENCRYPTION_KEY: crypto.randomBytes(32).toString('base64'),
   };
 
-  log("\n📝 New secrets generated (save these securely):\n");
+  log('\n📝 New secrets generated (save these securely):\n');
 
   for (const [key, value] of Object.entries(newSecrets)) {
     log(`${key}=${value}`);
   }
 
-  log("\n⚠️  Instructions:", "yellow");
-  log("  1. Update your .env.local file with these new secrets");
-  log("  2. Update your production environment variables");
-  log("  3. Restart all services");
-  log("  4. Users will need to re-authenticate");
-  log("  5. Store these secrets in a password manager\n");
+  log('\n⚠️  Instructions:', 'yellow');
+  log('  1. Update your .env.local file with these new secrets');
+  log('  2. Update your production environment variables');
+  log('  3. Restart all services');
+  log('  4. Users will need to re-authenticate');
+  log('  5. Store these secrets in a password manager\n');
 
   // Save to a secure file
   const secretsFile = path.join(__dirname, `secrets-${Date.now()}.txt`);
@@ -377,13 +377,13 @@ async function rotateSecrets() {
     secretsFile,
     Object.entries(newSecrets)
       .map(([k, v]) => `${k}=${v}`)
-      .join("\n"),
+      .join('\n'),
   );
 
-  log(`💾 Secrets saved to: ${secretsFile}`, "green");
+  log(`💾 Secrets saved to: ${secretsFile}`, 'green');
   log(
-    "   Move this file to a secure location and delete it from the project!\n",
-    "yellow",
+    '   Move this file to a secure location and delete it from the project!\n',
+    'yellow',
   );
 }
 
@@ -391,9 +391,9 @@ async function rotateSecrets() {
  * Main audit function
  */
 async function runSecurityAudit(options = {}) {
-  log("\n" + "=".repeat(70), "cyan");
-  log("  CHAMASMART SECURITY AUDIT", "cyan");
-  log("=".repeat(70) + "\n", "cyan");
+  log(`\n${'='.repeat(70)}`, 'cyan');
+  log('  CHAMASMART SECURITY AUDIT', 'cyan');
+  log(`${'='.repeat(70)}\n`, 'cyan');
 
   const allIssues = [];
 
@@ -408,12 +408,12 @@ async function runSecurityAudit(options = {}) {
   generateReport(allIssues);
 
   // Log to file
-  logger.info("Security audit completed", {
+  logger.info('Security audit completed', {
     timestamp: new Date().toISOString(),
     issuesFound: allIssues.length,
-    critical: allIssues.filter((i) => i.severity === "CRITICAL").length,
-    high: allIssues.filter((i) => i.severity === "HIGH").length,
-    medium: allIssues.filter((i) => i.severity === "MEDIUM").length,
+    critical: allIssues.filter(i => i.severity === 'CRITICAL').length,
+    high: allIssues.filter(i => i.severity === 'HIGH').length,
+    medium: allIssues.filter(i => i.severity === 'MEDIUM').length,
   });
 
   // Rotate secrets if requested
@@ -427,10 +427,10 @@ async function runSecurityAudit(options = {}) {
 // Parse arguments
 const args = process.argv.slice(2);
 const options = {
-  rotateSecrets: args.includes("--rotate-secrets"),
+  rotateSecrets: args.includes('--rotate-secrets'),
 };
 
-if (args.includes("--help")) {
+if (args.includes('--help')) {
   console.log(`
 Security Audit - Comprehensive security check
 
@@ -450,16 +450,16 @@ Examples:
 
 // Run audit
 runSecurityAudit(options)
-  .then((issues) => {
+  .then(issues => {
     const criticalCount = issues.filter(
-      (i) => i.severity === "CRITICAL",
+      i => i.severity === 'CRITICAL',
     ).length;
     if (criticalCount > 0) {
       process.exit(1);
     }
   })
-  .catch((error) => {
-    log(`\n❌ Audit failed: ${error.message}`, "red");
+  .catch(error => {
+    log(`\n❌ Audit failed: ${error.message}`, 'red');
     process.exit(1);
   })
   .finally(() => db.close());

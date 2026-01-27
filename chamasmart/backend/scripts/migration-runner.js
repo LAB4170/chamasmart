@@ -9,16 +9,16 @@
  *   node scripts/migration-runner.js --status
  */
 
-require("dotenv").config();
-const fs = require("fs");
-const path = require("path");
-const DatabaseUtils = require("./utils/db-utils");
-const logger = require("../utils/logger");
+require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const DatabaseUtils = require('./utils/db-utils');
+const logger = require('../utils/logger');
 
 const db = new DatabaseUtils();
 
 // Migration tracking table
-const MIGRATION_TABLE = "schema_migrations";
+const MIGRATION_TABLE = 'schema_migrations';
 
 /**
  * Create migration tracking table
@@ -78,7 +78,7 @@ async function recordMigration(
  * Get list of migration files
  */
 function getMigrationFiles() {
-  const migrationsDir = path.join(__dirname, "..", "migrations");
+  const migrationsDir = path.join(__dirname, '..', 'migrations');
 
   if (!fs.existsSync(migrationsDir)) {
     logger.warn(`Migrations directory not found: ${migrationsDir}`);
@@ -87,7 +87,7 @@ function getMigrationFiles() {
 
   return fs
     .readdirSync(migrationsDir)
-    .filter((file) => file.endsWith(".sql"))
+    .filter(file => file.endsWith('.sql'))
     .sort();
 }
 
@@ -95,17 +95,17 @@ function getMigrationFiles() {
  * Execute a migration file
  */
 async function executeMigration(migrationFile) {
-  const migrationPath = path.join(__dirname, "..", "migrations", migrationFile);
-  const migrationName = path.basename(migrationFile, ".sql");
+  const migrationPath = path.join(__dirname, '..', 'migrations', migrationFile);
+  const migrationName = path.basename(migrationFile, '.sql');
 
-  console.log(`\n${"=".repeat(70)}`);
+  console.log(`\n${'='.repeat(70)}`);
   console.log(`🔄 Running migration: ${migrationName}`);
-  console.log("=".repeat(70));
+  console.log('='.repeat(70));
 
   // Check if already applied
   const alreadyApplied = await isMigrationApplied(migrationName);
   if (alreadyApplied) {
-    console.log(`⏭️  Migration already applied, skipping...`);
+    console.log('⏭️  Migration already applied, skipping...');
     return { skipped: true };
   }
 
@@ -114,17 +114,17 @@ async function executeMigration(migrationFile) {
     throw new Error(`Migration file not found: ${migrationPath}`);
   }
 
-  const sql = fs.readFileSync(migrationPath, "utf8");
+  const sql = fs.readFileSync(migrationPath, 'utf8');
 
   if (!sql.trim()) {
-    throw new Error("Migration file is empty");
+    throw new Error('Migration file is empty');
   }
 
   // Execute migration
   const startTime = Date.now();
 
   try {
-    await db.transaction(async (client) => {
+    await db.transaction(async client => {
       await client.query(sql);
     });
 
@@ -145,13 +145,13 @@ async function executeMigration(migrationFile) {
     const executionTime = Date.now() - startTime;
 
     // Handle "already exists" errors gracefully
-    if (error.code === "42P07" || error.message.includes("already exists")) {
-      console.log(`⚠️  Some objects already exist, marking as successful...`);
+    if (error.code === '42P07' || error.message.includes('already exists')) {
+      console.log('⚠️  Some objects already exist, marking as successful...');
       await recordMigration(
         migrationName,
         executionTime,
         true,
-        "Objects already existed",
+        'Objects already existed',
       );
       return { success: true, executionTime, warning: true };
     }
@@ -173,33 +173,33 @@ async function executeMigration(migrationFile) {
  * List all migrations and their status
  */
 async function listMigrations() {
-  console.log("\n📋 Migration Status\n");
-  console.log("=".repeat(70));
+  console.log('\n📋 Migration Status\n');
+  console.log('='.repeat(70));
 
   const files = getMigrationFiles();
 
   if (files.length === 0) {
-    console.log("No migration files found");
+    console.log('No migration files found');
     return;
   }
 
   for (const file of files) {
-    const migrationName = path.basename(file, ".sql");
+    const migrationName = path.basename(file, '.sql');
     const applied = await isMigrationApplied(migrationName);
 
-    const status = applied ? "✅ Applied" : "⏳ Pending";
+    const status = applied ? '✅ Applied' : '⏳ Pending';
     console.log(`${status.padEnd(12)} ${migrationName}`);
   }
 
-  console.log("=".repeat(70) + "\n");
+  console.log(`${'='.repeat(70)}\n`);
 }
 
 /**
  * Show migration history
  */
 async function showMigrationHistory() {
-  console.log("\n📜 Migration History\n");
-  console.log("=".repeat(70));
+  console.log('\n📜 Migration History\n');
+  console.log('='.repeat(70));
 
   const result = await db.query(
     `SELECT migration_name, executed_at, execution_time_ms, success, error_message
@@ -209,11 +209,11 @@ async function showMigrationHistory() {
   );
 
   if (result.rows.length === 0) {
-    console.log("No migrations executed yet");
+    console.log('No migrations executed yet');
   } else {
-    result.rows.forEach((row) => {
-      const status = row.success ? "✅" : "❌";
-      const time = row.execution_time_ms ? `${row.execution_time_ms}ms` : "N/A";
+    result.rows.forEach(row => {
+      const status = row.success ? '✅' : '❌';
+      const time = row.execution_time_ms ? `${row.execution_time_ms}ms` : 'N/A';
       const date = new Date(row.executed_at).toLocaleString();
 
       console.log(`${status} ${row.migration_name}`);
@@ -222,11 +222,11 @@ async function showMigrationHistory() {
       if (row.error_message) {
         console.log(`   Error: ${row.error_message}`);
       }
-      console.log("");
+      console.log('');
     });
   }
 
-  console.log("=".repeat(70) + "\n");
+  console.log(`${'='.repeat(70)}\n`);
 }
 
 /**
@@ -240,7 +240,7 @@ async function main() {
     await ensureMigrationTable();
 
     // Handle commands
-    if (args.includes("--help")) {
+    if (args.includes('--help')) {
       console.log(`
 Migration Runner - Unified database migration tool
 
@@ -263,18 +263,18 @@ Examples:
       process.exit(0);
     }
 
-    if (args.includes("--list")) {
+    if (args.includes('--list')) {
       await listMigrations();
       process.exit(0);
     }
 
-    if (args.includes("--status")) {
+    if (args.includes('--status')) {
       await showMigrationHistory();
       process.exit(0);
     }
 
-    if (args.includes("--all")) {
-      console.log("🚀 Running all pending migrations...\n");
+    if (args.includes('--all')) {
+      console.log('🚀 Running all pending migrations...\n');
       const files = getMigrationFiles();
       let applied = 0;
       let skipped = 0;
@@ -288,7 +288,7 @@ Examples:
         }
       }
 
-      console.log(`\n✨ Migration batch complete!`);
+      console.log('\n✨ Migration batch complete!');
       console.log(`   Applied: ${applied}`);
       console.log(`   Skipped: ${skipped}`);
       console.log(`   Total: ${files.length}\n`);
@@ -297,33 +297,33 @@ Examples:
 
     // Run specific migration
     if (args.length === 0) {
-      console.error("❌ Please specify a migration file or use --help");
+      console.error('❌ Please specify a migration file or use --help');
       process.exit(1);
     }
 
     const migrationArg = args[0];
-    const migrationFile = migrationArg.includes("/")
+    const migrationFile = migrationArg.includes('/')
       ? path.basename(migrationArg)
-      : migrationArg.endsWith(".sql")
+      : migrationArg.endsWith('.sql')
         ? migrationArg
         : `${migrationArg}.sql`;
 
     await executeMigration(migrationFile);
     process.exit(0);
   } catch (error) {
-    console.error("\n❌ Migration failed:", error.message);
+    console.error('\n❌ Migration failed:', error.message);
 
     if (error.code) {
       console.error(`   Error code: ${error.code}`);
     }
 
-    if (error.code === "23503") {
+    if (error.code === '23503') {
       console.error(
-        "   💡 Foreign key violation - ensure referenced tables/records exist",
+        '   💡 Foreign key violation - ensure referenced tables/records exist',
       );
     }
 
-    logger.error("Migration execution failed", {
+    logger.error('Migration execution failed', {
       error: error.message,
       stack: error.stack,
       code: error.code,
@@ -336,16 +336,16 @@ Examples:
 }
 
 // Handle uncaught errors
-process.on("uncaughtException", (error) => {
-  logger.error("Uncaught exception during migration", {
+process.on('uncaughtException', error => {
+  logger.error('Uncaught exception during migration', {
     error: error.message,
     stack: error.stack,
   });
   process.exit(1);
 });
 
-process.on("unhandledRejection", (reason) => {
-  logger.error("Unhandled rejection during migration", {
+process.on('unhandledRejection', reason => {
+  logger.error('Unhandled rejection during migration', {
     reason: reason instanceof Error ? reason.message : reason,
   });
   process.exit(1);

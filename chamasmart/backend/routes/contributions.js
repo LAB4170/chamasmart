@@ -1,16 +1,17 @@
-const express = require("express");
+const express = require('express');
+
 const router = express.Router();
 const {
   recordContribution,
   deleteContribution,
-} = require("../controllers/contributionController");
-const { protect, authorize } = require("../middleware/auth");
-const validate = require("../middleware/validate");
+} = require('../controllers/contributionController');
+const { protect, authorize } = require('../middleware/auth');
+const validate = require('../middleware/validate');
 const {
   contributionSchema,
   updateContributionSchema,
-} = require("../utils/validationSchemas");
-const { applyFinancialRateLimiting } = require("../middleware/rateLimiting");
+} = require('../utils/validationSchemas');
+const { applyFinancialRateLimiting } = require('../middleware/rateLimiting');
 
 // ============================================================================
 // ALL ROUTES REQUIRE AUTHENTICATION
@@ -24,8 +25,8 @@ router.use(protect);
 
 // Record new contribution (with rate limiting for financial ops)
 router.post(
-  "/:chamaId/record",
-  authorize("treasurer", "admin"),
+  '/:chamaId/record',
+  authorize('treasurer', 'admin'),
   applyFinancialRateLimiting,
   validate(contributionSchema),
   recordContribution,
@@ -33,8 +34,8 @@ router.post(
 
 // Delete contribution (admin only for safety)
 router.delete(
-  "/:chamaId/:id",
-  authorize("admin", "treasurer"),
+  '/:chamaId/:id',
+  authorize('admin', 'treasurer'),
   deleteContribution,
 );
 

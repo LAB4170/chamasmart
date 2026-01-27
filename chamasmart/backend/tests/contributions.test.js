@@ -13,7 +13,7 @@ describe('Contribution Management Endpoints', () => {
       first_name: 'Test',
       last_name: 'User',
       email: 'contribtest@example.com',
-      password: 'SecurePass123!'
+      password: 'SecurePass123!',
     };
 
     const registerResponse = await request(app)
@@ -28,7 +28,7 @@ describe('Contribution Management Endpoints', () => {
       chama_name: 'Test Contribution Chama',
       chama_type: 'CHAMA',
       contribution_amount: 5000.00,
-      contribution_frequency: 'MONTHLY'
+      contribution_frequency: 'MONTHLY',
     };
 
     const chamaResponse = await request(app)
@@ -41,7 +41,7 @@ describe('Contribution Management Endpoints', () => {
     // Add user as member to the chama
     await pool.query(
       'INSERT INTO memberships (chama_id, user_id, role, status) VALUES ($1, $2, $3, $4)',
-      [testChamaId, testUserId, 'MEMBER', 'ACTIVE']
+      [testChamaId, testUserId, 'MEMBER', 'ACTIVE'],
     );
   });
 
@@ -60,7 +60,7 @@ describe('Contribution Management Endpoints', () => {
         chama_id: testChamaId,
         amount: 5000.00,
         contribution_type: 'REGULAR',
-        reference: 'Monthly contribution'
+        reference: 'Monthly contribution',
       };
 
       const response = await request(app)
@@ -78,7 +78,7 @@ describe('Contribution Management Endpoints', () => {
       const contributionData = {
         chama_id: testChamaId,
         amount: -100, // Negative amount
-        contribution_type: 'REGULAR'
+        contribution_type: 'REGULAR',
       };
 
       const response = await request(app)
@@ -95,7 +95,7 @@ describe('Contribution Management Endpoints', () => {
       const contributionData = {
         chama_id: 99999,
         amount: 5000.00,
-        contribution_type: 'REGULAR'
+        contribution_type: 'REGULAR',
       };
 
       const response = await request(app)
@@ -112,7 +112,7 @@ describe('Contribution Management Endpoints', () => {
       const contributionData = {
         chama_id: testChamaId,
         amount: 5000.00,
-        contribution_type: 'REGULAR'
+        contribution_type: 'REGULAR',
       };
 
       const response = await request(app)
@@ -134,7 +134,7 @@ describe('Contribution Management Endpoints', () => {
         .send({
           chama_id: testChamaId,
           amount: 3000.00,
-          contribution_type: 'REGULAR'
+          contribution_type: 'REGULAR',
         });
 
       await request(app)
@@ -143,7 +143,7 @@ describe('Contribution Management Endpoints', () => {
         .send({
           chama_id: testChamaId,
           amount: 2000.00,
-          contribution_type: 'WELFARE'
+          contribution_type: 'WELFARE',
         });
     });
 
@@ -204,7 +204,7 @@ describe('Contribution Management Endpoints', () => {
         .send({
           chama_id: testChamaId,
           amount: 4000.00,
-          contribution_type: 'REGULAR'
+          contribution_type: 'REGULAR',
         });
 
       contributionId = contributionResponse.body.data.contribution.contribution_id;
@@ -237,7 +237,7 @@ describe('Contribution Management Endpoints', () => {
         first_name: 'Other',
         last_name: 'User',
         email: 'othercontrib@example.com',
-        password: 'SecurePass123!'
+        password: 'SecurePass123!',
       };
 
       const otherUserResponse = await request(app)
@@ -267,7 +267,7 @@ describe('Contribution Management Endpoints', () => {
         .send({
           chama_id: testChamaId,
           amount: 3000.00,
-          contribution_type: 'REGULAR'
+          contribution_type: 'REGULAR',
         });
 
       contributionId = contributionResponse.body.data.contribution.contribution_id;
@@ -276,7 +276,7 @@ describe('Contribution Management Endpoints', () => {
     it('should update contribution successfully', async () => {
       const updateData = {
         amount: 3500.00,
-        reference: 'Updated contribution'
+        reference: 'Updated contribution',
       };
 
       const response = await request(app)
@@ -299,7 +299,7 @@ describe('Contribution Management Endpoints', () => {
 
       // Try to update again
       const updateData = {
-        amount: 4000.00
+        amount: 4000.00,
       };
 
       const response = await request(app)

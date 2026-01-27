@@ -4,20 +4,18 @@
  * Enhanced with key versioning and token hashing for security
  */
 
-const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
-const pool = require("../config/db");
-const logger = require("./logger");
-const { getKeyManager } = require("../security/keyManagement");
+const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
+const pool = require('../config/db');
+const logger = require('./logger');
+const { getKeyManager } = require('../security/keyManagement');
 
 /**
  * Hash refresh token before storage (SHA-256)
  * @param {string} token - The raw refresh token
  * @returns {string} SHA-256 hash of token
  */
-const hashToken = (token) => {
-  return crypto.createHash("sha256").update(token).digest("hex");
-};
+const hashToken = token => crypto.createHash('sha256').update(token).digest('hex');
 
 /**
  * Verify token against its hash
@@ -35,10 +33,10 @@ const verifyTokenHash = (token, hash) => {
  * @param {number} userId - User ID
  * @returns {string} - Access token
  */
-const generateAccessToken = (userId) => {
+const generateAccessToken = userId => {
   const keyManager = getKeyManager();
-  return jwt.sign({ id: userId, type: "access" }, keyManager.getActiveKey(), {
-    expiresIn: process.env.JWT_EXPIRE || "7d",
+  return jwt.sign({ id: userId, type: 'access' }, keyManager.getActiveKey(), {
+    expiresIn: process.env.JWT_EXPIRE || '7d',
     keyid: keyManager.getActiveKeyVersion().toString(),
   });
 };
@@ -48,10 +46,10 @@ const generateAccessToken = (userId) => {
  * @param {number} userId - User ID
  * @returns {string} - Refresh token
  */
-const generateRefreshToken = (userId) => {
+const generateRefreshToken = userId => {
   const keyManager = getKeyManager();
-  return jwt.sign({ id: userId, type: "refresh" }, keyManager.getActiveKey(), {
-    expiresIn: process.env.REFRESH_TOKEN_EXPIRE || "30d",
+  return jwt.sign({ id: userId, type: 'refresh' }, keyManager.getActiveKey(), {
+    expiresIn: process.env.REFRESH_TOKEN_EXPIRE || '30d',
     keyid: keyManager.getActiveKeyVersion().toString(),
   });
 };
@@ -78,10 +76,10 @@ const storeRefreshToken = async (userId, token, userAgent, ipAddress) => {
       [userId, hashedToken, userAgent, ipAddress, expiresAt],
     );
 
-    logger.info("Refresh token stored (hashed)", { userId });
+    logger.info('Refresh token stored (hashed)', { userId });
     return result.rows[0];
   } catch (error) {
-    logger.error("Failed to store refresh token", {
+    logger.error('Failed to store refresh token', {
       userId,
       error: error.message,
     });
@@ -119,7 +117,7 @@ const verifyRefreshToken = async (userId, token) => {
           const key = keyManager.getKeyForVerification(version);
           if (key) {
             decoded = jwt.verify(token, key);
-            logger.warn("Token verified with previous key version", {
+            logger.warn('Token verified with previous key version', {
               userId,
               version,
             });
@@ -132,7 +130,7 @@ const verifyRefreshToken = async (userId, token) => {
     }
 
     if (!decoded) {
-      throw verificationError || new Error("Token verification failed");
+      throw verificationError || new Error('Token verification failed');
     }
 
     // Check if token exists in database with matching hash
@@ -145,13 +143,13 @@ const verifyRefreshToken = async (userId, token) => {
     );
 
     if (result.rows.length === 0) {
-      throw new Error("Refresh token not found, expired, or revoked");
+      throw new Error('Refresh token not found, expired, or revoked');
     }
 
-    logger.info("Refresh token verified successfully", { userId });
+    logger.info('Refresh token verified successfully', { userId });
     return result.rows[0];
   } catch (error) {
-    logger.warn("Invalid refresh token", { userId, error: error.message });
+    logger.warn('Invalid refresh token', { userId, error: error.message });
     throw error;
   }
 };
@@ -170,7 +168,7 @@ const revokeRefreshToken = async (userId, token) => {
       [userId, token],
     );
   } catch (error) {
-    logger.error("Failed to revoke refresh token", {
+    logger.error('Failed to revoke refresh token', {
       userId,
       error: error.message,
     });
@@ -182,7 +180,7 @@ const revokeRefreshToken = async (userId, token) => {
  * @param {number} userId - User ID
  * @returns {Promise<void>}
  */
-const revokeAllRefreshTokens = async (userId) => {
+const revokeAllRefreshTokens = async userId => {
   try {
     await pool.query(
       `UPDATE refresh_tokens SET revoked_at = NOW()
@@ -190,7 +188,7 @@ const revokeAllRefreshTokens = async (userId) => {
       [userId],
     );
   } catch (error) {
-    logger.error("Failed to revoke all refresh tokens", {
+    logger.error('Failed to revoke all refresh tokens', {
       userId,
       error: error.message,
     });
@@ -204,14 +202,14 @@ const revokeAllRefreshTokens = async (userId) => {
 const cleanupExpiredTokens = async () => {
   try {
     const result = await pool.query(
-      `DELETE FROM refresh_tokens WHERE expires_at < NOW()`,
+      'DELETE FROM refresh_tokens WHERE expires_at < NOW()',
     );
-    logger.info("Cleaned up expired refresh tokens", {
+    logger.info('Cleaned up expired refresh tokens', {
       count: result.rowCount,
     });
     return result.rowCount;
   } catch (error) {
-    logger.error("Failed to cleanup expired tokens", { error: error.message });
+    logger.error('Failed to cleanup expired tokens', { error: error.message });
     return 0;
   }
 };

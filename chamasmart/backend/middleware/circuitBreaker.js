@@ -3,17 +3,17 @@
  * Prevents cascading failures from external dependencies
  */
 
-const CircuitBreaker = require("opossum");
-const logger = require("../utils/logger");
-const config = require("../config/middleware.config");
+const CircuitBreaker = require('opossum');
+const logger = require('../utils/logger');
+const config = require('../config/middleware.config');
 
 /**
  * Circuit Breaker States
  */
 const STATES = {
-  CLOSED: "closed", // Normal operation
-  OPEN: "open", // Failing, rejecting requests
-  HALF_OPEN: "half_open", // Testing if service recovered
+  CLOSED: 'closed', // Normal operation
+  OPEN: 'open', // Failing, rejecting requests
+  HALF_OPEN: 'half_open', // Testing if service recovered
 };
 
 /**
@@ -24,32 +24,32 @@ const createCircuitBreaker = (operation, options = {}) => {
     timeout: config.circuitBreaker.timeout,
     errorThresholdPercentage: config.circuitBreaker.errorThresholdPercentage,
     resetTimeout: config.circuitBreaker.resetTimeout,
-    name: options.name || "unnamed-circuit",
+    name: options.name || 'unnamed-circuit',
     ...options,
   };
 
   const breaker = new CircuitBreaker(operation, defaultOptions);
 
   // Event listeners for monitoring
-  breaker.on("open", () => {
+  breaker.on('open', () => {
     logger.warn(`Circuit breaker opened: ${defaultOptions.name}`);
   });
 
-  breaker.on("halfOpen", () => {
+  breaker.on('halfOpen', () => {
     logger.info(`Circuit breaker half-open: ${defaultOptions.name}`);
   });
 
-  breaker.on("close", () => {
+  breaker.on('close', () => {
     logger.info(`Circuit breaker closed: ${defaultOptions.name}`);
   });
 
-  breaker.on("failure", (error) => {
+  breaker.on('failure', error => {
     logger.error(`Circuit breaker failure: ${defaultOptions.name}`, {
       error: error.message,
     });
   });
 
-  breaker.on("success", () => {
+  breaker.on('success', () => {
     logger.debug(`Circuit breaker success: ${defaultOptions.name}`);
   });
 
@@ -61,20 +61,18 @@ const createCircuitBreaker = (operation, options = {}) => {
  */
 let redisBreaker = null;
 
-const initRedisBreaker = (redisClient) => {
+const initRedisBreaker = redisClient => {
   if (!redisClient) {
     logger.warn(
-      "Redis client not provided, skipping circuit breaker initialization",
+      'Redis client not provided, skipping circuit breaker initialization',
     );
     return null;
   }
 
   redisBreaker = createCircuitBreaker(
-    async (operation) => {
-      return await operation();
-    },
+    async operation => await operation(),
     {
-      name: "redis",
+      name: 'redis',
       timeout: 3000,
       errorThresholdPercentage: 50,
       resetTimeout: 30000,
@@ -82,8 +80,8 @@ const initRedisBreaker = (redisClient) => {
   );
 
   // Fallback function when circuit is open
-  redisBreaker.fallback((operation) => {
-    logger.warn("Redis circuit breaker open, using fallback");
+  redisBreaker.fallback(operation => {
+    logger.warn('Redis circuit breaker open, using fallback');
     return null; // Return null to indicate Redis unavailable
   });
 
@@ -95,11 +93,11 @@ const initRedisBreaker = (redisClient) => {
  */
 const executeRedisOperation = async (operation, fallbackValue = null) => {
   if (!redisBreaker) {
-    logger.debug("Redis circuit breaker not initialized, executing directly");
+    logger.debug('Redis circuit breaker not initialized, executing directly');
     try {
       return await operation();
     } catch (error) {
-      logger.error("Redis operation failed", { error: error.message });
+      logger.error('Redis operation failed', { error: error.message });
       return fallbackValue;
     }
   }
@@ -108,7 +106,7 @@ const executeRedisOperation = async (operation, fallbackValue = null) => {
     const result = await redisBreaker.fire(operation);
     return result !== null ? result : fallbackValue;
   } catch (error) {
-    logger.error("Circuit breaker execution failed", { error: error.message });
+    logger.error('Circuit breaker execution failed', { error: error.message });
     return fallbackValue;
   }
 };
@@ -121,11 +119,11 @@ let dbBreaker = null;
 const initDatabaseBreaker = () => {
   dbBreaker = createCircuitBreaker(
     async (query, params) => {
-      const pool = require("../config/db");
+      const pool = require('../config/db');
       return await pool.query(query, params);
     },
     {
-      name: "database",
+      name: 'database',
       timeout: 5000,
       errorThresholdPercentage: 80,
       resetTimeout: 60000,
@@ -133,7 +131,7 @@ const initDatabaseBreaker = () => {
   );
 
   dbBreaker.fallback(() => {
-    throw new Error("Database unavailable");
+    throw new Error('Database unavailable');
   });
 
   return dbBreaker;
@@ -153,19 +151,15 @@ const executeDatabaseOperation = async (query, params = []) => {
 /**
  * External API Circuit Breaker
  */
-const createAPIBreaker = (apiName, options = {}) => {
-  return createCircuitBreaker(
-    async (requestFn) => {
-      return await requestFn();
-    },
-    {
-      name: `api-${apiName}`,
-      timeout: options.timeout || 10000,
-      errorThresholdPercentage: options.errorThreshold || 60,
-      resetTimeout: options.resetTimeout || 60000,
-    },
-  );
-};
+const createAPIBreaker = (apiName, options = {}) => createCircuitBreaker(
+  async requestFn => await requestFn(),
+  {
+    name: `api-${apiName}`,
+    timeout: options.timeout || 10000,
+    errorThresholdPercentage: options.errorThreshold || 60,
+    resetTimeout: options.resetTimeout || 60000,
+  },
+);
 
 /**
  * Get circuit breaker status

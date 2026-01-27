@@ -3,10 +3,10 @@
  * Secure API key generation, validation, and rotation
  */
 
-const crypto = require("crypto");
-const bcrypt = require("bcryptjs");
-const pool = require("../config/db");
-const logger = require("../utils/logger");
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const pool = require('../config/db');
+const logger = require('../utils/logger');
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -17,10 +17,9 @@ const logger = require("../utils/logger");
  * Format: chama_live_[uuid]_[random_16chars]
  */
 function generateAPIKey() {
-  const prefix =
-    process.env.NODE_ENV === "production" ? "chama_live" : "chama_test";
+  const prefix = process.env.NODE_ENV === 'production' ? 'chama_live' : 'chama_test';
   const uuid = crypto.randomUUID();
-  const randomPart = crypto.randomBytes(16).toString("hex").slice(0, 16);
+  const randomPart = crypto.randomBytes(16).toString('hex').slice(0, 16);
 
   return `${prefix}_${uuid}_${randomPart}`;
 }
@@ -45,13 +44,13 @@ async function verifyAPIKey(plainKey, hashedKey) {
 function extractAPIKey(req) {
   // Check Authorization header first (preferred)
   const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith("Bearer ")) {
+  if (authHeader && authHeader.startsWith('Bearer ')) {
     return authHeader.slice(7);
   }
 
   // Check X-API-Key header
-  if (req.headers["x-api-key"]) {
-    return req.headers["x-api-key"];
+  if (req.headers['x-api-key']) {
+    return req.headers['x-api-key'];
   }
 
   // Check query parameter (less secure, for webhooks)
@@ -74,14 +73,14 @@ const createAPIKey = async (req, res, next) => {
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message: "Authentication required",
+        message: 'Authentication required',
       });
     }
 
-    if (!name || typeof name !== "string" || name.trim().length === 0) {
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({
         success: false,
-        message: "API key name is required and must be a non-empty string",
+        message: 'API key name is required and must be a non-empty string',
       });
     }
 
@@ -109,7 +108,7 @@ const createAPIKey = async (req, res, next) => {
 
     const apiKeyRecord = result.rows[0];
 
-    logger.info("✅ API key created", {
+    logger.info('✅ API key created', {
       userId,
       keyId: apiKeyRecord.key_id,
       name,
@@ -118,7 +117,7 @@ const createAPIKey = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: "API key created successfully",
+      message: 'API key created successfully',
       data: {
         keyId: apiKeyRecord.key_id,
         name: apiKeyRecord.name,
@@ -126,11 +125,11 @@ const createAPIKey = async (req, res, next) => {
         keyPrefix: apiKeyRecord.key_prefix,
         expiresAt: apiKeyRecord.expires_at,
         createdAt: apiKeyRecord.created_at,
-        warning: "Save your API key now. You will not be able to see it again.",
+        warning: 'Save your API key now. You will not be able to see it again.',
       },
     });
   } catch (error) {
-    logger.error("Create API key error", error);
+    logger.error('Create API key error', error);
     next(error);
   }
 };
@@ -146,7 +145,7 @@ const listAPIKeys = async (req, res, next) => {
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message: "Authentication required",
+        message: 'Authentication required',
       });
     }
 
@@ -166,7 +165,7 @@ const listAPIKeys = async (req, res, next) => {
       },
     });
   } catch (error) {
-    logger.error("List API keys error", error);
+    logger.error('List API keys error', error);
     next(error);
   }
 };
@@ -183,14 +182,14 @@ const revokeAPIKey = async (req, res, next) => {
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message: "Authentication required",
+        message: 'Authentication required',
       });
     }
 
     if (!keyId) {
       return res.status(400).json({
         success: false,
-        message: "Key ID is required",
+        message: 'Key ID is required',
       });
     }
 
@@ -206,11 +205,11 @@ const revokeAPIKey = async (req, res, next) => {
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "API key not found or does not belong to this user",
+        message: 'API key not found or does not belong to this user',
       });
     }
 
-    logger.info("✅ API key revoked", {
+    logger.info('✅ API key revoked', {
       userId,
       keyId,
       name: result.rows[0].name,
@@ -218,10 +217,10 @@ const revokeAPIKey = async (req, res, next) => {
 
     res.json({
       success: true,
-      message: "API key revoked successfully",
+      message: 'API key revoked successfully',
     });
   } catch (error) {
-    logger.error("Revoke API key error", error);
+    logger.error('Revoke API key error', error);
     next(error);
   }
 };
@@ -238,14 +237,14 @@ const deleteAPIKey = async (req, res, next) => {
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message: "Authentication required",
+        message: 'Authentication required',
       });
     }
 
     if (!keyId) {
       return res.status(400).json({
         success: false,
-        message: "Key ID is required",
+        message: 'Key ID is required',
       });
     }
 
@@ -260,11 +259,11 @@ const deleteAPIKey = async (req, res, next) => {
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "API key not found or does not belong to this user",
+        message: 'API key not found or does not belong to this user',
       });
     }
 
-    logger.info("✅ API key deleted", {
+    logger.info('✅ API key deleted', {
       userId,
       keyId,
       name: result.rows[0].name,
@@ -272,10 +271,10 @@ const deleteAPIKey = async (req, res, next) => {
 
     res.json({
       success: true,
-      message: "API key deleted successfully",
+      message: 'API key deleted successfully',
     });
   } catch (error) {
-    logger.error("Delete API key error", error);
+    logger.error('Delete API key error', error);
     next(error);
   }
 };
@@ -292,7 +291,7 @@ const apiKeyAuth = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message:
-          "API key is required. Provide in Authorization header: Bearer <api_key>",
+          'API key is required. Provide in Authorization header: Bearer <api_key>',
       });
     }
 
@@ -310,14 +309,14 @@ const apiKeyAuth = async (req, res, next) => {
     );
 
     if (result.rows.length === 0) {
-      logger.warn("⚠️ Invalid API key attempted", {
+      logger.warn('⚠️ Invalid API key attempted', {
         keyPrefix,
         ip: req.ip,
       });
 
       return res.status(401).json({
         success: false,
-        message: "Invalid API key",
+        message: 'Invalid API key',
       });
     }
 
@@ -325,14 +324,14 @@ const apiKeyAuth = async (req, res, next) => {
 
     // Check expiry
     if (new Date(keyRecord.expires_at) < new Date()) {
-      logger.warn("⚠️ Expired API key used", {
+      logger.warn('⚠️ Expired API key used', {
         keyId: keyRecord.key_id,
         userId: keyRecord.user_id,
       });
 
       return res.status(401).json({
         success: false,
-        message: "API key has expired",
+        message: 'API key has expired',
       });
     }
 
@@ -340,35 +339,35 @@ const apiKeyAuth = async (req, res, next) => {
     const isValid = await verifyAPIKey(apiKey, keyRecord.key_hash);
 
     if (!isValid) {
-      logger.warn("⚠️ Invalid API key hash", {
+      logger.warn('⚠️ Invalid API key hash', {
         keyPrefix,
         ip: req.ip,
       });
 
       return res.status(401).json({
         success: false,
-        message: "Invalid API key",
+        message: 'Invalid API key',
       });
     }
 
     // Update last used timestamp
     pool
-      .query("UPDATE api_keys SET last_used_at = NOW() WHERE key_id = $1", [
+      .query('UPDATE api_keys SET last_used_at = NOW() WHERE key_id = $1', [
         keyRecord.key_id,
       ])
-      .catch((err) => logger.error("Failed to update last_used_at", err));
+      .catch(err => logger.error('Failed to update last_used_at', err));
 
     // Attach user info to request
     req.user = {
       userId: keyRecord.user_id,
       email: keyRecord.email,
       role: keyRecord.role,
-      authenticatedVia: "api-key",
+      authenticatedVia: 'api-key',
       apiKeyId: keyRecord.key_id,
     };
 
     // Log access
-    logger.info("✅ API key authenticated", {
+    logger.info('✅ API key authenticated', {
       userId: keyRecord.user_id,
       keyId: keyRecord.key_id,
       endpoint: req.path,
@@ -376,10 +375,10 @@ const apiKeyAuth = async (req, res, next) => {
 
     next();
   } catch (error) {
-    logger.error("API key authentication error", error);
+    logger.error('API key authentication error', error);
     res.status(500).json({
       success: false,
-      message: "Authentication failed",
+      message: 'Authentication failed',
     });
   }
 };

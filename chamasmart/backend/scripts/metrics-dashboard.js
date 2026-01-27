@@ -87,20 +87,20 @@ register.registerMetric(totalLoans);
 // Middleware to track HTTP requests
 function metricsMiddleware(req, res, next) {
   const start = Date.now();
-  
+
   res.on('finish', () => {
     const duration = (Date.now() - start) / 1000;
     const route = req.route ? req.route.path : req.path;
-    
+
     httpRequestDuration
       .labels(req.method, route, res.statusCode)
       .observe(duration);
-    
+
     httpRequestTotal
       .labels(req.method, route, res.statusCode)
       .inc();
   });
-  
+
   next();
 }
 
@@ -109,7 +109,7 @@ async function updateDatabaseMetrics() {
   try {
     // Update active connections
     activeConnections.set(pool.totalCount);
-    
+
     // Update business metrics
     const [
       userCount,
@@ -138,7 +138,7 @@ async function updateCacheMetrics() {
     // Get Redis info
     const info = await redis.info('stats');
     const stats = {};
-    
+
     info.split('\r\n').forEach(line => {
       if (line.includes(':')) {
         const [key, value] = line.split(':');
@@ -151,7 +151,7 @@ async function updateCacheMetrics() {
     const misses = parseInt(stats.keyspace_misses) || 0;
     const total = hits + misses;
     const hitRate = total > 0 ? (hits / total) * 100 : 0;
-    
+
     cacheHitRate.set(hitRate);
   } catch (error) {
     console.error('Error updating cache metrics:', error.message);
@@ -184,7 +184,7 @@ async function getDashboardData() {
     ]);
 
     const metrics = await register.getMetricsAsJSON();
-    
+
     return {
       timestamp: new Date().toISOString(),
       metrics: {
@@ -221,7 +221,7 @@ async function getDashboardData() {
 // Start metrics collection
 function startMetricsCollection(interval = 30000) {
   console.log(`📊 Starting metrics collection (interval: ${interval}ms)`);
-  
+
   setInterval(async () => {
     try {
       await Promise.all([
@@ -238,13 +238,13 @@ function startMetricsCollection(interval = 30000) {
 async function displayDashboard() {
   try {
     const data = await getDashboardData();
-    
+
     console.clear();
     console.log('📊 ChamaSmart Metrics Dashboard');
     console.log('='.repeat(50));
     console.log(`📅 ${data.timestamp}`);
     console.log('');
-    
+
     // Business Metrics
     console.log('🏢 Business Metrics:');
     console.log(`   Active Users: ${data.metrics.business.activeUsers}`);
@@ -252,20 +252,20 @@ async function displayDashboard() {
     console.log(`   Total Contributions: ${data.metrics.business.totalContributions}`);
     console.log(`   Total Loans: ${data.metrics.business.totalLoans}`);
     console.log('');
-    
+
     // System Metrics
     console.log('💻 System Metrics:');
     console.log(`   Database Connections: ${data.metrics.database.connections}`);
     console.log(`   Cache Hit Rate: ${data.metrics.cache.hitRate.toFixed(2)}%`);
     console.log('');
-    
+
     // HTTP Metrics
     const totalRequests = data.metrics.http.requests.reduce((sum, req) => sum + parseInt(req.value), 0);
     console.log('🌐 HTTP Metrics:');
     console.log(`   Total Requests: ${totalRequests}`);
     console.log(`   Recent Requests: ${data.metrics.http.requests.slice(-5).map(r => `${r.labels.method} ${r.labels.route} (${r.labels.status_code})`).join(', ')}`);
     console.log('');
-    
+
     console.log('Press Ctrl+C to exit. Dashboard updates every 30 seconds.');
   } catch (error) {
     console.error('Error displaying dashboard:', error);
@@ -275,11 +275,11 @@ async function displayDashboard() {
 // Run dashboard if called directly
 if (require.main === module) {
   startMetricsCollection();
-  
+
   // Display dashboard immediately and then every 30 seconds
   displayDashboard();
   setInterval(displayDashboard, 30000);
-  
+
   // Handle graceful shutdown
   process.on('SIGINT', () => {
     console.log('\n👋 Shutting down metrics dashboard...');

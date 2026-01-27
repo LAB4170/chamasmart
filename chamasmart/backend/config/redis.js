@@ -1,9 +1,9 @@
-const Redis = require("ioredis");
-require("dotenv").config();
+const Redis = require('ioredis');
+require('dotenv').config();
 
 // Redis configuration with proper retry strategy
 const redisConfig = {
-  host: process.env.REDIS_HOST || "localhost",
+  host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT) || 6379,
   password: process.env.REDIS_PASSWORD || undefined,
   db: parseInt(process.env.REDIS_DB) || 0,
@@ -13,7 +13,7 @@ const redisConfig = {
   connectTimeout: 10000, // Longer timeout
   commandTimeout: 5000,
   enableOfflineQueue: true,
-  retryStrategy: (times) => {
+  retryStrategy: times => {
     const delay = Math.min(times * 50, 2000);
     return delay;
   },
@@ -21,18 +21,18 @@ const redisConfig = {
 
 // Mock Redis for development when Redis is not available
 const mockRedis = {
-  get: async (key) => null,
-  set: async (key, value, ...args) => "OK",
-  setex: async (key, ttl, value) => "OK",
-  del: async (key) => 0,
-  exists: async (key) => 0,
+  get: async key => null,
+  set: async (key, value, ...args) => 'OK',
+  setex: async (key, ttl, value) => 'OK',
+  del: async key => 0,
+  exists: async key => 0,
   expire: async (key, ttl) => 0,
-  ttl: async (key) => -1,
-  keys: async (pattern) => [],
-  flushall: async () => "OK",
-  ping: async () => "PONG",
-  quit: async () => "OK",
-  incr: async (key) => 1,
+  ttl: async key => -1,
+  keys: async pattern => [],
+  flushall: async () => 'OK',
+  ping: async () => 'PONG',
+  quit: async () => 'OK',
+  incr: async key => 1,
   incrby: async (key, value) => parseInt(value) || 1,
 };
 
@@ -47,15 +47,15 @@ const initializeRedis = async () => {
     // Wait for connection with proper timeout
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error("Redis connection timeout"));
+        reject(new Error('Redis connection timeout'));
       }, 15000);
 
-      redisClient.on("connect", () => {
+      redisClient.on('connect', () => {
         clearTimeout(timeout);
         resolve();
       });
 
-      redisClient.on("error", (err) => {
+      redisClient.on('error', err => {
         clearTimeout(timeout);
         reject(err);
       });
@@ -63,26 +63,26 @@ const initializeRedis = async () => {
 
     // Test the connection
     const pong = await redisClient.ping();
-    if (pong !== "PONG") {
-      throw new Error("Redis ping failed");
+    if (pong !== 'PONG') {
+      throw new Error('Redis ping failed');
     }
 
     redis = redisClient;
     redisAvailable = true;
-    console.log("✅ Redis connected successfully");
+    console.log('✅ Redis connected successfully');
 
-    redisClient.on("error", (err) => {
-      console.warn("⚠️ Redis connection error:", err.message);
+    redisClient.on('error', err => {
+      console.warn('⚠️ Redis connection error:', err.message);
     });
 
-    redisClient.on("close", () => {
-      console.warn("⚠️ Redis connection closed");
+    redisClient.on('close', () => {
+      console.warn('⚠️ Redis connection closed');
     });
 
     return true;
   } catch (error) {
-    console.error("❌ Redis connection failed:", error.message);
-    console.log("🔄 Please ensure Redis server is running on localhost:6379");
+    console.error('❌ Redis connection failed:', error.message);
+    console.log('🔄 Please ensure Redis server is running on localhost:6379');
     redis = mockRedis;
     redisAvailable = false;
     return false;
@@ -93,14 +93,10 @@ const initializeRedis = async () => {
 initializeRedis();
 
 // Test Redis connection
-const testRedisConnection = async () => {
-  return redisAvailable;
-};
+const testRedisConnection = async () => redisAvailable;
 
 // Get Redis client (with fallback)
-const getRedisClient = () => {
-  return redis;
-};
+const getRedisClient = () => redis;
 
 module.exports = {
   redis: getRedisClient(),

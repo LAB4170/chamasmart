@@ -1,13 +1,14 @@
-const express = require("express");
+const express = require('express');
+
 const router = express.Router();
-const { protect } = require("../middleware/auth");
+const { protect } = require('../middleware/auth');
 const {
   getNotifications,
   getUnreadCount,
   markAsRead,
   markAllAsRead,
-} = require("../controllers/notificationController");
-const { applyRateLimiting } = require("../middleware/rateLimiting");
+} = require('../controllers/notificationController');
+const { applyRateLimiting } = require('../middleware/rateLimiting');
 
 // ============================================================================
 // ALL ROUTES REQUIRE AUTHENTICATION
@@ -20,19 +21,19 @@ router.use(protect);
 // ============================================================================
 
 // Get user's notifications (supports pagination via query params)
-router.get("/", getNotifications);
+router.get('/', getNotifications);
 
 // Get count of unread notifications
-router.get("/unread-count", getUnreadCount);
+router.get('/unread-count', getUnreadCount);
 
 // ============================================================================
 // NOTIFICATION ACTIONS
 // ============================================================================
 
 // Mark specific notification as read
-router.put("/:id/read", markAsRead);
+router.put('/:id/read', markAsRead);
 
 // Mark all notifications as read (with rate limiting)
-router.put("/read-all", applyRateLimiting, markAllAsRead);
+router.put('/read-all', applyRateLimiting, markAllAsRead);
 
 module.exports = router;

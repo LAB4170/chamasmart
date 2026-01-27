@@ -17,27 +17,27 @@ const ALGORITHM = 'aes-256-gcm';
  * @returns {string} - Encrypted text with IV and auth tag
  */
 function encrypt(text) {
-    try {
-        if (!text) return text;
+  try {
+    if (!text) return text;
 
-        const iv = crypto.randomBytes(16);
-        const cipher = crypto.createCipheriv(
-            ALGORITHM,
-            Buffer.from(ENCRYPTION_KEY, 'hex'),
-            iv
-        );
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv(
+      ALGORITHM,
+      Buffer.from(ENCRYPTION_KEY, 'hex'),
+      iv,
+    );
 
-        let encrypted = cipher.update(text, 'utf8', 'hex');
-        encrypted += cipher.final('hex');
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
 
-        const authTag = cipher.getAuthTag();
+    const authTag = cipher.getAuthTag();
 
-        // Return IV:AuthTag:EncryptedData
-        return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
-    } catch (error) {
-        logger.error('Encryption error', { error: error.message });
-        throw new Error('Encryption failed');
-    }
+    // Return IV:AuthTag:EncryptedData
+    return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+  } catch (error) {
+    logger.error('Encryption error', { error: error.message });
+    throw new Error('Encryption failed');
+  }
 }
 
 /**
@@ -46,34 +46,34 @@ function encrypt(text) {
  * @returns {string} - Decrypted text
  */
 function decrypt(encryptedText) {
-    try {
-        if (!encryptedText) return encryptedText;
+  try {
+    if (!encryptedText) return encryptedText;
 
-        const parts = encryptedText.split(':');
-        if (parts.length !== 3) {
-            throw new Error('Invalid encrypted data format');
-        }
-
-        const iv = Buffer.from(parts[0], 'hex');
-        const authTag = Buffer.from(parts[1], 'hex');
-        const encrypted = parts[2];
-
-        const decipher = crypto.createDecipheriv(
-            ALGORITHM,
-            Buffer.from(ENCRYPTION_KEY, 'hex'),
-            iv
-        );
-
-        decipher.setAuthTag(authTag);
-
-        let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-        decrypted += decipher.final('utf8');
-
-        return decrypted;
-    } catch (error) {
-        logger.error('Decryption error', { error: error.message });
-        throw new Error('Decryption failed');
+    const parts = encryptedText.split(':');
+    if (parts.length !== 3) {
+      throw new Error('Invalid encrypted data format');
     }
+
+    const iv = Buffer.from(parts[0], 'hex');
+    const authTag = Buffer.from(parts[1], 'hex');
+    const encrypted = parts[2];
+
+    const decipher = crypto.createDecipheriv(
+      ALGORITHM,
+      Buffer.from(ENCRYPTION_KEY, 'hex'),
+      iv,
+    );
+
+    decipher.setAuthTag(authTag);
+
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+
+    return decrypted;
+  } catch (error) {
+    logger.error('Decryption error', { error: error.message });
+    throw new Error('Decryption failed');
+  }
 }
 
 /**
@@ -82,7 +82,7 @@ function decrypt(encryptedText) {
  * @returns {string} - Hashed text
  */
 function hash(text) {
-    return crypto.createHash('sha256').update(text).digest('hex');
+  return crypto.createHash('sha256').update(text).digest('hex');
 }
 
 /**
@@ -91,7 +91,7 @@ function hash(text) {
  * @returns {string} - Random token
  */
 function generateToken(length = 32) {
-    return crypto.randomBytes(length).toString('hex');
+  return crypto.randomBytes(length).toString('hex');
 }
 
 /**
@@ -101,15 +101,15 @@ function generateToken(length = 32) {
  * @returns {Object} - Object with encrypted fields
  */
 function encryptFields(obj, fields) {
-    const encrypted = { ...obj };
+  const encrypted = { ...obj };
 
-    for (const field of fields) {
-        if (encrypted[field]) {
-            encrypted[field] = encrypt(encrypted[field]);
-        }
+  for (const field of fields) {
+    if (encrypted[field]) {
+      encrypted[field] = encrypt(encrypted[field]);
     }
+  }
 
-    return encrypted;
+  return encrypted;
 }
 
 /**
@@ -119,20 +119,20 @@ function encryptFields(obj, fields) {
  * @returns {Object} - Object with decrypted fields
  */
 function decryptFields(obj, fields) {
-    const decrypted = { ...obj };
+  const decrypted = { ...obj };
 
-    for (const field of fields) {
-        if (decrypted[field]) {
-            try {
-                decrypted[field] = decrypt(decrypted[field]);
-            } catch (error) {
-                logger.warn('Failed to decrypt field', { field });
-                // Keep encrypted value if decryption fails
-            }
-        }
+  for (const field of fields) {
+    if (decrypted[field]) {
+      try {
+        decrypted[field] = decrypt(decrypted[field]);
+      } catch (error) {
+        logger.warn('Failed to decrypt field', { field });
+        // Keep encrypted value if decryption fails
+      }
     }
+  }
 
-    return decrypted;
+  return decrypted;
 }
 
 /**
@@ -142,39 +142,39 @@ function decryptFields(obj, fields) {
  * @returns {string} - Masked text
  */
 function maskData(text, visibleChars = 4) {
-    if (!text || text.length <= visibleChars * 2) {
-        return '*'.repeat(text?.length || 8);
-    }
+  if (!text || text.length <= visibleChars * 2) {
+    return '*'.repeat(text?.length || 8);
+  }
 
-    const start = text.substring(0, visibleChars);
-    const end = text.substring(text.length - visibleChars);
-    const masked = '*'.repeat(text.length - visibleChars * 2);
+  const start = text.substring(0, visibleChars);
+  const end = text.substring(text.length - visibleChars);
+  const masked = '*'.repeat(text.length - visibleChars * 2);
 
-    return `${start}${masked}${end}`;
+  return `${start}${masked}${end}`;
 }
 
 /**
  * Validate encryption key strength
  */
 function validateEncryptionKey() {
-    if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length < 64) {
-        logger.error('Weak or missing encryption key detected');
-        throw new Error('Invalid encryption key configuration');
-    }
+  if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length < 64) {
+    logger.error('Weak or missing encryption key detected');
+    throw new Error('Invalid encryption key configuration');
+  }
 }
 
 // Validate on module load
 if (process.env.NODE_ENV === 'production') {
-    validateEncryptionKey();
+  validateEncryptionKey();
 }
 
 module.exports = {
-    encrypt,
-    decrypt,
-    hash,
-    generateToken,
-    encryptFields,
-    decryptFields,
-    maskData,
-    validateEncryptionKey,
+  encrypt,
+  decrypt,
+  hash,
+  generateToken,
+  encryptFields,
+  decryptFields,
+  maskData,
+  validateEncryptionKey,
 };

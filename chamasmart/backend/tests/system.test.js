@@ -46,7 +46,7 @@ describe('System Health and Metrics', () => {
         first_name: 'Test',
         last_name: 'User',
         email: 'metricstest@example.com',
-        password: 'SecurePass123!'
+        password: 'SecurePass123!',
       };
 
       const registerResponse = await request(app)
@@ -113,12 +113,10 @@ describe('System Health and Metrics', () => {
 
     it('should handle rate limiting', async () => {
       // Make multiple rapid requests to trigger rate limiting
-      const promises = Array(100).fill().map(() => 
-        request(app).get('/api/ping')
-      );
+      const promises = Array(100).fill().map(() => request(app).get('/api/ping'));
 
       const responses = await Promise.all(promises);
-      
+
       // At least one should be rate limited
       const rateLimitedResponses = responses.filter(res => res.status === 429);
       expect(rateLimitedResponses.length).toBeGreaterThan(0);
@@ -139,7 +137,7 @@ describe('System Health and Metrics', () => {
     it('should prevent XSS attacks', async () => {
       const xssPayload = {
         email: 'test@example.com',
-        password: '<script>alert("xss")</script>'
+        password: '<script>alert("xss")</script>',
       };
 
       const response = await request(app)
@@ -169,7 +167,7 @@ describe('System Health and Metrics', () => {
         first_name: 'Test',
         last_name: 'User',
         email: 'invalid-email-format',
-        password: 'SecurePass123!'
+        password: 'SecurePass123!',
       };
 
       const response = await request(app)
@@ -198,8 +196,8 @@ describe('System Health and Metrics', () => {
 
     it('should sanitize input to prevent SQL injection', async () => {
       const sqlInjectionPayload = {
-        email: "'; DROP TABLE users; --",
-        password: 'password'
+        email: '\'; DROP TABLE users; --',
+        password: 'password',
       };
 
       const response = await request(app)
@@ -215,22 +213,20 @@ describe('System Health and Metrics', () => {
   describe('Performance', () => {
     it('should respond within acceptable time limits', async () => {
       const startTime = Date.now();
-      
+
       await request(app)
         .get('/api/ping')
         .expect(200);
-      
+
       const responseTime = Date.now() - startTime;
-      
+
       // Should respond within 100ms for a simple ping
       expect(responseTime).toBeLessThan(100);
     });
 
     it('should handle concurrent requests', async () => {
       const concurrentRequests = 50;
-      const promises = Array(concurrentRequests).fill().map(() => 
-        request(app).get('/api/ping')
-      );
+      const promises = Array(concurrentRequests).fill().map(() => request(app).get('/api/ping'));
 
       const startTime = Date.now();
       const responses = await Promise.all(promises);

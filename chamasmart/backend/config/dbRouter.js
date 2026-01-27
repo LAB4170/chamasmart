@@ -1,8 +1,8 @@
-const { Pool } = require("pg");
-require("dotenv").config();
+const { Pool } = require('pg');
+require('dotenv').config();
 
-const logger = require("../utils/logger");
-const { metrics } = require("../middleware/metrics");
+const logger = require('../utils/logger');
+const { metrics } = require('../middleware/metrics');
 
 /**
  * Advanced Database Router with:
@@ -14,7 +14,7 @@ const { metrics } = require("../middleware/metrics");
  */
 class DatabaseRouter {
   constructor() {
-    this.primary = this.createPool("primary", {
+    this.primary = this.createPool('primary', {
       host: process.env.DB_PRIMARY_HOST || process.env.DB_HOST,
     });
 
@@ -46,7 +46,7 @@ class DatabaseRouter {
 
   initializeReplicas() {
     const replicaHosts = process.env.DB_REPLICA_HOSTS
-      ? process.env.DB_REPLICA_HOSTS.split(",")
+      ? process.env.DB_REPLICA_HOSTS.split(',')
       : [];
 
     return replicaHosts.map((host, index) => {
@@ -71,32 +71,32 @@ class DatabaseRouter {
 
   setupEventHandlers() {
     const setupPoolEvents = (pool, name) => {
-      pool.on("connect", () => {
+      pool.on('connect', () => {
         if (metrics?.databasePoolSize) {
           metrics.databasePoolSize.set(
-            { pool: name, state: "active" },
+            { pool: name, state: 'active' },
             pool.totalCount,
           );
         }
       });
 
-      pool.on("acquire", () => {
+      pool.on('acquire', () => {
         if (metrics?.databasePoolSize) {
           metrics.databasePoolSize.set(
-            { pool: name, state: "idle" },
+            { pool: name, state: 'idle' },
             pool.idleCount,
           );
         }
       });
 
-      pool.on("error", (err) => {
+      pool.on('error', err => {
         logger.error(`Unexpected error on ${name} pool`, {
           error: err.message,
           stack: err.stack,
         });
 
         // Mark replica as unhealthy
-        if (name.startsWith("replica")) {
+        if (name.startsWith('replica')) {
           const health = this.replicaHealth.get(pool);
           if (health) {
             health.healthy = false;
@@ -105,20 +105,18 @@ class DatabaseRouter {
         }
       });
 
-      pool.on("remove", () => {
+      pool.on('remove', () => {
         if (metrics?.databasePoolSize) {
           metrics.databasePoolSize.set(
-            { pool: name, state: "active" },
+            { pool: name, state: 'active' },
             pool.totalCount,
           );
         }
       });
     };
 
-    setupPoolEvents(this.primary, "primary");
-    this.replicas.forEach((replica, i) =>
-      setupPoolEvents(replica, `replica_${i + 1}`),
-    );
+    setupPoolEvents(this.primary, 'primary');
+    this.replicas.forEach((replica, i) => setupPoolEvents(replica, `replica_${i + 1}`));
   }
 
   async testConnections() {
@@ -126,17 +124,17 @@ class DatabaseRouter {
     try {
       const client = await this.primary.connect();
       const result = await client.query(
-        "SELECT NOW() as current_time, version()",
+        'SELECT NOW() as current_time, version()',
       );
-      logger.info("Primary database connected", {
+      logger.info('Primary database connected', {
         host: process.env.DB_PRIMARY_HOST || process.env.DB_HOST,
         database: process.env.DB_NAME,
-        version: result.rows[0].version.split(" ")[1],
+        version: result.rows[0].version.split(' ')[1],
         maxConnections: this.primary.options.max,
       });
       client.release();
     } catch (err) {
-      logger.error("Primary database connection failed", {
+      logger.error('Primary database connection failed', {
         error: err.message,
         host: process.env.DB_PRIMARY_HOST || process.env.DB_HOST,
       });
@@ -147,7 +145,7 @@ class DatabaseRouter {
     for (let i = 0; i < this.replicas.length; i++) {
       try {
         const client = await this.replicas[i].connect();
-        await client.query("SELECT 1");
+        await client.query('SELECT 1');
         logger.info(`Replica ${i + 1} connected successfully`);
         client.release();
       } catch (err) {
@@ -161,14 +159,13 @@ class DatabaseRouter {
 
   // Periodic health checks for replicas
   startHealthChecks() {
-    const checkInterval =
-      parseInt(process.env.DB_HEALTH_CHECK_INTERVAL) || 30000;
+    const checkInterval = parseInt(process.env.DB_HEALTH_CHECK_INTERVAL) || 30000;
 
     setInterval(async () => {
       for (const [pool, health] of this.replicaHealth.entries()) {
         try {
           const client = await pool.connect();
-          await client.query("SELECT 1");
+          await client.query('SELECT 1');
           client.release();
 
           // Mark as healthy
@@ -180,7 +177,7 @@ class DatabaseRouter {
           health.consecutiveFailures++;
           health.lastCheck = Date.now();
 
-          logger.warn("Replica health check failed", {
+          logger.warn('Replica health check failed', {
             consecutiveFailures: health.consecutiveFailures,
             error: err.message,
           });
@@ -197,11 +194,11 @@ class DatabaseRouter {
 
     // Filter healthy replicas
     const healthyReplicas = this.replicas.filter(
-      (pool) => this.replicaHealth.get(pool)?.healthy,
+      pool => this.replicaHealth.get(pool)?.healthy,
     );
 
     if (healthyReplicas.length === 0) {
-      logger.warn("No healthy replicas available, falling back to primary");
+      logger.warn('No healthy replicas available, falling back to primary');
       return this.primary;
     }
 
@@ -220,40 +217,37 @@ class DatabaseRouter {
   // Automatic query routing based on SQL command
   detectQueryType(sql) {
     const normalized = sql.trim().toUpperCase();
-    const writePatterns =
-      /^(INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TRUNCATE|REPLACE)/;
+    const writePatterns = /^(INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TRUNCATE|REPLACE)/;
     const readPatterns = /^(SELECT|SHOW|DESCRIBE|EXPLAIN|WITH.*SELECT)/;
 
     if (writePatterns.test(normalized)) {
-      return "write";
+      return 'write';
     }
     if (readPatterns.test(normalized)) {
-      return "read";
+      return 'read';
     }
 
     // Default to write for safety
-    logger.warn("Unable to detect query type, defaulting to write", {
+    logger.warn('Unable to detect query type, defaulting to write', {
       query: sql.substring(0, 50),
     });
-    return "write";
+    return 'write';
   }
 
   async query(sql, params, options = {}) {
-    const queryText = typeof sql === "string" ? sql : sql.text;
+    const queryText = typeof sql === 'string' ? sql : sql.text;
 
     // Auto-detect or use explicit routing
-    const queryType =
-      options.write !== undefined
-        ? options.write
-          ? "write"
-          : "read"
-        : this.detectQueryType(queryText);
+    const queryType = options.write !== undefined
+      ? options.write
+        ? 'write'
+        : 'read'
+      : this.detectQueryType(queryText);
 
-    const pool =
-      queryType === "write" ? this.getWritePool() : this.getReadPool();
+    const pool = queryType === 'write' ? this.getWritePool() : this.getReadPool();
 
     const start = Date.now();
-    const operation = queryText.trim().split(" ")[0].toUpperCase();
+    const operation = queryText.trim().split(' ')[0].toUpperCase();
 
     try {
       const result = await pool.query(sql, params);
@@ -275,7 +269,7 @@ class DatabaseRouter {
       // Adaptive slow query logging
       const slowThreshold = options.slowQueryThreshold || 1000;
       if (duration > slowThreshold) {
-        logger.warn("Slow query detected", {
+        logger.warn('Slow query detected', {
           query: queryText.substring(0, 300),
           duration: `${duration}ms`,
           rowCount: result.rowCount,
@@ -284,7 +278,7 @@ class DatabaseRouter {
           params: this.sanitizeParams(params),
         });
       } else if (duration > 100) {
-        logger.debug("Query executed", {
+        logger.debug('Query executed', {
           duration: `${duration}ms`,
           rowCount: result.rowCount,
           operation,
@@ -296,11 +290,11 @@ class DatabaseRouter {
       // Track error metrics
       if (metrics?.databaseErrors) {
         metrics.databaseErrors.inc({
-          error_type: error.code || "unknown",
+          error_type: error.code || 'unknown',
         });
       }
 
-      logger.error("Database query error", {
+      logger.error('Database query error', {
         query: queryText.substring(0, 300),
         error: error.message,
         code: error.code,
@@ -321,7 +315,7 @@ class DatabaseRouter {
       const client = await this.primary.connect();
 
       try {
-        await client.query("BEGIN");
+        await client.query('BEGIN');
 
         // Set transaction isolation level if specified
         if (options.isolationLevel) {
@@ -331,28 +325,26 @@ class DatabaseRouter {
         }
 
         const result = await callback(client);
-        await client.query("COMMIT");
+        await client.query('COMMIT');
 
         return result;
       } catch (error) {
-        await client.query("ROLLBACK");
+        await client.query('ROLLBACK');
 
         // Retry on serialization failure
-        if (error.code === "40001" && attempt < maxRetries - 1) {
+        if (error.code === '40001' && attempt < maxRetries - 1) {
           attempt++;
-          logger.warn("Transaction serialization failure, retrying", {
+          logger.warn('Transaction serialization failure, retrying', {
             attempt,
             maxRetries,
           });
 
           // Exponential backoff
-          await new Promise((resolve) =>
-            setTimeout(resolve, Math.pow(2, attempt) * 100),
-          );
+          await new Promise(resolve => setTimeout(resolve, 2 ** attempt * 100));
           continue;
         }
 
-        logger.error("Transaction error", {
+        logger.error('Transaction error', {
           error: error.message,
           code: error.code,
           attempt: attempt + 1,
@@ -382,16 +374,16 @@ class DatabaseRouter {
           const rowStart = rowIndex * columns.length;
           const placeholders = columns
             .map((_, colIndex) => `$${rowStart + colIndex + 1}`)
-            .join(", ");
+            .join(', ');
           return `(${placeholders})`;
         })
-        .join(", ");
+        .join(', ');
 
       const sql = `
-                INSERT INTO ${table} (${columns.join(", ")})
+                INSERT INTO ${table} (${columns.join(', ')})
                 VALUES ${valuePlaceholders}
-                ${options.onConflict || ""}
-                ${options.returning ? "RETURNING " + options.returning : ""}
+                ${options.onConflict || ''}
+                ${options.returning ? `RETURNING ${options.returning}` : ''}
             `;
 
       const values = batch.flat();
@@ -399,7 +391,7 @@ class DatabaseRouter {
       totalInserted += result.rowCount;
     }
 
-    logger.info("Batch insert completed", {
+    logger.info('Batch insert completed', {
       table,
       totalRows: rows.length,
       inserted: totalInserted,
@@ -419,15 +411,15 @@ class DatabaseRouter {
       if (match) return match[1].toLowerCase();
     }
 
-    return "unknown";
+    return 'unknown';
   }
 
   sanitizeParams(params) {
     if (!params) return null;
 
-    return params.map((p) => {
-      if (typeof p === "string" && p.length > 100) {
-        return p.substring(0, 100) + "...";
+    return params.map(p => {
+      if (typeof p === 'string' && p.length > 100) {
+        return `${p.substring(0, 100)}...`;
       }
       return p;
     });
@@ -456,15 +448,15 @@ class DatabaseRouter {
     // Update Prometheus metrics
     if (metrics?.databasePoolSize) {
       metrics.databasePoolSize.set(
-        { pool: "primary", state: "idle" },
+        { pool: 'primary', state: 'idle' },
         this.primary.idleCount,
       );
       metrics.databasePoolSize.set(
-        { pool: "primary", state: "active" },
+        { pool: 'primary', state: 'active' },
         this.primary.totalCount - this.primary.idleCount,
       );
       metrics.databasePoolSize.set(
-        { pool: "primary", state: "waiting" },
+        { pool: 'primary', state: 'waiting' },
         this.primary.waitingCount,
       );
     }
@@ -479,12 +471,12 @@ class DatabaseRouter {
     // Check primary
     try {
       const client = await this.primary.connect();
-      await client.query("SELECT 1");
+      await client.query('SELECT 1');
       client.release();
-      checks.push({ pool: "primary", healthy: true });
+      checks.push({ pool: 'primary', healthy: true });
     } catch (err) {
       checks.push({
-        pool: "primary",
+        pool: 'primary',
         healthy: false,
         error: err.message,
       });
@@ -502,7 +494,7 @@ class DatabaseRouter {
     }
 
     return {
-      overall: checks.every((c) => c.healthy),
+      overall: checks.every(c => c.healthy),
       checks,
       stats: this.getPoolStats(),
     };
@@ -510,10 +502,10 @@ class DatabaseRouter {
 
   // Graceful shutdown
   async end() {
-    logger.info("Closing database connections...");
+    logger.info('Closing database connections...');
 
     await this.primary.end();
-    logger.info("Primary pool closed");
+    logger.info('Primary pool closed');
 
     for (let i = 0; i < this.replicas.length; i++) {
       await this.replicas[i].end();
@@ -530,14 +522,14 @@ module.exports = dbRouter;
 module.exports.pool = dbRouter.primary;
 
 // Graceful shutdown handlers
-process.on("SIGTERM", async () => {
-  logger.info("SIGTERM received, closing database connections");
+process.on('SIGTERM', async () => {
+  logger.info('SIGTERM received, closing database connections');
   await dbRouter.end();
   process.exit(0);
 });
 
-process.on("SIGINT", async () => {
-  logger.info("SIGINT received, closing database connections");
+process.on('SIGINT', async () => {
+  logger.info('SIGINT received, closing database connections');
   await dbRouter.end();
   process.exit(0);
 });

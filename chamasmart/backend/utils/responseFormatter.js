@@ -7,12 +7,12 @@
  * res.json(error("Something went wrong"))
  */
 
-const { v4: uuidv4 } = require("uuid");
+const { v4: uuidv4 } = require('uuid');
 
 /**
  * Generate request ID for tracing
  */
-const generateRequestId = () => uuidv4().split("-")[0];
+const generateRequestId = () => uuidv4().split('-')[0];
 
 /**
  * Success Response Format
@@ -23,19 +23,17 @@ const generateRequestId = () => uuidv4().split("-")[0];
  */
 const success = (
   data = null,
-  message = "Success",
+  message = 'Success',
   statusCode = 200,
-  requestId = null
-) => {
-  return {
-    success: true,
-    message,
-    data,
-    timestamp: new Date().toISOString(),
-    requestId: requestId || generateRequestId(),
-    statusCode,
-  };
-};
+  requestId = null,
+) => ({
+  success: true,
+  message,
+  data,
+  timestamp: new Date().toISOString(),
+  requestId: requestId || generateRequestId(),
+  statusCode,
+});
 
 /**
  * Error Response Format
@@ -45,21 +43,19 @@ const success = (
  * @param {string} requestId - Request ID for tracing (auto-generated if not provided)
  */
 const error = (
-  message = "An error occurred",
+  message = 'An error occurred',
   statusCode = 400,
   details = null,
-  requestId = null
-) => {
-  return {
-    success: false,
-    message,
-    data: null,
-    timestamp: new Date().toISOString(),
-    requestId: requestId || generateRequestId(),
-    statusCode,
-    ...(details && { details }), // Include details only if provided
-  };
-};
+  requestId = null,
+) => ({
+  success: false,
+  message,
+  data: null,
+  timestamp: new Date().toISOString(),
+  requestId: requestId || generateRequestId(),
+  statusCode,
+  ...(details && { details }), // Include details only if provided
+});
 
 /**
  * Validation Error Response Format
@@ -68,16 +64,16 @@ const error = (
  */
 const validationError = (errors, requestId = null) => {
   const formattedErrors = Array.isArray(errors)
-    ? errors.map((err) => ({
-        field: err.path.join("."),
-        message: err.message,
-        type: err.type,
-      }))
+    ? errors.map(err => ({
+      field: err.path.join('.'),
+      message: err.message,
+      type: err.type,
+    }))
     : errors;
 
   return {
     success: false,
-    message: "Validation failed",
+    message: 'Validation failed',
     data: null,
     errors: formattedErrors,
     timestamp: new Date().toISOString(),
@@ -100,8 +96,8 @@ const paginated = (
   page = 1,
   limit = 20,
   total = 0,
-  message = "Success",
-  requestId = null
+  message = 'Success',
+  requestId = null,
 ) => {
   const totalPages = Math.ceil(total / limit);
 
@@ -131,23 +127,23 @@ const responseFormatterMiddleware = (req, res, next) => {
   req.id = generateRequestId();
 
   // Attach response helper methods
-  res.success = (data, message = "Success", statusCode = 200) => {
+  res.success = (data, message = 'Success', statusCode = 200) => {
     res.status(statusCode).json(success(data, message, statusCode, req.id));
   };
 
   res.error = (
-    message = "An error occurred",
+    message = 'An error occurred',
     statusCode = 400,
-    details = null
+    details = null,
   ) => {
     res.status(statusCode).json(error(message, statusCode, details, req.id));
   };
 
-  res.validationError = (errors) => {
+  res.validationError = errors => {
     res.status(422).json(validationError(errors, req.id));
   };
 
-  res.paginated = (data, page, limit, total, message = "Success") => {
+  res.paginated = (data, page, limit, total, message = 'Success') => {
     res.status(200).json(paginated(data, page, limit, total, message, req.id));
   };
 

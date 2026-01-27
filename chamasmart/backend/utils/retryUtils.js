@@ -8,7 +8,7 @@
  */
 const executeWithRetry = async (
   fn,
-  errorMessage = "Operation failed",
+  errorMessage = 'Operation failed',
   maxRetries = 3,
   initialDelay = 1000,
 ) => {
@@ -22,8 +22,8 @@ const executeWithRetry = async (
 
       if (attempt === maxRetries) break;
 
-      const delay = initialDelay * Math.pow(2, attempt);
-      await new Promise((resolve) => setTimeout(resolve, delay));
+      const delay = initialDelay * 2 ** attempt;
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 
@@ -41,9 +41,8 @@ const executeWithRetry = async (
  * @param {number} baseDelay - Base delay in milliseconds
  * @returns {number} - Delay in milliseconds
  */
-const exponentialBackoff = (attempt, baseDelay = 1000) => {
-  return Math.min(baseDelay * Math.pow(2, attempt), 30000); // Cap at 30 seconds
-};
+const exponentialBackoff = (attempt, baseDelay = 1000) => Math.min(baseDelay * 2 ** attempt, 30000) // Cap at 30 seconds
+;
 
 module.exports = {
   executeWithRetry,

@@ -1,4 +1,4 @@
-const pool = require("../config/db");
+const pool = require('../config/db');
 
 // @desc    Request to join a public chama
 // @route   POST /api/join-requests/:chamaId/request
@@ -11,57 +11,57 @@ const requestToJoin = async (req, res) => {
     const { message } = req.body;
     const userId = req.user.user_id;
 
-    await client.query("BEGIN");
+    await client.query('BEGIN');
 
     // Check if chama exists and is public
     const chamaResult = await client.query(
-      "SELECT * FROM chamas WHERE chama_id = $1",
+      'SELECT * FROM chamas WHERE chama_id = $1',
       [chamaId],
     );
 
     if (chamaResult.rows.length === 0) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       return res.status(404).json({
         success: false,
-        message: "Chama not found",
+        message: 'Chama not found',
       });
     }
 
     const chama = chamaResult.rows[0];
 
-    if (chama.visibility !== "PUBLIC") {
-      await client.query("ROLLBACK");
+    if (chama.visibility !== 'PUBLIC') {
+      await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: "This chama is private. Please use an invite code to join.",
+        message: 'This chama is private. Please use an invite code to join.',
       });
     }
 
     // Check if user is already a member
     const memberCheck = await client.query(
-      "SELECT * FROM chama_members WHERE chama_id = $1 AND user_id = $2",
+      'SELECT * FROM chama_members WHERE chama_id = $1 AND user_id = $2',
       [chamaId, userId],
     );
 
     if (memberCheck.rows.length > 0) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: "You are already a member of this chama",
+        message: 'You are already a member of this chama',
       });
     }
 
     // Check for existing pending request
     const existingRequest = await client.query(
-      "SELECT * FROM join_requests WHERE chama_id = $1 AND user_id = $2 AND status = 'PENDING'",
+      'SELECT * FROM join_requests WHERE chama_id = $1 AND user_id = $2 AND status = \'PENDING\'',
       [chamaId, userId],
     );
 
     if (existingRequest.rows.length > 0) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: "You already have a pending request for this chama",
+        message: 'You already have a pending request for this chama',
       });
     }
 
@@ -83,9 +83,9 @@ const requestToJoin = async (req, res) => {
     );
 
     // Create notifications for all officials
-    const { createNotification } = require("../utils/notifications");
+    const { createNotification } = require('../utils/notifications');
     const userResult = await client.query(
-      "SELECT first_name, last_name FROM users WHERE user_id = $1",
+      'SELECT first_name, last_name FROM users WHERE user_id = $1',
       [userId],
     );
     const requester = userResult.rows[0];
@@ -93,27 +93,27 @@ const requestToJoin = async (req, res) => {
     for (const official of officialsResult.rows) {
       await createNotification({
         userId: official.user_id,
-        type: "JOIN_REQUEST",
-        title: "New Join Request",
+        type: 'JOIN_REQUEST',
+        title: 'New Join Request',
         message: `${requester.first_name} ${requester.last_name} wants to join ${chama.chama_name}`,
         link: `/chamas/${chamaId}/join-requests`,
         relatedId: joinRequest.request_id,
       });
     }
 
-    await client.query("COMMIT");
+    await client.query('COMMIT');
 
     res.status(201).json({
       success: true,
-      message: "Join request submitted successfully",
+      message: 'Join request submitted successfully',
       data: joinRequest,
     });
   } catch (error) {
-    await client.query("ROLLBACK");
-    console.error("Request to join error:", error);
+    await client.query('ROLLBACK');
+    console.error('Request to join error:', error);
     res.status(500).json({
       success: false,
-      message: "Error submitting join request",
+      message: 'Error submitting join request',
     });
   } finally {
     client.release();
@@ -150,10 +150,10 @@ const getJoinRequests = async (req, res) => {
       data: result.rows,
     });
   } catch (error) {
-    console.error("Get join requests error:", error);
+    console.error('Get join requests error:', error);
     res.status(500).json({
       success: false,
-      message: "Error fetching join requests",
+      message: 'Error fetching join requests',
     });
   }
 };
@@ -169,26 +169,26 @@ const respondToRequest = async (req, res) => {
     const { status } = req.body; // 'APPROVED' or 'REJECTED'
     const reviewerId = req.user.user_id;
 
-    if (!["APPROVED", "REJECTED"].includes(status)) {
+    if (!['APPROVED', 'REJECTED'].includes(status)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid status. Must be APPROVED or REJECTED",
+        message: 'Invalid status. Must be APPROVED or REJECTED',
       });
     }
 
-    await client.query("BEGIN");
+    await client.query('BEGIN');
 
     // Get join request
     const requestResult = await client.query(
-      "SELECT * FROM join_requests WHERE request_id = $1",
+      'SELECT * FROM join_requests WHERE request_id = $1',
       [requestId],
     );
 
     if (requestResult.rows.length === 0) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       return res.status(404).json({
         success: false,
-        message: "Join request not found",
+        message: 'Join request not found',
       });
     }
 
@@ -205,19 +205,19 @@ const respondToRequest = async (req, res) => {
     );
 
     if (officialCheck.rows.length === 0) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       return res.status(403).json({
         success: false,
         message:
-          "You are not authorized to respond to join requests for this chama",
+          'You are not authorized to respond to join requests for this chama',
       });
     }
 
-    if (joinRequest.status !== "PENDING") {
-      await client.query("ROLLBACK");
+    if (joinRequest.status !== 'PENDING') {
+      await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: "This request has already been reviewed",
+        message: 'This request has already been reviewed',
       });
     }
 
@@ -230,10 +230,10 @@ const respondToRequest = async (req, res) => {
     );
 
     // If approved, add user as member
-    if (status === "APPROVED") {
+    if (status === 'APPROVED') {
       // Get next rotation position
       const positionResult = await client.query(
-        "SELECT COALESCE(MAX(rotation_position), 0) + 1 as next_position FROM chama_members WHERE chama_id = $1",
+        'SELECT COALESCE(MAX(rotation_position), 0) + 1 as next_position FROM chama_members WHERE chama_id = $1',
         [joinRequest.chama_id],
       );
       const nextPosition = positionResult.rows[0].next_position;
@@ -246,52 +246,51 @@ const respondToRequest = async (req, res) => {
 
       // Update total members count
       await client.query(
-        "UPDATE chamas SET total_members = total_members + 1 WHERE chama_id = $1",
+        'UPDATE chamas SET total_members = total_members + 1 WHERE chama_id = $1',
         [joinRequest.chama_id],
       );
     }
 
     // Get chama name for notification
     const chamaResult = await client.query(
-      "SELECT chama_name FROM chamas WHERE chama_id = $1",
+      'SELECT chama_name FROM chamas WHERE chama_id = $1',
       [joinRequest.chama_id],
     );
     const chamaName = chamaResult.rows[0].chama_name;
 
     // Notify the requester
-    const { createNotification } = require("../utils/notifications");
-    const notificationMessage =
-      status === "APPROVED"
-        ? `Your request to join ${chamaName} has been approved!`
-        : `Your request to join ${chamaName} has been declined.`;
+    const { createNotification } = require('../utils/notifications');
+    const notificationMessage = status === 'APPROVED'
+      ? `Your request to join ${chamaName} has been approved!`
+      : `Your request to join ${chamaName} has been declined.`;
 
     await createNotification({
       userId: joinRequest.user_id,
-      type: status === "APPROVED" ? "JOIN_APPROVED" : "JOIN_REJECTED",
+      type: status === 'APPROVED' ? 'JOIN_APPROVED' : 'JOIN_REJECTED',
       title:
-        status === "APPROVED"
-          ? "Join Request Approved"
-          : "Join Request Declined",
+        status === 'APPROVED'
+          ? 'Join Request Approved'
+          : 'Join Request Declined',
       message: notificationMessage,
       link:
-        status === "APPROVED"
+        status === 'APPROVED'
           ? `/chamas/${joinRequest.chama_id}`
-          : "/my-join-requests",
+          : '/my-join-requests',
       relatedId: requestId,
     });
 
-    await client.query("COMMIT");
+    await client.query('COMMIT');
 
     res.json({
       success: true,
       message: `Join request ${status.toLowerCase()} successfully`,
     });
   } catch (error) {
-    await client.query("ROLLBACK");
-    console.error("Respond to request error:", error);
+    await client.query('ROLLBACK');
+    console.error('Respond to request error:', error);
     res.status(500).json({
       success: false,
-      message: "Error processing join request",
+      message: 'Error processing join request',
     });
   } finally {
     client.release();
@@ -322,10 +321,10 @@ const getMyRequests = async (req, res) => {
       data: result.rows,
     });
   } catch (error) {
-    console.error("Get my requests error:", error);
+    console.error('Get my requests error:', error);
     res.status(500).json({
       success: false,
-      message: "Error fetching your join requests",
+      message: 'Error fetching your join requests',
     });
   }
 };

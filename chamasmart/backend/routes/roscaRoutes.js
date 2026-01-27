@@ -1,6 +1,7 @@
-const express = require("express");
+const express = require('express');
+
 const router = express.Router();
-const { protect, authorize } = require("../middleware/auth");
+const { protect, authorize } = require('../middleware/auth');
 const {
   createCycle,
   getChamaCycles,
@@ -10,19 +11,19 @@ const {
   respondToSwapRequest,
   getSwapRequests,
   deleteCycle,
-} = require("../controllers/roscaController");
-const validate = require("../middleware/validate");
+} = require('../controllers/roscaController');
+const validate = require('../middleware/validate');
 const {
   createCycleSchema,
   processPayoutSchema,
   requestPositionSwapSchema,
   respondToSwapRequestSchema,
   updateCycleRosterSchema,
-} = require("../utils/validationSchemas");
+} = require('../utils/validationSchemas');
 const {
   applyFinancialRateLimiting,
   applyRateLimiting,
-} = require("../middleware/rateLimiting");
+} = require('../middleware/rateLimiting');
 
 // ============================================================================
 // ALL ROUTES REQUIRE AUTHENTICATION
@@ -36,27 +37,27 @@ router.use(protect);
 
 // Get all cycles for a chama
 router.get(
-  "/chama/:chamaId/cycles",
-  authorize("member", "admin", "treasurer", "chairperson"),
+  '/chama/:chamaId/cycles',
+  authorize('member', 'admin', 'treasurer', 'chairperson'),
   getChamaCycles,
 );
 
 // Create new ROSCA cycle (officials only)
 router.post(
-  "/chama/:chamaId/cycles",
-  authorize("admin", "treasurer", "chairperson"),
+  '/chama/:chamaId/cycles',
+  authorize('admin', 'treasurer', 'chairperson'),
   applyRateLimiting,
   validate(createCycleSchema),
   createCycle,
 );
 
 // Delete cycle (admin only)
-router.delete("/cycles/:cycleId", authorize("admin", "treasurer"), deleteCycle);
+router.delete('/cycles/:cycleId', authorize('admin', 'treasurer'), deleteCycle);
 
 // Get cycle roster (payout order)
 router.get(
-  "/cycles/:cycleId/roster",
-  authorize("member", "admin", "treasurer", "chairperson"),
+  '/cycles/:cycleId/roster',
+  authorize('member', 'admin', 'treasurer', 'chairperson'),
   getCycleRoster,
 );
 
@@ -66,8 +67,8 @@ router.get(
 
 // Process payout for current cycle position (treasurer only)
 router.post(
-  "/cycles/:cycleId/payout",
-  authorize("treasurer", "admin"),
+  '/cycles/:cycleId/payout',
+  authorize('treasurer', 'admin'),
   applyFinancialRateLimiting,
   validate(processPayoutSchema),
   processPayout,
@@ -79,8 +80,8 @@ router.post(
 
 // Request position swap with another member
 router.post(
-  "/cycles/:cycleId/swap-request",
-  authorize("member", "admin", "treasurer", "chairperson"),
+  '/cycles/:cycleId/swap-request',
+  authorize('member', 'admin', 'treasurer', 'chairperson'),
   applyRateLimiting,
   validate(requestPositionSwapSchema),
   requestPositionSwap,
@@ -88,15 +89,15 @@ router.post(
 
 // Get all swap requests (for user or chama)
 router.get(
-  "/swap-requests",
-  authorize("member", "admin", "treasurer", "chairperson"),
+  '/swap-requests',
+  authorize('member', 'admin', 'treasurer', 'chairperson'),
   getSwapRequests,
 );
 
 // Respond to swap request (accept/reject)
 router.put(
-  "/swap-requests/:requestId/respond",
-  authorize("member", "admin", "treasurer", "chairperson"),
+  '/swap-requests/:requestId/respond',
+  authorize('member', 'admin', 'treasurer', 'chairperson'),
   validate(respondToSwapRequestSchema),
   respondToSwapRequest,
 );

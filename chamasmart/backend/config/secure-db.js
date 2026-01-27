@@ -12,7 +12,7 @@ require('dotenv').config();
 const validateDbConfig = () => {
   const required = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
   const missing = required.filter(key => !process.env[key]);
-  
+
   if (missing.length > 0) {
     throw new Error(`Missing required database environment variables: ${missing.join(', ')}`);
   }
@@ -21,7 +21,7 @@ const validateDbConfig = () => {
 // Layer 2: Connection Pool with Security Settings
 const createSecurePool = () => {
   validateDbConfig();
-  
+
   const poolConfig = {
     host: process.env.DB_HOST,
     port: parseInt(process.env.DB_PORT),
@@ -46,9 +46,9 @@ const createSecurePool = () => {
   const pool = new Pool(poolConfig);
 
   // Layer 3: Connection Monitoring
-  pool.on('connect', (client) => {
+  pool.on('connect', client => {
     console.log('New database client connected');
-    
+
     // Set secure session parameters
     client.query('SET session.authorization = current_user;')
       .catch(err => console.error('Failed to set session authorization:', err));
@@ -69,50 +69,50 @@ const createSecurePool = () => {
 const secureQuery = async (text, params, client = null) => {
   const startTime = Date.now();
   const queryId = crypto.randomBytes(8).toString('hex');
-  
+
   try {
     // Log query attempt (without sensitive data)
     console.log(`Query ${queryId}: ${text.substring(0, 100)}...`);
-    
+
     // Execute query
-    const result = client 
+    const result = client
       ? await client.query(text, params)
       : await pool.query(text, params);
-    
+
     const duration = Date.now() - startTime;
-    
+
     // Log successful query
     console.log(`Query ${queryId} completed in ${duration}ms, ${result.rows.length} rows`);
-    
+
     return result;
   } catch (error) {
     const duration = Date.now() - startTime;
-    
+
     // Log query error
     console.error(`Query ${queryId} failed after ${duration}ms:`, error.message);
-    
+
     // Detect potential SQL injection
     if (error.message.includes('syntax error') || error.message.includes('invalid input')) {
       console.warn(`Potential SQL injection attempt in query ${queryId}`);
     }
-    
+
     throw error;
   }
 };
 
 // Layer 5: Transaction Wrapper with Rollback Protection
-const secureTransaction = async (callback) => {
+const secureTransaction = async callback => {
   const client = await pool.connect();
-  
+
   try {
     await client.query('BEGIN');
     console.log('Transaction started');
-    
+
     const result = await callback(client);
-    
+
     await client.query('COMMIT');
     console.log('Transaction committed');
-    
+
     return result;
   } catch (error) {
     await client.query('ROLLBACK');
@@ -136,13 +136,13 @@ const healthCheck = async () => {
       pool: {
         totalCount: pool.totalCount,
         idleCount: pool.idleCount,
-        waitingCount: pool.waitingCount
-      }
+        waitingCount: pool.waitingCount,
+      },
     };
   } catch (error) {
     return {
       status: 'unhealthy',
-      error: error.message
+      error: error.message,
     };
   }
 };
@@ -170,5 +170,5 @@ module.exports = {
   healthCheck,
   pool,
   // Export pool for legacy compatibility (deprecated)
-  legacyPool: pool
+  legacyPool: pool,
 };

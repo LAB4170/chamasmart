@@ -1,4 +1,5 @@
-const express = require("express");
+const express = require('express');
+
 const router = express.Router();
 const {
   getAllChamas,
@@ -10,24 +11,24 @@ const {
   getChamaMembers,
   getChamaStats,
   getPublicChamas,
-} = require("../controllers/chamaController");
-const { protect, authorize } = require("../middleware/auth");
-const validate = require("../middleware/validate");
+} = require('../controllers/chamaController');
+const { protect, authorize } = require('../middleware/auth');
+const validate = require('../middleware/validate');
 const {
   createChamaSchema,
   updateChamaSchema,
-} = require("../utils/validationSchemas");
-const { applyRateLimiting } = require("../middleware/rateLimiting");
+} = require('../utils/validationSchemas');
+const { applyRateLimiting } = require('../middleware/rateLimiting');
 
 // ============================================================================
 // PUBLIC ROUTES (no authentication required)
 // ============================================================================
 
 // Get all chamas (with pagination)
-router.get("/", getAllChamas);
+router.get('/', getAllChamas);
 
 // Get public chamas (only chamas marked as public)
-router.get("/public", getPublicChamas);
+router.get('/public', getPublicChamas);
 
 // ============================================================================
 // PROTECTED ROUTES - SPECIFIC ROUTES BEFORE PARAMETERIZED
@@ -35,7 +36,7 @@ router.get("/public", getPublicChamas);
 
 // Create new chama (authenticated users)
 router.post(
-  "/",
+  '/',
   protect,
   applyRateLimiting,
   validate(createChamaSchema),
@@ -43,28 +44,28 @@ router.post(
 );
 
 // Get current user's chamas (MUST come before /:id)
-router.get("/user/my-chamas", protect, getMyChamas);
+router.get('/user/my-chamas', protect, getMyChamas);
 
 // ============================================================================
 // PARAMETERIZED ROUTES (come AFTER specific routes)
 // ============================================================================
 
 // Get chama by ID (public route - allows viewing chama details)
-router.get("/:id", getChamaById);
+router.get('/:id', getChamaById);
 
 // Get chama members (members and officials only)
 router.get(
-  "/:id/members",
+  '/:id/members',
   protect,
-  authorize("member", "admin", "treasurer", "chairperson"),
+  authorize('member', 'admin', 'treasurer', 'chairperson'),
   getChamaMembers,
 );
 
 // Get chama statistics (members and officials only)
 router.get(
-  "/:id/stats",
+  '/:id/stats',
   protect,
-  authorize("member", "admin", "treasurer", "chairperson"),
+  authorize('member', 'admin', 'treasurer', 'chairperson'),
   getChamaStats,
 );
 
@@ -74,14 +75,14 @@ router.get(
 
 // Update chama details
 router.put(
-  "/:chamaId",
+  '/:chamaId',
   protect,
-  authorize("admin", "treasurer", "chairperson"),
+  authorize('admin', 'treasurer', 'chairperson'),
   validate(updateChamaSchema),
   updateChama,
 );
 
 // Delete chama (admin only for safety)
-router.delete("/:chamaId", protect, authorize("admin"), deleteChama);
+router.delete('/:chamaId', protect, authorize('admin'), deleteChama);
 
 module.exports = router;

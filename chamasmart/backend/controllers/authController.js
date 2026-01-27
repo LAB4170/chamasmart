@@ -3,19 +3,19 @@
  * Fixes: Rate limiting, account lockout, secure OTP, breach detection
  */
 
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
-const pool = require("../config/db");
-const redis = require("../config/redis");
-const logger = require("../utils/logger");
-const { logAuditEvent, EVENT_TYPES, SEVERITY } = require("../utils/auditLog");
-const { sanitizeMetadata } = require("../utils/auditLog");
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const pool = require('../config/db');
+const redis = require('../config/redis');
+const logger = require('../utils/logger');
+const { logAuditEvent, EVENT_TYPES, SEVERITY } = require('../utils/auditLog');
+const { sanitizeMetadata } = require('../utils/auditLog');
 const {
   isValidEmail,
   isValidPhone,
   isStrongPassword,
-} = require("../utils/validators");
+} = require('../utils/validators');
 
 // SECURITY CONFIGURATIONS
 
@@ -46,10 +46,10 @@ const SECURITY_CONFIG = {
   },
 
   JWT: {
-    ACCESS_TOKEN_EXPIRY: "15m",
-    REFRESH_TOKEN_EXPIRY: "7d",
-    ISSUER: "chamasmart",
-    AUDIENCE: "chamasmart-api",
+    ACCESS_TOKEN_EXPIRY: '15m',
+    REFRESH_TOKEN_EXPIRY: '7d',
+    ISSUER: 'chamasmart',
+    AUDIENCE: 'chamasmart-api',
   },
 };
 
@@ -87,17 +87,17 @@ class RateLimiter {
         const ttl = await redis.ttl(lockoutKey);
         await logAuditEvent({
           eventType: EVENT_TYPES.AUTH_ACCOUNT_LOCKED,
-          userId: key.startsWith("user:") ? key.split(":")[1] : null,
-          action: `Account locked due to too many failed attempts`,
-          entityType: "user",
-          entityId: key.startsWith("email:") ? key.split(":")[1] : key,
+          userId: key.startsWith('user:') ? key.split(':')[1] : null,
+          action: 'Account locked due to too many failed attempts',
+          entityType: 'user',
+          entityId: key.startsWith('email:') ? key.split(':')[1] : key,
           metadata: {
-            ipAddress: key.startsWith("ip:") ? key.split(":")[1] : null,
+            ipAddress: key.startsWith('ip:') ? key.split(':')[1] : null,
             failedAttempts: attempts.count,
             unlockTime: new Date(now + ttl * 1000).toISOString(),
-            reason: "Too many failed login attempts",
+            reason: 'Too many failed login attempts',
           },
-          ipAddress: key.startsWith("ip:") ? key.split(":")[1] : null,
+          ipAddress: key.startsWith('ip:') ? key.split(':')[1] : null,
           severity: SEVERITY.HIGH,
         });
       }
@@ -118,10 +118,10 @@ class RateLimiter {
         await redis.setex(
           lockoutKey,
           Math.floor(config.LOCKOUT_DURATION / 1000),
-          "locked",
+          'locked',
         );
 
-        logger.logSecurityEvent("Account locked due to rate limit", { key });
+        logger.logSecurityEvent('Account locked due to rate limit', { key });
 
         return {
           allowed: false,
@@ -146,7 +146,7 @@ class RateLimiter {
         lockedOut: false,
       };
     } catch (error) {
-      logger.logError(error, { context: "RateLimiter.checkLimit", key });
+      logger.logError(error, { context: 'RateLimiter.checkLimit', key });
       // Fail open in case of Redis issues (but log the error)
       return { allowed: true, remaining: 999, resetAt: new Date() };
     }
@@ -171,7 +171,7 @@ class OTPService {
    * Uses crypto.randomInt instead of Math.random
    */
   static generate(length = SECURITY_CONFIG.OTP.LENGTH) {
-    let otp = "";
+    let otp = '';
     for (let i = 0; i < length; i++) {
       otp += crypto.randomInt(0, 10).toString();
     }
@@ -181,7 +181,7 @@ class OTPService {
   /**
    * Store OTP in Redis with metadata
    */
-  static async store(identifier, otp, type = "email") {
+  static async store(identifier, otp, type = 'email') {
     const key = `otp:${type}:${identifier}`;
     const data = {
       otp,
@@ -210,7 +210,7 @@ class OTPService {
 
     if (resendCount > SECURITY_CONFIG.OTP.MAX_RESEND) {
       throw new Error(
-        "Maximum OTP resend limit exceeded. Please try again later.",
+        'Maximum OTP resend limit exceeded. Please try again later.',
       );
     }
 
@@ -220,7 +220,7 @@ class OTPService {
   /**
    * Verify OTP with rate limiting
    */
-  static async verify(identifier, inputOtp, type = "email") {
+  static async verify(identifier, inputOtp, type = 'email') {
     const key = `otp:${type}:${identifier}`;
     const dataStr = await redis.get(key);
 
@@ -229,16 +229,16 @@ class OTPService {
       await logAuditEvent({
         eventType: EVENT_TYPES.AUTH_FAILED_OTP,
         userId: null,
-        action: "Invalid OTP attempt",
-        entityType: "user",
+        action: 'Invalid OTP attempt',
+        entityType: 'user',
         entityId: identifier,
         metadata: {
-          reason: "OTP not found or expired",
+          reason: 'OTP not found or expired',
           otpType: type,
         },
         severity: SEVERITY.MEDIUM,
       });
-      throw new Error("OTP not found or expired");
+      throw new Error('OTP not found or expired');
     }
 
     const data = JSON.parse(dataStr);
@@ -246,14 +246,14 @@ class OTPService {
     // Check expiry
     if (Date.now() > data.expiresAt) {
       await redis.del(key);
-      throw new Error("OTP has expired. Please request a new one.");
+      throw new Error('OTP has expired. Please request a new one.');
     }
 
     // Check attempts
     if (data.attempts >= SECURITY_CONFIG.OTP.MAX_VERIFY_ATTEMPTS) {
       await redis.del(key);
       throw new Error(
-        "Maximum verification attempts exceeded. Please request a new OTP.",
+        'Maximum verification attempts exceeded. Please request a new OTP.',
       );
     }
 
@@ -285,20 +285,20 @@ class OTPService {
     try {
       // Get user's phone number from database
       const userResult = await pool.query(
-        "SELECT phone_number FROM users WHERE user_id = $1",
+        'SELECT phone_number FROM users WHERE user_id = $1',
         [userId],
       );
 
       if (userResult.rows.length === 0) {
-        return { valid: false, message: "User not found" };
+        return { valid: false, message: 'User not found' };
       }
 
       const phone = userResult.rows[0].phone_number;
 
       // Verify OTP using the general verify method
-      await this.verify(phone, inputOtp, "phone");
+      await this.verify(phone, inputOtp, 'phone');
 
-      return { valid: true, message: "Phone verified successfully" };
+      return { valid: true, message: 'Phone verified successfully' };
     } catch (error) {
       return { valid: false, message: error.message };
     }
@@ -323,31 +323,31 @@ class PasswordService {
     }
 
     if (SECURITY_CONFIG.PASSWORD.REQUIRE_UPPERCASE && !/[A-Z]/.test(password)) {
-      errors.push("Password must contain at least one uppercase letter");
+      errors.push('Password must contain at least one uppercase letter');
     }
 
     if (SECURITY_CONFIG.PASSWORD.REQUIRE_LOWERCASE && !/[a-z]/.test(password)) {
-      errors.push("Password must contain at least one lowercase letter");
+      errors.push('Password must contain at least one lowercase letter');
     }
 
     if (SECURITY_CONFIG.PASSWORD.REQUIRE_NUMBER && !/\d/.test(password)) {
-      errors.push("Password must contain at least one number");
+      errors.push('Password must contain at least one number');
     }
 
     if (
-      SECURITY_CONFIG.PASSWORD.REQUIRE_SPECIAL &&
-      !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+      SECURITY_CONFIG.PASSWORD.REQUIRE_SPECIAL
+      && !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
     ) {
-      errors.push("Password must contain at least one special character");
+      errors.push('Password must contain at least one special character');
     }
 
     // Check for common patterns
-    const commonPatterns = ["123456", "password", "qwerty", "abc123"];
+    const commonPatterns = ['123456', 'password', 'qwerty', 'abc123'];
     if (
-      commonPatterns.some((pattern) => password.toLowerCase().includes(pattern))
+      commonPatterns.some(pattern => password.toLowerCase().includes(pattern))
     ) {
       errors.push(
-        "Password contains common patterns. Please choose a more unique password.",
+        'Password contains common patterns. Please choose a more unique password.',
       );
     }
 
@@ -364,9 +364,9 @@ class PasswordService {
   static async checkBreach(password) {
     // Hash password using SHA-1 (as required by HIBP API)
     const hash = crypto
-      .createHash("sha1")
+      .createHash('sha1')
       .update(password)
-      .digest("hex")
+      .digest('hex')
       .toUpperCase();
     const prefix = hash.substring(0, 5);
     const suffix = hash.substring(5);
@@ -378,18 +378,18 @@ class PasswordService {
       // const found = hashes.find(line => line.startsWith(suffix));
 
       // Simulated for now
-      const commonHashes = ["5BAA6", "7C4A8"]; // Hashes of "password" and "123456"
+      const commonHashes = ['5BAA6', '7C4A8']; // Hashes of "password" and "123456"
       if (commonHashes.includes(prefix)) {
         return {
           breached: true,
           message:
-            "This password has been found in data breaches. Please choose a different password.",
+            'This password has been found in data breaches. Please choose a different password.',
         };
       }
 
       return { breached: false };
     } catch (error) {
-      logger.logError(error, { context: "PasswordService.checkBreach" });
+      logger.logError(error, { context: 'PasswordService.checkBreach' });
       // Fail open - don't block user if API is down
       return { breached: false };
     }
@@ -419,7 +419,7 @@ class PasswordService {
       if (matches) {
         return {
           reused: true,
-          message: `Password has been used recently. Please choose a different password.`,
+          message: 'Password has been used recently. Please choose a different password.',
         };
       }
     }
@@ -465,8 +465,8 @@ class TokenService {
     const payload = {
       sub: user.user_id, // Subject (user ID)
       email: user.email,
-      role: user.role || "member",
-      type: "access",
+      role: user.role || 'member',
+      type: 'access',
     };
 
     return jwt.sign(payload, process.env.JWT_SECRET, {
@@ -483,7 +483,7 @@ class TokenService {
   static generateRefreshToken(user) {
     const payload = {
       sub: user.user_id,
-      type: "refresh",
+      type: 'refresh',
     };
 
     return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
@@ -497,11 +497,10 @@ class TokenService {
   /**
    * Verify and decode token
    */
-  static verify(token, type = "access") {
-    const secret =
-      type === "access"
-        ? process.env.JWT_SECRET
-        : process.env.JWT_REFRESH_SECRET;
+  static verify(token, type = 'access') {
+    const secret = type === 'access'
+      ? process.env.JWT_SECRET
+      : process.env.JWT_REFRESH_SECRET;
 
     try {
       const decoded = jwt.verify(token, secret, {
@@ -511,15 +510,15 @@ class TokenService {
 
       // Check token type
       if (decoded.type !== type) {
-        throw new Error("Invalid token type");
+        throw new Error('Invalid token type');
       }
 
       return decoded;
     } catch (error) {
-      if (error.name === "TokenExpiredError") {
-        throw new Error("Token has expired");
-      } else if (error.name === "JsonWebTokenError") {
-        throw new Error("Invalid token");
+      if (error.name === 'TokenExpiredError') {
+        throw new Error('Token has expired');
+      } else if (error.name === 'JsonWebTokenError') {
+        throw new Error('Invalid token');
       } else {
         throw error;
       }
@@ -529,17 +528,17 @@ class TokenService {
   /**
    * Revoke token (add to blacklist)
    */
-  static async revoke(token, type = "access") {
+  static async revoke(token, type = 'access') {
     try {
       const decoded = this.verify(token, type);
       const ttl = decoded.exp - Math.floor(Date.now() / 1000);
 
       if (ttl > 0) {
-        await redis.setex(`blacklist:${decoded.jti}`, ttl, "revoked");
+        await redis.setex(`blacklist:${decoded.jti}`, ttl, 'revoked');
       }
     } catch (error) {
       // Token already invalid, no need to blacklist
-      logger.logWarning("Attempted to revoke invalid token", {
+      logger.logWarning('Attempted to revoke invalid token', {
         error: error.message,
       });
     }
@@ -548,7 +547,7 @@ class TokenService {
   /**
    * Check if token is blacklisted
    */
-  static async isBlacklisted(token, type = "access") {
+  static async isBlacklisted(token, type = 'access') {
     try {
       const decoded = this.verify(token, type);
       const blacklisted = await redis.get(`blacklist:${decoded.jti}`);
@@ -563,13 +562,13 @@ class TokenService {
    */
   static generateEmailVerificationToken(email) {
     const payload = {
-      type: "email_verification",
-      email: email,
+      type: 'email_verification',
+      email,
       userId: email, // Will be updated when we have user ID
     };
 
     return jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: "24h",
+      expiresIn: '24h',
       issuer: SECURITY_CONFIG.JWT.ISSUER,
       audience: SECURITY_CONFIG.JWT.AUDIENCE,
       jwtid: this.generateJTI(),
@@ -581,13 +580,13 @@ class TokenService {
    */
   static generatePhoneVerificationToken(userId, phone) {
     const payload = {
-      type: "phone_verification",
-      userId: userId,
-      phone: phone,
+      type: 'phone_verification',
+      userId,
+      phone,
     };
 
     return jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: "1h",
+      expiresIn: '1h',
       issuer: SECURITY_CONFIG.JWT.ISSUER,
       audience: SECURITY_CONFIG.JWT.AUDIENCE,
       jwtid: this.generateJTI(),
@@ -597,7 +596,7 @@ class TokenService {
   /**
    * Verify email/phone verification token
    */
-  static verify(token, type = "access") {
+  static verify(token, type = 'access') {
     const decoded = jwt.verify(token, this.getSecret(type), {
       issuer: SECURITY_CONFIG.JWT.ISSUER,
       audience: SECURITY_CONFIG.JWT.AUDIENCE,
@@ -605,17 +604,17 @@ class TokenService {
 
     // Additional verification for specific token types
     if (
-      type === "email_verification" &&
-      decoded.type !== "email_verification"
+      type === 'email_verification'
+      && decoded.type !== 'email_verification'
     ) {
-      throw new Error("Invalid token type");
+      throw new Error('Invalid token type');
     }
 
     if (
-      type === "phone_verification" &&
-      decoded.type !== "phone_verification"
+      type === 'phone_verification'
+      && decoded.type !== 'phone_verification'
     ) {
-      throw new Error("Invalid token type");
+      throw new Error('Invalid token type');
     }
 
     return decoded;
@@ -626,13 +625,13 @@ class TokenService {
    */
   static getSecret(type) {
     switch (type) {
-      case "refresh":
-        return process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
-      case "email_verification":
-      case "phone_verification":
-        return process.env.JWT_SECRET;
-      default:
-        return process.env.JWT_SECRET;
+    case 'refresh':
+      return process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+    case 'email_verification':
+    case 'phone_verification':
+      return process.env.JWT_SECRET;
+    default:
+      return process.env.JWT_SECRET;
     }
   }
 }
@@ -642,9 +641,9 @@ class TokenService {
 const register = async (req, res) => {
   const auditContext = {
     ipAddress: req.ip,
-    userAgent: req.get("user-agent"),
+    userAgent: req.get('user-agent'),
     metadata: {
-      registrationMethod: "email",
+      registrationMethod: 'email',
       ...sanitizeMetadata(req.body),
     },
   };
@@ -654,8 +653,8 @@ const register = async (req, res) => {
     await logAuditEvent({
       eventType: EVENT_TYPES.AUTH_REGISTER_ATTEMPT,
       userId: null,
-      action: "Registration attempt",
-      entityType: "user",
+      action: 'Registration attempt',
+      entityType: 'user',
       entityId: req.body.email,
       metadata: auditContext.metadata,
       ipAddress: auditContext.ipAddress,
@@ -666,27 +665,29 @@ const register = async (req, res) => {
     const client = await pool.connect();
 
     try {
-      const { email, password, firstName, lastName, phoneNumber } = req.body;
+      const {
+        email, password, firstName, lastName, phoneNumber,
+      } = req.body;
 
       // === VALIDATION ===
       if (!email || !password || !firstName || !lastName || !phoneNumber) {
         return res.status(400).json({
           success: false,
-          message: "Please provide all required fields",
+          message: 'Please provide all required fields',
         });
       }
 
       if (!isValidEmail(email)) {
         return res.status(400).json({
           success: false,
-          message: "Invalid email address",
+          message: 'Invalid email address',
         });
       }
 
       if (!isValidPhone(phoneNumber)) {
         return res.status(400).json({
           success: false,
-          message: "Invalid phone number",
+          message: 'Invalid phone number',
         });
       }
 
@@ -695,7 +696,7 @@ const register = async (req, res) => {
       if (!passwordValidation.valid) {
         return res.status(400).json({
           success: false,
-          message: "Password does not meet security requirements",
+          message: 'Password does not meet security requirements',
           errors: passwordValidation.errors,
         });
       }
@@ -720,7 +721,7 @@ const register = async (req, res) => {
       if (!rateLimit.allowed) {
         return res.status(429).json({
           success: false,
-          message: "Too many registration attempts. Please try again later.",
+          message: 'Too many registration attempts. Please try again later.',
           resetAt: rateLimit.resetAt,
         });
       }
@@ -728,7 +729,7 @@ const register = async (req, res) => {
       // === CHECK EXISTING USER ===
       const normalizedPhone = normalizePhone(phoneNumber);
       const userExists = await pool.query(
-        "SELECT * FROM users WHERE email = $1 OR phone_number = $2",
+        'SELECT * FROM users WHERE email = $1 OR phone_number = $2',
         [email.toLowerCase(), normalizedPhone],
       );
 
@@ -737,12 +738,12 @@ const register = async (req, res) => {
         await logAuditEvent({
           eventType: EVENT_TYPES.AUTH_REGISTER_ATTEMPT,
           userId: null,
-          action: "Duplicate registration attempt",
-          entityType: "user",
+          action: 'Duplicate registration attempt',
+          entityType: 'user',
           entityId: req.body.email,
           metadata: {
             ...auditContext.metadata,
-            reason: "Email already exists",
+            reason: 'Email already exists',
           },
           ipAddress: auditContext.ipAddress,
           userAgent: auditContext.userAgent,
@@ -751,11 +752,11 @@ const register = async (req, res) => {
 
         return res.status(400).json({
           success: false,
-          message: "User with this email or phone number already exists",
+          message: 'User with this email or phone number already exists',
         });
       }
 
-      await client.query("BEGIN");
+      await client.query('BEGIN');
 
       // === HASH PASSWORD ===
       const hashedPassword = await PasswordService.hash(password);
@@ -783,17 +784,17 @@ const register = async (req, res) => {
       const emailOtp = OTPService.generate();
       const phoneOtp = OTPService.generate();
 
-      await OTPService.store(email.toLowerCase(), emailOtp, "email");
-      await OTPService.store(normalizedPhone, phoneOtp, "phone");
+      await OTPService.store(email.toLowerCase(), emailOtp, 'email');
+      await OTPService.store(normalizedPhone, phoneOtp, 'phone');
 
-      await client.query("COMMIT");
+      await client.query('COMMIT');
 
       // Log successful registration
       await logAuditEvent({
         eventType: EVENT_TYPES.AUTH_REGISTER,
         userId: user.user_id,
-        action: "User registration successful",
-        entityType: "user",
+        action: 'User registration successful',
+        entityType: 'user',
         entityId: user.user_id,
         metadata: {
           ...auditContext.metadata,
@@ -807,16 +808,12 @@ const register = async (req, res) => {
 
       // === SEND VERIFICATION (async) ===
       // Don't await - send in background
-      sendEmailVerification(email, emailOtp).catch((err) =>
-        logger.logError(err, { context: "sendEmailVerification", email }),
-      );
+      sendEmailVerification(email, emailOtp).catch(err => logger.logError(err, { context: 'sendEmailVerification', email }));
 
-      sendPhoneVerification(normalizedPhone, phoneOtp).catch((err) =>
-        logger.logError(err, {
-          context: "sendPhoneVerification",
-          phone: normalizedPhone,
-        }),
-      );
+      sendPhoneVerification(normalizedPhone, phoneOtp).catch(err => logger.logError(err, {
+        context: 'sendPhoneVerification',
+        phone: normalizedPhone,
+      }));
 
       // === GENERATE TOKENS ===
       const accessToken = TokenService.generateAccessToken(user);
@@ -830,7 +827,7 @@ const register = async (req, res) => {
       );
 
       // === AUDIT LOG ===
-      logger.logSecurityEvent("User registered", {
+      logger.logSecurityEvent('User registered', {
         userId: user.user_id,
         email: user.email,
         ip: clientIP,
@@ -839,7 +836,7 @@ const register = async (req, res) => {
       res.status(201).json({
         success: true,
         message:
-          "User registered successfully. Please verify your email and phone.",
+          'User registered successfully. Please verify your email and phone.',
         data: {
           user: {
             id: user.user_id,
@@ -856,28 +853,28 @@ const register = async (req, res) => {
         },
       });
     } catch (error) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       logger.logError(error, {
-        context: "auth_register",
+        context: 'auth_register',
         email: req.body?.email,
       });
 
       res.status(500).json({
         success: false,
-        message: "Error registering user",
+        message: 'Error registering user',
       });
     } finally {
       client.release();
     }
   } catch (error) {
     logger.logError(error, {
-      context: "register_outer",
+      context: 'register_outer',
       email: req.body?.email,
     });
 
     res.status(500).json({
       success: false,
-      message: "Registration service error",
+      message: 'Registration service error',
     });
   }
 };
@@ -890,10 +887,10 @@ const login = async (req, res) => {
   const { email, password } = req.body;
   const auditContext = {
     ipAddress: req.ip,
-    userAgent: req.get("user-agent"),
+    userAgent: req.get('user-agent'),
     metadata: {
-      loginMethod: "password",
-      email: email,
+      loginMethod: 'password',
+      email,
     },
   };
 
@@ -902,8 +899,8 @@ const login = async (req, res) => {
     await logAuditEvent({
       eventType: EVENT_TYPES.AUTH_LOGIN_ATTEMPT,
       userId: null,
-      action: "Login attempt",
-      entityType: "user",
+      action: 'Login attempt',
+      entityType: 'user',
       entityId: email,
       metadata: auditContext.metadata,
       ipAddress: auditContext.ipAddress,
@@ -921,7 +918,7 @@ const login = async (req, res) => {
     );
 
     if (!rateLimit.allowed) {
-      logger.logSecurityEvent("Account locked - too many login attempts", {
+      logger.logSecurityEvent('Account locked - too many login attempts', {
         email,
         ip: clientIP,
         resetAt: rateLimit.resetAt,
@@ -931,19 +928,19 @@ const login = async (req, res) => {
         success: false,
         message: rateLimit.lockedOut
           ? `Account temporarily locked due to too many failed attempts. Try again at ${rateLimit.resetAt.toISOString()}`
-          : "Too many login attempts. Please try again later.",
+          : 'Too many login attempts. Please try again later.',
         resetAt: rateLimit.resetAt,
         attemptsRemaining: rateLimit.remaining,
       });
     }
 
     // === FIND USER ===
-    const result = await pool.query("SELECT * FROM users WHERE email = $1", [
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [
       email.toLowerCase(),
     ]);
 
     if (result.rows.length === 0) {
-      logger.logSecurityEvent("Failed login - user not found", {
+      logger.logSecurityEvent('Failed login - user not found', {
         email,
         ip: clientIP,
       });
@@ -951,7 +948,7 @@ const login = async (req, res) => {
       // Don't reveal if user exists
       return res.status(401).json({
         success: false,
-        message: "Invalid credentials",
+        message: 'Invalid credentials',
         attemptsRemaining: rateLimit.remaining - 1,
       });
     }
@@ -962,7 +959,7 @@ const login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password_hash);
 
     if (!isMatch) {
-      logger.logSecurityEvent("Failed login - incorrect password", {
+      logger.logSecurityEvent('Failed login - incorrect password', {
         userId: user.user_id,
         email,
         ip: clientIP,
@@ -970,20 +967,20 @@ const login = async (req, res) => {
 
       return res.status(401).json({
         success: false,
-        message: "Invalid credentials",
+        message: 'Invalid credentials',
         attemptsRemaining: rateLimit.remaining - 1,
       });
     }
 
     // === CHECK EMAIL VERIFICATION ===
     if (
-      !user.email_verified &&
-      process.env.REQUIRE_VERIFIED_EMAIL !== "false"
+      !user.email_verified
+      && process.env.REQUIRE_VERIFIED_EMAIL !== 'false'
     ) {
       return res.status(403).json({
         success: false,
-        message: "Please verify your email address before logging in",
-        code: "EMAIL_NOT_VERIFIED",
+        message: 'Please verify your email address before logging in',
+        code: 'EMAIL_NOT_VERIFIED',
       });
     }
 
@@ -1003,7 +1000,7 @@ const login = async (req, res) => {
 
     // === UPDATE LAST LOGIN ===
     await pool.query(
-      `UPDATE users SET last_login_at = NOW(), last_login_ip = $1 WHERE user_id = $2`,
+      'UPDATE users SET last_login_at = NOW(), last_login_ip = $1 WHERE user_id = $2',
       [clientIP, user.user_id],
     );
 
@@ -1011,11 +1008,11 @@ const login = async (req, res) => {
     await logAuditEvent({
       eventType: EVENT_TYPES.AUTH_LOGIN,
       userId: user.user_id,
-      action: "User logged in",
-      entityType: "user",
+      action: 'User logged in',
+      entityType: 'user',
       entityId: user.user_id,
       metadata: {
-        loginMethod: "password",
+        loginMethod: 'password',
       },
       ipAddress: auditContext.ipAddress,
       userAgent: auditContext.userAgent,
@@ -1041,27 +1038,27 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.logError(error, { context: "auth_login", email: req.body?.email });
+    logger.logError(error, { context: 'auth_login', email: req.body?.email });
 
     // Log the error in audit log
     await logAuditEvent({
       eventType: EVENT_TYPES.AUTH_FAILED_LOGIN,
       userId: null,
-      action: "Login error",
-      entityType: "user",
+      action: 'Login error',
+      entityType: 'user',
       entityId: req.body?.email,
       metadata: {
         error: error.message,
-        stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       ipAddress: req.ip,
-      userAgent: req.get("user-agent"),
+      userAgent: req.get('user-agent'),
       severity: SEVERITY.HIGH,
     });
 
     return res.status(500).json({
       success: false,
-      message: "Error logging in",
+      message: 'Error logging in',
     });
   }
 };
@@ -1077,53 +1074,53 @@ const verifyEmail = async (req, res) => {
   if (!token) {
     return res.status(400).json({
       success: false,
-      message: "Verification token is required",
+      message: 'Verification token is required',
     });
   }
 
   try {
     // Verify the email verification token
-    const decoded = TokenService.verify(token, "email_verification");
+    const decoded = TokenService.verify(token, 'email_verification');
 
     if (decoded.userId !== userId) {
       return res.status(403).json({
         success: false,
-        message: "Invalid verification token",
+        message: 'Invalid verification token',
       });
     }
 
     // Update user's email verification status
     await pool.query(
-      "UPDATE users SET email_verified = true, updated_at = NOW() WHERE user_id = $1",
+      'UPDATE users SET email_verified = true, updated_at = NOW() WHERE user_id = $1',
       [userId],
     );
 
     // Log successful verification
     await logAuditEvent({
       eventType: EVENT_TYPES.AUTH_EMAIL_VERIFIED,
-      userId: userId,
-      action: "Email verified",
-      entityType: "user",
+      userId,
+      action: 'Email verified',
+      entityType: 'user',
       entityId: userId,
       ipAddress: req.ip,
-      userAgent: req.get("user-agent"),
+      userAgent: req.get('user-agent'),
       severity: SEVERITY.LOW,
     });
 
     res.json({
       success: true,
-      message: "Email verified successfully",
+      message: 'Email verified successfully',
     });
   } catch (error) {
     logger.logError(error, {
-      context: "verifyEmail",
+      context: 'verifyEmail',
       userId,
-      token: token.substring(0, 10) + "...",
+      token: `${token.substring(0, 10)}...`,
     });
 
     res.status(400).json({
       success: false,
-      message: "Invalid or expired verification token",
+      message: 'Invalid or expired verification token',
     });
   }
 };
@@ -1139,7 +1136,7 @@ const verifyPhone = async (req, res) => {
   if (!otp) {
     return res.status(400).json({
       success: false,
-      message: "OTP is required",
+      message: 'OTP is required',
     });
   }
 
@@ -1150,38 +1147,38 @@ const verifyPhone = async (req, res) => {
     if (!result.valid) {
       return res.status(400).json({
         success: false,
-        message: result.message || "Invalid OTP",
+        message: result.message || 'Invalid OTP',
       });
     }
 
     // Update user's phone verification status
     await pool.query(
-      "UPDATE users SET phone_verified = true, updated_at = NOW() WHERE user_id = $1",
+      'UPDATE users SET phone_verified = true, updated_at = NOW() WHERE user_id = $1',
       [userId],
     );
 
     // Log successful verification
     await logAuditEvent({
       eventType: EVENT_TYPES.AUTH_PHONE_VERIFIED,
-      userId: userId,
-      action: "Phone verified",
-      entityType: "user",
+      userId,
+      action: 'Phone verified',
+      entityType: 'user',
       entityId: userId,
       ipAddress: req.ip,
-      userAgent: req.get("user-agent"),
+      userAgent: req.get('user-agent'),
       severity: SEVERITY.LOW,
     });
 
     res.json({
       success: true,
-      message: "Phone verified successfully",
+      message: 'Phone verified successfully',
     });
   } catch (error) {
-    logger.logError(error, { context: "verifyPhone", userId });
+    logger.logError(error, { context: 'verifyPhone', userId });
 
     res.status(400).json({
       success: false,
-      message: "Failed to verify phone number",
+      message: 'Failed to verify phone number',
     });
   }
 };
@@ -1194,16 +1191,16 @@ const sendEmailVerification = async (email, otp) => {
 
     // TODO: Implement actual email sending
     // For now, just log the token (in production, use email service)
-    logger.info("Email verification token generated", {
+    logger.info('Email verification token generated', {
       email,
-      token: token.substring(0, 20) + "...",
-      otp: otp.substring(0, 4) + "...",
+      token: `${token.substring(0, 20)}...`,
+      otp: `${otp.substring(0, 4)}...`,
     });
 
     // In production, send actual email
     // await emailService.sendVerificationEmail(email, token, otp);
   } catch (error) {
-    logger.logError(error, { context: "sendEmailVerification", email });
+    logger.logError(error, { context: 'sendEmailVerification', email });
   }
 };
 
@@ -1212,15 +1209,15 @@ const sendPhoneVerification = async (phone, otp) => {
   try {
     // TODO: Implement actual SMS sending
     // For now, just log the OTP
-    logger.info("Phone verification OTP generated", {
-      phone: phone.replace(/(\d{3})\d{4}(\d{3})/, "$1****$2"),
-      otp: otp.substring(0, 2) + "**",
+    logger.info('Phone verification OTP generated', {
+      phone: phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'),
+      otp: `${otp.substring(0, 2)}**`,
     });
 
     // In production, send actual SMS
     // await smsService.sendVerificationSMS(phone, otp);
   } catch (error) {
-    logger.logError(error, { context: "sendPhoneVerification", phone });
+    logger.logError(error, { context: 'sendPhoneVerification', phone });
   }
 };
 

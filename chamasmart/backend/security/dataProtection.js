@@ -3,8 +3,8 @@
  * Implements KDPA 2019 compliance controls
  */
 
-const AuditLogger = require("./auditLogger");
-const logger = require("../utils/logger");
+const AuditLogger = require('./auditLogger');
+const logger = require('../utils/logger');
 
 /**
  * Middleware to log all data access
@@ -15,18 +15,18 @@ exports.dataAccessLoggingMiddleware = (req, res, next) => {
 
   res.send = function (data) {
     // Log successful reads
-    if (req.method === "GET" && res.statusCode === 200) {
+    if (req.method === 'GET' && res.statusCode === 200) {
       AuditLogger.logDataAccess(
         req.user?.user_id,
-        "READ",
+        'READ',
         extractResourceType(req.path),
         extractResourceId(req.path),
         {
           ip_address: req.ip,
-          user_agent: req.get("user-agent"),
+          user_agent: req.get('user-agent'),
           endpoint: req.path,
         },
-      ).catch((err) => logger.error("Failed to log data access:", err.message));
+      ).catch(err => logger.error('Failed to log data access:', err.message));
     }
 
     return originalSend.call(this, data);
@@ -40,9 +40,9 @@ exports.dataAccessLoggingMiddleware = (req, res, next) => {
  * CRITICAL: Redirect HTTP to HTTPS in production
  */
 exports.enforceHttpsMiddleware = (req, res, next) => {
-  if (process.env.NODE_ENV === "production") {
-    if (!req.secure && req.get("x-forwarded-proto") !== "https") {
-      return res.redirect(307, `https://${req.get("host")}${req.originalUrl}`);
+  if (process.env.NODE_ENV === 'production') {
+    if (!req.secure && req.get('x-forwarded-proto') !== 'https') {
+      return res.redirect(307, `https://${req.get('host')}${req.originalUrl}`);
     }
   }
   next();
@@ -55,29 +55,29 @@ exports.enforceHttpsMiddleware = (req, res, next) => {
 exports.enhancedSecurityHeadersMiddleware = (req, res, next) => {
   // HSTS: Enforce HTTPS for 1 year
   res.set(
-    "Strict-Transport-Security",
-    "max-age=31536000; includeSubDomains; preload",
+    'Strict-Transport-Security',
+    'max-age=31536000; includeSubDomains; preload',
   );
 
   // Prevent clickjacking
-  res.set("X-Frame-Options", "DENY");
+  res.set('X-Frame-Options', 'DENY');
 
   // Prevent MIME sniffing
-  res.set("X-Content-Type-Options", "nosniff");
+  res.set('X-Content-Type-Options', 'nosniff');
 
   // Enable XSS protection
-  res.set("X-XSS-Protection", "1; mode=block");
+  res.set('X-XSS-Protection', '1; mode=block');
 
   // Referrer policy
-  res.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
   // Permissions policy (formerly Feature-Policy)
-  res.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
   // CSP: Strict content security policy
   res.set(
-    "Content-Security-Policy",
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'",
+    'Content-Security-Policy',
+    'default-src \'self\'; script-src \'self\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' data: https:; font-src \'self\'; connect-src \'self\'',
   );
 
   next();
@@ -90,10 +90,10 @@ exports.enhancedSecurityHeadersMiddleware = (req, res, next) => {
 exports.dataSanitizationMiddleware = (req, res, next) => {
   // Remove sensitive fields from logs
   if (req.body && req.body.password) {
-    req.body.password = "[REDACTED]";
+    req.body.password = '[REDACTED]';
   }
   if (req.body && req.body.pin) {
-    req.body.pin = "[REDACTED]";
+    req.body.pin = '[REDACTED]';
   }
 
   next();
@@ -104,8 +104,8 @@ exports.dataSanitizationMiddleware = (req, res, next) => {
  */
 exports.privacyHeadersMiddleware = (req, res, next) => {
   // Indicate data processing
-  res.set("X-Content-Classification", "CONFIDENTIAL");
-  res.set("X-Data-Classification", "SENSITIVE");
+  res.set('X-Content-Classification', 'CONFIDENTIAL');
+  res.set('X-Data-Classification', 'SENSITIVE');
 
   next();
 };
@@ -119,20 +119,20 @@ exports.financialTransactionTracker = (req, res, next) => {
   res.send = function (data) {
     // Check if this is a financial transaction
     const isFinancialTransaction = [
-      "/api/contributions/",
-      "/api/loans/",
-      "/api/payouts/",
-      "/api/welfare/",
-      "/api/rosca/",
-    ].some((path) => req.path.includes(path));
+      '/api/contributions/',
+      '/api/loans/',
+      '/api/payouts/',
+      '/api/welfare/',
+      '/api/rosca/',
+    ].some(path => req.path.includes(path));
 
     if (
-      isFinancialTransaction &&
-      ["POST", "PUT", "DELETE"].includes(req.method) &&
-      res.statusCode === 200
+      isFinancialTransaction
+      && ['POST', 'PUT', 'DELETE'].includes(req.method)
+      && res.statusCode === 200
     ) {
       try {
-        const responseData = typeof data === "string" ? JSON.parse(data) : data;
+        const responseData = typeof data === 'string' ? JSON.parse(data) : data;
 
         AuditLogger.logFinancialTransaction(
           req.user?.user_id,
@@ -140,16 +140,14 @@ exports.financialTransactionTracker = (req, res, next) => {
           extractAmount(responseData) || 0,
           extractChamaId(req.path),
           {
-            status: "COMPLETED",
+            status: 'COMPLETED',
             endpoint: req.path,
             method: req.method,
             ip_address: req.ip,
           },
-        ).catch((err) =>
-          logger.error("Failed to log financial transaction:", err.message),
-        );
+        ).catch(err => logger.error('Failed to log financial transaction:', err.message));
       } catch (error) {
-        logger.error("Error tracking financial transaction:", error.message);
+        logger.error('Error tracking financial transaction:', error.message);
       }
     }
 
@@ -167,13 +165,13 @@ exports.dataMinimizationMiddleware = (req, res, next) => {
   // Validate that requested fields are necessary
   if (req.query.fields) {
     const allowedFields = getAllowedFields(extractResourceType(req.path));
-    const requestedFields = req.query.fields.split(",");
+    const requestedFields = req.query.fields.split(',');
 
     const invalidFields = requestedFields.filter(
-      (f) => !allowedFields.includes(f),
+      f => !allowedFields.includes(f),
     );
     if (invalidFields.length > 0) {
-      logger.warn("Data minimization violation attempt", {
+      logger.warn('Data minimization violation attempt', {
         userId: req.user?.user_id,
         invalidFields,
         endpoint: req.path,
@@ -181,7 +179,7 @@ exports.dataMinimizationMiddleware = (req, res, next) => {
 
       return res.status(400).json({
         success: false,
-        message: "Invalid fields requested",
+        message: 'Invalid fields requested',
         invalidFields,
       });
     }
@@ -195,7 +193,7 @@ exports.dataMinimizationMiddleware = (req, res, next) => {
  */
 exports.breachDetectionMiddleware = (req, res, next) => {
   // Add headers for breach detection
-  res.set("X-Request-ID", req.id || generateRequestId());
+  res.set('X-Request-ID', req.id || generateRequestId());
 
   next();
 };
@@ -206,7 +204,7 @@ exports.breachDetectionMiddleware = (req, res, next) => {
 
 function extractResourceType(path) {
   const match = path.match(/\/api\/([a-z]+)/i);
-  return match ? match[1] : "unknown";
+  return match ? match[1] : 'unknown';
 }
 
 function extractResourceId(path) {
@@ -225,20 +223,20 @@ function extractAmount(data) {
 }
 
 function extractTransactionType(path, method) {
-  if (path.includes("contributions")) return "CONTRIBUTION";
-  if (path.includes("loans")) return "LOAN";
-  if (path.includes("payouts")) return "PAYOUT";
-  if (path.includes("welfare")) return "WELFARE";
-  if (path.includes("rosca")) return "ROSCA_DISTRIBUTION";
-  return "UNKNOWN";
+  if (path.includes('contributions')) return 'CONTRIBUTION';
+  if (path.includes('loans')) return 'LOAN';
+  if (path.includes('payouts')) return 'PAYOUT';
+  if (path.includes('welfare')) return 'WELFARE';
+  if (path.includes('rosca')) return 'ROSCA_DISTRIBUTION';
+  return 'UNKNOWN';
 }
 
 function getAllowedFields(resourceType) {
   const fieldMaps = {
-    users: ["user_id", "email", "first_name", "last_name", "phone_number"],
-    chamas: ["chama_id", "chama_name", "member_count", "balance"],
-    contributions: ["contribution_id", "amount", "date", "status"],
-    loans: ["loan_id", "amount", "status", "repayment_status"],
+    users: ['user_id', 'email', 'first_name', 'last_name', 'phone_number'],
+    chamas: ['chama_id', 'chama_name', 'member_count', 'balance'],
+    contributions: ['contribution_id', 'amount', 'date', 'status'],
+    loans: ['loan_id', 'amount', 'status', 'repayment_status'],
   };
 
   return fieldMaps[resourceType] || [];

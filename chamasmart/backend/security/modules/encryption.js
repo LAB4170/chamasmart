@@ -10,12 +10,12 @@
  * - Proper validation
  */
 
-const crypto = require("crypto");
-const logger = require("../../utils/logger");
+const crypto = require('crypto');
+const logger = require('../../utils/logger');
 
 class EncryptionService {
   constructor() {
-    this.algorithm = "aes-256-gcm";
+    this.algorithm = 'aes-256-gcm';
     this.ivLength = 16; // 128 bits
     this.saltLength = 32;
     this.tagLength = 16;
@@ -26,7 +26,7 @@ class EncryptionService {
     // Validate key
     this.validateMasterKey();
 
-    logger.info("Encryption Service initialized", {
+    logger.info('Encryption Service initialized', {
       algorithm: this.algorithm,
       keyLength: this.masterKey.length,
     });
@@ -39,21 +39,21 @@ class EncryptionService {
     const key = process.env.ENCRYPTION_KEY;
 
     if (!key) {
-      throw new Error("ENCRYPTION_KEY environment variable not set");
+      throw new Error('ENCRYPTION_KEY environment variable not set');
     }
 
     // Convert base64 key to buffer if needed
     if (this.isBase64(key)) {
-      return Buffer.from(key, "base64");
+      return Buffer.from(key, 'base64');
     }
 
     // Convert hex key to buffer
     if (this.isHex(key)) {
-      return Buffer.from(key, "hex");
+      return Buffer.from(key, 'hex');
     }
 
     // Use key as-is (UTF-8 string)
-    return Buffer.from(key, "utf-8");
+    return Buffer.from(key, 'utf-8');
   }
 
   /**
@@ -64,13 +64,13 @@ class EncryptionService {
 
     if (this.masterKey.length < minLength) {
       throw new Error(
-        `ENCRYPTION_KEY too short (${this.masterKey.length} bytes, minimum ${minLength}). ` +
-          `Generate a secure key with: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`,
+        `ENCRYPTION_KEY too short (${this.masterKey.length} bytes, minimum ${minLength}). `
+          + 'Generate a secure key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"',
       );
     }
 
     // Check for weak patterns
-    const keyStr = this.masterKey.toString("utf-8");
+    const keyStr = this.masterKey.toString('utf-8');
     const weakPatterns = [
       /^(test|dev|password|secret|123|abc|key)/i,
       /^(.)\1{10,}/, // Repeated characters
@@ -78,9 +78,9 @@ class EncryptionService {
 
     for (const pattern of weakPatterns) {
       if (pattern.test(keyStr)) {
-        logger.warn("⚠️  ENCRYPTION_KEY appears weak - consider regenerating");
-        if (process.env.NODE_ENV === "production") {
-          throw new Error("Weak encryption key detected in production");
+        logger.warn('⚠️  ENCRYPTION_KEY appears weak - consider regenerating');
+        if (process.env.NODE_ENV === 'production') {
+          throw new Error('Weak encryption key detected in production');
         }
       }
     }
@@ -98,7 +98,7 @@ class EncryptionService {
       derivedSalt,
       100000, // iterations
       32, // key length
-      "sha256",
+      'sha256',
     );
 
     return { key, salt: derivedSalt };
@@ -110,7 +110,7 @@ class EncryptionService {
    * @param {string} purpose - Purpose of encryption (for key derivation)
    * @returns {object} Encrypted data with metadata
    */
-  encrypt(plaintext, purpose = "default") {
+  encrypt(plaintext, purpose = 'default') {
     try {
       if (!plaintext) {
         return null;
@@ -126,26 +126,26 @@ class EncryptionService {
       const cipher = crypto.createCipheriv(this.algorithm, key, iv);
 
       // Encrypt
-      let encrypted = cipher.update(plaintext, "utf8", "hex");
-      encrypted += cipher.final("hex");
+      let encrypted = cipher.update(plaintext, 'utf8', 'hex');
+      encrypted += cipher.final('hex');
 
       // Get authentication tag
       const authTag = cipher.getAuthTag();
 
       return {
         algorithm: this.algorithm,
-        iv: iv.toString("hex"),
-        salt: salt.toString("hex"),
+        iv: iv.toString('hex'),
+        salt: salt.toString('hex'),
         encryptedData: encrypted,
-        authTag: authTag.toString("hex"),
+        authTag: authTag.toString('hex'),
         version: 1, // For future algorithm changes
       };
     } catch (error) {
-      logger.error("Encryption failed", {
+      logger.error('Encryption failed', {
         error: error.message,
         purpose,
       });
-      throw new Error("Encryption failed");
+      throw new Error('Encryption failed');
     }
   }
 
@@ -162,40 +162,40 @@ class EncryptionService {
 
       // Derive the same key using stored salt
       const { key } = this.deriveKey(
-        "default",
-        Buffer.from(encrypted.salt, "hex"),
+        'default',
+        Buffer.from(encrypted.salt, 'hex'),
       );
 
       // Create decipher
       const decipher = crypto.createDecipheriv(
         encrypted.algorithm || this.algorithm,
         key,
-        Buffer.from(encrypted.iv, "hex"),
+        Buffer.from(encrypted.iv, 'hex'),
       );
 
       // Set auth tag
-      decipher.setAuthTag(Buffer.from(encrypted.authTag, "hex"));
+      decipher.setAuthTag(Buffer.from(encrypted.authTag, 'hex'));
 
       // Decrypt
-      let decrypted = decipher.update(encrypted.encryptedData, "hex", "utf8");
-      decrypted += decipher.final("utf8");
+      let decrypted = decipher.update(encrypted.encryptedData, 'hex', 'utf8');
+      decrypted += decipher.final('utf8');
 
       return decrypted;
     } catch (error) {
-      logger.error("Decryption failed", {
+      logger.error('Decryption failed', {
         error: error.message,
         hasIV: !!encrypted?.iv,
         hasData: !!encrypted?.encryptedData,
         hasTag: !!encrypted?.authTag,
       });
-      throw new Error("Decryption failed - data may be corrupted");
+      throw new Error('Decryption failed - data may be corrupted');
     }
   }
 
   /**
    * Encrypt for database storage (JSON string)
    */
-  encryptForStorage(plaintext, purpose = "default") {
+  encryptForStorage(plaintext, purpose = 'default') {
     const encrypted = this.encrypt(plaintext, purpose);
     return encrypted ? JSON.stringify(encrypted) : null;
   }
@@ -212,7 +212,7 @@ class EncryptionService {
       const encrypted = JSON.parse(encryptedJson);
       return this.decrypt(encrypted);
     } catch (error) {
-      logger.error("Failed to decrypt from storage", {
+      logger.error('Failed to decrypt from storage', {
         error: error.message,
         isValidJson: this.isValidJson(encryptedJson),
       });
@@ -226,19 +226,19 @@ class EncryptionService {
    * @param {string} salt - Optional salt
    * @returns {string} Hash hex string
    */
-  hashData(data, salt = "chamasmart-v1") {
+  hashData(data, salt = 'chamasmart-v1') {
     if (!data) {
       return null;
     }
 
-    return crypto.pbkdf2Sync(data, salt, 100000, 64, "sha512").toString("hex");
+    return crypto.pbkdf2Sync(data, salt, 100000, 64, 'sha512').toString('hex');
   }
 
   /**
    * Generate secure random token
    */
   generateToken(length = 32) {
-    return crypto.randomBytes(length).toString("hex");
+    return crypto.randomBytes(length).toString('hex');
   }
 
   /**
@@ -247,10 +247,10 @@ class EncryptionService {
   generateSecureString(length = 16) {
     return crypto
       .randomBytes(Math.ceil(length * 0.75))
-      .toString("base64")
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=/g, "")
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '')
       .substring(0, length);
   }
 
@@ -288,7 +288,7 @@ class EncryptionService {
   async rotateKey(oldKey, newKey) {
     // This would be used in a migration script
     // to re-encrypt all data with a new key
-    throw new Error("Key rotation must be performed via migration script");
+    throw new Error('Key rotation must be performed via migration script');
   }
 }
 

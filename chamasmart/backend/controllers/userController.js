@@ -1,6 +1,6 @@
-const pool = require("../config/db");
-const bcrypt = require("bcryptjs");
-const { logAuditEvent, EVENT_TYPES, SEVERITY } = require("../utils/auditLog");
+const bcrypt = require('bcryptjs');
+const pool = require('../config/db');
+const { logAuditEvent, EVENT_TYPES, SEVERITY } = require('../utils/auditLog');
 
 // @desc    Get current user profile
 // @route   GET /api/users/profile
@@ -21,7 +21,7 @@ const getProfile = async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "User not found",
+        message: 'User not found',
       });
     }
 
@@ -29,9 +29,9 @@ const getProfile = async (req, res) => {
 
     await logAuditEvent({
       eventType: EVENT_TYPES.USER_PROFILE_VIEWED,
-      userId: userId,
-      action: "Viewed user profile",
-      entityType: "user",
+      userId,
+      action: 'Viewed user profile',
+      entityType: 'user',
       entityId: userId,
       severity: SEVERITY.LOW,
     });
@@ -41,10 +41,10 @@ const getProfile = async (req, res) => {
       data: user,
     });
   } catch (error) {
-    console.error("Get profile error:", error);
+    console.error('Get profile error:', error);
     res.status(500).json({
       success: false,
-      message: "Error retrieving user profile",
+      message: 'Error retrieving user profile',
     });
   }
 };
@@ -61,7 +61,7 @@ const updateProfile = async (req, res) => {
     if (!firstName || !lastName) {
       return res.status(400).json({
         success: false,
-        message: "First name and last name are required",
+        message: 'First name and last name are required',
       });
     }
 
@@ -76,15 +76,15 @@ const updateProfile = async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "User not found",
+        message: 'User not found',
       });
     }
 
     await logAuditEvent({
       eventType: EVENT_TYPES.USER_PROFILE_UPDATED,
-      userId: userId,
-      action: "Updated user profile",
-      entityType: "user",
+      userId,
+      action: 'Updated user profile',
+      entityType: 'user',
       entityId: userId,
       metadata: { firstName, lastName, phoneNumber },
       severity: SEVERITY.MEDIUM,
@@ -92,14 +92,14 @@ const updateProfile = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Profile updated successfully",
+      message: 'Profile updated successfully',
       data: result.rows[0],
     });
   } catch (error) {
-    console.error("Update profile error:", error);
+    console.error('Update profile error:', error);
     res.status(500).json({
       success: false,
-      message: "Error updating user profile",
+      message: 'Error updating user profile',
     });
   }
 };
@@ -115,20 +115,20 @@ const changePassword = async (req, res) => {
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: "Current password and new password are required",
+        message: 'Current password and new password are required',
       });
     }
 
     // Get current user with password
     const userResult = await pool.query(
-      "SELECT password_hash FROM users WHERE user_id = $1",
+      'SELECT password_hash FROM users WHERE user_id = $1',
       [userId],
     );
 
     if (userResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "User not found",
+        message: 'User not found',
       });
     }
 
@@ -141,7 +141,7 @@ const changePassword = async (req, res) => {
     if (!isCurrentPasswordValid) {
       return res.status(400).json({
         success: false,
-        message: "Current password is incorrect",
+        message: 'Current password is incorrect',
       });
     }
 
@@ -151,28 +151,28 @@ const changePassword = async (req, res) => {
 
     // Update password
     await pool.query(
-      "UPDATE users SET password_hash = $1, updated_at = NOW() WHERE user_id = $2",
+      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE user_id = $2',
       [newPasswordHash, userId],
     );
 
     await logAuditEvent({
       eventType: EVENT_TYPES.USER_PASSWORD_CHANGED,
-      userId: userId,
-      action: "Changed user password",
-      entityType: "user",
+      userId,
+      action: 'Changed user password',
+      entityType: 'user',
       entityId: userId,
       severity: SEVERITY.HIGH,
     });
 
     res.json({
       success: true,
-      message: "Password changed successfully",
+      message: 'Password changed successfully',
     });
   } catch (error) {
-    console.error("Change password error:", error);
+    console.error('Change password error:', error);
     res.status(500).json({
       success: false,
-      message: "Error changing password",
+      message: 'Error changing password',
     });
   }
 };
@@ -185,28 +185,28 @@ const deactivateAccount = async (req, res) => {
     const userId = req.user.id;
 
     await pool.query(
-      "UPDATE users SET is_active = false, updated_at = NOW() WHERE user_id = $1",
+      'UPDATE users SET is_active = false, updated_at = NOW() WHERE user_id = $1',
       [userId],
     );
 
     await logAuditEvent({
       eventType: EVENT_TYPES.USER_ACCOUNT_DEACTIVATED,
-      userId: userId,
-      action: "Deactivated user account",
-      entityType: "user",
+      userId,
+      action: 'Deactivated user account',
+      entityType: 'user',
       entityId: userId,
       severity: SEVERITY.HIGH,
     });
 
     res.json({
       success: true,
-      message: "Account deactivated successfully",
+      message: 'Account deactivated successfully',
     });
   } catch (error) {
-    console.error("Deactivate account error:", error);
+    console.error('Deactivate account error:', error);
     res.status(500).json({
       success: false,
-      message: "Error deactivating account",
+      message: 'Error deactivating account',
     });
   }
 };
@@ -221,7 +221,7 @@ const searchUser = async (req, res) => {
     if (!query) {
       return res.status(400).json({
         success: false,
-        message: "Please provide a search query (email or phone)",
+        message: 'Please provide a search query (email or phone)',
       });
     }
 
@@ -235,7 +235,7 @@ const searchUser = async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "User not found",
+        message: 'User not found',
       });
     }
 
@@ -244,8 +244,8 @@ const searchUser = async (req, res) => {
     await logAuditEvent({
       eventType: EVENT_TYPES.USER_SEARCHED,
       userId: req.user.id,
-      action: "Searched for user",
-      entityType: "user",
+      action: 'Searched for user',
+      entityType: 'user',
       entityId: user.user_id,
       metadata: { searchQuery: query },
       severity: SEVERITY.LOW,
@@ -262,10 +262,10 @@ const searchUser = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Search user error:", error);
+    console.error('Search user error:', error);
     res.status(500).json({
       success: false,
-      message: "Error searching for user",
+      message: 'Error searching for user',
     });
   }
 };

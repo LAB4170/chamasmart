@@ -1,9 +1,9 @@
-const pool = require("../config/db");
+const pool = require('../config/db');
 const {
   parsePagination,
   buildLimitClause,
   getTotal,
-} = require("../utils/pagination");
+} = require('../utils/pagination');
 
 // @desc    Create meeting
 // @route   POST /api/meetings/:chamaId/create
@@ -11,11 +11,13 @@ const {
 const createMeeting = async (req, res) => {
   try {
     const { chamaId } = req.params;
-    const { meetingDate, meetingTime, location, agenda } = req.body;
+    const {
+      meetingDate, meetingTime, location, agenda,
+    } = req.body;
 
     if (!meetingDate) {
       return res.validationError([
-        { field: "meetingDate", message: "Meeting date is required" },
+        { field: 'meetingDate', message: 'Meeting date is required' },
       ]);
     }
 
@@ -23,13 +25,13 @@ const createMeeting = async (req, res) => {
       `INSERT INTO meetings (chama_id, meeting_date, meeting_time, location, agenda, recorded_by)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [chamaId, meetingDate, meetingTime, location, agenda, req.user.user_id]
+      [chamaId, meetingDate, meetingTime, location, agenda, req.user.user_id],
     );
 
-    return res.success(result.rows[0], "Meeting created successfully", 201);
+    return res.success(result.rows[0], 'Meeting created successfully', 201);
   } catch (error) {
-    console.error("Create meeting error:", error);
-    return res.error("Error creating meeting", 500);
+    console.error('Create meeting error:', error);
+    return res.error('Error creating meeting', 500);
   }
 };
 
@@ -45,8 +47,8 @@ const getChamaMeetings = async (req, res) => {
     const { page: pageNum, limit: limitNum } = parsePagination(page, limit);
 
     // Get total count
-    const countQuery = `SELECT COUNT(*) as count FROM meetings WHERE chama_id = $1`;
-    const totalCount = await getTotal(countQuery, [chamaId], "count");
+    const countQuery = 'SELECT COUNT(*) as count FROM meetings WHERE chama_id = $1';
+    const totalCount = await getTotal(countQuery, [chamaId], 'count');
 
     const result = await pool.query(
       `SELECT m.*, u.first_name || ' ' || u.last_name as recorded_by_name,
@@ -56,7 +58,7 @@ const getChamaMeetings = async (req, res) => {
        WHERE m.chama_id = $1
        ORDER BY m.meeting_date DESC, m.created_at DESC
        LIMIT $2 OFFSET $3`,
-      [chamaId, limitNum, (pageNum - 1) * limitNum]
+      [chamaId, limitNum, (pageNum - 1) * limitNum],
     );
 
     return res.paginated(
@@ -64,11 +66,11 @@ const getChamaMeetings = async (req, res) => {
       totalCount,
       pageNum,
       limitNum,
-      "Meetings retrieved successfully"
+      'Meetings retrieved successfully',
     );
   } catch (error) {
-    console.error("Get meetings error:", error);
-    return res.error("Error fetching meetings", 500);
+    console.error('Get meetings error:', error);
+    return res.error('Error fetching meetings', 500);
   }
 };
 
@@ -85,11 +87,11 @@ const getMeetingById = async (req, res) => {
        FROM meetings m
        LEFT JOIN users u ON m.recorded_by = u.user_id
        WHERE m.chama_id = $1 AND m.meeting_id = $2`,
-      [chamaId, id]
+      [chamaId, id],
     );
 
     if (meetingResult.rows.length === 0) {
-      return res.error("Meeting not found", 404);
+      return res.error('Meeting not found', 404);
     }
 
     // Get attendance
@@ -98,7 +100,7 @@ const getMeetingById = async (req, res) => {
        FROM meeting_attendance ma
        INNER JOIN users u ON ma.user_id = u.user_id
        WHERE ma.meeting_id = $1`,
-      [id]
+      [id],
     );
 
     return res.success(
@@ -106,11 +108,11 @@ const getMeetingById = async (req, res) => {
         meeting: meetingResult.rows[0],
         attendance: attendanceResult.rows,
       },
-      "Meeting retrieved successfully"
+      'Meeting retrieved successfully',
     );
   } catch (error) {
-    console.error("Get meeting error:", error);
-    return res.error("Error fetching meeting", 500);
+    console.error('Get meeting error:', error);
+    return res.error('Error fetching meeting', 500);
   }
 };
 
@@ -160,7 +162,7 @@ const updateMeeting = async (req, res) => {
 
     if (updates.length === 0) {
       return res.validationError([
-        { field: "body", message: "No fields to update" },
+        { field: 'body', message: 'No fields to update' },
       ]);
     }
 
@@ -168,7 +170,7 @@ const updateMeeting = async (req, res) => {
 
     const query = `
       UPDATE meetings 
-      SET ${updates.join(", ")}
+      SET ${updates.join(', ')}
       WHERE chama_id = $${paramCount++} AND meeting_id = $${paramCount}
       RETURNING *
     `;
@@ -176,13 +178,13 @@ const updateMeeting = async (req, res) => {
     const result = await pool.query(query, values);
 
     if (result.rows.length === 0) {
-      return res.error("Meeting not found", 404);
+      return res.error('Meeting not found', 404);
     }
 
-    return res.success(result.rows[0], "Meeting updated successfully");
+    return res.success(result.rows[0], 'Meeting updated successfully');
   } catch (error) {
-    console.error("Update meeting error:", error);
-    return res.error("Error updating meeting", 500);
+    console.error('Update meeting error:', error);
+    return res.error('Error updating meeting', 500);
   }
 };
 
@@ -198,14 +200,14 @@ const recordAttendance = async (req, res) => {
 
     if (!Array.isArray(attendance) || attendance.length === 0) {
       return res.validationError([
-        { field: "attendance", message: "Attendance array is required" },
+        { field: 'attendance', message: 'Attendance array is required' },
       ]);
     }
 
-    await client.query("BEGIN");
+    await client.query('BEGIN');
 
     // Delete existing attendance records for this meeting
-    await client.query("DELETE FROM meeting_attendance WHERE meeting_id = $1", [
+    await client.query('DELETE FROM meeting_attendance WHERE meeting_id = $1', [
       id,
     ]);
 
@@ -220,17 +222,17 @@ const recordAttendance = async (req, res) => {
           record.attended || false,
           record.late || false,
           record.notes || null,
-        ]
+        ],
       );
     }
 
-    await client.query("COMMIT");
+    await client.query('COMMIT');
 
-    return res.success(null, "Attendance recorded successfully");
+    return res.success(null, 'Attendance recorded successfully');
   } catch (error) {
-    await client.query("ROLLBACK");
-    console.error("Record attendance error:", error);
-    return res.error("Error recording attendance", 500);
+    await client.query('ROLLBACK');
+    console.error('Record attendance error:', error);
+    return res.error('Error recording attendance', 500);
   } finally {
     client.release();
   }

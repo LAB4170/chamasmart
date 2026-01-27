@@ -3,8 +3,8 @@
  * Standardized error responses across the application
  */
 
-const logger = require("../utils/logger");
-const { HTTP_STATUS, ERROR_CODES } = require("./constants");
+const logger = require('../utils/logger');
+const { HTTP_STATUS, ERROR_CODES } = require('./constants');
 
 /**
  * Custom API Error Class
@@ -30,7 +30,7 @@ class APIError extends Error {
  * Specific Error Classes
  */
 class ValidationError extends APIError {
-  constructor(message = "Validation failed", errors = []) {
+  constructor(message = 'Validation failed', errors = []) {
     super(
       message,
       HTTP_STATUS.BAD_REQUEST,
@@ -41,25 +41,25 @@ class ValidationError extends APIError {
 }
 
 class AuthenticationError extends APIError {
-  constructor(message = "Authentication failed") {
+  constructor(message = 'Authentication failed') {
     super(message, HTTP_STATUS.UNAUTHORIZED, ERROR_CODES.AUTHENTICATION_ERROR);
   }
 }
 
 class AuthorizationError extends APIError {
-  constructor(message = "Access denied") {
+  constructor(message = 'Access denied') {
     super(message, HTTP_STATUS.FORBIDDEN, ERROR_CODES.AUTHORIZATION_ERROR);
   }
 }
 
 class NotFoundError extends APIError {
-  constructor(message = "Resource not found") {
+  constructor(message = 'Resource not found') {
     super(message, HTTP_STATUS.NOT_FOUND, ERROR_CODES.NOT_FOUND);
   }
 }
 
 class RateLimitError extends APIError {
-  constructor(message = "Too many requests", retryAfter = 60) {
+  constructor(message = 'Too many requests', retryAfter = 60) {
     super(
       message,
       HTTP_STATUS.TOO_MANY_REQUESTS,
@@ -70,13 +70,13 @@ class RateLimitError extends APIError {
 }
 
 class FileUploadError extends APIError {
-  constructor(message = "File upload failed") {
+  constructor(message = 'File upload failed') {
     super(message, HTTP_STATUS.BAD_REQUEST, ERROR_CODES.FILE_UPLOAD_ERROR);
   }
 }
 
 class DatabaseError extends APIError {
-  constructor(message = "Database operation failed") {
+  constructor(message = 'Database operation failed') {
     super(
       message,
       HTTP_STATUS.INTERNAL_SERVER_ERROR,
@@ -89,7 +89,7 @@ class DatabaseError extends APIError {
  * Error Response Formatter
  */
 const formatErrorResponse = (err, req) => {
-  const isProduction = process.env.NODE_ENV === "production";
+  const isProduction = process.env.NODE_ENV === 'production';
 
   const response = {
     success: false,
@@ -144,38 +144,38 @@ const errorHandler = (err, req, res, next) => {
   };
 
   if (err.statusCode >= 500) {
-    logger.error("Server error occurred", errorLog);
+    logger.error('Server error occurred', errorLog);
   } else if (err.statusCode >= 400) {
-    logger.warn("Client error occurred", errorLog);
+    logger.warn('Client error occurred', errorLog);
   } else {
-    logger.info("Error occurred", errorLog);
+    logger.info('Error occurred', errorLog);
   }
 
   // Don't expose internal errors in production
   let statusCode = err.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
-  let message = err.message;
+  let { message } = err;
 
-  if (statusCode === 500 && process.env.NODE_ENV === "production") {
-    message = "Internal server error";
+  if (statusCode === 500 && process.env.NODE_ENV === 'production') {
+    message = 'Internal server error';
   }
 
   // Handle specific error types
-  if (err.name === "ValidationError") {
+  if (err.name === 'ValidationError') {
     statusCode = HTTP_STATUS.BAD_REQUEST;
-  } else if (err.name === "JsonWebTokenError") {
+  } else if (err.name === 'JsonWebTokenError') {
     statusCode = HTTP_STATUS.UNAUTHORIZED;
-    message = "Invalid token";
-  } else if (err.name === "TokenExpiredError") {
+    message = 'Invalid token';
+  } else if (err.name === 'TokenExpiredError') {
     statusCode = HTTP_STATUS.UNAUTHORIZED;
-    message = "Token expired";
-  } else if (err.code === "23505") {
+    message = 'Token expired';
+  } else if (err.code === '23505') {
     // PostgreSQL unique violation
     statusCode = HTTP_STATUS.CONFLICT;
-    message = "Resource already exists";
-  } else if (err.code === "23503") {
+    message = 'Resource already exists';
+  } else if (err.code === '23503') {
     // PostgreSQL foreign key violation
     statusCode = HTTP_STATUS.BAD_REQUEST;
-    message = "Invalid reference";
+    message = 'Invalid reference';
   }
 
   // Set status code on error object for response formatter
@@ -199,10 +199,8 @@ const notFoundHandler = (req, res, next) => {
  * Async Handler Wrapper
  * Eliminates need for try-catch in async route handlers
  */
-const asyncHandler = (fn) => {
-  return (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
-  };
+const asyncHandler = fn => (req, res, next) => {
+  Promise.resolve(fn(req, res, next)).catch(next);
 };
 
 /**
@@ -213,7 +211,7 @@ const validationError = (res, errors) => {
     ? errors
     : [{ message: errors }];
 
-  const error = new ValidationError("Validation failed", formattedErrors);
+  const error = new ValidationError('Validation failed', formattedErrors);
 
   return res.status(error.statusCode).json({
     success: false,
@@ -229,19 +227,19 @@ const validationError = (res, errors) => {
  * Attach helper methods to response object
  */
 const attachErrorHelpers = (req, res, next) => {
-  res.validationError = (errors) => validationError(res, errors);
+  res.validationError = errors => validationError(res, errors);
 
-  res.authenticationError = (message) => {
+  res.authenticationError = message => {
     const error = new AuthenticationError(message);
     return res.status(error.statusCode).json(formatErrorResponse(error, req));
   };
 
-  res.authorizationError = (message) => {
+  res.authorizationError = message => {
     const error = new AuthorizationError(message);
     return res.status(error.statusCode).json(formatErrorResponse(error, req));
   };
 
-  res.notFoundError = (message) => {
+  res.notFoundError = message => {
     const error = new NotFoundError(message);
     return res.status(error.statusCode).json(formatErrorResponse(error, req));
   };

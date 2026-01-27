@@ -10,12 +10,12 @@
  * - Configurable thresholds and batch sizes
  */
 
-const config = require("../config");
-const logger = require("../utils/logger");
-const { pool } = require("../config/db");
-const notificationService = require("../services/notificationService");
-const { CircuitBreaker } = require("../middleware/circuitBreaker");
-const { executeWithRetry } = require("../utils/retryUtils");
+const config = require('../config');
+const logger = require('../utils/logger');
+const { pool } = require('../config/db');
+const notificationService = require('../services/notificationService');
+const { CircuitBreaker } = require('../middleware/circuitBreaker');
+const { executeWithRetry } = require('../utils/retryUtils');
 
 // Configuration with environment variable overrides
 const SCHEDULER_CONFIG = {
@@ -31,7 +31,7 @@ const SCHEDULER_CONFIG = {
 const notificationCircuitBreaker = new CircuitBreaker({
   failureThreshold: SCHEDULER_CONFIG.CIRCUIT_BREAKER_THRESHOLD,
   resetTimeout: SCHEDULER_CONFIG.CIRCUIT_BREAKER_TIMEOUT,
-  name: "NotificationService",
+  name: 'NotificationService',
 });
 
 /**
@@ -45,7 +45,7 @@ const checkWelfareFunds = async () => {
   const executionId = `welfare-check-${Date.now()}`;
 
   try {
-    logger.info("Starting welfare fund check", {
+    logger.info('Starting welfare fund check', {
       executionId,
       timestamp: new Date().toISOString(),
       config: {
@@ -57,7 +57,7 @@ const checkWelfareFunds = async () => {
     // Fetch chamas with low welfare funds with retry mechanism
     const { rows: lowFunds } = await executeWithRetry(
       fetchLowWelfareFunds,
-      ["Error fetching low welfare funds"],
+      ['Error fetching low welfare funds'],
       SCHEDULER_CONFIG.MAX_RETRIES,
       SCHEDULER_CONFIG.INITIAL_RETRY_DELAY,
     );
@@ -71,19 +71,17 @@ const checkWelfareFunds = async () => {
       const batch = lowFunds.slice(i, i + SCHEDULER_CONFIG.BATCH_SIZE);
 
       await Promise.all(
-        batch.map((fund) =>
-          processChamaFundCheck(fund, executionId)
-            .then(() => processedCount++)
-            .catch((error) => {
-              errorCount++;
-              logger.error("Error processing chama fund check", {
-                executionId,
-                chamaId: fund.chama_id,
-                error: error.message,
-                stack: error.stack,
-              });
-            }),
-        ),
+        batch.map(fund => processChamaFundCheck(fund, executionId)
+          .then(() => processedCount++)
+          .catch(error => {
+            errorCount++;
+            logger.error('Error processing chama fund check', {
+              executionId,
+              chamaId: fund.chama_id,
+              error: error.message,
+              stack: error.stack,
+            });
+          })),
       );
     }
 
@@ -95,7 +93,7 @@ const checkWelfareFunds = async () => {
       executionId,
     };
 
-    logger.info("Completed welfare fund check", result);
+    logger.info('Completed welfare fund check', result);
     return result;
   } catch (error) {
     const errorResult = {
@@ -104,10 +102,10 @@ const checkWelfareFunds = async () => {
       processedCount,
       errorCount,
       durationMs: Date.now() - startTime,
-      executionId: executionId || "unknown",
+      executionId: executionId || 'unknown',
     };
 
-    logger.error("Critical error in welfare fund scheduler", {
+    logger.error('Critical error in welfare fund scheduler', {
       ...errorResult,
       stack: error.stack,
     });
@@ -115,18 +113,16 @@ const checkWelfareFunds = async () => {
     // Trigger alert for critical failures
     notificationService
       .sendAdminAlert({
-        type: "CRITICAL",
-        message: "Welfare fund scheduler failed",
+        type: 'CRITICAL',
+        message: 'Welfare fund scheduler failed',
         error: error.message,
-        executionId: executionId || "unknown",
+        executionId: executionId || 'unknown',
         timestamp: new Date().toISOString(),
       })
-      .catch((e) =>
-        logger.error("Failed to send admin alert", {
-          executionId: executionId || "unknown",
-          error: e.message,
-        }),
-      );
+      .catch(e => logger.error('Failed to send admin alert', {
+        executionId: executionId || 'unknown',
+        error: e.message,
+      }));
 
     throw errorResult;
   }
@@ -188,24 +184,24 @@ const processChamaFundCheck = async (fund, executionId) => {
     const admins = await getChamaAdmins(fund.chama_id);
 
     if (admins.length === 0) {
-      logger.warn("No active admins found for chama", logContext);
+      logger.warn('No active admins found for chama', logContext);
       return;
     }
 
     // Format balance and threshold for display
-    const formattedBalance = new Intl.NumberFormat("en-KE", {
-      style: "currency",
-      currency: "KES",
+    const formattedBalance = new Intl.NumberFormat('en-KE', {
+      style: 'currency',
+      currency: 'KES',
     }).format(fund.balance);
 
-    const formattedThreshold = new Intl.NumberFormat("en-KE", {
-      style: "currency",
-      currency: "KES",
+    const formattedThreshold = new Intl.NumberFormat('en-KE', {
+      style: 'currency',
+      currency: 'KES',
     }).format(fund.threshold);
 
     // Prepare notification
     const notification = {
-      type: "WELFARE_FUND_LOW",
+      type: 'WELFARE_FUND_LOW',
       title: `Low Welfare Funds - ${fund.chama_name}`,
       message: `The welfare fund balance (${formattedBalance}) is below the threshold (${formattedThreshold})`,
       data: {
@@ -219,21 +215,19 @@ const processChamaFundCheck = async (fund, executionId) => {
         percentageOfThreshold: fund.percentage_of_threshold,
         executionId,
       },
-      recipients: admins.map((admin) => admin.user_id),
+      recipients: admins.map(admin => admin.user_id),
     };
 
     // Send notification with circuit breaker protection
-    await notificationCircuitBreaker.execute(() =>
-      notificationService.send(notification),
-    );
+    await notificationCircuitBreaker.execute(() => notificationService.send(notification));
 
-    logger.info("Sent low fund notification", {
+    logger.info('Sent low fund notification', {
       ...logContext,
       adminCount: admins.length,
       notificationType: notification.type,
     });
   } catch (error) {
-    logger.error("Error processing chama fund check", {
+    logger.error('Error processing chama fund check', {
       ...logContext,
       error: error.message,
       stack: error.stack,
@@ -247,7 +241,7 @@ const processChamaFundCheck = async (fund, executionId) => {
  * @param {string|number} chamaId - ID of the chama
  * @returns {Promise<Array>} List of admin users
  */
-const getChamaAdmins = async (chamaId) => {
+const getChamaAdmins = async chamaId => {
   const query = `
         SELECT 
             user_id,

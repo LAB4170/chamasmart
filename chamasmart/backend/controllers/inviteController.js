@@ -1,10 +1,9 @@
-const pool = require('../config/db');
 const crypto = require('crypto');
+const pool = require('../config/db');
 
 // Generate unique invite code
-const generateInviteCode = () => {
-  return crypto.randomBytes(4).toString('hex').toUpperCase(); // e.g., "A3F2B9C1"
-};
+const generateInviteCode = () => crypto.randomBytes(4).toString('hex').toUpperCase() // e.g., "A3F2B9C1"
+;
 
 // @desc    Generate invite code for chama
 // @route   POST /api/invites/:chamaId/generate
@@ -22,7 +21,7 @@ const generateInvite = async (req, res) => {
       inviteCode = generateInviteCode();
       const exists = await pool.query(
         'SELECT invite_id FROM chama_invites WHERE invite_code = $1',
-        [inviteCode]
+        [inviteCode],
       );
       if (exists.rows.length === 0) {
         isUnique = true;
@@ -38,19 +37,19 @@ const generateInvite = async (req, res) => {
       `INSERT INTO chama_invites (chama_id, invite_code, created_by, max_uses, expires_at)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [chamaId, inviteCode, req.user.user_id, maxUses, expiresAt]
+      [chamaId, inviteCode, req.user.user_id, maxUses, expiresAt],
     );
 
     res.status(201).json({
       success: true,
       message: 'Invite code generated successfully',
-      data: result.rows[0]
+      data: result.rows[0],
     });
   } catch (error) {
     console.error('Generate invite error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error generating invite code'
+      message: 'Error generating invite code',
     });
   }
 };
@@ -68,7 +67,7 @@ const joinWithInvite = async (req, res) => {
     if (!inviteCode) {
       return res.status(400).json({
         success: false,
-        message: 'Invite code is required'
+        message: 'Invite code is required',
       });
     }
 
@@ -78,14 +77,14 @@ const joinWithInvite = async (req, res) => {
     const inviteResult = await client.query(
       `SELECT * FROM chama_invites 
        WHERE invite_code = $1 AND is_active = true`,
-      [inviteCode.toUpperCase()]
+      [inviteCode.toUpperCase()],
     );
 
     if (inviteResult.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({
         success: false,
-        message: 'Invalid or expired invite code'
+        message: 'Invalid or expired invite code',
       });
     }
 
@@ -95,12 +94,12 @@ const joinWithInvite = async (req, res) => {
     if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
       await client.query(
         'UPDATE chama_invites SET is_active = false WHERE invite_id = $1',
-        [invite.invite_id]
+        [invite.invite_id],
       );
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: 'This invite code has expired'
+        message: 'This invite code has expired',
       });
     }
 
@@ -108,33 +107,33 @@ const joinWithInvite = async (req, res) => {
     if (invite.uses_count >= invite.max_uses) {
       await client.query(
         'UPDATE chama_invites SET is_active = false WHERE invite_id = $1',
-        [invite.invite_id]
+        [invite.invite_id],
       );
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: 'This invite code has reached its maximum uses'
+        message: 'This invite code has reached its maximum uses',
       });
     }
 
     // Check if user is already a member
     const memberCheck = await client.query(
       'SELECT * FROM chama_members WHERE chama_id = $1 AND user_id = $2',
-      [invite.chama_id, userId]
+      [invite.chama_id, userId],
     );
 
     if (memberCheck.rows.length > 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: 'You are already a member of this chama'
+        message: 'You are already a member of this chama',
       });
     }
 
     // Get next rotation position
     const positionResult = await client.query(
       'SELECT COALESCE(MAX(rotation_position), 0) + 1 as next_position FROM chama_members WHERE chama_id = $1',
-      [invite.chama_id]
+      [invite.chama_id],
     );
     const rotationPosition = positionResult.rows[0].next_position;
 
@@ -143,33 +142,33 @@ const joinWithInvite = async (req, res) => {
       `INSERT INTO chama_members (chama_id, user_id, role, rotation_position)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [invite.chama_id, userId, role, rotationPosition]
+      [invite.chama_id, userId, role, rotationPosition],
     );
 
     // Update chama member count
     await client.query(
       'UPDATE chamas SET total_members = total_members + 1 WHERE chama_id = $1',
-      [invite.chama_id]
+      [invite.chama_id],
     );
 
     // Update invite usage count
     await client.query(
       'UPDATE chama_invites SET uses_count = uses_count + 1 WHERE invite_id = $1',
-      [invite.invite_id]
+      [invite.invite_id],
     );
 
     // Deactivate if max uses reached
     if (invite.uses_count + 1 >= invite.max_uses) {
       await client.query(
         'UPDATE chama_invites SET is_active = false WHERE invite_id = $1',
-        [invite.invite_id]
+        [invite.invite_id],
       );
     }
 
     // Get chama details
     const chamaResult = await client.query(
       'SELECT * FROM chamas WHERE chama_id = $1',
-      [invite.chama_id]
+      [invite.chama_id],
     );
 
     await client.query('COMMIT');
@@ -179,8 +178,8 @@ const joinWithInvite = async (req, res) => {
       message: 'Successfully joined the chama!',
       data: {
         membership: memberResult.rows[0],
-        chama: chamaResult.rows[0]
-      }
+        chama: chamaResult.rows[0],
+      },
     });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -188,7 +187,7 @@ const joinWithInvite = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error joining chama',
-      error: error.message
+      error: error.message,
     });
   } finally {
     client.release();
@@ -208,19 +207,19 @@ const getChamaInvites = async (req, res) => {
        LEFT JOIN users u ON i.created_by = u.user_id
        WHERE i.chama_id = $1
        ORDER BY i.created_at DESC`,
-      [chamaId]
+      [chamaId],
     );
 
     res.json({
       success: true,
       count: result.rows.length,
-      data: result.rows
+      data: result.rows,
     });
   } catch (error) {
     console.error('Get invites error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching invites'
+      message: 'Error fetching invites',
     });
   }
 };
@@ -234,18 +233,18 @@ const deactivateInvite = async (req, res) => {
 
     await pool.query(
       'UPDATE chama_invites SET is_active = false WHERE invite_id = $1',
-      [inviteId]
+      [inviteId],
     );
 
     res.json({
       success: true,
-      message: 'Invite code deactivated'
+      message: 'Invite code deactivated',
     });
   } catch (error) {
     console.error('Deactivate invite error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error deactivating invite'
+      message: 'Error deactivating invite',
     });
   }
 };
@@ -273,7 +272,7 @@ const sendInvite = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'This user is already registered on ChamaSmart. Search for them by email to add them directly.',
-        isRegistered: true
+        isRegistered: true,
       });
     }
 
@@ -286,7 +285,7 @@ const sendInvite = async (req, res) => {
     await client.query(
       `INSERT INTO chama_invites (chama_id, invite_code, created_by, max_uses, expires_at)
        VALUES ($1, $2, $3, 1, $4)`,
-      [chamaId, inviteCode, req.user.user_id, expiresAt]
+      [chamaId, inviteCode, req.user.user_id, expiresAt],
     );
 
     // Get Chama Name
@@ -303,15 +302,14 @@ const sendInvite = async (req, res) => {
 
     res.json({
       success: true,
-      message: `Invitation sent to ${email}`
+      message: `Invitation sent to ${email}`,
     });
-
   } catch (error) {
     console.error('Send invite error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to send invitation',
-      error: error.message
+      error: error.message,
     });
   } finally {
     client.release();
@@ -323,5 +321,5 @@ module.exports = {
   joinWithInvite,
   getChamaInvites,
   deactivateInvite,
-  sendInvite
+  sendInvite,
 };

@@ -12,8 +12,8 @@ const {
   getResourceAuditLogs,
   EVENT_TYPES,
   SEVERITY,
-} = require("../utils/auditLog");
-const pool = require("../config/db");
+} = require('../utils/auditLog');
+const pool = require('../config/db');
 
 // ============================================================================
 // GET USER'S AUDIT LOGS
@@ -27,13 +27,15 @@ const pool = require("../config/db");
 const getUserLogs = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { limit, page, startDate, endDate, action } = req.query;
+    const {
+      limit, page, startDate, endDate, action,
+    } = req.query;
 
     // Authorization: Only admins or the user themselves can view
-    if (req.user.user_id !== parseInt(userId) && req.user.role !== "admin") {
+    if (req.user.user_id !== parseInt(userId) && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: "Not authorized to view these logs",
+        message: 'Not authorized to view these logs',
       });
     }
 
@@ -64,10 +66,10 @@ const getUserLogs = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get user logs error:", error);
+    console.error('Get user logs error:', error);
     return res.status(500).json({
       success: false,
-      message: "Error fetching audit logs",
+      message: 'Error fetching audit logs',
     });
   }
 };
@@ -84,7 +86,9 @@ const getUserLogs = async (req, res) => {
 const getChamaLogs = async (req, res) => {
   try {
     const { chamaId } = req.params;
-    const { limit, page, severity, eventType } = req.query;
+    const {
+      limit, page, severity, eventType,
+    } = req.query;
 
     // Check if user is a member/official of this chama
     const memberCheck = await pool.query(
@@ -96,7 +100,7 @@ const getChamaLogs = async (req, res) => {
     if (memberCheck.rows.length === 0) {
       return res.status(403).json({
         success: false,
-        message: "Not authorized to view these logs",
+        message: 'Not authorized to view these logs',
       });
     }
 
@@ -126,10 +130,10 @@ const getChamaLogs = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get chama logs error:", error);
+    console.error('Get chama logs error:', error);
     return res.status(500).json({
       success: false,
-      message: "Error fetching chama audit logs",
+      message: 'Error fetching chama audit logs',
     });
   }
 };
@@ -146,10 +150,10 @@ const getChamaLogs = async (req, res) => {
 const getSecurityLogs = async (req, res) => {
   try {
     // Only admins can view security logs
-    if (req.user.role !== "admin") {
+    if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: "Admin access required",
+        message: 'Admin access required',
       });
     }
 
@@ -179,10 +183,10 @@ const getSecurityLogs = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get security logs error:", error);
+    console.error('Get security logs error:', error);
     return res.status(500).json({
       success: false,
-      message: "Error fetching security logs",
+      message: 'Error fetching security logs',
     });
   }
 };
@@ -211,7 +215,7 @@ const getChamaSummary = async (req, res) => {
     if (memberCheck.rows.length === 0) {
       return res.status(403).json({
         success: false,
-        message: "Not authorized",
+        message: 'Not authorized',
       });
     }
 
@@ -269,10 +273,10 @@ const getChamaSummary = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get chama summary error:", error);
+    console.error('Get chama summary error:', error);
     return res.status(500).json({
       success: false,
-      message: "Error fetching summary",
+      message: 'Error fetching summary',
     });
   }
 };
@@ -299,12 +303,12 @@ const exportChamaLogs = async (req, res) => {
     );
 
     if (
-      memberCheck.rows.length === 0 ||
-      !["TREASURER", "CHAIRPERSON"].includes(memberCheck.rows[0].role)
+      memberCheck.rows.length === 0
+      || !['TREASURER', 'CHAIRPERSON'].includes(memberCheck.rows[0].role)
     ) {
       return res.status(403).json({
         success: false,
-        message: "Treasurer or Chairperson access required",
+        message: 'Treasurer or Chairperson access required',
       });
     }
 
@@ -339,47 +343,47 @@ const exportChamaLogs = async (req, res) => {
       paramIndex++;
     }
 
-    query += " ORDER BY created_at DESC";
+    query += ' ORDER BY created_at DESC';
 
     const result = await pool.query(query, params);
 
     // Convert to CSV
     const headers = [
-      "audit_id",
-      "event_type",
-      "user_id",
-      "action",
-      "resource",
-      "resource_id",
-      "severity",
-      "ip_address",
-      "created_at",
+      'audit_id',
+      'event_type',
+      'user_id',
+      'action',
+      'resource',
+      'resource_id',
+      'severity',
+      'ip_address',
+      'created_at',
     ];
 
-    const csvRows = [headers.join(",")];
+    const csvRows = [headers.join(',')];
 
     for (const row of result.rows) {
-      const values = headers.map((header) => {
+      const values = headers.map(header => {
         const value = row[header];
         // Escape commas and quotes
         const escaped = String(value).replace(/"/g, '""');
         return `"${escaped}"`;
       });
-      csvRows.push(values.join(","));
+      csvRows.push(values.join(','));
     }
 
-    const csv = csvRows.join("\n");
+    const csv = csvRows.join('\n');
     const filename = `chama_${chamaId}_audit_logs_${new Date().toISOString().slice(0, 10)}.csv`;
 
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
     return res.send(csv);
   } catch (error) {
-    console.error("Export logs error:", error);
+    console.error('Export logs error:', error);
     return res.status(500).json({
       success: false,
-      message: "Error exporting logs",
+      message: 'Error exporting logs',
     });
   }
 };

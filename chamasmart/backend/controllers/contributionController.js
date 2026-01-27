@@ -3,12 +3,12 @@
  * Fixes: Race conditions, idempotency, duplicate detection, money precision
  */
 
-const pool = require("../config/db");
-const redis = require("../config/redis");
-const { isValidAmount, isValidPaymentMethod } = require("../utils/validators");
-const logger = require("../utils/logger");
-const { getIo } = require("../socket");
-const crypto = require("crypto");
+const crypto = require('crypto');
+const pool = require('../config/db');
+const redis = require('../config/redis');
+const { isValidAmount, isValidPaymentMethod } = require('../utils/validators');
+const logger = require('../utils/logger');
+const { getIo } = require('../socket');
 
 // MONEY HANDLING (Integer Cents)
 
@@ -18,7 +18,7 @@ const crypto = require("crypto");
  * @returns {number} Amount in cents
  */
 function toCents(amount) {
-  const num = typeof amount === "string" ? parseFloat(amount) : amount;
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
   return Math.round(num * 100);
 }
 
@@ -41,7 +41,7 @@ class IdempotencyService {
    */
   static generateKey(req) {
     // Client should send this in header, but we can generate one
-    return req.headers["idempotency-key"] || crypto.randomUUID();
+    return req.headers['idempotency-key'] || crypto.randomUUID();
   }
 
   /**
@@ -53,12 +53,12 @@ class IdempotencyService {
     try {
       const cached = await redis.get(`idempotency:${key}`);
       if (cached) {
-        logger.logInfo("Idempotent request detected", { key });
+        logger.logInfo('Idempotent request detected', { key });
         return JSON.parse(cached);
       }
       return null;
     } catch (error) {
-      logger.logError(error, { context: "IdempotencyService.check", key });
+      logger.logError(error, { context: 'IdempotencyService.check', key });
       return null;
     }
   }
@@ -73,7 +73,7 @@ class IdempotencyService {
     try {
       await redis.setex(`idempotency:${key}`, ttl, JSON.stringify(response));
     } catch (error) {
-      logger.logError(error, { context: "IdempotencyService.store", key });
+      logger.logError(error, { context: 'IdempotencyService.store', key });
     }
   }
 }
@@ -94,7 +94,7 @@ class DuplicateDetector {
     timestamp,
   }) {
     const data = `${chamaId}:${userId}:${amount}:${paymentMethod}:${timestamp}`;
-    return crypto.createHash("sha256").update(data).digest("hex");
+    return crypto.createHash('sha256').update(data).digest('hex');
   }
 
   /**
@@ -118,7 +118,7 @@ class DuplicateDetector {
       const exists = await redis.get(key);
 
       if (exists) {
-        logger.logSecurityEvent("Duplicate contribution detected", {
+        logger.logSecurityEvent('Duplicate contribution detected', {
           fingerprint,
           params,
         });
@@ -126,10 +126,10 @@ class DuplicateDetector {
       }
 
       // Mark as processed
-      await redis.setex(key, windowSeconds, "processed");
+      await redis.setex(key, windowSeconds, 'processed');
       return false;
     } catch (error) {
-      logger.logError(error, { context: "DuplicateDetector.isDuplicate" });
+      logger.logError(error, { context: 'DuplicateDetector.isDuplicate' });
       // Fail open - don't block legitimate transactions if Redis is down
       return false;
     }
@@ -153,7 +153,7 @@ class DatabaseLock {
     );
 
     if (result.rows.length === 0) {
-      throw new Error("Chama not found");
+      throw new Error('Chama not found');
     }
 
     return result.rows[0];
@@ -172,7 +172,7 @@ class DatabaseLock {
     );
 
     if (result.rows.length === 0) {
-      throw new Error("Member not found or inactive");
+      throw new Error('Member not found or inactive');
     }
 
     return result.rows[0];
@@ -185,7 +185,7 @@ class DatabaseLock {
   static async acquireAdvisoryLock(client, lockId) {
     // lockId should be a unique integer (e.g., hash of chamaId)
     const result = await client.query(
-      "SELECT pg_try_advisory_xact_lock($1) AS acquired",
+      'SELECT pg_try_advisory_xact_lock($1) AS acquired',
       [lockId],
     );
 
@@ -205,7 +205,7 @@ const recordContribution = async (req, res) => {
     const cachedResponse = await IdempotencyService.check(idempotencyKey);
 
     if (cachedResponse) {
-      logger.logInfo("Returning cached idempotent response", {
+      logger.logInfo('Returning cached idempotent response', {
         idempotencyKey,
       });
       return res.status(cachedResponse.status).json(cachedResponse.body);
@@ -225,21 +225,21 @@ const recordContribution = async (req, res) => {
     if (!userId || !amount) {
       return res.status(400).json({
         success: false,
-        message: "User ID and amount are required",
+        message: 'User ID and amount are required',
       });
     }
 
     if (!isValidAmount(amount)) {
       return res.status(400).json({
         success: false,
-        message: "Amount must be a positive number",
+        message: 'Amount must be a positive number',
       });
     }
 
     if (paymentMethod && !isValidPaymentMethod(paymentMethod)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid payment method",
+        message: 'Invalid payment method',
       });
     }
 
@@ -251,11 +251,11 @@ const recordContribution = async (req, res) => {
       chamaId,
       userId,
       amount: amountCents,
-      paymentMethod: paymentMethod || "CASH",
+      paymentMethod: paymentMethod || 'CASH',
     });
 
     if (isDuplicate) {
-      logger.logSecurityEvent("Blocked duplicate contribution", {
+      logger.logSecurityEvent('Blocked duplicate contribution', {
         chamaId,
         userId,
         amount,
@@ -265,15 +265,15 @@ const recordContribution = async (req, res) => {
       return res.status(409).json({
         success: false,
         message:
-          "This contribution appears to be a duplicate. If this is a legitimate transaction, please wait 5 minutes and try again.",
-        code: "DUPLICATE_DETECTED",
+          'This contribution appears to be a duplicate. If this is a legitimate transaction, please wait 5 minutes and try again.',
+        code: 'DUPLICATE_DETECTED',
       });
     }
 
     // === BEGIN TRANSACTION WITH SERIALIZABLE ISOLATION ===
     // SERIALIZABLE is the strictest isolation level
     // Prevents phantom reads and ensures true serializability
-    await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
+    await client.query('BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE');
 
     try {
       // === ACQUIRE LOCKS (Prevents race conditions) ===
@@ -295,7 +295,7 @@ const recordContribution = async (req, res) => {
           chamaId,
           userId,
           amountCents,
-          paymentMethod || "CASH",
+          paymentMethod || 'CASH',
           receiptNumber,
           req.user.user_id,
           notes,
@@ -328,8 +328,7 @@ const recordContribution = async (req, res) => {
         [amountCents, chamaId, userId],
       );
 
-      const newMemberBalance =
-        updateMemberResult.rows[0].total_contributions_cents;
+      const newMemberBalance = updateMemberResult.rows[0].total_contributions_cents;
 
       // === CREATE AUDIT TRAIL ===
       await client.query(
@@ -344,7 +343,7 @@ const recordContribution = async (req, res) => {
             userId,
             amount: fromCents(amountCents),
             amountCents,
-            paymentMethod: paymentMethod || "CASH",
+            paymentMethod: paymentMethod || 'CASH',
             receiptNumber,
           }),
           req.ip,
@@ -352,7 +351,7 @@ const recordContribution = async (req, res) => {
       );
 
       // === COMMIT TRANSACTION ===
-      await client.query("COMMIT");
+      await client.query('COMMIT');
 
       // === PREPARE RESPONSE ===
       const responseData = {
@@ -370,7 +369,7 @@ const recordContribution = async (req, res) => {
         status: 201,
         body: {
           success: true,
-          message: "Contribution recorded successfully",
+          message: 'Contribution recorded successfully',
           data: responseData,
         },
       };
@@ -382,18 +381,18 @@ const recordContribution = async (req, res) => {
       setImmediate(() => {
         try {
           const io = getIo();
-          io.to(`chama_${chamaId}`).emit("contribution_recorded", {
+          io.to(`chama_${chamaId}`).emit('contribution_recorded', {
             chamaId,
             contribution: responseData.contribution,
             balances: responseData.balances,
           });
         } catch (err) {
-          logger.logError(err, { context: "WebSocket emission failed" });
+          logger.logError(err, { context: 'WebSocket emission failed' });
         }
       });
 
       // === AUDIT LOG ===
-      logger.logSecurityEvent("Contribution recorded", {
+      logger.logSecurityEvent('Contribution recorded', {
         contributionId: contribution.contribution_id,
         chamaId,
         userId,
@@ -404,11 +403,11 @@ const recordContribution = async (req, res) => {
 
       return res.status(201).json(response.body);
     } catch (dbError) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
 
       // Check if it's a serialization error (concurrent transaction conflict)
-      if (dbError.code === "40001") {
-        logger.logWarning("Serialization error - retrying recommended", {
+      if (dbError.code === '40001') {
+        logger.logWarning('Serialization error - retrying recommended', {
           chamaId,
           userId,
           error: dbError.message,
@@ -417,8 +416,8 @@ const recordContribution = async (req, res) => {
         return res.status(409).json({
           success: false,
           message:
-            "A concurrent transaction was detected. Please retry your request.",
-          code: "SERIALIZATION_ERROR",
+            'A concurrent transaction was detected. Please retry your request.',
+          code: 'SERIALIZATION_ERROR',
           retryable: true,
         });
       }
@@ -427,18 +426,18 @@ const recordContribution = async (req, res) => {
     }
   } catch (error) {
     if (client) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
     }
 
     logger.logError(error, {
-      context: "recordContribution",
+      context: 'recordContribution',
       chamaId: req.params.chamaId,
       userId: req.body.userId,
     });
 
     return res.status(500).json({
       success: false,
-      message: "Error recording contribution",
+      message: 'Error recording contribution',
     });
   } finally {
     if (client) {
@@ -464,7 +463,7 @@ const deleteContribution = async (req, res) => {
       return res.status(cachedResponse.status).json(cachedResponse.body);
     }
 
-    await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
+    await client.query('BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE');
 
     // === GET AND LOCK CONTRIBUTION ===
     const contributionResult = await client.query(
@@ -476,20 +475,20 @@ const deleteContribution = async (req, res) => {
     );
 
     if (contributionResult.rows.length === 0) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       return res.status(404).json({
         success: false,
-        message: "Contribution not found",
+        message: 'Contribution not found',
       });
     }
 
     const contribution = contributionResult.rows[0];
 
     if (contribution.is_deleted) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: "Contribution already deleted",
+        message: 'Contribution already deleted',
       });
     }
 
@@ -547,13 +546,13 @@ const deleteContribution = async (req, res) => {
       ],
     );
 
-    await client.query("COMMIT");
+    await client.query('COMMIT');
 
     const response = {
       status: 200,
       body: {
         success: true,
-        message: "Contribution deleted successfully",
+        message: 'Contribution deleted successfully',
       },
     };
 
@@ -563,16 +562,16 @@ const deleteContribution = async (req, res) => {
     setImmediate(() => {
       try {
         const io = getIo();
-        io.to(`chama_${chamaId}`).emit("contribution_deleted", {
+        io.to(`chama_${chamaId}`).emit('contribution_deleted', {
           chamaId,
           contributionId: id,
         });
       } catch (err) {
-        logger.logError(err, { context: "WebSocket emission failed" });
+        logger.logError(err, { context: 'WebSocket emission failed' });
       }
     });
 
-    logger.logSecurityEvent("Contribution deleted", {
+    logger.logSecurityEvent('Contribution deleted', {
       contributionId: id,
       chamaId,
       deletedBy: req.user.user_id,
@@ -580,12 +579,12 @@ const deleteContribution = async (req, res) => {
 
     return res.status(200).json(response.body);
   } catch (error) {
-    await client.query("ROLLBACK");
-    logger.logError(error, { context: "deleteContribution" });
+    await client.query('ROLLBACK');
+    logger.logError(error, { context: 'deleteContribution' });
 
     return res.status(500).json({
       success: false,
-      message: "Error deleting contribution",
+      message: 'Error deleting contribution',
     });
   } finally {
     client.release();
@@ -600,7 +599,7 @@ const migrateToIntegerCents = async () => {
   const client = await pool.connect();
 
   try {
-    await client.query("BEGIN");
+    await client.query('BEGIN');
 
     // Add new columns if they don't exist
     await client.query(`
@@ -635,12 +634,12 @@ const migrateToIntegerCents = async () => {
       WHERE total_contributions_cents IS NULL;
     `);
 
-    await client.query("COMMIT");
+    await client.query('COMMIT');
 
-    console.log("✅ Successfully migrated to integer cents");
+    console.log('✅ Successfully migrated to integer cents');
   } catch (error) {
-    await client.query("ROLLBACK");
-    console.error("❌ Migration failed:", error);
+    await client.query('ROLLBACK');
+    console.error('❌ Migration failed:', error);
     throw error;
   } finally {
     client.release();

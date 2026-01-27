@@ -1,5 +1,5 @@
-const rateLimit = require("express-rate-limit");
-const { redis } = require("../config/redis");
+const rateLimit = require('express-rate-limit');
+const { redis } = require('../config/redis');
 
 // Enhanced rate limiting configuration
 const enhancedRateLimiting = rateLimit({
@@ -7,7 +7,7 @@ const enhancedRateLimiting = rateLimit({
   max: 100, // Limit each IP to 100 requests per windowMs
   message: {
     success: false,
-    message: "Too many requests from this IP, please try again later.",
+    message: 'Too many requests from this IP, please try again later.',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -19,7 +19,7 @@ const authRateLimit = rateLimit({
   max: 5, // Limit each IP to 5 auth requests per windowMs
   message: {
     success: false,
-    message: "Too many authentication attempts, please try again later.",
+    message: 'Too many authentication attempts, please try again later.',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -33,7 +33,7 @@ const checkLoginRateLimit = async (identifier, ip) => {
 
     if (!attempts) {
       // First attempt, set counter
-      await redis.setex(key, 900, "1"); // 15 minutes
+      await redis.setex(key, 900, '1'); // 15 minutes
       return false;
     }
 
@@ -46,7 +46,7 @@ const checkLoginRateLimit = async (identifier, ip) => {
     await redis.incr(key);
     return false;
   } catch (error) {
-    console.warn("Rate limiting error (login):", error.message);
+    console.warn('Rate limiting error (login):', error.message);
     // Allow request if Redis fails
     return false;
   }
@@ -58,7 +58,7 @@ const checkOtpRateLimit = async (userId, ip) => {
     const attempts = await redis.get(key);
 
     if (!attempts) {
-      await redis.setex(key, 900, "1"); // 15 minutes
+      await redis.setex(key, 900, '1'); // 15 minutes
       return false;
     }
 
@@ -70,7 +70,7 @@ const checkOtpRateLimit = async (userId, ip) => {
     await redis.incr(key);
     return false;
   } catch (error) {
-    console.warn("Rate limiting error (OTP):", error.message);
+    console.warn('Rate limiting error (OTP):', error.message);
     return false;
   }
 };
@@ -81,7 +81,7 @@ const checkPasswordResetRateLimit = async (email, ip) => {
     const attempts = await redis.get(key);
 
     if (!attempts) {
-      await redis.setex(key, 3600, "1"); // 1 hour
+      await redis.setex(key, 3600, '1'); // 1 hour
       return false;
     }
 
@@ -93,7 +93,7 @@ const checkPasswordResetRateLimit = async (email, ip) => {
     await redis.incr(key);
     return false;
   } catch (error) {
-    console.warn("Rate limiting error (password reset):", error.message);
+    console.warn('Rate limiting error (password reset):', error.message);
     return false;
   }
 };

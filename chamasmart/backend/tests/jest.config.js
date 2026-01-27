@@ -1,36 +1,36 @@
 // Base configuration that can be extended
 module.exports = {
   // Test environment
-  testEnvironment: "node",
+  testEnvironment: 'node',
 
   // Test file patterns
-  testMatch: ["**/__tests__/**/*.test.js", "**/?(*.)+(spec|test).js"],
+  testMatch: ['**/__tests__/**/*.test.js', '**/?(*.)+(spec|test).js'],
 
   // Module name mapper for path aliases
   moduleNameMapper: {
-    "^@/(.*)$": "<rootDir>/../$1",
-    "^@controllers/(.*)$": "<rootDir>/../controllers/$1",
-    "^@models/(.*)$": "<rootDir>/../models/$1",
-    "^@utils/(.*)$": "<rootDir>/../utils/$1",
-    "^@config/(.*)$": "<rootDir>/../config/$1",
-    "^@middleware/(.*)$": "<rootDir>/../middleware/$1",
-    "^@tests/(.*)$": "<rootDir>/$1",
+    '^@/(.*)$': '<rootDir>/../$1',
+    '^@controllers/(.*)$': '<rootDir>/../controllers/$1',
+    '^@models/(.*)$': '<rootDir>/../models/$1',
+    '^@utils/(.*)$': '<rootDir>/../utils/$1',
+    '^@config/(.*)$': '<rootDir>/../config/$1',
+    '^@middleware/(.*)$': '<rootDir>/../middleware/$1',
+    '^@tests/(.*)$': '<rootDir>/$1',
   },
 
   // Setup files
-  setupFilesAfterEnv: ["<rootDir>/setup.js"],
+  setupFilesAfterEnv: ['<rootDir>/setup.js'],
 
   // Test coverage
   collectCoverage: true,
-  coverageDirectory: "<rootDir>/coverage",
+  coverageDirectory: '<rootDir>/coverage',
   collectCoverageFrom: [
-    "../**/*.js",
-    "!**/node_modules/**",
-    "!**/coverage/**",
-    "!**/migrations/**",
-    "!**/scripts/**",
-    "!jest.config.js",
-    "!setup.js",
+    '../**/*.js',
+    '!**/node_modules/**',
+    '!**/coverage/**',
+    '!**/migrations/**',
+    '!**/scripts/**',
+    '!jest.config.js',
+    '!setup.js',
   ],
 
   // Test timeout
@@ -41,9 +41,9 @@ module.exports = {
 
   // Transform configuration
   transform: {
-    "^.+\\.js$": "babel-jest",
+    '^.+\\.js$': 'babel-jest',
   },
 
   // Ignore patterns
-  testPathIgnorePatterns: ["/node_modules/"],
+  testPathIgnorePatterns: ['/node_modules/'],
 };

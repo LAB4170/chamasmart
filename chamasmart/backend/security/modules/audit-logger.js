@@ -10,13 +10,12 @@
  * - Retention policy support
  */
 
-const pool = require("../../config/db");
-const logger = require("../../utils/logger");
+const pool = require('../../config/db');
+const logger = require('../../utils/logger');
 
 class AuditLogger {
   constructor(options = {}) {
-    this.strictMode =
-      options.strictMode || process.env.AUDIT_STRICT_MODE === "true";
+    this.strictMode = options.strictMode || process.env.AUDIT_STRICT_MODE === 'true';
     this.batchSize = options.batchSize || 100;
     this.batchQueue = [];
     this.flushInterval = null;
@@ -26,7 +25,7 @@ class AuditLogger {
       this.startBatchFlushing();
     }
 
-    logger.info("Audit Logger initialized", {
+    logger.info('Audit Logger initialized', {
       strictMode: this.strictMode,
       batchingEnabled: options.enableBatching,
     });
@@ -37,7 +36,7 @@ class AuditLogger {
    */
   async logDataAccess(userId, action, resource, resourceId, metadata = {}) {
     const entry = {
-      type: "data_access",
+      type: 'data_access',
       data: {
         user_id: userId,
         action,
@@ -64,16 +63,16 @@ class AuditLogger {
     success,
     ipAddress,
     userAgent,
-    details = "",
+    details = '',
   ) {
     const entry = {
-      type: "authentication",
+      type: 'authentication',
       data: {
         user_id: userId,
         event_type: eventType,
         ip_address: ipAddress,
         user_agent: userAgent,
-        status: success ? "SUCCESS" : "FAILURE",
+        status: success ? 'SUCCESS' : 'FAILURE',
         metadata: JSON.stringify({
           details,
           timestamp: new Date().toISOString(),
@@ -95,13 +94,13 @@ class AuditLogger {
     metadata = {},
   ) {
     const entry = {
-      type: "financial",
+      type: 'financial',
       data: {
         user_id: userId,
         transaction_type: transactionType,
         amount,
         chama_id: chamaId,
-        status: metadata.status || "COMPLETED",
+        status: metadata.status || 'COMPLETED',
         metadata: JSON.stringify({
           ...metadata,
           timestamp: new Date().toISOString(),
@@ -118,13 +117,13 @@ class AuditLogger {
    */
   async logConsentEvent(userId, consentType, granted, metadata = {}) {
     const entry = {
-      type: "consent",
+      type: 'consent',
       data: {
         user_id: userId,
         consent_type: consentType,
         granted,
         ip_address: metadata.ip_address || null,
-        consent_version: metadata.consent_version || "1.0",
+        consent_version: metadata.consent_version || '1.0',
         metadata: JSON.stringify({
           ...metadata,
           timestamp: new Date().toISOString(),
@@ -146,7 +145,7 @@ class AuditLogger {
     reason = null,
   ) {
     const entry = {
-      type: "sensitive_operation",
+      type: 'sensitive_operation',
       data: {
         user_id: userId,
         operation,
@@ -165,7 +164,7 @@ class AuditLogger {
    */
   async logDataExport(userId, exportType, metadata = {}) {
     const entry = {
-      type: "data_export",
+      type: 'data_export',
       data: {
         user_id: userId,
         export_type: exportType,
@@ -185,7 +184,7 @@ class AuditLogger {
    */
   async logDataDeletion(userId, deletionType, metadata = {}) {
     const entry = {
-      type: "deletion",
+      type: 'deletion',
       data: {
         user_id: userId,
         deletion_type: deletionType,
@@ -207,25 +206,25 @@ class AuditLogger {
     try {
       // Determine table name based on type
       const tableMap = {
-        data_access: "audit_logs",
-        authentication: "auth_audit_logs",
-        financial: "financial_audit_logs",
-        consent: "consent_audit_logs",
-        data_export: "data_export_logs",
-        deletion: "deletion_audit_logs",
-        sensitive_operation: "audit_logs", // Generic fallback
+        data_access: 'audit_logs',
+        authentication: 'auth_audit_logs',
+        financial: 'financial_audit_logs',
+        consent: 'consent_audit_logs',
+        data_export: 'data_export_logs',
+        deletion: 'deletion_audit_logs',
+        sensitive_operation: 'audit_logs', // Generic fallback
       };
 
-      const tableName = tableMap[entry.type] || "audit_logs";
-      const data = entry.data;
+      const tableName = tableMap[entry.type] || 'audit_logs';
+      const { data } = entry;
 
       // Build query based on available fields
-      const fields = Object.keys(data).filter((k) => data[k] !== undefined);
-      const values = fields.map((k) => data[k]);
-      const placeholders = fields.map((_, i) => `$${i + 1}`).join(", ");
+      const fields = Object.keys(data).filter(k => data[k] !== undefined);
+      const values = fields.map(k => data[k]);
+      const placeholders = fields.map((_, i) => `$${i + 1}`).join(', ');
 
       const query = `
-        INSERT INTO ${tableName} (${fields.join(", ")}, created_at)
+        INSERT INTO ${tableName} (${fields.join(', ')}, created_at)
         VALUES (${placeholders}, NOW())
         RETURNING *
       `;
@@ -239,7 +238,7 @@ class AuditLogger {
 
       return result.rows[0];
     } catch (error) {
-      logger.error("Audit logging failed", {
+      logger.error('Audit logging failed', {
         error: error.message,
         type: entry.type,
         strictMode: this.strictMode,
@@ -288,7 +287,7 @@ class AuditLogger {
       }
     }, intervalMs);
 
-    logger.info("Batch flushing started", { intervalMs });
+    logger.info('Batch flushing started', { intervalMs });
   }
 
   /**
@@ -324,7 +323,7 @@ class AuditLogger {
       const result = await pool.query(query, [resource, resourceId, limit]);
       return result.rows;
     } catch (error) {
-      logger.error("Failed to retrieve audit trail", {
+      logger.error('Failed to retrieve audit trail', {
         error: error.message,
         resource,
         resourceId,
@@ -357,7 +356,7 @@ class AuditLogger {
       const result = await pool.query(query, [userId, limit]);
       return result.rows;
     } catch (error) {
-      logger.error("Failed to retrieve user audit trail", {
+      logger.error('Failed to retrieve user audit trail', {
         error: error.message,
         userId,
       });
@@ -388,7 +387,7 @@ class AuditLogger {
       const result = await pool.query(query, [userId, limit]);
       return result.rows;
     } catch (error) {
-      logger.error("Failed to retrieve authentication history", {
+      logger.error('Failed to retrieve authentication history', {
         error: error.message,
         userId,
       });
@@ -438,7 +437,7 @@ class AuditLogger {
       const result = await pool.query(query, params);
       return result.rows;
     } catch (error) {
-      logger.error("Failed to retrieve financial audit trail", {
+      logger.error('Failed to retrieve financial audit trail', {
         error: error.message,
         userId,
         chamaId,
@@ -454,12 +453,12 @@ class AuditLogger {
     // 2 years default
     try {
       const tables = [
-        "audit_logs",
-        "auth_audit_logs",
-        "financial_audit_logs",
-        "consent_audit_logs",
-        "data_export_logs",
-        "deletion_audit_logs",
+        'audit_logs',
+        'auth_audit_logs',
+        'financial_audit_logs',
+        'consent_audit_logs',
+        'data_export_logs',
+        'deletion_audit_logs',
       ];
 
       const results = {};
@@ -481,7 +480,7 @@ class AuditLogger {
 
       return results;
     } catch (error) {
-      logger.error("Failed to clean old audit logs", {
+      logger.error('Failed to clean old audit logs', {
         error: error.message,
       });
       throw error;

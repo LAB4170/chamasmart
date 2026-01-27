@@ -3,17 +3,17 @@
  * Central export for all security-related functionality
  */
 
-const SecurityManager = require("./security-manager");
+const SecurityManager = require('./security-manager');
 
 // Initialize the security manager with configuration
 const security = new SecurityManager({
   // Enable strict mode (fail fast on security issues)
-  strictMode: process.env.NODE_ENV === "production",
+  strictMode: process.env.NODE_ENV === 'production',
 
   // Rate limiting configuration
   rateLimiting: {
     redis: {
-      host: process.env.REDIS_HOST || "localhost",
+      host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT) || 6379,
       password: process.env.REDIS_PASSWORD,
       enableOfflineQueue: false,
@@ -29,7 +29,7 @@ const security = new SecurityManager({
   auditLogging: {
     enableBatching: true,
     batchSize: 100,
-    strictMode: process.env.AUDIT_STRICT_MODE === "true",
+    strictMode: process.env.AUDIT_STRICT_MODE === 'true',
     // Retention period in days
     retentionDays: parseInt(process.env.AUDIT_RETENTION_DAYS) || 730, // 2 years
   },
@@ -37,16 +37,16 @@ const security = new SecurityManager({
   // Encryption configuration
   encryption: {
     key: process.env.ENCRYPTION_KEY,
-    algorithm: "aes-256-gcm",
+    algorithm: 'aes-256-gcm',
     ivLength: 16,
     saltLength: 32,
   },
 });
 
 // Initialize security components
-security.initialize().catch((err) => {
-  console.error("Failed to initialize security module:", err);
-  if (process.env.NODE_ENV === "production") {
+security.initialize().catch(err => {
+  console.error('Failed to initialize security module:', err);
+  if (process.env.NODE_ENV === 'production') {
     process.exit(1); // Exit in production if security can't be initialized
   }
 });
@@ -74,15 +74,15 @@ module.exports = {
   // Types and constants
   constants: {
     ROLES: {
-      ADMIN: "admin",
-      MEMBER: "member",
-      GUEST: "guest",
+      ADMIN: 'admin',
+      MEMBER: 'member',
+      GUEST: 'guest',
     },
     PERMISSIONS: {
-      READ: "read",
-      WRITE: "write",
-      DELETE: "delete",
-      MANAGE: "manage",
+      READ: 'read',
+      WRITE: 'write',
+      DELETE: 'delete',
+      MANAGE: 'manage',
     },
   },
 };

@@ -3,9 +3,9 @@
  * Provides comprehensive security protections including XSS, CSRF, and input sanitization
  */
 
-const xss = require("xss-clean");
-const helmet = require("helmet");
-const rateLimit = require("express-rate-limit");
+const xss = require('xss-clean');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 /**
  * XSS Protection Middleware
@@ -18,7 +18,7 @@ const xssProtection = (req, res, next) => {
       next();
     });
   } catch (error) {
-    console.error("XSS Protection Error:", error);
+    console.error('XSS Protection Error:', error);
     next();
   }
 };
@@ -36,18 +36,18 @@ const sqlInjectionProtection = (req, res, next) => {
     /(\'|\"|`|;|--|\||\*|\?)/g,
   ];
 
-  const checkForSQLInjection = (value) => {
-    if (typeof value === "string") {
-      return sqlPatterns.some((pattern) => pattern.test(value));
+  const checkForSQLInjection = value => {
+    if (typeof value === 'string') {
+      return sqlPatterns.some(pattern => pattern.test(value));
     }
     return false;
   };
 
-  const scanObject = (obj, path = "") => {
+  const scanObject = (obj, path = '') => {
     for (const [key, value] of Object.entries(obj)) {
       const currentPath = path ? `${path}.${key}` : key;
 
-      if (typeof value === "string" && checkForSQLInjection(value)) {
+      if (typeof value === 'string' && checkForSQLInjection(value)) {
         console.warn(
           `Potential SQL injection detected at ${currentPath}:`,
           value,
@@ -55,7 +55,7 @@ const sqlInjectionProtection = (req, res, next) => {
         return true;
       }
 
-      if (typeof value === "object" && value !== null) {
+      if (typeof value === 'object' && value !== null) {
         if (scanObject(value, currentPath)) {
           return true;
         }
@@ -66,16 +66,16 @@ const sqlInjectionProtection = (req, res, next) => {
 
   // Scan request data
   const suspicious = [
-    req.body && scanObject(req.body, "body"),
-    req.query && scanObject(req.query, "query"),
-    req.params && scanObject(req.params, "params"),
+    req.body && scanObject(req.body, 'body'),
+    req.query && scanObject(req.query, 'query'),
+    req.params && scanObject(req.params, 'params'),
   ].some(Boolean);
 
   if (suspicious) {
     return res.status(400).json({
       success: false,
-      message: "Invalid request detected",
-      errorCode: "SECURITY_VIOLATION",
+      message: 'Invalid request detected',
+      errorCode: 'SECURITY_VIOLATION',
     });
   }
 
@@ -88,16 +88,16 @@ const sqlInjectionProtection = (req, res, next) => {
 const helmetConfig = helmet({
   contentSecurityPolicy: {
     directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:"],
-      scriptSrc: ["'self'"],
-      connectSrc: ["'self'"],
-      frameSrc: ["'none'"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      manifestSrc: ["'self'"],
+      defaultSrc: ['\'self\''],
+      styleSrc: ['\'self\'', '\'unsafe-inline\'', 'https://fonts.googleapis.com'],
+      fontSrc: ['\'self\'', 'https://fonts.gstatic.com'],
+      imgSrc: ['\'self\'', 'data:', 'https:'],
+      scriptSrc: ['\'self\''],
+      connectSrc: ['\'self\''],
+      frameSrc: ['\'none\''],
+      objectSrc: ['\'none\''],
+      mediaSrc: ['\'self\''],
+      manifestSrc: ['\'self\''],
     },
   },
   crossOriginEmbedderPolicy: false,
@@ -111,27 +111,27 @@ const helmetConfig = helmet({
 /**
  * Request Size Limiting
  */
-const requestSizeLimit = (maxSize = "10mb") => {
-  return (req, res, next) => {
-    const contentLength = req.get("content-length");
+const requestSizeLimit = (maxSize = '10mb') => (req, res, next) => {
+  const contentLength = req.get('content-length');
 
-    if (contentLength && parseInt(contentLength) > parseSize(maxSize)) {
-      return res.status(413).json({
-        success: false,
-        message: "Request entity too large",
-        errorCode: "REQUEST_TOO_LARGE",
-      });
-    }
+  if (contentLength && parseInt(contentLength) > parseSize(maxSize)) {
+    return res.status(413).json({
+      success: false,
+      message: 'Request entity too large',
+      errorCode: 'REQUEST_TOO_LARGE',
+    });
+  }
 
-    next();
-  };
+  next();
 };
 
 /**
  * Parse size string to bytes
  */
-const parseSize = (size) => {
-  const units = { b: 1, kb: 1024, mb: 1024 * 1024, gb: 1024 * 1024 * 1024 };
+const parseSize = size => {
+  const units = {
+    b: 1, kb: 1024, mb: 1024 * 1024, gb: 1024 * 1024 * 1024,
+  };
   const match = size
     .toString()
     .toLowerCase()
@@ -139,7 +139,7 @@ const parseSize = (size) => {
 
   if (!match) return 0;
 
-  const [, value, unit = "b"] = match;
+  const [, value, unit = 'b'] = match;
   return Math.floor(parseFloat(value) * (units[unit] || 1));
 };
 
@@ -151,8 +151,8 @@ const ipRateLimit = rateLimit({
   max: 100, // Limit each IP to 100 requests per windowMs
   message: {
     success: false,
-    message: "Too many requests from this IP",
-    errorCode: "RATE_LIMIT_EXCEEDED",
+    message: 'Too many requests from this IP',
+    errorCode: 'RATE_LIMIT_EXCEEDED',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -160,8 +160,8 @@ const ipRateLimit = rateLimit({
     console.warn(`Rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
       success: false,
-      message: "Too many requests from this IP",
-      errorCode: "RATE_LIMIT_EXCEEDED",
+      message: 'Too many requests from this IP',
+      errorCode: 'RATE_LIMIT_EXCEEDED',
       retryAfter: Math.round(req.rateLimit.resetTime / 1000),
     });
   },
@@ -181,16 +181,16 @@ const suspiciousActivityDetection = (req, res, next) => {
     /onerror=/gi, // Event handlers
   ];
 
-  const checkSuspiciousContent = (obj) => {
+  const checkSuspiciousContent = obj => {
     for (const [key, value] of Object.entries(obj)) {
-      if (typeof value === "string") {
+      if (typeof value === 'string') {
         for (const pattern of suspiciousPatterns) {
           if (pattern.test(value)) {
             console.warn(`Suspicious content detected in ${key}:`, value);
             return true;
           }
         }
-      } else if (typeof value === "object" && value !== null) {
+      } else if (typeof value === 'object' && value !== null) {
         if (checkSuspiciousContent(value)) {
           return true;
         }
@@ -208,8 +208,8 @@ const suspiciousActivityDetection = (req, res, next) => {
   if (suspicious) {
     return res.status(400).json({
       success: false,
-      message: "Suspicious content detected",
-      errorCode: "SUSPICIOUS_CONTENT",
+      message: 'Suspicious content detected',
+      errorCode: 'SUSPICIOUS_CONTENT',
     });
   }
 
@@ -219,25 +219,23 @@ const suspiciousActivityDetection = (req, res, next) => {
 /**
  * Content Type Validation
  */
-const contentTypeValidation = (allowedTypes = ["application/json"]) => {
-  return (req, res, next) => {
-    if (req.method !== "GET" && req.method !== "HEAD") {
-      const contentType = req.get("content-type");
+const contentTypeValidation = (allowedTypes = ['application/json']) => (req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    const contentType = req.get('content-type');
 
-      if (
-        !contentType ||
-        !allowedTypes.some((type) => contentType.includes(type))
-      ) {
-        return res.status(415).json({
-          success: false,
-          message: "Unsupported media type",
-          errorCode: "UNSUPPORTED_MEDIA_TYPE",
-        });
-      }
+    if (
+      !contentType
+        || !allowedTypes.some(type => contentType.includes(type))
+    ) {
+      return res.status(415).json({
+        success: false,
+        message: 'Unsupported media type',
+        errorCode: 'UNSUPPORTED_MEDIA_TYPE',
+      });
     }
+  }
 
-    next();
-  };
+  next();
 };
 
 /**
@@ -245,16 +243,16 @@ const contentTypeValidation = (allowedTypes = ["application/json"]) => {
  */
 const securityHeaders = (req, res, next) => {
   // Remove server information
-  res.removeHeader("X-Powered-By");
+  res.removeHeader('X-Powered-By');
 
   // Add security headers
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "DENY");
-  res.setHeader("X-XSS-Protection", "1; mode=block");
-  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader(
-    "Permissions-Policy",
-    "geolocation=(), microphone=(), camera=()",
+    'Permissions-Policy',
+    'geolocation=(), microphone=(), camera=()',
   );
 
   next();

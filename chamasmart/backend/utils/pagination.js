@@ -67,7 +67,7 @@ const formatPaginationMeta = (rows, total, page, limit) => {
  * @param {Array} params - Query parameters (optional)
  * @returns {Promise<number>} - Total count
  */
-const getTotal = async (pool, table, whereClause = "", params = []) => {
+const getTotal = async (pool, table, whereClause = '', params = []) => {
   const query = whereClause
     ? `SELECT COUNT(*) as count FROM ${table} WHERE ${whereClause}`
     : `SELECT COUNT(*) as count FROM ${table}`;

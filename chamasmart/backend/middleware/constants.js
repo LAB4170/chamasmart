@@ -4,17 +4,17 @@
  */
 
 const MEMBER_STATUS = {
-  ACTIVE: "active",
-  PENDING: "pending",
-  INACTIVE: "inactive",
-  SUSPENDED: "suspended",
+  ACTIVE: 'active',
+  PENDING: 'pending',
+  INACTIVE: 'inactive',
+  SUSPENDED: 'suspended',
 };
 
 const USER_ROLES = {
-  CHAIRPERSON: "CHAIRPERSON",
-  SECRETARY: "SECRETARY",
-  TREASURER: "TREASURER",
-  MEMBER: "MEMBER",
+  CHAIRPERSON: 'CHAIRPERSON',
+  SECRETARY: 'SECRETARY',
+  TREASURER: 'TREASURER',
+  MEMBER: 'MEMBER',
 };
 
 const OFFICIAL_ROLES = [
@@ -40,54 +40,53 @@ const HTTP_STATUS = {
 };
 
 const CACHE_KEYS = {
-  USER: (userId) => `user:${userId}`,
-  USER_PROFILE: (userId) => `user:${userId}:profile`,
+  USER: userId => `user:${userId}`,
+  USER_PROFILE: userId => `user:${userId}:profile`,
   MEMBERSHIP: (userId, chamaId) => `membership:${userId}:${chamaId}`,
-  CHAMA: (chamaId) => `chama:${chamaId}`,
-  CHAMA_LIST: (userId, query) =>
-    `chamas:list:${userId}:${JSON.stringify(query)}`,
-  TOKEN_BLACKLIST: (token) => `blacklist:${token}`,
+  CHAMA: chamaId => `chama:${chamaId}`,
+  CHAMA_LIST: (userId, query) => `chamas:list:${userId}:${JSON.stringify(query)}`,
+  TOKEN_BLACKLIST: token => `blacklist:${token}`,
 };
 
 const REDIS_PREFIXES = {
-  RATE_LIMIT: "rl:",
-  CACHE: "cache:",
-  SESSION: "session:",
-  BLACKLIST: "blacklist:",
-  LOCK: "lock:",
+  RATE_LIMIT: 'rl:',
+  CACHE: 'cache:',
+  SESSION: 'session:',
+  BLACKLIST: 'blacklist:',
+  LOCK: 'lock:',
 };
 
 const ERROR_CODES = {
-  VALIDATION_ERROR: "VALIDATION_ERROR",
-  AUTHENTICATION_ERROR: "AUTHENTICATION_ERROR",
-  AUTHORIZATION_ERROR: "AUTHORIZATION_ERROR",
-  NOT_FOUND: "NOT_FOUND",
-  CONFLICT: "CONFLICT",
-  RATE_LIMIT_EXCEEDED: "RATE_LIMIT_EXCEEDED",
-  FILE_UPLOAD_ERROR: "FILE_UPLOAD_ERROR",
-  DATABASE_ERROR: "DATABASE_ERROR",
-  CACHE_ERROR: "CACHE_ERROR",
-  INTERNAL_ERROR: "INTERNAL_ERROR",
-  BAD_REQUEST: "BAD_REQUEST",
-  SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  AUTHENTICATION_ERROR: 'AUTHENTICATION_ERROR',
+  AUTHORIZATION_ERROR: 'AUTHORIZATION_ERROR',
+  NOT_FOUND: 'NOT_FOUND',
+  CONFLICT: 'CONFLICT',
+  RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
+  FILE_UPLOAD_ERROR: 'FILE_UPLOAD_ERROR',
+  DATABASE_ERROR: 'DATABASE_ERROR',
+  CACHE_ERROR: 'CACHE_ERROR',
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  BAD_REQUEST: 'BAD_REQUEST',
+  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
 };
 
 const FILE_TYPES = {
-  PDF: "application/pdf",
-  JPEG: "image/jpeg",
-  PNG: "image/png",
-  JPG: "image/jpg",
-  DOC: "application/msword",
-  DOCX: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  PDF: 'application/pdf',
+  JPEG: 'image/jpeg',
+  PNG: 'image/png',
+  JPG: 'image/jpg',
+  DOC: 'application/msword',
+  DOCX: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 };
 
 const ALLOWED_FILE_EXTENSIONS = [
-  ".pdf",
-  ".jpg",
-  ".jpeg",
-  ".png",
-  ".doc",
-  ".docx",
+  '.pdf',
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.doc',
+  '.docx',
 ];
 
 module.exports = {

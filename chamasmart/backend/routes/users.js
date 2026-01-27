@@ -1,19 +1,20 @@
-const express = require("express");
+const express = require('express');
+
 const router = express.Router();
-const { protect } = require("../middleware/auth");
+const { protect } = require('../middleware/auth');
 const {
   searchUser,
   getProfile,
   updateProfile,
   changePassword,
   deactivateAccount,
-} = require("../controllers/userController");
-const { applyRateLimiting } = require("../middleware/rateLimiting");
-const validate = require("../middleware/validate");
+} = require('../controllers/userController');
+const { applyRateLimiting } = require('../middleware/rateLimiting');
+const validate = require('../middleware/validate');
 const {
   updateProfileSchema,
   changePasswordSchema,
-} = require("../utils/validationSchemas");
+} = require('../utils/validationSchemas');
 
 // ============================================================================
 // ALL ROUTES REQUIRE AUTHENTICATION
@@ -26,11 +27,11 @@ router.use(protect);
 // ============================================================================
 
 // Get current user profile
-router.get("/profile", getProfile);
+router.get('/profile', getProfile);
 
 // Update user profile
 router.put(
-  "/profile",
+  '/profile',
   applyRateLimiting,
   validate(updateProfileSchema),
   updateProfile,
@@ -38,20 +39,20 @@ router.put(
 
 // Change password
 router.put(
-  "/change-password",
+  '/change-password',
   applyRateLimiting,
   validate(changePasswordSchema),
   changePassword,
 );
 
 // Deactivate account
-router.delete("/account", applyRateLimiting, deactivateAccount);
+router.delete('/account', applyRateLimiting, deactivateAccount);
 
 // ============================================================================
 // USER SEARCH
 // ============================================================================
 
 // Search for users (with rate limiting)
-router.get("/search", applyRateLimiting, searchUser);
+router.get('/search', applyRateLimiting, searchUser);
 
 module.exports = router;

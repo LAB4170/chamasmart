@@ -3,21 +3,21 @@
  * Handles API key generation, validation, and management
  */
 
-const crypto = require("crypto");
-const { promisify } = require("util");
-const bcrypt = require("bcrypt");
-const { v4: uuidv4 } = require("uuid");
-const pool = require("../config/db");
-const logger = require("../utils/logger");
-const { HTTP_STATUS, ERROR_CODES } = require("./constants");
+const crypto = require('crypto');
+const { promisify } = require('util');
+const bcrypt = require('bcrypt');
+const { v4: uuidv4 } = require('uuid');
+const pool = require('../config/db');
+const logger = require('../utils/logger');
+const { HTTP_STATUS, ERROR_CODES } = require('./constants');
 const {
   APIError,
   AuthenticationError,
   AuthorizationError,
   NotFoundError,
   ValidationError,
-} = require("./errorHandler");
-const { executeDatabaseOperation } = require("./circuitBreaker");
+} = require('./errorHandler');
+const { executeDatabaseOperation } = require('./circuitBreaker');
 
 // Promisify bcrypt functions
 const hash = promisify(bcrypt.hash);
@@ -25,18 +25,18 @@ const compare = promisify(bcrypt.compare);
 
 // Generate a random API key
 const generateAPIKey = () => {
-  const apiKey = `chama_${crypto.randomBytes(32).toString("hex")}`;
+  const apiKey = `chama_${crypto.randomBytes(32).toString('hex')}`;
   const prefix = apiKey.substring(0, 20);
   return { apiKey, prefix };
 };
 
 // Hash API key for secure storage
-const hashAPIKey = async (apiKey) => {
+const hashAPIKey = async apiKey => {
   try {
     return await hash(apiKey, 10);
   } catch (error) {
-    logger.error("Error hashing API key", { error: error.message });
-    throw new Error("Failed to hash API key");
+    logger.error('Error hashing API key', { error: error.message });
+    throw new Error('Failed to hash API key');
   }
 };
 
@@ -45,15 +45,15 @@ const verifyAPIKey = async (apiKey, hash) => {
   try {
     return await compare(apiKey, hash);
   } catch (error) {
-    logger.error("Error verifying API key", { error: error.message });
+    logger.error('Error verifying API key', { error: error.message });
     return false;
   }
 };
 
 // Extract API key from request
-const extractAPIKey = (req) => {
-  const authHeader = req.headers.authorization || "";
-  const apiKey = authHeader.startsWith("Bearer ")
+const extractAPIKey = req => {
+  const authHeader = req.headers.authorization || '';
+  const apiKey = authHeader.startsWith('Bearer ')
     ? authHeader.substring(7)
     : null;
 
@@ -62,11 +62,11 @@ const extractAPIKey = (req) => {
 };
 
 // Check if user has reached API key limit
-const checkApiKeyLimit = async (userId) => {
-  const config = require("../config/middleware.config");
+const checkApiKeyLimit = async userId => {
+  const config = require('../config/middleware.config');
 
   const result = await executeDatabaseOperation(
-    "SELECT COUNT(*) FROM api_keys WHERE user_id = $1",
+    'SELECT COUNT(*) FROM api_keys WHERE user_id = $1',
     [userId],
   );
 
@@ -83,23 +83,23 @@ const checkApiKeyLimit = async (userId) => {
 const createAPIKey = async (req, res) => {
   const userId = req.user?.userId || req.user?.user_id;
   const {
-    name = "My API Key",
+    name = 'My API Key',
     expiresInDays = 365,
-    scopes = ["read", "write"], // Default scopes
+    scopes = ['read', 'write'], // Default scopes
   } = req.body;
 
   if (!userId) {
-    throw new AuthenticationError("Authentication required");
+    throw new AuthenticationError('Authentication required');
   }
 
-  if (!name || typeof name !== "string" || name.trim().length === 0) {
+  if (!name || typeof name !== 'string' || name.trim().length === 0) {
     throw new ValidationError(
-      "API key name is required and must be a non-empty string",
+      'API key name is required and must be a non-empty string',
     );
   }
 
   if (!Array.isArray(scopes) || scopes.length === 0) {
-    throw new ValidationError("At least one scope is required");
+    throw new ValidationError('At least one scope is required');
   }
 
   // Check API key limit
@@ -130,7 +130,7 @@ const createAPIKey = async (req, res) => {
 
   const apiKeyRecord = result.rows[0];
 
-  logger.info("✅ API key created", {
+  logger.info('✅ API key created', {
     userId,
     keyId: apiKeyRecord.key_id,
     name,
@@ -140,7 +140,7 @@ const createAPIKey = async (req, res) => {
 
   res.status(HTTP_STATUS.CREATED).json({
     success: true,
-    message: "API key created successfully",
+    message: 'API key created successfully',
     data: {
       keyId: apiKeyRecord.key_id,
       name: apiKeyRecord.name,
@@ -149,7 +149,7 @@ const createAPIKey = async (req, res) => {
       scopes: JSON.parse(apiKeyRecord.scopes),
       expiresAt: apiKeyRecord.expires_at,
       createdAt: apiKeyRecord.created_at,
-      warning: "Save your API key now. You will not be able to see it again.",
+      warning: 'Save your API key now. You will not be able to see it again.',
     },
   });
 };
@@ -159,7 +159,7 @@ const listAPIKeys = async (req, res) => {
   const userId = req.user?.userId || req.user?.user_id;
 
   if (!userId) {
-    throw new AuthenticationError("Authentication required");
+    throw new AuthenticationError('Authentication required');
   }
 
   const result = await executeDatabaseOperation(
@@ -170,9 +170,9 @@ const listAPIKeys = async (req, res) => {
     [userId],
   );
 
-  const keys = result.rows.map((key) => ({
+  const keys = result.rows.map(key => ({
     ...key,
-    scopes: JSON.parse(key.scopes || "[]"),
+    scopes: JSON.parse(key.scopes || '[]'),
   }));
 
   res.json({
@@ -190,11 +190,11 @@ const revokeAPIKey = async (req, res) => {
   const { keyId } = req.params;
 
   if (!userId) {
-    throw new AuthenticationError("Authentication required");
+    throw new AuthenticationError('Authentication required');
   }
 
   if (!keyId) {
-    throw new ValidationError("Key ID is required");
+    throw new ValidationError('Key ID is required');
   }
 
   // Verify ownership and revoke
@@ -208,11 +208,11 @@ const revokeAPIKey = async (req, res) => {
 
   if (result.rows.length === 0) {
     throw new NotFoundError(
-      "API key not found or does not belong to this user",
+      'API key not found or does not belong to this user',
     );
   }
 
-  logger.info("✅ API key revoked", {
+  logger.info('✅ API key revoked', {
     userId,
     keyId,
     name: result.rows[0].name,
@@ -220,7 +220,7 @@ const revokeAPIKey = async (req, res) => {
 
   res.json({
     success: true,
-    message: "API key revoked successfully",
+    message: 'API key revoked successfully',
   });
 };
 
@@ -230,11 +230,11 @@ const deleteAPIKey = async (req, res) => {
   const { keyId } = req.params;
 
   if (!userId) {
-    throw new AuthenticationError("Authentication required");
+    throw new AuthenticationError('Authentication required');
   }
 
   if (!keyId) {
-    throw new ValidationError("Key ID is required");
+    throw new ValidationError('Key ID is required');
   }
 
   // Verify ownership and delete
@@ -247,11 +247,11 @@ const deleteAPIKey = async (req, res) => {
 
   if (result.rows.length === 0) {
     throw new NotFoundError(
-      "API key not found or does not belong to this user",
+      'API key not found or does not belong to this user',
     );
   }
 
-  logger.info("✅ API key deleted", {
+  logger.info('✅ API key deleted', {
     userId,
     keyId,
     name: result.rows[0].name,
@@ -259,7 +259,7 @@ const deleteAPIKey = async (req, res) => {
 
   res.json({
     success: true,
-    message: "API key deleted successfully",
+    message: 'API key deleted successfully',
   });
 };
 
@@ -269,17 +269,17 @@ const rotateAPIKey = async (req, res) => {
   const { keyId } = req.params;
 
   if (!userId) {
-    throw new AuthenticationError("Authentication required");
+    throw new AuthenticationError('Authentication required');
   }
 
   // Get existing key
   const existing = await executeDatabaseOperation(
-    "SELECT * FROM api_keys WHERE key_id = $1 AND user_id = $2",
+    'SELECT * FROM api_keys WHERE key_id = $1 AND user_id = $2',
     [keyId, userId],
   );
 
   if (existing.rows.length === 0) {
-    throw new NotFoundError("API key not found");
+    throw new NotFoundError('API key not found');
   }
 
   const oldKey = existing.rows[0];
@@ -297,7 +297,7 @@ const rotateAPIKey = async (req, res) => {
     [hashedKey, prefix, keyId],
   );
 
-  logger.info("✅ API key rotated", {
+  logger.info('✅ API key rotated', {
     userId,
     keyId,
     name: oldKey.name,
@@ -305,7 +305,7 @@ const rotateAPIKey = async (req, res) => {
 
   res.json({
     success: true,
-    message: "API key rotated successfully",
+    message: 'API key rotated successfully',
     data: {
       keyId: result.rows[0].key_id,
       name: result.rows[0].name,
@@ -313,7 +313,7 @@ const rotateAPIKey = async (req, res) => {
       keyPrefix: result.rows[0].key_prefix,
       scopes: JSON.parse(result.rows[0].scopes),
       expiresAt: result.rows[0].expires_at,
-      warning: "Save your new API key. The old one is now invalid.",
+      warning: 'Save your new API key. The old one is now invalid.',
     },
   });
 };
@@ -324,7 +324,7 @@ const apiKeyAuth = async (req, res, next) => {
 
   if (!apiKey) {
     throw new AuthenticationError(
-      "API key is required. Provide in Authorization header: Bearer <api_key>",
+      'API key is required. Provide in Authorization header: Bearer <api_key>',
     );
   }
 
@@ -343,43 +343,43 @@ const apiKeyAuth = async (req, res, next) => {
   );
 
   if (result.rows.length === 0) {
-    logger.warn("⚠️ Invalid API key attempted", {
+    logger.warn('⚠️ Invalid API key attempted', {
       keyPrefix,
       ip: req.ip,
     });
 
-    throw new AuthenticationError("Invalid API key");
+    throw new AuthenticationError('Invalid API key');
   }
 
   const keyRecord = result.rows[0];
 
   // Check expiry
   if (new Date(keyRecord.expires_at) < new Date()) {
-    logger.warn("⚠️ Expired API key used", {
+    logger.warn('⚠️ Expired API key used', {
       keyId: keyRecord.key_id,
       userId: keyRecord.user_id,
     });
 
-    throw new AuthenticationError("API key has expired");
+    throw new AuthenticationError('API key has expired');
   }
 
   // Verify key hash
   const isValid = await verifyAPIKey(apiKey, keyRecord.key_hash);
 
   if (!isValid) {
-    logger.warn("⚠️ Invalid API key hash", {
+    logger.warn('⚠️ Invalid API key hash', {
       keyPrefix,
       ip: req.ip,
     });
 
-    throw new AuthenticationError("Invalid API key");
+    throw new AuthenticationError('Invalid API key');
   }
 
   // Update last used timestamp (async, don't await)
   executeDatabaseOperation(
-    "UPDATE api_keys SET last_used_at = NOW() WHERE key_id = $1",
+    'UPDATE api_keys SET last_used_at = NOW() WHERE key_id = $1',
     [keyRecord.key_id],
-  ).catch((err) => logger.error("Failed to update last_used_at", err));
+  ).catch(err => logger.error('Failed to update last_used_at', err));
 
   // Attach user info to request
   req.user = {
@@ -387,14 +387,14 @@ const apiKeyAuth = async (req, res, next) => {
     user_id: keyRecord.user_id, // Alias
     email: keyRecord.email,
     role: keyRecord.role,
-    tier: keyRecord.tier || "free",
-    authenticatedVia: "api-key",
+    tier: keyRecord.tier || 'free',
+    authenticatedVia: 'api-key',
     apiKeyId: keyRecord.key_id,
-    scopes: JSON.parse(keyRecord.scopes || "[]"),
+    scopes: JSON.parse(keyRecord.scopes || '[]'),
   };
 
   // Log access
-  logger.info("✅ API key authenticated", {
+  logger.info('✅ API key authenticated', {
     userId: keyRecord.user_id,
     keyId: keyRecord.key_id,
     endpoint: req.path,
@@ -407,24 +407,20 @@ const apiKeyAuth = async (req, res, next) => {
  * Scope validation middleware
  * Checks if API key has required scope
  */
-const requireScope = (...requiredScopes) => {
-  return (req, res, next) => {
-    if (!req.user?.scopes) {
-      throw new AuthorizationError("No scopes available");
-    }
+const requireScope = (...requiredScopes) => (req, res, next) => {
+  if (!req.user?.scopes) {
+    throw new AuthorizationError('No scopes available');
+  }
 
-    const hasScope = requiredScopes.some((scope) =>
-      req.user.scopes.includes(scope),
+  const hasScope = requiredScopes.some(scope => req.user.scopes.includes(scope));
+
+  if (!hasScope) {
+    throw new AuthorizationError(
+      `Required scope(s): ${requiredScopes.join(', ')}`,
     );
+  }
 
-    if (!hasScope) {
-      throw new AuthorizationError(
-        `Required scope(s): ${requiredScopes.join(", ")}`,
-      );
-    }
-
-    next();
-  };
+  next();
 };
 
 module.exports = {

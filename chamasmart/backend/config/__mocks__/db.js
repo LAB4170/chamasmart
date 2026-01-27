@@ -10,7 +10,7 @@
  * - Extensible query handlers
  */
 
-console.log("[MOCK] Loading comprehensive mocked database");
+console.log('[MOCK] Loading comprehensive mocked database');
 
 // In-memory database
 const testDB = {
@@ -53,28 +53,28 @@ const queryStats = {
  */
 const queryHandlers = {
   // User queries
-  "SELECT * FROM users WHERE email = $1": (values) => {
+  'SELECT * FROM users WHERE email = $1': values => {
     const email = values[0]?.toLowerCase();
-    const user = Object.values(testDB.users).find((u) => u.email === email);
+    const user = Object.values(testDB.users).find(u => u.email === email);
     return { rows: user ? [user] : [], rowCount: user ? 1 : 0 };
   },
 
-  "SELECT * FROM users WHERE email = $1 OR phone_number = $2": (values) => {
+  'SELECT * FROM users WHERE email = $1 OR phone_number = $2': values => {
     const email = values[0]?.toLowerCase();
     const phone = values[1];
     const user = Object.values(testDB.users).find(
-      (u) => u.email === email || u.phone_number === phone,
+      u => u.email === email || u.phone_number === phone,
     );
     return { rows: user ? [user] : [], rowCount: user ? 1 : 0 };
   },
 
-  "SELECT * FROM users WHERE user_id = $1": (values) => {
+  'SELECT * FROM users WHERE user_id = $1': values => {
     const userId = values[0];
     const user = testDB.users[userId];
     return { rows: user ? [user] : [], rowCount: user ? 1 : 0 };
   },
 
-  "INSERT INTO users": (values, fullQuery) => {
+  'INSERT INTO users': (values, fullQuery) => {
     const userId = counters.user++;
     const user = {
       user_id: userId,
@@ -97,7 +97,7 @@ const queryHandlers = {
     testDB.users[userId] = user;
 
     // Check for RETURNING clause
-    if (fullQuery.includes("RETURNING")) {
+    if (fullQuery.includes('RETURNING')) {
       return {
         rows: [user],
         rowCount: 1,
@@ -119,9 +119,9 @@ const queryHandlers = {
     };
   },
 
-  "UPDATE users": (values, fullQuery) => {
+  'UPDATE users': (values, fullQuery) => {
     // Determine what's being updated
-    if (fullQuery.includes("email_verification_token")) {
+    if (fullQuery.includes('email_verification_token')) {
       const userId = values[values.length - 1];
       if (testDB.users[userId]) {
         testDB.users[userId].email_verification_token = values[0];
@@ -134,7 +134,7 @@ const queryHandlers = {
       return { rowCount: testDB.users[userId] ? 1 : 0 };
     }
 
-    if (fullQuery.includes("phone_verification_code")) {
+    if (fullQuery.includes('phone_verification_code')) {
       const userId = values[values.length - 1];
       if (testDB.users[userId]) {
         testDB.users[userId].phone_verification_code = values[0];
@@ -148,7 +148,7 @@ const queryHandlers = {
       return { rowCount: testDB.users[userId] ? 1 : 0 };
     }
 
-    if (fullQuery.includes("email_verified")) {
+    if (fullQuery.includes('email_verified')) {
       const userId = values[values.length - 1];
       if (testDB.users[userId]) {
         testDB.users[userId].email_verified = true;
@@ -167,7 +167,7 @@ const queryHandlers = {
     return { rowCount: 0 };
   },
 
-  "DELETE FROM users WHERE user_id = $1": (values) => {
+  'DELETE FROM users WHERE user_id = $1': values => {
     const userId = values[0];
     if (testDB.users[userId]) {
       delete testDB.users[userId];
@@ -177,7 +177,7 @@ const queryHandlers = {
   },
 
   // Chama queries
-  "INSERT INTO chamas": (values) => {
+  'INSERT INTO chamas': values => {
     const chamaId = counters.chama++;
     const chama = {
       chama_id: chamaId,
@@ -191,7 +191,7 @@ const queryHandlers = {
     return { rows: [chama], rowCount: 1 };
   },
 
-  "SELECT * FROM chamas WHERE chama_id = $1": (values) => {
+  'SELECT * FROM chamas WHERE chama_id = $1': values => {
     const chamaId = values[0];
     const chama = testDB.chamas[chamaId];
     return { rows: chama ? [chama] : [], rowCount: chama ? 1 : 0 };
@@ -203,19 +203,15 @@ const queryHandlers = {
     return { rowCount: 0 };
   },
 
-  COMMIT: () => {
-    return { rowCount: 0 };
-  },
+  COMMIT: () => ({ rowCount: 0 }),
 
-  ROLLBACK: () => {
-    return { rowCount: 0 };
-  },
+  ROLLBACK: () => ({ rowCount: 0 }),
 };
 
 /**
  * Match query to handler
  */
-const matchQuery = (queryText) => {
+const matchQuery = queryText => {
   const normalized = queryText.trim();
 
   // Exact match first
@@ -226,27 +222,27 @@ const matchQuery = (queryText) => {
   }
 
   // Partial match for complex queries
-  if (normalized.startsWith("SELECT")) {
-    if (normalized.includes("FROM users")) {
-      return queryHandlers["SELECT * FROM users WHERE user_id = $1"];
+  if (normalized.startsWith('SELECT')) {
+    if (normalized.includes('FROM users')) {
+      return queryHandlers['SELECT * FROM users WHERE user_id = $1'];
     }
-    if (normalized.includes("FROM chamas")) {
-      return queryHandlers["SELECT * FROM chamas WHERE chama_id = $1"];
-    }
-  }
-
-  if (normalized.startsWith("INSERT INTO")) {
-    if (normalized.includes("INTO users")) {
-      return queryHandlers["INSERT INTO users"];
-    }
-    if (normalized.includes("INTO chamas")) {
-      return queryHandlers["INSERT INTO chamas"];
+    if (normalized.includes('FROM chamas')) {
+      return queryHandlers['SELECT * FROM chamas WHERE chama_id = $1'];
     }
   }
 
-  if (normalized.startsWith("UPDATE")) {
-    if (normalized.includes("UPDATE users")) {
-      return queryHandlers["UPDATE users"];
+  if (normalized.startsWith('INSERT INTO')) {
+    if (normalized.includes('INTO users')) {
+      return queryHandlers['INSERT INTO users'];
+    }
+    if (normalized.includes('INTO chamas')) {
+      return queryHandlers['INSERT INTO chamas'];
+    }
+  }
+
+  if (normalized.startsWith('UPDATE')) {
+    if (normalized.includes('UPDATE users')) {
+      return queryHandlers['UPDATE users'];
     }
   }
 
@@ -259,11 +255,11 @@ const matchQuery = (queryText) => {
 const mockQuery = jest.fn(async (text, values = []) => {
   queryStats.total++;
 
-  const queryText = typeof text === "string" ? text : text.text;
+  const queryText = typeof text === 'string' ? text : text.text;
   const queryValues = values || [];
 
-  console.log("[MOCK_DB] Query:", queryText.substring(0, 100));
-  console.log("[MOCK_DB] Values:", queryValues);
+  console.log('[MOCK_DB] Query:', queryText.substring(0, 100));
+  console.log('[MOCK_DB] Values:', queryValues);
 
   // Error simulation
   if (simulateError) {
@@ -278,24 +274,24 @@ const mockQuery = jest.fn(async (text, values = []) => {
 
   try {
     // Track query types
-    if (queryText.trim().startsWith("SELECT")) queryStats.selects++;
-    if (queryText.trim().startsWith("INSERT")) queryStats.inserts++;
-    if (queryText.trim().startsWith("UPDATE")) queryStats.updates++;
-    if (queryText.trim().startsWith("DELETE")) queryStats.deletes++;
+    if (queryText.trim().startsWith('SELECT')) queryStats.selects++;
+    if (queryText.trim().startsWith('INSERT')) queryStats.inserts++;
+    if (queryText.trim().startsWith('UPDATE')) queryStats.updates++;
+    if (queryText.trim().startsWith('DELETE')) queryStats.deletes++;
 
     // Find and execute handler
     const handler = matchQuery(queryText);
     if (handler) {
       const result = handler(queryValues, queryText);
-      console.log("[MOCK_DB] Result:", result);
+      console.log('[MOCK_DB] Result:', result);
       return result;
     }
 
     // Default: return empty result
-    console.log("[MOCK_DB] No handler found, returning empty result");
+    console.log('[MOCK_DB] No handler found, returning empty result');
     return { rows: [], rowCount: 0 };
   } catch (err) {
-    console.error("[MOCK_DB] Error:", err.message, err.stack);
+    console.error('[MOCK_DB] Error:', err.message, err.stack);
     throw err;
   }
 });
@@ -303,9 +299,7 @@ const mockQuery = jest.fn(async (text, values = []) => {
 /**
  * Mock client for transactions
  */
-const mockClientQuery = jest.fn(async (text, values) => {
-  return mockQuery(text, values);
-});
+const mockClientQuery = jest.fn(async (text, values) => mockQuery(text, values));
 
 const mockConnect = jest.fn(async () => ({
   query: mockClientQuery,
@@ -318,14 +312,14 @@ const mockConnect = jest.fn(async () => ({
 const testUtils = {
   // Clear all data
   clearAll: () => {
-    Object.keys(testDB).forEach((table) => {
+    Object.keys(testDB).forEach(table => {
       testDB[table] = {};
     });
-    console.log("[MOCK_DB] All tables cleared");
+    console.log('[MOCK_DB] All tables cleared');
   },
 
   // Clear specific table
-  clearTable: (tableName) => {
+  clearTable: tableName => {
     if (testDB[tableName]) {
       testDB[tableName] = {};
       console.log(`[MOCK_DB] Table ${tableName} cleared`);
@@ -333,9 +327,7 @@ const testUtils = {
   },
 
   // Get table data
-  getTable: (tableName) => {
-    return testDB[tableName] || {};
-  },
+  getTable: tableName => testDB[tableName] || {},
 
   // Seed data
   seedData: (tableName, data) => {
@@ -348,27 +340,25 @@ const testUtils = {
   },
 
   // Simulate error
-  simulateError: (errorConfig) => {
+  simulateError: errorConfig => {
     simulateError = {
-      message: errorConfig.message || "Simulated database error",
-      code: errorConfig.code || "23505", // Unique violation
+      message: errorConfig.message || 'Simulated database error',
+      code: errorConfig.code || '23505', // Unique violation
       afterCalls: errorConfig.afterCalls || 1,
     };
     errorCount = 0;
-    console.log("[MOCK_DB] Error simulation configured:", simulateError);
+    console.log('[MOCK_DB] Error simulation configured:', simulateError);
   },
 
   // Get query statistics
-  getStats: () => {
-    return { ...queryStats };
-  },
+  getStats: () => ({ ...queryStats }),
 
   // Reset query statistics
   resetStats: () => {
-    Object.keys(queryStats).forEach((key) => {
+    Object.keys(queryStats).forEach(key => {
       queryStats[key] = 0;
     });
-    console.log("[MOCK_DB] Query stats reset");
+    console.log('[MOCK_DB] Query stats reset');
   },
 
   // Add custom query handler

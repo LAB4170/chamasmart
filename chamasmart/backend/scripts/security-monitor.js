@@ -2,7 +2,7 @@
 
 /**
  * 🔒 Security Monitoring Script for ChamaSmart
- * 
+ *
  * This script monitors for potential security issues and sends alerts
  * Run it as a cron job or background process
  */
@@ -41,13 +41,13 @@ class SecurityMonitor {
 
     if (fs.existsSync(envPath)) {
       const envStats = fs.statSync(envPath);
-      const envPerms = (envStats.mode & parseInt('777', 8)).toString(8);
-      
+      const envPerms = (envStats.mode & 0o777).toString(8);
+
       if (envPerms !== '600') {
         this.alerts.push({
           type: 'CRITICAL',
           message: `.env file has insecure permissions: ${envPerms} (should be 600)`,
-          fix: 'Run: chmod 600 .env'
+          fix: 'Run: chmod 600 .env',
         });
       }
     }
@@ -59,7 +59,7 @@ class SecurityMonitor {
         this.alerts.push({
           type: 'HIGH',
           message: '.env is not in .gitignore',
-          fix: 'Add .env to .gitignore immediately'
+          fix: 'Add .env to .gitignore immediately',
         });
       }
     }
@@ -71,10 +71,10 @@ class SecurityMonitor {
   async checkForHardcodedSecrets() {
     const searchDirs = ['controllers', 'routes', 'middleware', 'utils', 'config'];
     const suspiciousPatterns = [
-      /password\s*=\s*['"][^'"]{1,20}['"]/,  // Short passwords
-      /secret\s*=\s*['"][^'"]{1,20}['"]/,    // Short secrets
-      /api_key\s*=\s*['"][^'"]{1,20}['"]/,   // Short API keys
-      /token\s*=\s*['"][^'"]{1,20}['"]/,     // Short tokens
+      /password\s*=\s*['"][^'"]{1,20}['"]/, // Short passwords
+      /secret\s*=\s*['"][^'"]{1,20}['"]/, // Short secrets
+      /api_key\s*=\s*['"][^'"]{1,20}['"]/, // Short API keys
+      /token\s*=\s*['"][^'"]{1,20}['"]/, // Short tokens
     ];
 
     for (const dir of searchDirs) {
@@ -82,18 +82,18 @@ class SecurityMonitor {
       if (!fs.existsSync(dirPath)) continue;
 
       const files = this.getAllFiles(dirPath);
-      
+
       for (const file of files) {
         if (file.endsWith('.js')) {
           const content = fs.readFileSync(file, 'utf8');
-          
+
           for (const pattern of suspiciousPatterns) {
             const matches = content.match(pattern);
             if (matches) {
               this.alerts.push({
                 type: 'MEDIUM',
                 message: `Potential hardcoded secret in ${path.relative(process.cwd(), file)}: ${matches[0]}`,
-                fix: 'Move secret to environment variables'
+                fix: 'Move secret to environment variables',
               });
             }
           }
@@ -126,7 +126,7 @@ class SecurityMonitor {
       this.alerts.push({
         type: 'HIGH',
         message: 'Secure database configuration not found',
-        fix: 'Implement secure-db.js with connection monitoring'
+        fix: 'Implement secure-db.js with connection monitoring',
       });
     }
 
@@ -138,7 +138,7 @@ class SecurityMonitor {
         this.alerts.push({
           type: 'MEDIUM',
           message: 'Database connection monitoring not implemented',
-          fix: 'Add connection monitoring to database configuration'
+          fix: 'Add connection monitoring to database configuration',
         });
       }
     }
@@ -154,7 +154,7 @@ class SecurityMonitor {
         this.alerts.push({
           type: 'CRITICAL',
           message: `JWT_SECRET is too short: ${jwtSecret.length} characters (minimum 32 required)`,
-          fix: 'Generate a longer JWT secret using: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"'
+          fix: 'Generate a longer JWT secret using: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"',
         });
       }
 
@@ -162,14 +162,14 @@ class SecurityMonitor {
         this.alerts.push({
           type: 'CRITICAL',
           message: 'JWT_SECRET appears to be a default placeholder',
-          fix: 'Generate a new secure JWT secret immediately'
+          fix: 'Generate a new secure JWT secret immediately',
         });
       }
     } else {
       this.alerts.push({
         type: 'CRITICAL',
         message: 'JWT_SECRET is not set',
-        fix: 'Set JWT_SECRET in environment variables'
+        fix: 'Set JWT_SECRET in environment variables',
       });
     }
   }
@@ -180,20 +180,20 @@ class SecurityMonitor {
     const sensitiveFiles = [
       '../.env',
       '../config/secure-db.js',
-      '../config/env-config.js'
+      '../config/env-config.js',
     ];
 
     for (const file of sensitiveFiles) {
       const filePath = path.join(__dirname, file);
       if (fs.existsSync(filePath)) {
         const stats = fs.statSync(filePath);
-        const perms = (stats.mode & parseInt('777', 8)).toString(8);
-        
+        const perms = (stats.mode & 0o777).toString(8);
+
         if (perms !== '600' && perms !== '644') {
           this.alerts.push({
             type: 'MEDIUM',
             message: `${file} has potentially insecure permissions: ${perms}`,
-            fix: 'Run: chmod 600 ' + file
+            fix: `Run: chmod 600 ${file}`,
           });
         }
       }
@@ -238,9 +238,9 @@ class SecurityMonitor {
               total: this.alerts.length,
               critical: grouped.CRITICAL?.length || 0,
               high: grouped.HIGH?.length || 0,
-              medium: grouped.MEDIUM?.length || 0
-            }
-          })
+              medium: grouped.MEDIUM?.length || 0,
+            },
+          }),
         });
         this.log('📡 Security alerts sent to webhook');
       } catch (error) {
@@ -251,17 +251,17 @@ class SecurityMonitor {
 
   async run() {
     this.log('🚀 Starting ChamaSmart Security Monitor...');
-    
+
     try {
       await this.checkEnvironmentSecurity();
       this.checkDatabaseSecurity();
       this.checkJWTSecurity();
       this.checkFilePermissions();
-      
+
       await this.sendAlerts();
-      
+
       this.log('✅ Security monitoring complete');
-      
+
       // Exit with error code if critical issues found
       const criticalIssues = this.alerts.filter(a => a.type === 'CRITICAL');
       if (criticalIssues.length > 0) {
