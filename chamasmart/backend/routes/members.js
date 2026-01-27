@@ -6,8 +6,6 @@ const {
   removeMember,
   getMemberContributions,
   getMemberDetails,
-  suspendMember,
-  reactivateMember,
 } = require("../controllers/memberController");
 const { protect, authorize } = require("../middleware/auth");
 const validate = require("../middleware/validate");
@@ -44,20 +42,6 @@ router.put(
   updateMemberRole,
 );
 
-// Suspend member (temporary removal)
-router.put(
-  "/:chamaId/suspend/:userId",
-  authorize("admin", "chairperson"),
-  suspendMember,
-);
-
-// Reactivate suspended member
-router.put(
-  "/:chamaId/reactivate/:userId",
-  authorize("admin", "chairperson"),
-  reactivateMember,
-);
-
 // Remove member permanently (admin only for safety)
 router.delete("/:chamaId/remove/:userId", authorize("admin"), removeMember);
 
@@ -70,13 +54,6 @@ router.get(
   "/:chamaId/contributions/:userId",
   authorize("member", "admin", "treasurer", "chairperson"),
   getMemberContributions,
-);
-
-// Get member details
-router.get(
-  "/:chamaId/:userId",
-  authorize("member", "admin", "treasurer", "chairperson"),
-  getMemberDetails,
 );
 
 module.exports = router;

@@ -1,7 +1,12 @@
 const pool = require("../config/db");
-const { sendNotification } = require("../utils/notifications");
 const logger = require("../utils/logger");
 const { uploadToStorage } = require("../utils/storage");
+const {
+  sendNotification,
+  sendChamaNotification,
+  sendOfficialNotification,
+  notificationTemplates,
+} = require("../utils/notifications");
 const {
   parsePagination,
   buildLimitClause,
@@ -90,7 +95,7 @@ const getWelfareFund = async (req, res) => {
       } = await pool.query(initQuery, [chamaId]);
       return res.success(
         newFund,
-        "Welfare fund initialized and retrieved successfully"
+        "Welfare fund initialized and retrieved successfully",
       );
     }
 
@@ -126,7 +131,7 @@ const submitClaim = async (req, res) => {
       try {
         proof_document_url = await uploadToStorage(
           req.file,
-          `welfare/${chamaId}/claims`
+          `welfare/${chamaId}/claims`,
         );
       } catch (uploadError) {
         logger.error("Error uploading document:", uploadError);
@@ -197,7 +202,7 @@ const getMemberClaims = async (req, res) => {
       totalCount,
       pageNum,
       limitNum,
-      "Member claims retrieved successfully"
+      "Member claims retrieved successfully",
     );
   } catch (error) {
     logger.error("Error fetching member claims:", error);
@@ -255,7 +260,7 @@ const getChamaClaims = async (req, res) => {
       totalCount,
       pageNum,
       limitNum,
-      "Chama claims retrieved successfully"
+      "Chama claims retrieved successfully",
     );
   } catch (error) {
     logger.error("Error fetching chama claims:", error);
@@ -311,7 +316,7 @@ const approveClaim = async (req, res) => {
       // Update claim status to approved
       await pool.query(
         "UPDATE welfare_claims SET status = 'APPROVED' WHERE id = $1",
-        [claimId]
+        [claimId],
       );
 
       // Process payment (simplified - in reality, you'd integrate with M-Pesa API)
@@ -320,10 +325,11 @@ const approveClaim = async (req, res) => {
       // Notify the claimant
       await sendNotification({
         userId: claimInfo.member_id,
-        title: "Claim Approved",
-        message: `Your welfare claim of KES ${claimInfo.claim_amount} has been approved.`,
-        type: "WELFARE_CLAIM_UPDATE",
-        referenceId: claimId,
+        ...notificationTemplates.welfareClaimApproved(
+          claimInfo.chama_name,
+          claimInfo.claim_amount,
+        ),
+        entityId: claimId,
       });
     }
 
@@ -350,18 +356,11 @@ async function notifyAdminsAboutNewClaim(chamaId, claimId) {
 
     const { rows: admins } = await pool.query(query, [chamaId]);
 
-    // Send push notification to each admin
-    const notificationPromises = admins.map((admin) =>
-      sendNotification({
-        userId: admin.id,
-        title: "New Welfare Claim",
-        message: "A new welfare claim requires your approval",
-        type: "WELFARE_CLAIM_SUBMITTED",
-        referenceId: claimId.toString(),
-      })
-    );
-
-    await Promise.all(notificationPromises);
+    // Send notification to chama officials
+    await sendOfficialNotification(chamaId, {
+      ...notificationTemplates.welfareClaimSubmitted(chamaName, claimAmount),
+      entityId: claimId,
+    });
   } catch (error) {
     logger.error("Error notifying admins:", error);
     // Don't fail the whole operation if notifications fail
@@ -384,23 +383,23 @@ async function processWelfarePayout(claim) {
         status, 
         description
       ) VALUES ($1, $2, $3, 'WELFARE_PAYOUT', $4, 'COMPLETED', 'Welfare claim payout')`,
-      [claim.chama_id, claim.member_id, claim.claim_amount, claim.id]
+      [claim.chama_id, claim.member_id, claim.claim_amount, claim.id],
     );
 
     // Update the claim status
     await pool.query(
       "UPDATE welfare_claims SET status = 'PAID', updated_at = CURRENT_TIMESTAMP WHERE id = $1",
-      [claim.id]
+      [claim.id],
     );
 
     // Update the welfare fund balance
     await pool.query(
       "UPDATE welfare_fund SET balance = balance - $1 WHERE chama_id = $2",
-      [claim.claim_amount, claim.chama_id]
+      [claim.claim_amount, claim.chama_id],
     );
 
     logger.info(
-      `Processed welfare payout of KES ${claim.claim_amount} for claim ${claim.id}`
+      `Processed welfare payout of KES ${claim.claim_amount} for claim ${claim.id}`,
     );
   } catch (error) {
     logger.error("Error processing welfare payout:", error);

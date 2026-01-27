@@ -6,7 +6,6 @@ const {
   getJoinRequests,
   respondToRequest,
   getMyRequests,
-  cancelRequest,
 } = require("../controllers/joinRequestController");
 const validate = require("../middleware/validate");
 const {
@@ -30,11 +29,8 @@ router.use(protect);
 // USER-SPECIFIC ROUTES (FIRST - most specific)
 // ============================================================================
 
-// Get current user's join requests across all chamas
-router.get("/my-requests", getMyRequests);
-
-// Cancel own join request
-router.delete("/:requestId/cancel", cancelRequest);
+// Get my own join requests
+router.get("/my", getMyRequests);
 
 // ============================================================================
 // RESPONDING TO JOIN REQUESTS (Officials only)

@@ -430,16 +430,19 @@ export default {
         errorMessage.value = "";
 
         const payload = {
-          authMethod: authMethod.value,
-          email: authMethod.value === "email" ? email.value : undefined,
-          phone:
+          email: email.value,
+          phoneNumber:
             authMethod.value === "phone"
               ? `${countryCode.value}${phone.value}`
-              : undefined,
-          name: firstName.value || "User",
+              : authMethod.value === "email"
+                ? phone.value
+                : undefined,
+          firstName: firstName.value,
+          lastName: lastName.value || "",
+          password: password.value,
         };
 
-        const response = await api.post("/auth/v2/signup/start", payload);
+        const response = await api.post("/auth/register", payload);
 
         if (response.data.success) {
           signupToken.value = response.data.data.signupToken;
@@ -503,7 +506,7 @@ export default {
     const resendOTP = async () => {
       try {
         isResending.value = true;
-        const response = await api.post("/auth/v2/signup/resend-otp", {
+        const response = await api.post("/auth/verify/email", {
           signupToken: signupToken.value,
         });
 
@@ -538,7 +541,7 @@ export default {
           password: password.value || undefined,
         };
 
-        const response = await api.post("/auth/v2/signup/verify-otp", payload);
+        const response = await api.post("/auth/verify/email", payload);
 
         if (response.data.success) {
           // Store tokens

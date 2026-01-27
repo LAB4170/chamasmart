@@ -40,18 +40,11 @@ router.put(
 // WELFARE FUND INFORMATION
 // ============================================================================
 
-// Get welfare fund balance and details
+// Get welfare fund information
 router.get(
   "/:chamaId/fund",
   authorize("member", "admin", "treasurer", "chairperson"),
   welfareController.getWelfareFund,
-);
-
-// Get welfare fund transaction history
-router.get(
-  "/:chamaId/fund/transactions",
-  authorize("member", "admin", "treasurer", "chairperson"),
-  welfareController.getWelfareFundTransactions,
 );
 
 // ============================================================================
@@ -82,13 +75,6 @@ router.get(
   welfareController.getMemberClaims,
 );
 
-// Get specific claim by ID
-router.get(
-  "/:chamaId/claims/:claimId",
-  authorize("member", "admin", "treasurer", "chairperson"),
-  welfareController.getClaimById,
-);
-
 // ============================================================================
 // CLAIM APPROVAL (Officials only)
 // ============================================================================
@@ -99,13 +85,6 @@ router.post(
   authorize("admin", "treasurer", "chairperson"),
   validate(approveClaimSchema),
   welfareController.approveClaim,
-);
-
-// Process approved claim payment
-router.post(
-  "/claims/:claimId/process-payment",
-  authorize("treasurer", "admin"),
-  welfareController.processClaimPayment,
 );
 
 module.exports = router;

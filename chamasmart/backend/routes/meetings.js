@@ -5,9 +5,7 @@ const {
   getChamaMeetings,
   getMeetingById,
   updateMeeting,
-  deleteMeeting,
   recordAttendance,
-  getMeetingAttendance,
 } = require("../controllers/meetingController");
 const { protect, authorize } = require("../middleware/auth");
 const validate = require("../middleware/validate");
@@ -59,30 +57,12 @@ router.put(
   updateMeeting,
 );
 
-// Delete meeting (admin only for safety)
-router.delete(
-  "/:chamaId/:meetingId",
-  authorize("admin", "treasurer", "chairperson"),
-  deleteMeeting,
-);
-
-// ============================================================================
-// ATTENDANCE TRACKING
-// ============================================================================
-
 // Record attendance for a meeting (officials only)
 router.post(
   "/:chamaId/:meetingId/attendance",
   authorize("admin", "treasurer", "chairperson"),
   validate(recordAttendanceSchema),
   recordAttendance,
-);
-
-// Get attendance records for a meeting
-router.get(
-  "/:chamaId/:meetingId/attendance",
-  authorize("member", "admin", "treasurer", "chairperson"),
-  getMeetingAttendance,
 );
 
 module.exports = router;

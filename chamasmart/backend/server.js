@@ -17,8 +17,31 @@ const {
 } = require("./middleware/metrics");
 const { securityMiddleware } = require("./middleware/security");
 const { responseFormatterMiddleware } = require("./utils/responseFormatter");
-const { cacheControlMiddleware } = require("./middleware/cacheControl");
 const { validateQueryParams } = require("./middleware/queryValidation");
+
+// Import enhanced security and error handling
+const {
+  helmetConfig,
+  xssProtection,
+  sqlInjectionProtection,
+  suspiciousActivityDetection,
+  securityHeaders,
+  ipRateLimit,
+} = require("./middleware/enhancedSecurity");
+const {
+  errorHandler,
+  notFoundHandler,
+} = require("./middleware/enhancedErrorHandler");
+
+// Import advanced caching
+const {
+  userProfileCache,
+  chamaListCache,
+  chamaDetailsCache,
+  loanListCache,
+  contributionListCache,
+  meetingListCache,
+} = require("./middleware/advancedCache");
 
 // Initialize database connection
 require("./config/db");
@@ -28,41 +51,33 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5005;
 
-// Apply security middleware FIRST (before all routes)
-securityMiddleware(app);
+// Apply enhanced security middleware FIRST (before all routes)
+app.use(helmetConfig);
+app.use(securityHeaders);
+app.use(ipRateLimit);
+app.use(xssProtection);
+app.use(sqlInjectionProtection);
+app.use(suspiciousActivityDetection);
 
 // Basic health check (no middleware)
 app.get("/api/ping", (req, res) =>
   res.json({ success: true, message: "pong" }),
 );
-app.get("/health", (req, res) =>
-  res.json({
-    uptime: process.uptime(),
-    message: "OK",
-    timestamp: Date.now(),
-    port: PORT,
-  }),
-);
 
 // Trust proxy
 app.set("trust proxy", 1);
 
-// Middleware
+// Core middleware
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 
-// Request logging
+// Request logging and validation
 app.use(requestLogger);
-
-// Query parameter validation
 app.use(validateQueryParams);
 
-// Standard response formatter middleware
+// Response formatting
 app.use(responseFormatterMiddleware);
-
-// Cache control headers
-app.use(cacheControlMiddleware);
 
 // Metrics
 app.use(metricsMiddleware);
@@ -157,10 +172,9 @@ logger.info("Rate limiting middleware activated", {
 // End Rate Limiting Section
 // ============================================================================
 
+// ============================================================================
 // API Routes
-app.get("/api/ping", (req, res) =>
-  res.json({ success: true, message: "pong" }),
-);
+// ============================================================================
 
 // Legacy auth routes (existing)
 app.use("/api/auth", require("./routes/auth"));
@@ -180,7 +194,6 @@ app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/welfare", require("./routes/welfareRoutes"));
 
 // Health/Metrics
-app.get("/health", healthCheckEndpoint);
 app.get("/metrics", metricsEndpoint);
 app.get("/api/health", healthCheckEndpoint);
 app.get("/readiness", readinessCheckEndpoint);
@@ -265,6 +278,16 @@ if (process.env.NODE_ENV !== "test") {
 } else {
   logger.info("Skipping Socket.io initialization in test environment");
 }
+
+// ============================================================================
+// ENHANCED ERROR HANDLING (must be last)
+// ============================================================================
+
+// 404 handler
+app.use(notFoundHandler);
+
+// Global error handler
+app.use(errorHandler);
 
 module.exports = app;
 module.exports.server = server;

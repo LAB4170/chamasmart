@@ -5,6 +5,7 @@
 
 const pool = require("../config/db");
 const logger = require("../utils/logger");
+const { logAuditEvent, EVENT_TYPES, SEVERITY } = require("../utils/auditLog");
 const { toCents, fromCents } = require("./contributionController");
 
 // LOAN INTEREST CALCULATOR
@@ -821,11 +822,545 @@ const applyForLoan = async (req, res) => {
 };
 
 // ============================================================================
+// ADDITIONAL LOAN MANAGEMENT FUNCTIONS
+// ============================================================================
+
+// @desc    Get all loans for a chama
+// @route   GET /api/loans/:chamaId
+// @access  Private
+const getChamaLoans = async (req, res) => {
+  try {
+    const { chamaId } = req.params;
+    const { status, page = 1, limit = 20 } = req.query;
+
+    const offset = (page - 1) * limit;
+    let whereClause = "WHERE l.chama_id = $1";
+    const params = [chamaId];
+
+    if (status) {
+      whereClause += " AND l.status = $2";
+      params.push(status);
+    }
+
+    const result = await pool.query(
+      `SELECT 
+        l.*,
+        u.first_name || ' ' || u.last_name as borrower_name,
+        u.email as borrower_email,
+        m.role as borrower_role
+       FROM loans l
+       JOIN users u ON l.borrower_id = u.user_id
+       JOIN memberships m ON l.borrower_id = m.user_id AND m.chama_id = l.chama_id
+       ${whereClause}
+       ORDER BY l.created_at DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset],
+    );
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) as total FROM loans l ${whereClause}`,
+      params,
+    );
+
+    const loans = result.rows.map((loan) => ({
+      ...loan,
+      loan_amount: fromCents(loan.loan_amount),
+      total_repayable: fromCents(loan.total_repayable),
+      amount_paid: fromCents(loan.amount_paid),
+      balance: fromCents(loan.balance),
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        loans,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: parseInt(countResult.rows[0].total),
+          pages: Math.ceil(countResult.rows[0].total / limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Get chama loans error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving loans",
+    });
+  }
+};
+
+// @desc    Get loan details by ID
+// @route   GET /api/loans/:chamaId/:loanId
+// @access  Private
+const getLoanById = async (req, res) => {
+  try {
+    const { chamaId, loanId } = req.params;
+
+    const result = await pool.query(
+      `SELECT 
+        l.*,
+        u.first_name || ' ' || u.last_name as borrower_name,
+        u.email as borrower_email,
+        m.role as borrower_role
+       FROM loans l
+       JOIN users u ON l.borrower_id = u.user_id
+       JOIN memberships m ON l.borrower_id = m.user_id AND m.chama_id = l.chama_id
+       WHERE l.loan_id = $1 AND l.chama_id = $2`,
+      [loanId, chamaId],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Loan not found",
+      });
+    }
+
+    const loan = {
+      ...result.rows[0],
+      loan_amount: fromCents(result.rows[0].loan_amount),
+      total_repayable: fromCents(result.rows[0].total_repayable),
+      amount_paid: fromCents(result.rows[0].amount_paid),
+      balance: fromCents(result.rows[0].balance),
+    };
+
+    // Get loan schedule
+    const scheduleResult = await pool.query(
+      "SELECT * FROM loan_schedules WHERE loan_id = $1 ORDER BY installment_number",
+      [loanId],
+    );
+
+    const schedule = scheduleResult.rows.map((installment) => ({
+      ...installment,
+      principal_amount: fromCents(installment.principal_amount),
+      interest_amount: fromCents(installment.interest_amount),
+      total_amount: fromCents(installment.total_amount),
+      balance: fromCents(installment.balance),
+    }));
+
+    // Get guarantors
+    const guarantorsResult = await pool.query(
+      `SELECT 
+        lg.*,
+        u.first_name || ' ' || u.last_name as guarantor_name,
+        u.email as guarantor_email
+       FROM loan_guarantors lg
+       JOIN users u ON lg.guarantor_id = u.user_id
+       WHERE lg.loan_id = $1`,
+      [loanId],
+    );
+
+    const guarantors = guarantorsResult.rows.map((guarantor) => ({
+      ...guarantor,
+      guarantee_amount: fromCents(guarantor.guarantee_amount),
+    }));
+
+    // Get repayments
+    const repaymentsResult = await pool.query(
+      `SELECT * FROM loan_repayments WHERE loan_id = $1 ORDER BY payment_date DESC`,
+      [loanId],
+    );
+
+    const repayments = repaymentsResult.rows.map((repayment) => ({
+      ...repayment,
+      amount: fromCents(repayment.amount),
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        loan,
+        schedule,
+        guarantors,
+        repayments,
+      },
+    });
+  } catch (error) {
+    console.error("Get loan by ID error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving loan details",
+    });
+  }
+};
+
+// @desc    Approve loan application
+// @route   PUT /api/loans/:chamaId/:loanId/approve
+// @access  Private (Officials only)
+const approveLoan = async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const { chamaId, loanId } = req.params;
+    const { approvedAmount, interestRate, termMonths, notes } = req.body;
+    const userId = req.user.user_id;
+
+    // Check if user is authorized
+    const memberCheck = await client.query(
+      "SELECT role FROM memberships WHERE user_id = $1 AND chama_id = $2",
+      [userId, chamaId],
+    );
+
+    if (
+      memberCheck.rows.length === 0 ||
+      !["CHAIRPERSON", "TREASURER", "ADMIN"].includes(memberCheck.rows[0].role)
+    ) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to approve loans",
+      });
+    }
+
+    // Get loan details
+    const loanResult = await client.query(
+      "SELECT * FROM loans WHERE loan_id = $1 AND chama_id = $2 AND status = 'pending'",
+      [loanId, chamaId],
+    );
+
+    if (loanResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({
+        success: false,
+        message: "Loan not found or already processed",
+      });
+    }
+
+    const loan = loanResult.rows[0];
+    const approvedAmountCents = toCents(
+      approvedAmount || fromCents(loan.loan_amount),
+    );
+
+    // Calculate schedule
+    const schedule = LoanCalculator.calculateFlatInterest(
+      approvedAmountCents,
+      interestRate || 10,
+      termMonths || 12,
+    );
+
+    // Update loan
+    await client.query(
+      `UPDATE loans 
+       SET status = 'approved',
+           approved_amount = $1,
+           interest_rate = $2,
+           term_months = $3,
+           total_repayable = $4,
+           approved_by = $5,
+           approved_at = NOW(),
+           approval_notes = $6
+       WHERE loan_id = $7`,
+      [
+        approvedAmountCents,
+        interestRate || 10,
+        termMonths || 12,
+        schedule.totalRepayable,
+        userId,
+        notes,
+        loanId,
+      ],
+    );
+
+    // Create loan schedule
+    for (const installment of schedule.installments) {
+      await client.query(
+        `INSERT INTO loan_schedules 
+         (loan_id, installment_number, principal_amount, interest_amount, total_amount, balance, due_date)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          loanId,
+          installment.installmentNumber,
+          installment.principalAmount,
+          installment.interestAmount,
+          installment.totalAmount,
+          installment.balance,
+          installment.dueDate,
+        ],
+      );
+    }
+
+    await client.query("COMMIT");
+
+    await logAuditEvent({
+      eventType: EVENT_TYPES.LOAN_APPROVED,
+      userId: userId,
+      action: "Approved loan application",
+      entityType: "loan",
+      entityId: loanId,
+      metadata: {
+        chamaId,
+        borrowerId: loan.borrower_id,
+        approvedAmount: approvedAmount,
+        interestRate,
+        termMonths,
+      },
+      severity: SEVERITY.HIGH,
+    });
+
+    res.json({
+      success: true,
+      message: "Loan approved successfully",
+      data: {
+        loanId,
+        approvedAmount,
+        totalRepayable: fromCents(schedule.totalRepayable),
+        monthlyPayment: fromCents(schedule.monthlyPayment),
+      },
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Approve loan error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error approving loan",
+    });
+  } finally {
+    client.release();
+  }
+};
+
+// @desc    Reject loan application
+// @route   PUT /api/loans/:chamaId/:loanId/reject
+// @access  Private (Officials only)
+const rejectLoan = async (req, res) => {
+  try {
+    const { chamaId, loanId } = req.params;
+    const { reason } = req.body;
+    const userId = req.user.user_id;
+
+    // Check if user is authorized
+    const memberCheck = await pool.query(
+      "SELECT role FROM memberships WHERE user_id = $1 AND chama_id = $2",
+      [userId, chamaId],
+    );
+
+    if (
+      memberCheck.rows.length === 0 ||
+      !["CHAIRPERSON", "TREASURER", "ADMIN"].includes(memberCheck.rows[0].role)
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to reject loans",
+      });
+    }
+
+    // Update loan
+    const result = await pool.query(
+      `UPDATE loans 
+       SET status = 'rejected',
+           rejected_by = $1,
+           rejected_at = NOW(),
+           rejection_reason = $2
+       WHERE loan_id = $3 AND chama_id = $4 AND status = 'pending'
+       RETURNING *`,
+      [userId, reason, loanId, chamaId],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Loan not found or already processed",
+      });
+    }
+
+    await logAuditEvent({
+      eventType: EVENT_TYPES.LOAN_REJECTED,
+      userId: userId,
+      action: "Rejected loan application",
+      entityType: "loan",
+      entityId: loanId,
+      metadata: {
+        chamaId,
+        borrowerId: result.rows[0].borrower_id,
+        reason,
+      },
+      severity: SEVERITY.MEDIUM,
+    });
+
+    res.json({
+      success: true,
+      message: "Loan rejected successfully",
+    });
+  } catch (error) {
+    console.error("Reject loan error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error rejecting loan",
+    });
+  }
+};
+
+// @desc    Make loan repayment
+// @route   POST /api/loans/:chamaId/:loanId/repay
+// @access  Private
+const makeRepayment = async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const { chamaId, loanId } = req.params;
+    const { amount, paymentMethod = "cash", notes } = req.body;
+    const userId = req.user.user_id;
+
+    const amountCents = toCents(amount);
+
+    // Get loan details
+    const loanResult = await client.query(
+      "SELECT * FROM loans WHERE loan_id = $1 AND chama_id = $2 AND status IN ('approved', 'disbursed')",
+      [loanId, chamaId],
+    );
+
+    if (loanResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({
+        success: false,
+        message: "Loan not found or not in repayable status",
+      });
+    }
+
+    const loan = loanResult.rows[0];
+    const newBalance = Math.max(0, loan.balance - amountCents);
+    const newAmountPaid = loan.amount_paid + amountCents;
+
+    // Update loan
+    await client.query(
+      `UPDATE loans 
+       SET amount_paid = $1,
+           balance = $2,
+           status = CASE WHEN $2 = 0 THEN 'completed' ELSE status END,
+           last_payment_date = NOW()
+       WHERE loan_id = $3`,
+      [newAmountPaid, newBalance, loanId],
+    );
+
+    // Record repayment
+    await client.query(
+      `INSERT INTO loan_repayments 
+       (loan_id, payer_id, amount, payment_method, notes, payment_date)
+       VALUES ($1, $2, $3, $4, $5, NOW())
+       RETURNING *`,
+      [loanId, userId, amountCents, paymentMethod, notes],
+    );
+
+    await client.query("COMMIT");
+
+    await logAuditEvent({
+      eventType: EVENT_TYPES.LOAN_REPAYMENT,
+      userId: userId,
+      action: "Made loan repayment",
+      entityType: "loan",
+      entityId: loanId,
+      metadata: {
+        chamaId,
+        amount,
+        paymentMethod,
+        remainingBalance: fromCents(newBalance),
+      },
+      severity: SEVERITY.MEDIUM,
+    });
+
+    res.json({
+      success: true,
+      message: "Repayment recorded successfully",
+      data: {
+        amount,
+        remainingBalance: fromCents(newBalance),
+        isCompleted: newBalance === 0,
+      },
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Make repayment error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error processing repayment",
+    });
+  } finally {
+    client.release();
+  }
+};
+
+// @desc    Get user's loan history
+// @route   GET /api/loans/my-loans
+// @access  Private
+const getUserLoans = async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+    const { status, page = 1, limit = 20 } = req.query;
+
+    const offset = (page - 1) * limit;
+    let whereClause = "WHERE l.borrower_id = $1";
+    const params = [userId];
+
+    if (status) {
+      whereClause += " AND l.status = $2";
+      params.push(status);
+    }
+
+    const result = await pool.query(
+      `SELECT 
+        l.*,
+        c.name as chama_name,
+        c.type as chama_type
+       FROM loans l
+       JOIN chamas c ON l.chama_id = c.chama_id
+       ${whereClause}
+       ORDER BY l.created_at DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset],
+    );
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) as total FROM loans l ${whereClause}`,
+      params,
+    );
+
+    const loans = result.rows.map((loan) => ({
+      ...loan,
+      loan_amount: fromCents(loan.loan_amount),
+      total_repayable: fromCents(loan.total_repayable),
+      amount_paid: fromCents(loan.amount_paid),
+      balance: fromCents(loan.balance),
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        loans,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: parseInt(countResult.rows[0].total),
+          pages: Math.ceil(countResult.rows[0].total / limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Get user loans error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving loan history",
+    });
+  }
+};
+
+// ============================================================================
 // EXPORTS
 // ============================================================================
 
 module.exports = {
   applyForLoan,
+  getChamaLoans,
+  getLoanById,
+  approveLoan,
+  rejectLoan,
+  makeRepayment,
+  getUserLoans,
   // Export services
   LoanCalculator,
   GuarantorService,

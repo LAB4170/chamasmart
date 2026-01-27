@@ -6,8 +6,6 @@ const {
   getUnreadCount,
   markAsRead,
   markAllAsRead,
-  deleteNotification,
-  deleteAllRead,
 } = require("../controllers/notificationController");
 const { applyRateLimiting } = require("../middleware/rateLimiting");
 
@@ -36,11 +34,5 @@ router.put("/:id/read", markAsRead);
 
 // Mark all notifications as read (with rate limiting)
 router.put("/read-all", applyRateLimiting, markAllAsRead);
-
-// Delete specific notification
-router.delete("/:id", deleteNotification);
-
-// Delete all read notifications (with rate limiting)
-router.delete("/read/all", applyRateLimiting, deleteAllRead);
 
 module.exports = router;

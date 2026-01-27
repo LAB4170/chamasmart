@@ -880,311 +880,310 @@ const register = async (req, res) => {
       message: "Registration service error",
     });
   }
+};
 
-  // ============================================================================
-  // REFACTORED LOGIN ENDPOINT
-  // ============================================================================
+// ============================================================================
+// LOGIN ENDPOINT
+// ============================================================================
 
-  const login = async (req, res) => {
-    const { email, password } = req.body;
-    const auditContext = {
-      ipAddress: req.ip,
-      userAgent: req.get("user-agent"),
+const login = async (req, res) => {
+  const { email, password } = req.body;
+  const auditContext = {
+    ipAddress: req.ip,
+    userAgent: req.get("user-agent"),
+    metadata: {
+      loginMethod: "password",
+      email: email,
+    },
+  };
+
+  try {
+    // Log login attempt
+    await logAuditEvent({
+      eventType: EVENT_TYPES.AUTH_LOGIN_ATTEMPT,
+      userId: null,
+      action: "Login attempt",
+      entityType: "user",
+      entityId: email,
+      metadata: auditContext.metadata,
+      ipAddress: auditContext.ipAddress,
+      userAgent: auditContext.userAgent,
+      severity: SEVERITY.MEDIUM,
+    });
+
+    const clientIP = req.ip || req.connection.remoteAddress;
+
+    // === RATE LIMITING (by email + IP) ===
+    const rateLimitKey = `login:${email}:${clientIP}`;
+    const rateLimit = await RateLimiter.checkLimit(
+      rateLimitKey,
+      SECURITY_CONFIG.LOGIN_ATTEMPTS,
+    );
+
+    if (!rateLimit.allowed) {
+      logger.logSecurityEvent("Account locked - too many login attempts", {
+        email,
+        ip: clientIP,
+        resetAt: rateLimit.resetAt,
+      });
+
+      return res.status(429).json({
+        success: false,
+        message: rateLimit.lockedOut
+          ? `Account temporarily locked due to too many failed attempts. Try again at ${rateLimit.resetAt.toISOString()}`
+          : "Too many login attempts. Please try again later.",
+        resetAt: rateLimit.resetAt,
+        attemptsRemaining: rateLimit.remaining,
+      });
+    }
+
+    // === FIND USER ===
+    const result = await pool.query("SELECT * FROM users WHERE email = $1", [
+      email.toLowerCase(),
+    ]);
+
+    if (result.rows.length === 0) {
+      logger.logSecurityEvent("Failed login - user not found", {
+        email,
+        ip: clientIP,
+      });
+
+      // Don't reveal if user exists
+      return res.status(401).json({
+        success: false,
+        message: "Invalid credentials",
+        attemptsRemaining: rateLimit.remaining - 1,
+      });
+    }
+
+    const user = result.rows[0];
+
+    // === VERIFY PASSWORD ===
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+
+    if (!isMatch) {
+      logger.logSecurityEvent("Failed login - incorrect password", {
+        userId: user.user_id,
+        email,
+        ip: clientIP,
+      });
+
+      return res.status(401).json({
+        success: false,
+        message: "Invalid credentials",
+        attemptsRemaining: rateLimit.remaining - 1,
+      });
+    }
+
+    // === CHECK EMAIL VERIFICATION ===
+    if (
+      !user.email_verified &&
+      process.env.REQUIRE_VERIFIED_EMAIL !== "false"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Please verify your email address before logging in",
+        code: "EMAIL_NOT_VERIFIED",
+      });
+    }
+
+    // === SUCCESSFUL LOGIN - RESET RATE LIMIT ===
+    await RateLimiter.reset(rateLimitKey);
+
+    // === GENERATE TOKENS ===
+    const accessToken = TokenService.generateAccessToken(user);
+    const refreshToken = TokenService.generateRefreshToken(user);
+
+    // === STORE REFRESH TOKEN ===
+    await pool.query(
+      `INSERT INTO refresh_tokens (user_id, token, expires_at)
+       VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
+      [user.user_id, refreshToken],
+    );
+
+    // === UPDATE LAST LOGIN ===
+    await pool.query(
+      `UPDATE users SET last_login_at = NOW(), last_login_ip = $1 WHERE user_id = $2`,
+      [clientIP, user.user_id],
+    );
+
+    // Log successful login
+    await logAuditEvent({
+      eventType: EVENT_TYPES.AUTH_LOGIN,
+      userId: user.user_id,
+      action: "User logged in",
+      entityType: "user",
+      entityId: user.user_id,
       metadata: {
         loginMethod: "password",
-        email: email,
       },
-    };
+      ipAddress: auditContext.ipAddress,
+      userAgent: auditContext.userAgent,
+      severity: SEVERITY.LOW,
+    });
 
-    try {
-      // Log login attempt
-      await logAuditEvent({
-        eventType: EVENT_TYPES.AUTH_LOGIN_ATTEMPT,
-        userId: null,
-        action: "Login attempt",
-        entityType: "user",
-        entityId: email,
-        metadata: auditContext.metadata,
-        ipAddress: auditContext.ipAddress,
-        userAgent: auditContext.userAgent,
-        severity: SEVERITY.MEDIUM,
-      });
-
-      const clientIP = req.ip || req.connection.remoteAddress;
-
-      // === RATE LIMITING (by email + IP) ===
-      const rateLimitKey = `login:${email}:${clientIP}`;
-      const rateLimit = await RateLimiter.checkLimit(
-        rateLimitKey,
-        SECURITY_CONFIG.LOGIN_ATTEMPTS,
-      );
-
-      if (!rateLimit.allowed) {
-        logger.logSecurityEvent("Account locked - too many login attempts", {
-          email,
-          ip: clientIP,
-          resetAt: rateLimit.resetAt,
-        });
-
-        return res.status(429).json({
-          success: false,
-          message: rateLimit.lockedOut
-            ? `Account temporarily locked due to too many failed attempts. Try again at ${rateLimit.resetAt.toISOString()}`
-            : "Too many login attempts. Please try again later.",
-          resetAt: rateLimit.resetAt,
-          attemptsRemaining: rateLimit.remaining,
-        });
-      }
-
-      // === FIND USER ===
-      const result = await pool.query("SELECT * FROM users WHERE email = $1", [
-        email.toLowerCase(),
-      ]);
-
-      if (result.rows.length === 0) {
-        logger.logSecurityEvent("Failed login - user not found", {
-          email,
-          ip: clientIP,
-        });
-
-        // Don't reveal if user exists
-        return res.status(401).json({
-          success: false,
-          message: "Invalid credentials",
-          attemptsRemaining: rateLimit.remaining - 1,
-        });
-      }
-
-      const user = result.rows[0];
-
-      // === VERIFY PASSWORD ===
-      const isMatch = await bcrypt.compare(password, user.password_hash);
-
-      if (!isMatch) {
-        logger.logSecurityEvent("Failed login - incorrect password", {
-          userId: user.user_id,
-          email,
-          ip: clientIP,
-        });
-
-        return res.status(401).json({
-          success: false,
-          message: "Invalid credentials",
-          attemptsRemaining: rateLimit.remaining - 1,
-        });
-      }
-
-      // === CHECK EMAIL VERIFICATION ===
-      if (
-        !user.email_verified &&
-        process.env.REQUIRE_VERIFIED_EMAIL !== "false"
-      ) {
-        return res.status(403).json({
-          success: false,
-          message: "Please verify your email address before logging in",
-          code: "EMAIL_NOT_VERIFIED",
-        });
-      }
-
-      // === SUCCESSFUL LOGIN - RESET RATE LIMIT ===
-      await RateLimiter.reset(rateLimitKey);
-
-      // === GENERATE TOKENS ===
-      const accessToken = TokenService.generateAccessToken(user);
-      const refreshToken = TokenService.generateRefreshToken(user);
-
-      // === STORE REFRESH TOKEN ===
-      await pool.query(
-        `INSERT INTO refresh_tokens (user_id, token, expires_at)
-         VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
-        [user.user_id, refreshToken],
-      );
-
-      // === UPDATE LAST LOGIN ===
-      await pool.query(
-        `UPDATE users SET last_login_at = NOW(), last_login_ip = $1 WHERE user_id = $2`,
-        [clientIP, user.user_id],
-      );
-
-      // Log successful login
-      await logAuditEvent({
-        eventType: EVENT_TYPES.AUTH_LOGIN,
-        userId: user.user_id,
-        action: "User logged in",
-        entityType: "user",
-        entityId: user.user_id,
-        metadata: {
-          loginMethod: "password",
+    // Return success response
+    return res.json({
+      success: true,
+      data: {
+        user: {
+          id: user.user_id,
+          email: user.email,
+          firstName: user.first_name,
+          lastName: user.last_name,
+          role: user.role,
         },
-        ipAddress: auditContext.ipAddress,
-        userAgent: auditContext.userAgent,
-        severity: SEVERITY.LOW,
-      });
-
-      // Return success response
-      return res.json({
-        success: true,
-        data: {
-          user: {
-            id: user.user_id,
-            email: user.email,
-            firstName: user.first_name,
-            lastName: user.last_name,
-            role: user.role,
-          },
-          tokens: {
-            accessToken,
-            refreshToken,
-            expiresIn: SECURITY_CONFIG.JWT.ACCESS_TOKEN_EXPIRY,
-          },
+        tokens: {
+          accessToken,
+          refreshToken,
+          expiresIn: SECURITY_CONFIG.JWT.ACCESS_TOKEN_EXPIRY,
         },
-      });
-    } catch (error) {
-      logger.logError(error, { context: "auth_login", email: req.body?.email });
+      },
+    });
+  } catch (error) {
+    logger.logError(error, { context: "auth_login", email: req.body?.email });
 
-      // Log the error in audit log
-      await logAuditEvent({
-        eventType: EVENT_TYPES.AUTH_FAILED_LOGIN,
-        userId: null,
-        action: "Login error",
-        entityType: "user",
-        entityId: req.body?.email,
-        metadata: {
-          error: error.message,
-          stack:
-            process.env.NODE_ENV === "development" ? error.stack : undefined,
-        },
-        ipAddress: req.ip,
-        userAgent: req.get("user-agent"),
-        severity: SEVERITY.HIGH,
-      });
+    // Log the error in audit log
+    await logAuditEvent({
+      eventType: EVENT_TYPES.AUTH_FAILED_LOGIN,
+      userId: null,
+      action: "Login error",
+      entityType: "user",
+      entityId: req.body?.email,
+      metadata: {
+        error: error.message,
+        stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      },
+      ipAddress: req.ip,
+      userAgent: req.get("user-agent"),
+      severity: SEVERITY.HIGH,
+    });
 
-      return res.status(500).json({
+    return res.status(500).json({
+      success: false,
+      message: "Error logging in",
+    });
+  }
+};
+
+// ============================================================================
+// EMAIL VERIFICATION ENDPOINT
+// ============================================================================
+
+const verifyEmail = async (req, res) => {
+  const { token } = req.body;
+  const userId = req.user?.user_id;
+
+  if (!token) {
+    return res.status(400).json({
+      success: false,
+      message: "Verification token is required",
+    });
+  }
+
+  try {
+    // Verify the email verification token
+    const decoded = TokenService.verify(token, "email_verification");
+
+    if (decoded.userId !== userId) {
+      return res.status(403).json({
         success: false,
-        message: "Error logging in",
+        message: "Invalid verification token",
       });
     }
-  };
 
-  // ============================================================================
-  // EMAIL VERIFICATION ENDPOINT
-  // ============================================================================
+    // Update user's email verification status
+    await pool.query(
+      "UPDATE users SET email_verified = true, updated_at = NOW() WHERE user_id = $1",
+      [userId],
+    );
 
-  const verifyEmail = async (req, res) => {
-    const { token } = req.body;
-    const userId = req.user?.user_id;
+    // Log successful verification
+    await logAuditEvent({
+      eventType: EVENT_TYPES.AUTH_EMAIL_VERIFIED,
+      userId: userId,
+      action: "Email verified",
+      entityType: "user",
+      entityId: userId,
+      ipAddress: req.ip,
+      userAgent: req.get("user-agent"),
+      severity: SEVERITY.LOW,
+    });
 
-    if (!token) {
+    res.json({
+      success: true,
+      message: "Email verified successfully",
+    });
+  } catch (error) {
+    logger.logError(error, {
+      context: "verifyEmail",
+      userId,
+      token: token.substring(0, 10) + "...",
+    });
+
+    res.status(400).json({
+      success: false,
+      message: "Invalid or expired verification token",
+    });
+  }
+};
+
+// ============================================================================
+// PHONE VERIFICATION ENDPOINT
+// ============================================================================
+
+const verifyPhone = async (req, res) => {
+  const { otp } = req.body;
+  const userId = req.user?.user_id;
+
+  if (!otp) {
+    return res.status(400).json({
+      success: false,
+      message: "OTP is required",
+    });
+  }
+
+  try {
+    // Verify the phone OTP
+    const result = await OTPService.verifyPhoneOTP(userId, otp);
+
+    if (!result.valid) {
       return res.status(400).json({
         success: false,
-        message: "Verification token is required",
+        message: result.message || "Invalid OTP",
       });
     }
 
-    try {
-      // Verify the email verification token
-      const decoded = TokenService.verify(token, "email_verification");
+    // Update user's phone verification status
+    await pool.query(
+      "UPDATE users SET phone_verified = true, updated_at = NOW() WHERE user_id = $1",
+      [userId],
+    );
 
-      if (decoded.userId !== userId) {
-        return res.status(403).json({
-          success: false,
-          message: "Invalid verification token",
-        });
-      }
+    // Log successful verification
+    await logAuditEvent({
+      eventType: EVENT_TYPES.AUTH_PHONE_VERIFIED,
+      userId: userId,
+      action: "Phone verified",
+      entityType: "user",
+      entityId: userId,
+      ipAddress: req.ip,
+      userAgent: req.get("user-agent"),
+      severity: SEVERITY.LOW,
+    });
 
-      // Update user's email verification status
-      await pool.query(
-        "UPDATE users SET email_verified = true, updated_at = NOW() WHERE user_id = $1",
-        [userId],
-      );
+    res.json({
+      success: true,
+      message: "Phone verified successfully",
+    });
+  } catch (error) {
+    logger.logError(error, { context: "verifyPhone", userId });
 
-      // Log successful verification
-      await logAuditEvent({
-        eventType: EVENT_TYPES.AUTH_EMAIL_VERIFIED,
-        userId: userId,
-        action: "Email verified",
-        entityType: "user",
-        entityId: userId,
-        ipAddress: req.ip,
-        userAgent: req.get("user-agent"),
-        severity: SEVERITY.LOW,
-      });
-
-      res.json({
-        success: true,
-        message: "Email verified successfully",
-      });
-    } catch (error) {
-      logger.logError(error, {
-        context: "verifyEmail",
-        userId,
-        token: token.substring(0, 10) + "...",
-      });
-
-      res.status(400).json({
-        success: false,
-        message: "Invalid or expired verification token",
-      });
-    }
-  };
-
-  // ============================================================================
-  // PHONE VERIFICATION ENDPOINT
-  // ============================================================================
-
-  const verifyPhone = async (req, res) => {
-    const { otp } = req.body;
-    const userId = req.user?.user_id;
-
-    if (!otp) {
-      return res.status(400).json({
-        success: false,
-        message: "OTP is required",
-      });
-    }
-
-    try {
-      // Verify the phone OTP
-      const result = await OTPService.verifyPhoneOTP(userId, otp);
-
-      if (!result.valid) {
-        return res.status(400).json({
-          success: false,
-          message: result.message || "Invalid OTP",
-        });
-      }
-
-      // Update user's phone verification status
-      await pool.query(
-        "UPDATE users SET phone_verified = true, updated_at = NOW() WHERE user_id = $1",
-        [userId],
-      );
-
-      // Log successful verification
-      await logAuditEvent({
-        eventType: EVENT_TYPES.AUTH_PHONE_VERIFIED,
-        userId: userId,
-        action: "Phone verified",
-        entityType: "user",
-        entityId: userId,
-        ipAddress: req.ip,
-        userAgent: req.get("user-agent"),
-        severity: SEVERITY.LOW,
-      });
-
-      res.json({
-        success: true,
-        message: "Phone verified successfully",
-      });
-    } catch (error) {
-      logger.logError(error, { context: "verifyPhone", userId });
-
-      res.status(400).json({
-        success: false,
-        message: "Failed to verify phone number",
-      });
-    }
-  };
+    res.status(400).json({
+      success: false,
+      message: "Failed to verify phone number",
+    });
+  }
 };
 
 // Helper function to send email verification

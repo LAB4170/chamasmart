@@ -5,9 +5,6 @@ const {
   getEligibleMembers,
   processPayout,
   getChamaPayouts,
-  getPayoutById,
-  cancelPayout,
-  getPayoutSummary,
 } = require("../controllers/payoutController");
 const validate = require("../middleware/validate");
 const { processPayoutSchema } = require("../utils/validationSchemas");
@@ -37,24 +34,6 @@ router.get(
   getChamaPayouts,
 );
 
-// Get specific payout by ID
-router.get(
-  "/:chamaId/:payoutId",
-  authorize("member", "admin", "treasurer", "chairperson"),
-  getPayoutById,
-);
-
-// Get payout summary/statistics
-router.get(
-  "/:chamaId/summary",
-  authorize("treasurer", "admin", "chairperson"),
-  getPayoutSummary,
-);
-
-// ============================================================================
-// PAYOUT PROCESSING (Officials only)
-// ============================================================================
-
 // Process payout (with rate limiting for financial ops)
 router.post(
   "/:chamaId/process",
@@ -62,13 +41,6 @@ router.post(
   applyFinancialRateLimiting,
   validate(processPayoutSchema),
   processPayout,
-);
-
-// Cancel pending payout (admin/treasurer only)
-router.delete(
-  "/:chamaId/:payoutId/cancel",
-  authorize("treasurer", "admin"),
-  cancelPayout,
 );
 
 module.exports = router;

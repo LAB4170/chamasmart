@@ -4,14 +4,12 @@ const { protect, authorize } = require("../middleware/auth");
 const {
   createCycle,
   getChamaCycles,
-  getCycleById,
-  deleteCycle,
   getCycleRoster,
   processPayout,
   requestPositionSwap,
   respondToSwapRequest,
   getSwapRequests,
-  updateCycleRoster,
+  deleteCycle,
 } = require("../controllers/roscaController");
 const validate = require("../middleware/validate");
 const {
@@ -52,33 +50,14 @@ router.post(
   createCycle,
 );
 
-// Get specific cycle by ID
-router.get(
-  "/cycles/:cycleId",
-  authorize("member", "admin", "treasurer", "chairperson"),
-  getCycleById,
-);
-
 // Delete cycle (admin only)
 router.delete("/cycles/:cycleId", authorize("admin", "treasurer"), deleteCycle);
-
-// ============================================================================
-// CYCLE ROSTER MANAGEMENT
-// ============================================================================
 
 // Get cycle roster (payout order)
 router.get(
   "/cycles/:cycleId/roster",
   authorize("member", "admin", "treasurer", "chairperson"),
   getCycleRoster,
-);
-
-// Update cycle roster (officials only)
-router.put(
-  "/cycles/:cycleId/roster",
-  authorize("admin", "treasurer", "chairperson"),
-  validate(updateCycleRosterSchema),
-  updateCycleRoster,
 );
 
 // ============================================================================

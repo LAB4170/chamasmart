@@ -2,11 +2,7 @@ const express = require("express");
 const router = express.Router();
 const {
   recordContribution,
-  getChamaContributions,
-  getContributionById,
-  updateContribution,
   deleteContribution,
-  getMemberContributionSummary,
 } = require("../controllers/contributionController");
 const { protect, authorize } = require("../middleware/auth");
 const validate = require("../middleware/validate");
@@ -35,44 +31,11 @@ router.post(
   recordContribution,
 );
 
-// Update existing contribution
-router.put(
-  "/:chamaId/:id",
-  authorize("treasurer", "admin"),
-  validate(updateContributionSchema),
-  updateContribution,
-);
-
 // Delete contribution (admin only for safety)
 router.delete(
   "/:chamaId/:id",
   authorize("admin", "treasurer"),
   deleteContribution,
-);
-
-// ============================================================================
-// VIEWING CONTRIBUTIONS (All members)
-// ============================================================================
-
-// Get all contributions for a chama
-router.get(
-  "/:chamaId",
-  authorize("member", "admin", "treasurer", "chairperson"),
-  getChamaContributions,
-);
-
-// Get specific contribution by ID
-router.get(
-  "/:chamaId/:id",
-  authorize("member", "admin", "treasurer", "chairperson"),
-  getContributionById,
-);
-
-// Get member's contribution summary
-router.get(
-  "/:chamaId/member/:userId/summary",
-  authorize("member", "admin", "treasurer", "chairperson"),
-  getMemberContributionSummary,
 );
 
 module.exports = router;

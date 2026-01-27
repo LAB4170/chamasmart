@@ -3,18 +3,17 @@ const router = express.Router();
 const { protect } = require("../middleware/auth");
 const {
   searchUser,
-  getUserProfile,
-  updateUserProfile,
-  deleteUserAccount,
-  getUserStats,
+  getProfile,
+  updateProfile,
   changePassword,
+  deactivateAccount,
 } = require("../controllers/userController");
+const { applyRateLimiting } = require("../middleware/rateLimiting");
 const validate = require("../middleware/validate");
 const {
-  updateUserProfileSchema,
+  updateProfileSchema,
   changePasswordSchema,
 } = require("../utils/validationSchemas");
-const { applyRateLimiting } = require("../middleware/rateLimiting");
 
 // ============================================================================
 // ALL ROUTES REQUIRE AUTHENTICATION
@@ -23,28 +22,19 @@ const { applyRateLimiting } = require("../middleware/rateLimiting");
 router.use(protect);
 
 // ============================================================================
-// USER SEARCH & DISCOVERY
-// ============================================================================
-
-// Search for users (with rate limiting to prevent abuse)
-router.get("/search", applyRateLimiting, searchUser);
-
-// ============================================================================
 // USER PROFILE MANAGEMENT
 // ============================================================================
 
-// Get user profile by ID (or own profile if no ID specified)
-router.get("/profile/:userId?", getUserProfile);
+// Get current user profile
+router.get("/profile", getProfile);
 
 // Update user profile
-router.put("/profile", validate(updateUserProfileSchema), updateUserProfile);
-
-// Get user statistics (contributions, loans, chamas, etc.)
-router.get("/stats", getUserStats);
-
-// ============================================================================
-// ACCOUNT SECURITY
-// ============================================================================
+router.put(
+  "/profile",
+  applyRateLimiting,
+  validate(updateProfileSchema),
+  updateProfile,
+);
 
 // Change password
 router.put(
@@ -54,7 +44,14 @@ router.put(
   changePassword,
 );
 
-// Delete user account (requires confirmation)
-router.delete("/account", applyRateLimiting, deleteUserAccount);
+// Deactivate account
+router.delete("/account", applyRateLimiting, deactivateAccount);
+
+// ============================================================================
+// USER SEARCH
+// ============================================================================
+
+// Search for users (with rate limiting)
+router.get("/search", applyRateLimiting, searchUser);
 
 module.exports = router;

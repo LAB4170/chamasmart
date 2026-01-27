@@ -4,29 +4,15 @@ const { protect, authorize } = require("../middleware/auth");
 const {
   applyForLoan,
   getChamaLoans,
-  respondToLoan,
-  repayLoan,
-  getLoanConfig,
-  updateLoanConfig,
-  getLoanGuarantors,
-  getMyGuarantees,
-  respondToGuarantor,
-  exportLoansReport,
-  getMyLoans,
   getLoanById,
+  approveLoan,
+  rejectLoan,
+  makeRepayment,
+  getUserLoans,
 } = require("../controllers/loanController");
 const validate = require("../middleware/validate");
-const {
-  applyLoanSchema,
-  updateLoanConfigSchema,
-  respondToLoanSchema,
-  repayLoanSchema,
-  respondToGuarantorSchema,
-} = require("../utils/validationSchemas");
-const {
-  applyFinancialRateLimiting,
-  applyRateLimiting,
-} = require("../middleware/rateLimiting");
+const { applyLoanSchema } = require("../utils/validationSchemas");
+const { applyFinancialRateLimiting } = require("../middleware/rateLimiting");
 
 // ============================================================================
 // ALL ROUTES REQUIRE AUTHENTICATION
@@ -35,63 +21,15 @@ const {
 router.use(protect);
 
 // ============================================================================
-// IMPORTANT: SPECIFIC ROUTES MUST COME BEFORE PARAMETERIZED ROUTES
-// Otherwise, /my/guarantees will be treated as /:chamaId
+// USER LOAN ENDPOINTS
 // ============================================================================
 
-// ============================================================================
-// CURRENT USER'S SPECIFIC ROUTES (FIRST - most specific)
-// ============================================================================
-
-// Get current user's guarantees across all chamas
-router.get("/my/guarantees", getMyGuarantees);
-
-// Get current user's loans across all chamas
-router.get("/my/loans", getMyLoans);
+// Get user's loan history
+router.get("/my-loans", getUserLoans);
 
 // ============================================================================
-// LOAN CONFIGURATION ROUTES
+// CHAMA LOAN MANAGEMENT
 // ============================================================================
-
-// Get loan configuration/constitution for a chama
-router.get(
-  "/:chamaId/config",
-  authorize("member", "admin", "treasurer", "chairperson"),
-  getLoanConfig,
-);
-
-// Update loan configuration (officials only)
-router.put(
-  "/:chamaId/config",
-  authorize("admin", "treasurer"),
-  validate(updateLoanConfigSchema),
-  updateLoanConfig,
-);
-
-// ============================================================================
-// REPORTS & EXPORTS (Officials only)
-// ============================================================================
-
-// Export loans report (with rate limiting)
-router.get(
-  "/:chamaId/report",
-  authorize("treasurer", "admin", "chairperson"),
-  applyRateLimiting,
-  exportLoansReport,
-);
-
-// ============================================================================
-// CORE LOAN OPERATIONS
-// ============================================================================
-
-// Apply for loan (with rate limiting for financial ops)
-router.post(
-  "/:chamaId/apply",
-  authorize("member", "admin", "treasurer", "chairperson"),
-  applyFinancialRateLimiting,
-  validate(applyLoanSchema),
-  applyForLoan,
-);
 
 // Get all loans for a chama
 router.get(
@@ -100,50 +38,49 @@ router.get(
   getChamaLoans,
 );
 
-// Get specific loan by ID
+// Get specific loan details
 router.get(
-  "/:chamaId/loans/:loanId",
+  "/:chamaId/:loanId",
   authorize("member", "admin", "treasurer", "chairperson"),
   getLoanById,
 );
 
-// ============================================================================
-// GUARANTOR OPERATIONS (nested resources)
-// ============================================================================
-
-// Get guarantors for a specific loan
-router.get(
-  "/:loanId/guarantors",
-  authorize("member", "admin", "treasurer", "chairperson"),
-  getLoanGuarantors,
-);
-
-// Respond to guarantor request (accept/decline)
+// Apply for a loan (with financial rate limiting)
 router.post(
-  "/:loanId/guarantors/respond",
-  validate(respondToGuarantorSchema),
-  respondToGuarantor,
-);
-
-// ============================================================================
-// TREASURER OPERATIONS (Approval & Management)
-// ============================================================================
-
-// Approve or reject loan application
-router.put(
-  "/:loanId/approve",
-  authorize("treasurer", "admin"),
-  validate(respondToLoanSchema),
-  respondToLoan,
-);
-
-// Record loan repayment (with rate limiting)
-router.post(
-  "/:loanId/repay",
-  authorize("treasurer", "admin", "member"),
+  "/:chamaId/apply",
+  authorize("member"),
   applyFinancialRateLimiting,
-  validate(repayLoanSchema),
-  repayLoan,
+  validate(applyLoanSchema),
+  applyForLoan,
+);
+
+// ============================================================================
+// LOAN APPROVAL/REJECTION (Officials only)
+// ============================================================================
+
+// Approve loan application
+router.put(
+  "/:chamaId/:loanId/approve",
+  authorize("admin", "treasurer", "chairperson"),
+  approveLoan,
+);
+
+// Reject loan application
+router.put(
+  "/:chamaId/:loanId/reject",
+  authorize("admin", "treasurer", "chairperson"),
+  rejectLoan,
+);
+
+// ============================================================================
+// LOAN REPAYMENTS
+// ============================================================================
+
+// Make loan repayment
+router.post(
+  "/:chamaId/:loanId/repay",
+  applyFinancialRateLimiting,
+  makeRepayment,
 );
 
 module.exports = router;

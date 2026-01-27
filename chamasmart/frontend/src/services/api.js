@@ -49,20 +49,13 @@ api.interceptors.response.use(
 export const authAPI = {
   // Start the signup process (step 1)
   register: (userData) =>
-    api.post("/auth/v2/signup/start", {
+    api.post("/auth/register", {
       email: userData.email,
-      phone: userData.phoneNumber, // Changed from phoneNumber to phone to match backend
-      name: `${userData.firstName} ${userData.lastName}`, // Combine first and last name as name
+      phoneNumber: userData.phoneNumber,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
       password: userData.password,
-      authMethod: "email", // Required by backend
     }),
-
-  // Verify OTP (step 2)
-  verifyOTP: (email, otp) =>
-    api.post("/auth/v2/signup/verify-otp", { email, otp }),
-
-  // Resend OTP
-  resendOTP: (email) => api.post("/auth/v2/signup/resend-otp", { email }),
 
   // Login
   login: (credentials) =>
@@ -70,10 +63,6 @@ export const authAPI = {
       email: credentials.email,
       password: credentials.password,
     }),
-
-  // Token refresh
-  refreshToken: (refreshToken) =>
-    api.post("/auth/v2/refresh-token", { refreshToken }),
 };
 
 // Chama API calls
@@ -104,21 +93,15 @@ export const memberAPI = {
 export const contributionAPI = {
   record: (chamaId, contributionData) =>
     api.post(`/contributions/${chamaId}/record`, contributionData),
-  getAll: (chamaId, params) => api.get(`/contributions/${chamaId}`, { params }),
-  getById: (chamaId, id) => api.get(`/contributions/${chamaId}/${id}`),
   delete: (chamaId, id) => api.delete(`/contributions/${chamaId}/${id}`),
 };
 
 // Meeting API calls
 export const meetingAPI = {
   create: (chamaId, meetingData) =>
-    api.post(`/meetings/${chamaId}/create`, meetingData),
+    api.post(`/meetings/${chamaId}`, meetingData),
   getAll: (chamaId) => api.get(`/meetings/${chamaId}`),
   getById: (chamaId, id) => api.get(`/meetings/${chamaId}/${id}`),
-  update: (chamaId, id, meetingData) =>
-    api.put(`/meetings/${chamaId}/${id}`, meetingData),
-  recordAttendance: (chamaId, id, attendanceData) =>
-    api.post(`/meetings/${chamaId}/${id}/attendance`, attendanceData),
 };
 
 // Invite API calls
@@ -133,24 +116,8 @@ export const inviteAPI = {
 
 // Loan API calls
 export const loanAPI = {
-  // Core flows
+  // Only apply endpoint exists in backend
   apply: (chamaId, loanData) => api.post(`/loans/${chamaId}/apply`, loanData),
-  getAll: (chamaId) => api.get(`/loans/${chamaId}`),
-  approve: (loanId, status) => api.put(`/loans/${loanId}/approve`, { status }),
-  repay: (loanId, payload) => api.post(`/loans/${loanId}/repay`, payload),
-
-  // Table Banking configuration
-  getConfig: (chamaId) => api.get(`/loans/${chamaId}/config`),
-  updateConfig: (chamaId, config) =>
-    api.put(`/loans/${chamaId}/config`, config),
-
-  // Guarantor flows
-  getGuarantors: (loanId) => api.get(`/loans/${loanId}/guarantors`),
-  respondGuarantor: (loanId, decision) =>
-    api.post(`/loans/${loanId}/guarantors/respond`, { decision }),
-  getMyGuarantees: () => api.get("/loans/my/guarantees"),
-  exportReport: (chamaId) =>
-    api.get(`/loans/${chamaId}/report`, { responseType: "blob" }),
 };
 
 // Payout API calls
@@ -168,7 +135,7 @@ export const joinRequestAPI = {
   getAll: (chamaId) => api.get(`/join-requests/${chamaId}`),
   respond: (requestId, status) =>
     api.put(`/join-requests/${requestId}/respond`, { status }),
-  getMyRequests: () => api.get("/join-requests/my-requests"),
+  getMyRequests: () => api.get("/join-requests/my"),
 };
 
 // Notification API calls

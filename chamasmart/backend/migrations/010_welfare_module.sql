@@ -79,14 +79,27 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;;
 
--- Add triggers for updated_at
-CREATE TRIGGER update_welfare_config_modtime
-BEFORE UPDATE ON welfare_config
-FOR EACH ROW EXECUTE FUNCTION update_modified_column();
+-- Add triggers for updated_at (with IF NOT EXISTS logic)
+DO $$
+BEGIN
+    -- Drop trigger if exists to avoid conflicts
+    DROP TRIGGER IF EXISTS update_welfare_config_modtime ON welfare_config;
+    DROP TRIGGER IF EXISTS update_welfare_claims_modtime ON welfare_claims;
+    DROP TRIGGER IF EXISTS update_welfare_contributions_modtime ON welfare_contributions;
+    
+    -- Create triggers
+    CREATE TRIGGER update_welfare_config_modtime
+    BEFORE UPDATE ON welfare_config
+    FOR EACH ROW EXECUTE FUNCTION update_modified_column();
 
-CREATE TRIGGER update_welfare_claims_modtime
-BEFORE UPDATE ON welfare_claims
-FOR EACH ROW EXECUTE FUNCTION update_modified_column();
+    CREATE TRIGGER update_welfare_claims_modtime
+    BEFORE UPDATE ON welfare_claims
+    FOR EACH ROW EXECUTE FUNCTION update_modified_column();
+
+    CREATE TRIGGER update_welfare_contributions_modtime
+    BEFORE UPDATE ON welfare_contributions
+    FOR EACH ROW EXECUTE FUNCTION update_modified_column();
+END $$;
 
 -- Add default welfare event types for each chama
 DO $$
