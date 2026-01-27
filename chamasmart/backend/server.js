@@ -5,6 +5,11 @@ const http = require("http");
 const fs = require("fs");
 require("dotenv").config();
 
+// Import API Documentation
+const swaggerJsdoc = require("swagger-jsdoc");
+const swaggerUi = require("swagger-ui-express");
+const swaggerDefinition = require("./swaggerDef");
+
 // Import custom modules
 const logger = require("./utils/logger");
 const { requestLogger } = require("./middleware/requestLogger");
@@ -51,6 +56,14 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5005;
 
+// Configure Swagger Documentation
+const swaggerOptions = {
+  definition: swaggerDefinition,
+  apis: ["./routes/*.js", "./controllers/*.js"], // Path to the API docs
+};
+
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+
 // Apply enhanced security middleware FIRST (before all routes)
 app.use(helmetConfig);
 app.use(securityHeaders);
@@ -58,6 +71,23 @@ app.use(ipRateLimit);
 app.use(xssProtection);
 app.use(sqlInjectionProtection);
 app.use(suspiciousActivityDetection);
+
+// API Documentation endpoint
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    explorer: true,
+    customCss: ".swagger-ui .topbar { display: none }",
+    customSiteTitle: "ChamaSmart API Documentation",
+  }),
+);
+
+// Swagger JSON endpoint
+app.get("/api-docs.json", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.send(swaggerSpec);
+});
 
 // Basic health check (no middleware)
 app.get("/api/ping", (req, res) =>
@@ -171,6 +201,34 @@ logger.info("Rate limiting middleware activated", {
 // ============================================================================
 // End Rate Limiting Section
 // ============================================================================
+
+// ============================================================================
+// Metrics and Monitoring
+// ============================================================================
+const {
+  metricsMiddleware,
+  getMetrics,
+} = require("./scripts/metrics-dashboard");
+
+// Apply metrics middleware to track all requests
+app.use(metricsMiddleware);
+
+// Metrics endpoint (requires authentication)
+app.get(
+  "/api/metrics",
+  (req, res, next) => {
+    // Check if user is authenticated for metrics access
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required for metrics access",
+      });
+    }
+    next();
+  },
+  getMetrics,
+);
 
 // ============================================================================
 // API Routes
