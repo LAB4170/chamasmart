@@ -29,8 +29,9 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
   color: var(--dark);
   background-color: var(--light-gray);
   line-height: 1.6;
@@ -174,10 +175,12 @@ p {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg,
-      transparent,
-      rgba(255, 255, 255, 0.2),
-      transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
   transition: left 0.5s;
 }
 
@@ -299,7 +302,6 @@ p {
 }
 
 @keyframes shake {
-
   0%,
   100% {
     transform: translateX(0);
@@ -524,7 +526,6 @@ button:focus,
 
 /* Print Styles */
 @media print {
-
   .navbar,
   .btn {
     display: none !important;
@@ -741,12 +742,17 @@ button:focus,
   left: 0;
   right: 0;
   bottom: 0;
-  background-image: radial-gradient(circle at 25% 25%,
+  background-image:
+    radial-gradient(
+      circle at 25% 25%,
       rgba(59, 130, 246, 0.03) 0%,
-      transparent 50%),
-    radial-gradient(circle at 75% 75%,
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 75% 75%,
       rgba(16, 185, 129, 0.03) 0%,
-      transparent 50%);
+      transparent 50%
+    );
   background-size: 100px 100px;
   pointer-events: none;
   opacity: 0.5;
@@ -913,7 +919,9 @@ button:focus,
   background: var(--white);
   border-radius: var(--radius-lg);
   padding: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.06),
+    0 1px 3px rgba(0, 0, 0, 0.08);
   border: 1px solid var(--border);
   transition: var(--transition);
   position: relative;
@@ -934,7 +942,9 @@ button:focus,
 
 .feature-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 8px 25px rgba(0, 0, 0, 0.12),
+    0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .feature-card:hover::before {
@@ -981,9 +991,11 @@ button:focus,
 
 /* CTA Section */
 .cta-section {
-  background: linear-gradient(135deg,
-      var(--primary-light) 0%,
-      var(--primary) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--primary-light) 0%,
+    var(--primary) 100%
+  );
   color: var(--white);
   padding: 4rem 0;
   text-align: center;
@@ -1470,12 +1482,17 @@ button:focus,
   left: 0;
   right: 0;
   bottom: 0;
-  background: radial-gradient(circle at 20% 80%,
+  background:
+    radial-gradient(
+      circle at 20% 80%,
       rgba(59, 130, 246, 0.1) 0%,
-      transparent 50%),
-    radial-gradient(circle at 80% 20%,
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 80% 20%,
       rgba(59, 130, 246, 0.08) 0%,
-      transparent 50%);
+      transparent 50%
+    );
   pointer-events: none;
 }
 
@@ -2052,7 +2069,9 @@ button:focus,
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   padding: 2rem 1.5rem;
   border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.04);
   text-align: center;
   border: 1px solid rgba(255, 255, 255, 0.8);
   position: relative;
@@ -2075,7 +2094,9 @@ button:focus,
 
 .stat-card:hover {
   transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12), 0 8px 16px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.12),
+    0 8px 16px rgba(0, 0, 0, 0.08);
 }
 
 .stat-card:nth-child(2)::before {
@@ -2091,7 +2112,6 @@ button:focus,
 }
 
 @keyframes gradientShift {
-
   0%,
   100% {
     background-position: 0% 50%;
@@ -2110,7 +2130,6 @@ button:focus,
 }
 
 @keyframes float {
-
   0%,
   100% {
     transform: translateY(0px);
@@ -2174,9 +2193,11 @@ button:focus,
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(45deg,
-      rgba(34, 197, 94, 0.05),
-      rgba(59, 130, 246, 0.05));
+  background: linear-gradient(
+    45deg,
+    rgba(34, 197, 94, 0.05),
+    rgba(59, 130, 246, 0.05)
+  );
   z-index: 0;
 }
 
@@ -2242,7 +2263,6 @@ button:focus,
 }
 
 @keyframes iconBounce {
-
   0%,
   100% {
     transform: scale(1);
@@ -2279,7 +2299,9 @@ button:focus,
   justify-content: space-between;
   align-items: center;
   border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.04);
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   position: relative;
   overflow: hidden;
@@ -2336,7 +2358,9 @@ button:focus,
 
 .member-card:hover {
   transform: translateY(-4px) scale(1.01);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12), 0 6px 12px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.12),
+    0 6px 12px rgba(0, 0, 0, 0.08);
 }
 
 .member-card:hover::before {
@@ -2593,7 +2617,9 @@ button:focus,
 .card {
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.8);
   padding: 2rem;
   margin-bottom: 2rem;
@@ -2617,7 +2643,9 @@ button:focus,
 
 .card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 8px 30px rgba(0, 0, 0, 0.12),
+    0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .card-header {
@@ -2704,7 +2732,6 @@ button:focus,
 }
 
 @keyframes pulse {
-
   0%,
   100% {
     opacity: 1;
@@ -3043,7 +3070,9 @@ button:focus,
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .chama-card:hover {
@@ -3186,7 +3215,9 @@ button:focus,
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   border: 1px solid #e5e7eb;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .report-card:hover {
@@ -3467,10 +3498,7 @@ button:focus,
 }
 
 .skeleton-base {
-  background: linear-gradient(90deg,
-      #f3f4f6 25%,
-      #e5e7eb 50%,
-      #f3f4f6 75%);
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite linear;
   border-radius: var(--radius);
@@ -3669,7 +3697,9 @@ button:focus,
   background-color: #22c55e;
   border-radius: 50%;
   margin-left: 0.5rem;
-  box-shadow: 0 0 0 2px var(--white), 0 0 0 4px rgba(34, 197, 94, 0.2);
+  box-shadow:
+    0 0 0 2px var(--white),
+    0 0 0 4px rgba(34, 197, 94, 0.2);
   animation: pulse-green 2s infinite;
 }
 
@@ -3892,7 +3922,7 @@ button:focus,
 }
 
 .timeline::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   bottom: 0;
@@ -3981,4 +4011,3 @@ button:focus,
 .swap-request-card {
   border: 1px solid var(--border);
 }
-
