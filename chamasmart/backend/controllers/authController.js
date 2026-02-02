@@ -7,13 +7,14 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const pool = require('../config/db');
-const redis = require('../config/redis');
+const { redis } = require('../config/redis');
 const logger = require('../utils/logger');
 const { logAuditEvent, EVENT_TYPES, SEVERITY } = require('../utils/auditLog');
 const { sanitizeMetadata } = require('../utils/auditLog');
 const {
   isValidEmail,
   isValidPhone,
+  normalizePhone,
   isStrongPassword,
 } = require('../utils/validators');
 
@@ -593,46 +594,8 @@ class TokenService {
     });
   }
 
-  /**
-   * Verify email/phone verification token
-   */
-  static verify(token, type = 'access') {
-    const decoded = jwt.verify(token, this.getSecret(type), {
-      issuer: SECURITY_CONFIG.JWT.ISSUER,
-      audience: SECURITY_CONFIG.JWT.AUDIENCE,
-    });
-
-    // Additional verification for specific token types
-    if (
-      type === 'email_verification'
-      && decoded.type !== 'email_verification'
-    ) {
-      throw new Error('Invalid token type');
-    }
-
-    if (
-      type === 'phone_verification'
-      && decoded.type !== 'phone_verification'
-    ) {
-      throw new Error('Invalid token type');
-    }
-
-    return decoded;
-  }
-
-  /**
-   * Get secret based on token type
-   */
-  static getSecret(type) {
-    switch (type) {
-    case 'refresh':
-      return process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
-    case 'email_verification':
-    case 'phone_verification':
-      return process.env.JWT_SECRET;
-    default:
-      return process.env.JWT_SECRET;
-    }
+  static generateJTI() {
+    return crypto.randomUUID();
   }
 }
 // REFACTORED REGISTRATION ENDPOINT
@@ -756,7 +719,9 @@ const register = async (req, res) => {
         });
       }
 
+      console.log('Starting transaction...');
       await client.query('BEGIN');
+      console.log('Transaction started');
 
       // === HASH PASSWORD ===
       const hashedPassword = await PasswordService.hash(password);
@@ -862,6 +827,7 @@ const register = async (req, res) => {
       res.status(500).json({
         success: false,
         message: 'Error registering user',
+        debug: error.message,
       });
     } finally {
       client.release();
@@ -875,6 +841,7 @@ const register = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Registration service error',
+      debug: error.message,
     });
   }
 };

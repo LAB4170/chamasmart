@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
-import { useAuth } from "../../context/AuthContext";
+import { welfareAPI } from "../../../services/api";
+import { useAuth } from "../../../context/AuthContext";
+import { toast } from "react-toastify";
 import "./WelfareAdmin.css";
 
 const WelfareAdmin = () => {
@@ -20,18 +21,14 @@ const WelfareAdmin = () => {
 
     const fetchClaims = async () => {
         try {
-            const token = localStorage.getItem("token");
-            // Fetch all claims for the chama using the new Admin endpoint
-            const response = await axios.get(
-                `${import.meta.env.VITE_API_URL}/welfare/${id}/claims`,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-
+            const response = await welfareAPI.getChamaClaims(id);
             setClaims(response.data);
             setLoading(false);
         } catch (err) {
             console.error("Error loading claims:", err);
-            setError("Failed to load claims. Please try again.");
+            const errorMsg = err.response?.data?.message || "Failed to load claims. Please try again.";
+            setError(errorMsg);
+            toast.error(errorMsg);
             setLoading(false);
         }
     };
@@ -39,22 +36,19 @@ const WelfareAdmin = () => {
     const handleApproval = async (claimId, status) => {
         try {
             setActionLoading(claimId);
-            const token = localStorage.getItem("token");
-            await axios.post(
-                `${import.meta.env.VITE_API_URL}/welfare/claims/${claimId}/approve`,
-                {
-                    approverId: user.user_id,
-                    status: status,
-                    comments: status === 'APPROVED' ? "Approved via Admin Dashboard" : "Rejected"
-                },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
 
-            alert(`Claim ${status.toLowerCase()} successfully`);
+            await welfareAPI.approveClaim(claimId, {
+                approverId: user.user_id,
+                status: status,
+                comments: status === 'APPROVED' ? "Approved via Admin Dashboard" : "Rejected"
+            });
+
+            toast.success(`Claim ${status.toLowerCase()} successfully`);
             fetchClaims(); // Refresh list
         } catch (err) {
             console.error("Error processing approval:", err);
-            alert("Failed to process approval");
+            const errorMsg = err.response?.data?.message || "Failed to process approval";
+            toast.error(errorMsg);
         } finally {
             setActionLoading(null);
         }

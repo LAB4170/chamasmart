@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { joinRequestAPI } from "../../services/api";
+import { joinRequestAPI } from "../../../services/api";
 
 const MyJoinRequests = () => {
     const navigate = useNavigate();

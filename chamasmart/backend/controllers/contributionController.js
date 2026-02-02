@@ -5,7 +5,7 @@
 
 const crypto = require('crypto');
 const pool = require('../config/db');
-const redis = require('../config/redis');
+const { redis } = require('../config/redis');
 const { isValidAmount, isValidPaymentMethod } = require('../utils/validators');
 const logger = require('../utils/logger');
 const { getIo } = require('../socket');

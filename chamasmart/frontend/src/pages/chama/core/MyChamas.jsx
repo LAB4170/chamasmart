@@ -1,7 +1,7 @@
 import { useState, useEffect, memo, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { chamaAPI } from "../../services/api";
-import LoadingSkeleton from "../../components/LoadingSkeleton";
+import { chamaAPI } from "../../../services/api";
+import LoadingSkeleton from "../../../components/LoadingSkeleton";
 
 const MyChamaCard = memo(({ chama, getChamaTypeLabel, formatCurrency }) => (
   <Link

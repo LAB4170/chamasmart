@@ -34,11 +34,22 @@ const mockRedis = {
   quit: async () => 'OK',
   incr: async key => 1,
   incrby: async (key, value) => parseInt(value) || 1,
+  call: async (command, ...args) => {
+    if (command === 'eval' || command === 'evalsha') return [0, 0];
+    return null;
+  },
 };
 
 // Try to connect to Redis, fallback to mock if unavailable
 let redis = mockRedis;
 let redisAvailable = false;
+
+/**
+ * Get the current Redis client (real or mock)
+ */
+function getRedisClient() {
+  return redis;
+}
 
 const initializeRedis = async () => {
   try {
@@ -95,11 +106,26 @@ initializeRedis();
 // Test Redis connection
 const testRedisConnection = async () => redisAvailable;
 
-// Get Redis client (with fallback)
-const getRedisClient = () => redis;
+// Create a proxy to ensure exported redis client always points to the current active client
+const redisProxy = new Proxy({}, {
+  get: (target, prop) => {
+    // If we're getting 'then' on a non-promise, return undefined to avoid weirdness with async/await
+    if (prop === 'then') return undefined;
+
+    // Always get the latest client
+    const currentClient = getRedisClient();
+    const val = currentClient[prop];
+
+    // Bind functions to the current client to preserve 'this'
+    if (typeof val === 'function') {
+      return val.bind(currentClient);
+    }
+    return val;
+  }
+});
 
 module.exports = {
-  redis: getRedisClient(),
+  redis: redisProxy,
   testRedisConnection,
   redisConfig,
   redisAvailable: () => redisAvailable,

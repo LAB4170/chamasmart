@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { payoutAPI, chamaAPI, meetingAPI } from "../../services/api";
+import { payoutAPI, chamaAPI, meetingAPI } from "../../../services/api";
 
 const ProcessPayout = () => {
     const { id } = useParams();

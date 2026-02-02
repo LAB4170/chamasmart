@@ -263,39 +263,7 @@ if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
 }
 
-// Final Catch-all Middleware (Replaces app.get('*'))
-app.use((req, res, next) => {
-  // If API route not found
-  if (req.originalUrl.startsWith("/api")) {
-    return res.status(404).json({
-      success: false,
-      message: `API endpoint ${req.originalUrl} not found`,
-    });
-  }
-
-  // If Static file not found, fallback to index.html (SPA)
-  if (fs.existsSync(distPath)) {
-    return res.sendFile(path.join(distPath, "index.html"));
-  }
-
-  // Otherwise 404
-  res.status(404).json({ success: false, message: "Resource not found" });
-});
-
-// Global error handling
-app.use((err, req, res, next) => {
-  err.statusCode = err.statusCode || 500;
-  console.error("SERVER ERROR:", err.message);
-  logger.error({
-    message: err.message,
-    stack: err.stack,
-    method: req.method,
-    url: req.url,
-  });
-  res
-    .status(err.statusCode)
-    .json({ success: false, message: "Internal server error" });
-});
+// Middle catch-all and legacy error handling removed in favor of enhanced handlers at the end
 
 // Start server
 server.on("error", (err) => {

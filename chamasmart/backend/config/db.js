@@ -71,7 +71,7 @@ const testConnection = async (retries = 3) => {
 };
 
 // Test connection on startup
-testConnection();
+// testConnection(); // Removing top-level call to prevent startup blocks
 
 module.exports = {
   query: async (text, params) => {

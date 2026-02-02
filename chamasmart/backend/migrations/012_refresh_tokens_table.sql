@@ -6,7 +6,8 @@
 -- CREATE REFRESH TOKENS TABLE
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS refresh_tokens (
+DROP TABLE IF EXISTS refresh_tokens CASCADE;
+CREATE TABLE refresh_tokens (
     token_id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     token TEXT NOT NULL UNIQUE,
@@ -24,12 +25,14 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 -- Index for looking up tokens by user and token value
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_token 
 ON refresh_tokens(user_id, token) 
-WHERE revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP;
+WHERE revoked_at IS NULL
+;
 
 -- Index for finding active tokens for a user
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_active 
 ON refresh_tokens(user_id) 
-WHERE revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP;
+WHERE revoked_at IS NULL
+;
 
 -- Index for cleanup of expired tokens
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at 

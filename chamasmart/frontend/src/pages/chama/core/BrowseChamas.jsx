@@ -1,8 +1,8 @@
 import { useState, useEffect, memo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { chamaAPI, joinRequestAPI } from "../../services/api";
-import { useAuth } from "../../context/AuthContext";
-import LoadingSkeleton from "../../components/LoadingSkeleton";
+import { chamaAPI, joinRequestAPI } from "../../../services/api";
+import { useAuth } from "../../../context/AuthContext";
+import LoadingSkeleton from "../../../components/LoadingSkeleton";
 
 // Memoized Chama card component to prevent unnecessary re-renders
 const ChamaCard = memo(({ chama, onDetails, onRequest, requestingId, formatCurrency, getChamaTypeColor, isRequested }) => {

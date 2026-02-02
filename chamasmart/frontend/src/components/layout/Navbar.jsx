@@ -39,10 +39,9 @@ const Navbar = () => {
               </Link>
               <NotificationBell />
               <div className="navbar-user">
-
-                <span className="user-name">
+                <Link to="/profile" className="user-name" style={{ textDecoration: 'none', marginRight: '1rem', fontWeight: 'bold' }}>
                   {user?.firstName} {user?.lastName}
-                </span>
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="btn btn-sm btn-outline"

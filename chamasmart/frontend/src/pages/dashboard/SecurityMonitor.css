@@ -1,0 +1,53 @@
+.grid-3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.border-left-info {
+    border-left: 4px solid var(--info-color, #3b82f6);
+}
+
+.border-left-warning {
+    border-left: 4px solid var(--warning-color, #f59e0b);
+}
+
+.border-left-danger {
+    border-left: 4px solid var(--error-color, #ef4444);
+}
+
+.bg-error-light {
+    background-color: rgba(239, 68, 68, 0.05);
+}
+
+.badge-info {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: var(--info-color, #3b82f6);
+}
+
+.badge-warning {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: var(--warning-color, #f59e0b);
+}
+
+.badge-danger {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--error-color, #ef4444);
+}
+
+/* Ensure table looks good */
+.table th {
+    font-weight: 600;
+    color: var(--text-secondary);
+    background-color: var(--bg-secondary);
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.subtitle {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-top: -5px;
+}

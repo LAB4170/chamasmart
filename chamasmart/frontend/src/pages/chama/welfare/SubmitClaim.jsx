@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
-import { useAuth } from "../../context/AuthContext";
+import { welfareAPI } from "../../../services/api";
+import { useAuth } from "../../../context/AuthContext";
+import { toast } from "react-toastify";
 import "./SubmitClaim.css";
 
 const SubmitClaim = () => {
@@ -24,15 +25,13 @@ const SubmitClaim = () => {
     useEffect(() => {
         const fetchConfig = async () => {
             try {
-                const token = localStorage.getItem("token");
-                const response = await axios.get(
-                    `${import.meta.env.VITE_API_URL}/welfare/${id}/config`,
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
+                const response = await welfareAPI.getConfig(id);
                 setConfig(response.data);
             } catch (err) {
                 console.error("Error loading config:", err);
-                setError("Failed to load event types.");
+                const errorMsg = err.response?.data?.message || "Failed to load event types.";
+                setError(errorMsg);
+                toast.error(errorMsg);
             } finally {
                 setLoading(false);
             }
@@ -58,31 +57,22 @@ const SubmitClaim = () => {
         setError(null);
 
         try {
-            const token = localStorage.getItem("token");
-            const data = new FormData();
-            data.append("event_type_id", formData.event_type_id);
-            data.append("date_of_occurrence", formData.date_of_occurrence);
-            data.append("description", formData.description);
-            if (formData.proof_document) {
-                data.append("proof_document", formData.proof_document);
-            }
+            const claimData = {
+                event_type_id: formData.event_type_id,
+                date_of_occurrence: formData.date_of_occurrence,
+                description: formData.description,
+                proof_document: formData.proof_document
+            };
 
-            await axios.post(
-                `${import.meta.env.VITE_API_URL}/welfare/${id}/members/${user.user_id}/claims`,
-                data,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "multipart/form-data"
-                    }
-                }
-            );
+            await welfareAPI.submitClaim(id, claimData);
 
-            alert("Claim submitted successfully!");
+            toast.success("Claim submitted successfully!");
             navigate(`/chamas/${id}/welfare`);
         } catch (err) {
             console.error("Error submitting claim:", err);
-            setError(err.response?.data?.message || "Failed to submit claim.");
+            const errorMsg = err.response?.data?.message || "Failed to submit claim.";
+            setError(errorMsg);
+            toast.error(errorMsg);
         } finally {
             setSubmitting(false);
         }

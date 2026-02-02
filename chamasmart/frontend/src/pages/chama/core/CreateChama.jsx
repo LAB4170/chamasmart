@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { chamaAPI } from "../../services/api";
+import { chamaAPI } from "../../../services/api";
 
 
 const CreateChama = () => {

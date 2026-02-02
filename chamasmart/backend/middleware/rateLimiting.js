@@ -1,4 +1,5 @@
 const rateLimit = require('express-rate-limit');
+const RedisStore = require('rate-limit-redis').default;
 const { redis } = require('../config/redis');
 
 /**
@@ -13,35 +14,6 @@ const applyAuthRateLimiting = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  store: {
-    async incr(key) {
-      try {
-        const result = await redis.incr(key);
-        if (result === 1) {
-          await redis.expire(key, 900); // 15 minutes
-        }
-        return result;
-      } catch (error) {
-        console.warn('Rate limiting error:', error.message);
-        return 0; // Allow request if Redis fails
-      }
-    },
-    async decr(key) {
-      try {
-        return await redis.decr(key);
-      } catch (error) {
-        console.warn('Rate limiting error:', error.message);
-        return 0;
-      }
-    },
-    async resetKey(key) {
-      try {
-        await redis.del(key);
-      } catch (error) {
-        console.warn('Rate limiting error:', error.message);
-      }
-    },
-  },
 });
 
 /**

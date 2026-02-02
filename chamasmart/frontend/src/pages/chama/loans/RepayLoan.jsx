@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { loanAPI } from "../../services/api";
+import { loanAPI } from "../../../services/api";
 
 const RepayLoan = () => {
     const { id, loanId } = useParams();

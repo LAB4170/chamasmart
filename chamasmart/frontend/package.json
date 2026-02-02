@@ -28,6 +28,7 @@
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.71.1",
     "react-router-dom": "^7.10.1",
+    "react-toastify": "^11.0.5",
     "react-window": "^1.8.10",
     "recharts": "^3.7.0",
     "socket.io-client": "^4.8.1",

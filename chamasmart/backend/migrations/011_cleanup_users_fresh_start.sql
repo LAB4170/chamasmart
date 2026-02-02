@@ -7,57 +7,59 @@
 -- DELETE ALL USER DATA IN CASCADE ORDER
 -- ============================================================================
 
--- Delete audit logs (no foreign keys, safe to delete)
-DELETE FROM audit_logs WHERE 1=1;
+-- Delete audit logs
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'audit_logs') THEN DELETE FROM audit_logs; END IF; END $$;
 
 -- Delete notifications
-DELETE FROM notifications WHERE 1=1;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'notifications') THEN DELETE FROM notifications; END IF; END $$;
 
 -- Delete welfare data
-DELETE FROM welfare_claim_approvals WHERE 1=1;
-DELETE FROM welfare_claims WHERE 1=1;
-DELETE FROM welfare_contributions WHERE 1=1;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'welfare_claim_approvals') THEN DELETE FROM welfare_claim_approvals; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'welfare_claims') THEN DELETE FROM welfare_claims; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'welfare_contributions') THEN DELETE FROM welfare_contributions; END IF; END $$;
 
 -- Delete loan repayments
-DELETE FROM loan_repayments WHERE 1=1;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'loan_repayments') THEN DELETE FROM loan_repayments; END IF; END $$;
 
 -- Delete loans
-DELETE FROM loans WHERE 1=1;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'loans') THEN DELETE FROM loans; END IF; END $$;
 
 -- Delete payouts
-DELETE FROM payouts WHERE 1=1;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'payouts') THEN DELETE FROM payouts; END IF; END $$;
 
 -- Delete ROSCA data
-DELETE FROM rosca_payouts WHERE 1=1;
-DELETE FROM rosca_members WHERE 1=1;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'rosca_payouts') THEN DELETE FROM rosca_payouts; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'rosca_members') THEN DELETE FROM rosca_members; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'rosca_roster') THEN DELETE FROM rosca_roster; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'rosca_cycles') THEN DELETE FROM rosca_cycles; END IF; END $$;
 
 -- Delete ASCA data  
-DELETE FROM asca_cycles WHERE 1=1;
-DELETE FROM asca_members WHERE 1=1;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'asca_cycles') THEN DELETE FROM asca_cycles; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'asca_members') THEN DELETE FROM asca_members; END IF; END $$;
 
 -- Delete meetings
-DELETE FROM meetings WHERE 1=1;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'meetings') THEN DELETE FROM meetings; END IF; END $$;
 
 -- Delete contributions
-DELETE FROM contributions WHERE 1=1;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'contributions') THEN DELETE FROM contributions; END IF; END $$;
 
 -- Delete proposals
-DELETE FROM proposals WHERE 1=1;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'proposals') THEN DELETE FROM proposals; END IF; END $$;
 
 -- Delete join requests
-DELETE FROM join_requests WHERE 1=1;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'join_requests') THEN DELETE FROM join_requests; END IF; END $$;
 
 -- Delete invites
-DELETE FROM chama_invites WHERE 1=1;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'chama_invites') THEN DELETE FROM chama_invites; END IF; END $$;
 
 -- Delete chama members
-DELETE FROM chama_members WHERE 1=1;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'chama_members') THEN DELETE FROM chama_members; END IF; END $$;
 
 -- Delete chamas
-DELETE FROM chamas WHERE 1=1;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'chamas') THEN DELETE FROM chamas; END IF; END $$;
 
 -- Delete all users (final step)
-DELETE FROM users WHERE 1=1;
+DO $$ BEGIN IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'users') THEN DELETE FROM users; END IF; END $$;
 
 -- ============================================================================
 -- RESET SEQUENCES/AUTO-INCREMENT COUNTERS

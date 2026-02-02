@@ -26,6 +26,30 @@
   --radius-lg: 12px;
   --transition: all 0.3s ease;
   --transition-fast: all 0.15s ease;
+
+  /* Modern Semantic Aliases */
+  --primary-color: var(--primary);
+  --border-color: var(--border);
+  --text-primary: var(--dark);
+  --text-secondary: var(--gray);
+
+  --bg-primary-light: var(--primary-light);
+  --bg-secondary: var(--light-gray);
+  --bg-neutral: #f3f4f6;
+
+  --success-color: var(--success);
+  --error-color: var(--danger);
+  --warning-color: var(--warning);
+
+  /* Badge Colors */
+  --success-light: #d1fae5;
+  --success-dark: #065f46;
+  --error-light: #fee2e2;
+  --error-dark: #991b1b;
+  --warning-light: #fef3c7;
+  --warning-dark: #92400e;
+  --info-light: #dbeafe;
+  --info-dark: #1e40af;
 }
 
 body {
@@ -175,12 +199,10 @@ p {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.2),
-    transparent
-  );
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent);
   transition: left 0.5s;
 }
 
@@ -302,6 +324,7 @@ p {
 }
 
 @keyframes shake {
+
   0%,
   100% {
     transform: translateX(0);
@@ -526,6 +549,7 @@ button:focus,
 
 /* Print Styles */
 @media print {
+
   .navbar,
   .btn {
     display: none !important;
@@ -743,16 +767,12 @@ button:focus,
   right: 0;
   bottom: 0;
   background-image:
-    radial-gradient(
-      circle at 25% 25%,
+    radial-gradient(circle at 25% 25%,
       rgba(59, 130, 246, 0.03) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      circle at 75% 75%,
+      transparent 50%),
+    radial-gradient(circle at 75% 75%,
       rgba(16, 185, 129, 0.03) 0%,
-      transparent 50%
-    );
+      transparent 50%);
   background-size: 100px 100px;
   pointer-events: none;
   opacity: 0.5;
@@ -991,11 +1011,9 @@ button:focus,
 
 /* CTA Section */
 .cta-section {
-  background: linear-gradient(
-    135deg,
-    var(--primary-light) 0%,
-    var(--primary) 100%
-  );
+  background: linear-gradient(135deg,
+      var(--primary-light) 0%,
+      var(--primary) 100%);
   color: var(--white);
   padding: 4rem 0;
   text-align: center;
@@ -1483,16 +1501,12 @@ button:focus,
   right: 0;
   bottom: 0;
   background:
-    radial-gradient(
-      circle at 20% 80%,
+    radial-gradient(circle at 20% 80%,
       rgba(59, 130, 246, 0.1) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      circle at 80% 20%,
+      transparent 50%),
+    radial-gradient(circle at 80% 20%,
       rgba(59, 130, 246, 0.08) 0%,
-      transparent 50%
-    );
+      transparent 50%);
   pointer-events: none;
 }
 
@@ -2112,6 +2126,7 @@ button:focus,
 }
 
 @keyframes gradientShift {
+
   0%,
   100% {
     background-position: 0% 50%;
@@ -2130,6 +2145,7 @@ button:focus,
 }
 
 @keyframes float {
+
   0%,
   100% {
     transform: translateY(0px);
@@ -2193,11 +2209,9 @@ button:focus,
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(
-    45deg,
-    rgba(34, 197, 94, 0.05),
-    rgba(59, 130, 246, 0.05)
-  );
+  background: linear-gradient(45deg,
+      rgba(34, 197, 94, 0.05),
+      rgba(59, 130, 246, 0.05));
   z-index: 0;
 }
 
@@ -2263,6 +2277,7 @@ button:focus,
 }
 
 @keyframes iconBounce {
+
   0%,
   100% {
     transform: scale(1);
@@ -2732,6 +2747,7 @@ button:focus,
 }
 
 @keyframes pulse {
+
   0%,
   100% {
     opacity: 1;
@@ -3865,6 +3881,7 @@ button:focus,
   margin-bottom: 1.25rem;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   height: 2.8rem;
@@ -3915,6 +3932,7 @@ button:focus,
     grid-template-columns: 1fr;
   }
 }
+
 /* ROSCA Cycle Timeline */
 .timeline {
   position: relative;

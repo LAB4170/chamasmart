@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
-import { useAuth } from "../../context/AuthContext";
+import { welfareAPI } from "../../../services/api";
+import { useAuth } from "../../../context/AuthContext";
+import { toast } from "react-toastify";
 import "./WelfareDashboard.css"; // We'll create this CSS file next
 
 const WelfareDashboard = () => {
@@ -21,13 +22,12 @@ const WelfareDashboard = () => {
     const fetchWelfareData = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem("token");
-            const headers = { Authorization: `Bearer ${token}` };
+            setError(null);
 
             const [fundRes, claimsRes, configRes] = await Promise.all([
-                axios.get(`${import.meta.env.VITE_API_URL}/welfare/${id}/fund`, { headers }),
-                axios.get(`${import.meta.env.VITE_API_URL}/welfare/${id}/members/${user.user_id}/claims`, { headers }),
-                axios.get(`${import.meta.env.VITE_API_URL}/welfare/${id}/config`, { headers })
+                welfareAPI.getFund(id),
+                welfareAPI.getMemberClaims(id, user.user_id),
+                welfareAPI.getConfig(id)
             ]);
 
             setFundValues(fundRes.data);
@@ -35,7 +35,9 @@ const WelfareDashboard = () => {
             setConfig(configRes.data);
         } catch (err) {
             console.error("Error loading welfare data:", err);
-            setError("Failed to load welfare information.");
+            const errorMsg = err.response?.data?.message || "Failed to load welfare information.";
+            setError(errorMsg);
+            toast.error(errorMsg);
         } finally {
             setLoading(false);
         }

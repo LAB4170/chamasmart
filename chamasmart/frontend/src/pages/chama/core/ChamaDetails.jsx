@@ -1,12 +1,12 @@
 import { useState, useEffect, memo, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { chamaAPI, contributionAPI, ascaAPI } from "../../services/api";
-import { useAuth } from "../../context/AuthContext";
-import { useSocket } from "../../context/SocketContext";
-import LoadingSkeleton from "../../components/LoadingSkeleton";
-import CreateCycleModal from "../../components/CreateCycleModal";
-import SwapRequestModal from "../../components/SwapRequestModal";
-import { roscaAPI } from "../../services/api";
+import { chamaAPI, contributionAPI, ascaAPI } from "../../../services/api";
+import { useAuth } from "../../../context/AuthContext";
+import { useSocket } from "../../../context/SocketContext";
+import LoadingSkeleton from "../../../components/LoadingSkeleton";
+import CreateCycleModal from "../../../components/CreateCycleModal";
+import SwapRequestModal from "../../../components/SwapRequestModal";
+import { roscaAPI } from "../../../services/api";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -44,6 +44,9 @@ const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavig
         <button className="btn btn-modern btn-reports" onClick={() => onTabChange("reports")}>
           <span className="btn-icon">📊</span> Reports
         </button>
+        <button className="btn btn-modern btn-secondary" onClick={() => onNavigate(`/chamas/${chama.chama_id}/meetings`)} style={{ marginLeft: '0.5rem' }}>
+          <span className="btn-icon">📅</span> Meetings
+        </button>
         {isOfficial && (
           <button
             className="btn btn-modern btn-secondary"
@@ -75,9 +78,18 @@ const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavig
           <button
             className="btn btn-modern btn-secondary"
             style={{ marginLeft: '0.5rem' }}
-            onClick={() => onNavigate(`/chamas/${chama.chama_id}/payouts`)}
+            onClick={() => onNavigate(`/chamas/${chama.chama_id}/rosca`)}
           >
-            <span className="btn-icon">💰</span> Payouts
+            <span className="btn-icon">🎡</span> Merry-Go-Round
+          </button>
+        )}
+        {chama.chama_type === "ASCA" && (
+          <button
+            className="btn btn-modern btn-secondary"
+            style={{ marginLeft: '0.5rem' }}
+            onClick={() => onNavigate(`/chamas/${chama.chama_id}/asca`)}
+          >
+            <span className="btn-icon">📈</span> Investments
           </button>
         )}
         {isOfficial && (

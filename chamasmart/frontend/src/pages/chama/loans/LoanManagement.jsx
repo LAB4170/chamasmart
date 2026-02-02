@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { loanAPI, chamaAPI } from "../../services/api";
-import { useAuth } from "../../context/AuthContext";
+import { loanAPI, chamaAPI } from "../../../services/api";
+import { useAuth } from "../../../context/AuthContext";
 
 const LoanManagement = () => {
     const { id } = useParams();
@@ -28,13 +28,13 @@ const LoanManagement = () => {
             setLoading(true);
             const [chamaRes, loansRes, membersRes] = await Promise.all([
                 chamaAPI.getById(id),
-                loanAPI.getAll(id),
+                loanAPI.getChamaLoans(id),
                 chamaAPI.getMembers(id),
             ]);
 
-            setChama(chamaRes.data.data);
-            setLoans(loansRes.data.data);
-            setMembers(membersRes.data.data);
+            setChama(chamaRes.data.data || chamaRes.data);
+            setLoans(loansRes.data.data || loansRes.data);
+            setMembers(membersRes.data.data || membersRes.data);
         } catch (err) {
             setError("Failed to load loan data");
             console.error(err);
@@ -43,14 +43,29 @@ const LoanManagement = () => {
         }
     };
 
-    const handleApproveLoan = async (loanId, status) => {
+    const handleApproveLoan = async (loanId) => {
         try {
             setActionLoading(loanId);
-            await loanAPI.approve(loanId, status);
+            await loanAPI.approve(id, loanId);
             await fetchData();
             setActionLoading(null);
         } catch (err) {
-            setError(err.response?.data?.message || "Failed to process loan");
+            setError(err.response?.data?.message || "Failed to approve loan");
+            setActionLoading(null);
+        }
+    };
+
+    const handleRejectLoan = async (loanId) => {
+        const reason = prompt("Please provide a reason for rejection:");
+        if (!reason) return;
+
+        try {
+            setActionLoading(loanId);
+            await loanAPI.reject(id, loanId, reason);
+            await fetchData();
+            setActionLoading(null);
+        } catch (err) {
+            setError(err.response?.data?.message || "Failed to reject loan");
             setActionLoading(null);
         }
     };
@@ -76,7 +91,7 @@ const LoanManagement = () => {
         try {
             setSelectedLoan(loan);
             setDetailsLoading(true);
-            const res = await loanAPI.getGuarantors(loan.loan_id);
+            const res = await loanAPI.getLoanById(id, loan.loan_id);
             setLoanDetails(res.data.data || res.data);
         } catch (err) {
             console.error(err);
@@ -91,23 +106,7 @@ const LoanManagement = () => {
         setLoanDetails(null);
     };
 
-    const handleExportReport = async () => {
-        try {
-            const res = await loanAPI.exportReport(id);
-            const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `chama_${id}_loans_report.csv`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(url);
-        } catch (err) {
-            console.error(err);
-            setError(err.response?.data?.message || 'Failed to export loan report');
-        }
-    };
+
 
     const formatDate = (dateString) => {
         return new Date(dateString).toLocaleDateString("en-KE", {
@@ -184,12 +183,6 @@ const LoanManagement = () => {
                         <p className="text-muted">{chama?.chama_name}</p>
                     </div>
                     <div style={{ display: "flex", gap: "0.5rem" }}>
-                        <button
-                            className="btn btn-outline btn-sm"
-                            onClick={handleExportReport}
-                        >
-                            Export CSV
-                        </button>
                         <button
                             className="btn btn-outline btn-sm"
                             onClick={() => navigate(`/chamas/${id}`)}
@@ -327,17 +320,17 @@ const LoanManagement = () => {
                                                         <>
                                                             <button
                                                                 className="btn btn-sm btn-success"
-                                                                onClick={() => handleApproveLoan(loan.loan_id, "ACTIVE")}
+                                                                onClick={() => handleApproveLoan(loan.loan_id)}
                                                                 disabled={actionLoading === loan.loan_id}
                                                             >
                                                                 {actionLoading === loan.loan_id ? "..." : "Approve"}
                                                             </button>
                                                             <button
-                                                                className="btn btn-sm btn-outline"
-                                                                onClick={() => handleApproveLoan(loan.loan_id, "CANCELLED")}
+                                                                className="btn btn-sm btn-danger"
+                                                                onClick={() => handleRejectLoan(loan.loan_id)}
                                                                 disabled={actionLoading === loan.loan_id}
                                                             >
-                                                                Cancel
+                                                                Reject
                                                             </button>
                                                         </>
                                                     )}

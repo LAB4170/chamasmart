@@ -41,6 +41,10 @@ const EVENT_TYPES = {
   // Security
   SECURITY_BREACH_ATTEMPT: 'security_breach_attempt',
   SECURITY_SUSPICIOUS_ACTIVITY: 'security_suspicious_activity',
+
+  // System
+  SYSTEM_ERROR: 'system_error',
+  AUTH_FAILED: 'auth_failed',
 };
 
 const SEVERITY = {
@@ -74,18 +78,16 @@ async function logAudit(event) {
   try {
     await pool.query(
       `INSERT INTO audit_logs 
-       (user_id, action, resource, resource_id, changes, ip_address, user_agent, status, error_message, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
+       (user_id, action, entity_type, entity_id, metadata, ip_address, user_agent, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
       [
         userId,
         action,
         resource,
         resourceId,
-        JSON.stringify(changes),
+        JSON.stringify({ ...changes, status, errorMessage }),
         ipAddress,
         userAgent,
-        status,
-        errorMessage,
       ],
     );
 
@@ -130,21 +132,18 @@ async function logAuditEvent({
 
     await pool.query(
       `INSERT INTO audit_logs 
-       (event_type, user_id, action, resource, resource_id, changes, 
-        ip_address, user_agent, status, severity, chama_id, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())`,
+       (user_id, action, entity_type, entity_id, metadata, 
+        ip_address, user_agent, severity, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
       [
-        eventType,
         userId,
-        action,
+        `${eventType}: ${action}`,
         entityType,
         entityId,
-        JSON.stringify(sanitizedMetadata),
+        JSON.stringify({ ...sanitizedMetadata, chamaId }),
         ipAddress,
         userAgent,
-        'success',
-        severity,
-        chamaId,
+        severity.toUpperCase(),
       ],
     );
 
@@ -444,7 +443,7 @@ async function getUserAuditLogs(userId, options = {}) {
 async function getResourceAuditLogs(resource, resourceId) {
   const result = await pool.query(
     `SELECT * FROM audit_logs
-     WHERE resource = $1 AND resource_id = $2
+     WHERE entity_type = $1 AND entity_id = $2
      ORDER BY created_at DESC
      LIMIT 100`,
     [resource, resourceId],
@@ -461,7 +460,7 @@ async function getChamaAuditLogs(chamaId, options = {}) {
 
   let query = `
     SELECT * FROM audit_logs
-    WHERE chama_id = $1
+    WHERE metadata->>'chamaId' = $1
   `;
   const params = [chamaId];
   let paramIndex = 2;
@@ -565,7 +564,7 @@ async function createAuditLogsTable() {
 }
 
 // Create/update table on module load
-createAuditLogsTable();
+// createAuditLogsTable(); // Removing top-level call
 
 // ============================================================================
 // EXPORTS

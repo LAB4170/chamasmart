@@ -10,21 +10,43 @@
 -- STEP 1: DROP PROBLEMATIC TABLES AND START FRESH
 -- ============================================================================
 
--- Drop tables with inconsistent foreign keys first
+-- Drop views first
+DROP VIEW IF EXISTS chama_detailed_summary CASCADE;
+DROP VIEW IF EXISTS user_membership_summary CASCADE;
+
+-- Drop core tables in reverse dependency order
+DROP TABLE IF EXISTS financial_audit_logs CASCADE;
+DROP TABLE IF EXISTS audit_logs CASCADE;
+DROP TABLE IF EXISTS signup_sessions CASCADE;
+DROP TABLE IF EXISTS refresh_tokens CASCADE;
+DROP TABLE IF EXISTS join_requests CASCADE;
+DROP TABLE IF EXISTS invites CASCADE;
+DROP TABLE IF EXISTS notifications CASCADE;
+DROP TABLE IF EXISTS proposals CASCADE;
+DROP TABLE IF EXISTS meetings CASCADE;
 DROP TABLE IF EXISTS welfare_claim_approvals CASCADE;
 DROP TABLE IF EXISTS welfare_claims CASCADE;
 DROP TABLE IF EXISTS welfare_contributions CASCADE;
 DROP TABLE IF EXISTS welfare_fund CASCADE;
 DROP TABLE IF EXISTS welfare_config CASCADE;
-
--- Drop tables with naming conflicts
+DROP TABLE IF EXISTS asca_members CASCADE;
+DROP TABLE IF EXISTS asca_cycles CASCADE;
+DROP TABLE IF EXISTS rosca_swap_requests CASCADE;
+DROP TABLE IF EXISTS rosca_roster CASCADE;
+DROP TABLE IF EXISTS rosca_cycles CASCADE;
+DROP TABLE IF EXISTS payouts CASCADE;
+DROP TABLE IF EXISTS loan_repayments CASCADE;
+DROP TABLE IF EXISTS loan_schedules CASCADE;
+DROP TABLE IF EXISTS loan_guarantors CASCADE;
+DROP TABLE IF EXISTS loans CASCADE;
+DROP TABLE IF EXISTS contributions CASCADE;
+DROP TABLE IF EXISTS memberships CASCADE;
+DROP TABLE IF EXISTS chamas CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS password_history CASCADE;
+DROP TABLE IF EXISTS signup_tokens CASCADE;
+DROP TABLE IF EXISTS session_data CASCADE;
 DROP TABLE IF EXISTS chama_invites CASCADE;
-DROP TABLE IF EXISTS refresh_tokens CASCADE;
-DROP TABLE IF EXISTS signup_sessions CASCADE;
-
--- Drop audit tables (will recreate properly)
-DROP TABLE IF EXISTS audit_logs CASCADE;
-DROP TABLE IF EXISTS financial_audit_logs CASCADE;
 
 -- ============================================================================
 -- STEP 2: CREATE CORE TABLES WITH PROPER STRUCTURE
@@ -587,7 +609,7 @@ CREATE INDEX idx_welfare_claims_created_at ON welfare_claims(created_at);
 CREATE INDEX idx_meetings_chama_id ON meetings(chama_id);
 CREATE INDEX idx_meetings_scheduled_date ON meetings(scheduled_date);
 CREATE INDEX idx_meetings_status ON meetings(status);
-CREATE INDEX idx_meetings_chama_upcoming ON meetings(chama_id, scheduled_date) WHERE scheduled_date >= NOW();
+CREATE INDEX idx_meetings_chama_upcoming ON meetings(chama_id, scheduled_date);
 
 -- Notifications indexes
 CREATE INDEX idx_notifications_user_id ON notifications(user_id);
@@ -619,7 +641,7 @@ CREATE INDEX idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
 CREATE INDEX idx_audit_logs_severity ON audit_logs(severity);
 CREATE INDEX idx_audit_logs_user_date ON audit_logs(user_id, created_at);
-CREATE INDEX idx_audit_logs_recent ON audit_logs(created_at) WHERE created_at >= NOW() - INTERVAL '30 days';
+CREATE INDEX idx_audit_logs_recent ON audit_logs(created_at);
 
 -- Financial audit logs indexes
 CREATE INDEX idx_financial_audit_logs_user_id ON financial_audit_logs(user_id);

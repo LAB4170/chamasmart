@@ -14,30 +14,45 @@ const Login = lazy(() => import("./pages/auth/Login"));
 const Register = lazy(() => import("./pages/auth/Register"));
 const VerifyEmailPhone = lazy(() => import("./pages/auth/VerifyEmailPhone"));
 const Dashboard = lazy(() => import("./pages/dashboard/Dashboard"));
-const CreateChama = lazy(() => import("./pages/chama/CreateChama"));
-const ChamaDetails = lazy(() => import("./pages/chama/ChamaDetails"));
-const RecordContribution = lazy(() => import("./pages/chama/RecordContribution"));
-const ManageChama = lazy(() => import("./pages/chama/ManageChama"));
-const AddMember = lazy(() => import("./pages/chama/AddMember"));
-const MyChamas = lazy(() => import("./pages/chama/MyChamas"));
-const InviteManagement = lazy(() => import("./pages/chama/InviteManagement"));
-const JoinChama = lazy(() => import("./pages/chama/JoinChama"));
-const LoanManagement = lazy(() => import("./pages/chama/LoanManagement"));
-const ApplyLoan = lazy(() => import("./pages/chama/ApplyLoan"));
-const RepayLoan = lazy(() => import("./pages/chama/RepayLoan"));
-const PayoutManagement = lazy(() => import("./pages/chama/PayoutManagement"));
-const ProcessPayout = lazy(() => import("./pages/chama/ProcessPayout"));
-const BrowseChamas = lazy(() => import("./pages/chama/BrowseChamas"));
-const JoinRequests = lazy(() => import("./pages/chama/JoinRequests"));
-const MyJoinRequests = lazy(() => import("./pages/chama/MyJoinRequests"));
+const CreateChama = lazy(() => import("./pages/chama/core/CreateChama"));
+const ChamaDetails = lazy(() => import("./pages/chama/core/ChamaDetails"));
+const RecordContribution = lazy(() => import("./pages/chama/core/RecordContribution"));
+const ManageChama = lazy(() => import("./pages/chama/core/ManageChama"));
+const AddMember = lazy(() => import("./pages/chama/members/AddMember"));
+const MyChamas = lazy(() => import("./pages/chama/core/MyChamas"));
+const InviteManagement = lazy(() => import("./pages/chama/members/InviteManagement"));
+const JoinChama = lazy(() => import("./pages/chama/members/JoinChama"));
+const LoanManagement = lazy(() => import("./pages/chama/loans/LoanManagement"));
+const ApplyLoan = lazy(() => import("./pages/chama/loans/ApplyLoan"));
+const RepayLoan = lazy(() => import("./pages/chama/loans/RepayLoan"));
+const PayoutManagement = lazy(() => import("./pages/chama/core/PayoutManagement"));
+const ProcessPayout = lazy(() => import("./pages/chama/core/ProcessPayout"));
+const BrowseChamas = lazy(() => import("./pages/chama/core/BrowseChamas"));
+const JoinRequests = lazy(() => import("./pages/chama/members/JoinRequests"));
+const MyJoinRequests = lazy(() => import("./pages/chama/members/MyJoinRequests"));
 
 const MyGuarantees = lazy(() => import("./pages/loans/MyGuarantees"));
-const WelfareDashboard = lazy(() => import("./pages/chama/WelfareDashboard"));
-const SubmitClaim = lazy(() => import("./pages/chama/SubmitClaim"));
-const WelfareAdmin = lazy(() => import("./pages/chama/WelfareAdmin"));
+const WelfareDashboard = lazy(() => import("./pages/chama/welfare/WelfareDashboard"));
+const SubmitClaim = lazy(() => import("./pages/chama/welfare/SubmitClaim"));
+const WelfareAdmin = lazy(() => import("./pages/chama/welfare/WelfareAdmin"));
+const AuditLogs = lazy(() => import("./pages/chama/core/AuditLogs"));
+const SecurityMonitor = lazy(() => import("./pages/dashboard/SecurityMonitor"));
+const ApiKeyManagement = lazy(() => import("./pages/dashboard/ApiKeyManagement"));
+const UserProfile = lazy(() => import("./pages/user/UserProfile"));
+const MeetingList = lazy(() => import("./pages/chama/meetings/MeetingList"));
+const CreateMeeting = lazy(() => import("./pages/chama/meetings/CreateMeeting"));
+const RoscaDashboard = lazy(() => import("./pages/chama/rosca/RoscaDashboard"));
+const CreateCycle = lazy(() => import("./pages/chama/rosca/CreateCycle"));
+const RoscaDetails = lazy(() => import("./pages/chama/rosca/RoscaDetails"));
+const AscaDashboard = lazy(() => import("./pages/chama/asca/AscaDashboard"));
+const BuyShares = lazy(() => import("./pages/chama/asca/BuyShares"));
+const InvestmentProposals = lazy(() => import("./pages/chama/asca/InvestmentProposals"));
 
 // Loading component
 import LoadingSpinner from "./components/LoadingSpinner";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
 
 // Protected Route wrapper
 const ProtectedRoute = ({ children }) => {
@@ -250,6 +265,7 @@ function App() {
         <SocketProvider>
           <div className="app">
             <Navbar />
+            <ToastContainer position="top-right" autoClose={3000} />
             <Suspense fallback={<LoadingSpinner />}>
               <Routes>
                 <Route path="/" element={<Home />} />
@@ -421,6 +437,105 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <ManageChama />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/chamas/:id/audit"
+                  element={
+                    <ProtectedRoute>
+                      <AuditLogs />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/security"
+                  element={
+                    <ProtectedRoute>
+                      <SecurityMonitor />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings/api-keys"
+                  element={
+                    <ProtectedRoute>
+                      <ApiKeyManagement />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <UserProfile />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chamas/:id/meetings"
+                  element={
+                    <ProtectedRoute>
+                      <MeetingList />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chamas/:id/meetings/create"
+                  element={
+                    <ProtectedRoute>
+                      <CreateMeeting />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/chamas/:id/rosca"
+                  element={
+                    <ProtectedRoute>
+                      <RoscaDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chamas/:id/rosca/create"
+                  element={
+                    <ProtectedRoute>
+                      <CreateCycle />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chamas/:id/rosca/:cycleId"
+                  element={
+                    <ProtectedRoute>
+                      <RoscaDetails />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/chamas/:id/asca"
+                  element={
+                    <ProtectedRoute>
+                      <AscaDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chamas/:id/asca/buy"
+                  element={
+                    <ProtectedRoute>
+                      <BuyShares />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chamas/:id/asca/proposals"
+                  element={
+                    <ProtectedRoute>
+                      <InvestmentProposals />
                     </ProtectedRoute>
                   }
                 />

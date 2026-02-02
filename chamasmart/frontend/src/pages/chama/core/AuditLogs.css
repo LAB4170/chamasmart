@@ -1,0 +1,71 @@
+.log-details {
+    max-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.log-details:hover {
+    white-space: normal;
+    overflow: visible;
+    background-color: var(--bg-secondary);
+    position: relative;
+    z-index: 10;
+}
+
+.header-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-info .text-sm {
+    font-size: 0.8rem;
+}
+
+.badge-info {
+    background-color: var(--info-light);
+    color: var(--info-dark);
+}
+
+.grid-4 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.mb-3 {
+    margin-bottom: 1.5rem !important;
+}
+
+.p-3 {
+    padding: 1.5rem !important;
+}
+
+.mb-0 {
+    margin-bottom: 0 !important;
+}
+
+/* Form Styles Override for Filters */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-select, .form-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-white);
+    transition: all 0.2s;
+}
+
+.form-select:focus, .form-input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--primary-light);
+}

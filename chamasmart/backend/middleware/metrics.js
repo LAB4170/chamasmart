@@ -212,12 +212,12 @@ const readinessCheckEndpoint = async (req, res) => {
 
     // Check Redis connection (if configured)
     try {
-      const redis = require('../config/redis');
+      const { redis } = require('../config/redis');
       if (redis && typeof redis.ping === 'function') {
         await redis.ping();
         checks.redis = true;
       } else {
-        checks.redis = true; // Redis not configured, skip check
+        checks.redis = true; // Use mock or skip
       }
     } catch (redisError) {
       logger.warn('Redis health check failed', { error: redisError.message });

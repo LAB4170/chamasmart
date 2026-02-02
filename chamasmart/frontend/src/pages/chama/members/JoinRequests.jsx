@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { joinRequestAPI, chamaAPI } from "../../services/api";
-import { useAuth } from "../../context/AuthContext";
+import { joinRequestAPI, chamaAPI } from "../../../services/api";
+import { useAuth } from "../../../context/AuthContext";
 
 const JoinRequests = () => {
     const { id } = useParams();

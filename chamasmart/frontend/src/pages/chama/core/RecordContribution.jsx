@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { chamaAPI, contributionAPI } from "../../services/api";
-import LoadingSkeleton from "../../components/LoadingSkeleton";
+import { chamaAPI, contributionAPI } from "../../../services/api";
+import LoadingSkeleton from "../../../components/LoadingSkeleton";
 
 const RecordContribution = () => {
   const { id } = useParams();

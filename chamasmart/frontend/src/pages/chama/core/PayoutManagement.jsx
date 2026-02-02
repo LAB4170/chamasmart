@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { payoutAPI, chamaAPI } from "../../services/api";
-import { useAuth } from "../../context/AuthContext";
+import { payoutAPI, chamaAPI } from "../../../services/api";
+import { useAuth } from "../../../context/AuthContext";
 
 const PayoutManagement = () => {
     const { id } = useParams();
