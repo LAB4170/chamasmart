@@ -279,29 +279,6 @@ if (fs.existsSync(distPath)) {
 
 // Middle catch-all and legacy error handling removed in favor of enhanced handlers at the end
 
-// Start server
-server.on("error", (err) => {
-  console.error("SERVER FATAL ERROR:", err.message);
-  if (err.code === "EADDRINUSE") {
-    process.exit(1);
-  }
-});
-
-server.listen(PORT, async () => {
-  console.log(`STABILIZED: Server running on port ${PORT}`);
-  logger.info(`Server running on port ${PORT}`);
-
-  // Run health checks
-  if (process.env.NODE_ENV !== "test") {
-    const { performHealthCheck } = require("./utils/healthCheck");
-    try {
-      await performHealthCheck();
-    } catch (error) {
-      console.error("Health check error:", error);
-    }
-  }
-});
-
 // Initialize Socket.io (if configured) except during unit tests to avoid
 // attempting external Redis connections in CI/test environments.
 if (process.env.NODE_ENV !== "test") {
@@ -309,15 +286,13 @@ if (process.env.NODE_ENV !== "test") {
     const socketModule = require("./socket");
     // init is async but we don't need to block server start in tests
     socketModule.init(server).catch((err) => {
-      logger.error("Socket.io initialization failed", { error: err.message });
+      console.error("Socket.io initialization failed:", err.message);
     });
   } catch (err) {
-    logger.warn("Socket module not available or failed to load", {
-      error: err.message,
-    });
+    console.warn("Socket module not available or failed to load:", err.message);
   }
 } else {
-  logger.info("Skipping Socket.io initialization in test environment");
+  console.log("Skipping Socket.io initialization in test environment");
 }
 
 // ============================================================================
@@ -329,6 +304,40 @@ app.use(notFoundHandler);
 
 // Global error handler
 app.use(errorHandler);
+
+// Handle server errors
+server.on("error", (err) => {
+  console.error("SERVER ERROR:", err);
+  if (err.code === "EADDRINUSE") {
+    console.error(`ERROR: Port ${PORT} is already in use`);
+  }
+  process.exit(1);
+});
+
+// Only start the server if this file is run directly (not when imported as a module)
+if (require.main === module) {
+  // Start the server
+  server.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+    logger.info(`Server started on port ${PORT}`, {
+      environment: process.env.NODE_ENV || "development",
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // Handle uncaught exceptions
+  process.on("uncaughtException", (error) => {
+    console.error("UNCAUGHT EXCEPTION:", error);
+    if (process.env.NODE_ENV === "production") {
+      process.exit(1);
+    }
+  });
+
+  // Handle unhandled promise rejections
+  process.on("unhandledRejection", (reason, promise) => {
+    console.error("UNHANDLED REJECTION at:", promise, "reason:", reason);
+  });
+}
 
 module.exports = app;
 module.exports.server = server;

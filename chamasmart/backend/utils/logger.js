@@ -311,12 +311,13 @@ if (isProduction) {
   });
 }
 
-module.exports = {
-  logger,
+// Export the logger with all its methods
+module.exports = Object.assign(logger, {
   requestId,
   requestLogger,
   logRequest,
   logError,
   logDatabaseQuery,
   logSecurityEvent,
-};
+  stream: logger.stream,
+});
