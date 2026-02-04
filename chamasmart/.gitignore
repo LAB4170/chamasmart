@@ -48,6 +48,10 @@ test_results.log
 # Environment variables
 .env
 
+# Firebase
+**/firebase-service-account*.json
+**/firebase-admin*.json
+
 # Debug logs
 npm-debug.log*
 yarn-debug.log*

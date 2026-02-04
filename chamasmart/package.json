@@ -39,6 +39,7 @@
   "license": "ISC",
   "dependencies": {
     "ioredis": "^5.9.2",
+    "lru-cache": "^11.2.5",
     "uuid": "^13.0.0"
   }
 }

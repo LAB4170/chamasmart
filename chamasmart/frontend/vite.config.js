@@ -131,6 +131,9 @@ export default defineConfig({
         ws: true,
       },
     },
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+    },
   },
 
   // Preview server (for production build testing)

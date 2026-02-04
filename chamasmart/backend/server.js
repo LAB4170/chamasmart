@@ -11,8 +11,11 @@ const swaggerUi = require("swagger-ui-express");
 const swaggerDefinition = require("./swaggerDef");
 
 // Import custom modules
-const logger = require("./utils/logger");
-const { requestLogger } = require("./middleware/requestLogger");
+const { logger, requestId } = require("./utils/logger");
+const {
+  requestLogger,
+  detailedRequestLogger,
+} = require("./middleware/enhancedRequestLogger");
 const { corsOptions } = require("./config/cors");
 const {
   healthCheckEndpoint,
@@ -49,6 +52,9 @@ const {
 
 // Initialize database connection
 require("./config/db");
+
+// Initialize Firebase Admin
+require("./config/firebase");
 
 // Create Express app
 const app = express();
@@ -101,8 +107,16 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 
-// Request logging and validation
-app.use(requestLogger);
+// Add request ID and logging middleware
+app.use(requestId); // Add request ID to all requests
+app.use(requestLogger); // Main request logging
+
+// Detailed request logging in development
+if (process.env.NODE_ENV === "development") {
+  app.use(detailedRequestLogger);
+}
+
+// Request validation
 app.use(validateQueryParams);
 
 // Response formatting

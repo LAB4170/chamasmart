@@ -28,7 +28,7 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     // Only connect if user is authenticated
     if (user) {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("accessToken");
       if (!token) {
         console.warn("No token found, skipping socket connection");
         return;

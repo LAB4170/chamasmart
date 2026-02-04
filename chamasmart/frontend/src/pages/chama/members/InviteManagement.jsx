@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { chamaAPI, inviteAPI } from '../../services/api';
+import { chamaAPI, inviteAPI } from "../../../services/api";
 
 
 const InviteManagement = () => {

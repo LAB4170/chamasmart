@@ -1,5 +1,13 @@
-import { createContext, useState, useContext, useEffect } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { authAPI } from "../services/api";
+import { auth } from "../config/firebase";
+import {
+  signInWithPopup,
+  GoogleAuthProvider,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut
+} from "firebase/auth";
 
 const AuthContext = createContext();
 
@@ -18,7 +26,7 @@ export const AuthProvider = ({ children }) => {
 
   // Check if user is logged in on mount
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("accessToken");
     const savedUser = localStorage.getItem("user");
 
     if (token && savedUser) {
@@ -27,26 +35,56 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  // Register
+  // Traditional Backend Register (Email/Password)
   const register = async (userData) => {
     try {
       setError(null);
       const response = await authAPI.register(userData);
 
-      const { user: newUser, token } = response.data.data;
+      const { user: newUser, tokens } = response.data.data;
 
-      localStorage.setItem("token", token);
+      localStorage.setItem("accessToken", tokens.accessToken);
+      localStorage.setItem("refreshToken", tokens.refreshToken);
       localStorage.setItem("user", JSON.stringify(newUser));
       setUser(newUser);
 
-      // Surface verification flags so the UI can route to a verify screen
-      return {
-        success: true,
-        user: newUser,
-        token,
-      };
+      return { success: true, user: newUser };
     } catch (err) {
       const message = err.response?.data?.message || "Registration failed";
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  // Firebase Email/Password Register
+  const registerWithFirebase = async (email, password, additionalData = {}) => {
+    try {
+      setError(null);
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+
+      // Update Firebase profile with name if provided
+      if (additionalData.firstName || additionalData.lastName) {
+        const { updateProfile } = await import("firebase/auth");
+        await updateProfile(result.user, {
+          displayName: `${additionalData.firstName} ${additionalData.lastName}`.trim()
+        });
+      }
+
+      const idToken = await result.user.getIdToken();
+
+      // Sync with our backend
+      const response = await authAPI.firebaseSync(idToken, additionalData);
+      const { user: syncedUser, tokens } = response.data.data;
+
+      localStorage.setItem("accessToken", tokens.accessToken);
+      localStorage.setItem("refreshToken", tokens.refreshToken);
+      localStorage.setItem("user", JSON.stringify(syncedUser));
+      setUser(syncedUser);
+
+      return { success: true };
+    } catch (err) {
+      console.error("Firebase Registration error:", err);
+      const message = err.response?.data?.message || err.message || "Registration failed";
       setError(message);
       return { success: false, error: message };
     }
@@ -110,52 +148,66 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Login
-  const login = async (credentials) => {
+  // Firebase OAuth Login (e.g., Google)
+  const loginWithGoogle = async () => {
     try {
       setError(null);
-      const response = await authAPI.login(credentials);
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const idToken = await result.user.getIdToken();
 
-      // The backend should return user data in response.data.data
-      const { user: loggedInUser, token } = response.data.data;
+      // Sync with our backend
+      const response = await authAPI.firebaseSync(idToken);
+      const { user: loggedInUser, tokens } = response.data.data;
 
-      if (!token || !loggedInUser) {
-        throw new Error("Invalid login response from server");
-      }
-
-      // Store the token and user data
-      localStorage.setItem("token", token);
+      localStorage.setItem("accessToken", tokens.accessToken);
+      localStorage.setItem("refreshToken", tokens.refreshToken);
       localStorage.setItem("user", JSON.stringify(loggedInUser));
       setUser(loggedInUser);
 
       return { success: true };
     } catch (err) {
-      console.error("Login error:", err);
-      const status = err.response?.status;
-      const apiMessage = err.response?.data?.message;
-      const code = err.response?.data?.code;
-      const message =
-        apiMessage ||
-        "Login failed. Please check your credentials and try again.";
-      const unverified = status === 403 && code === "EMAIL_NOT_VERIFIED";
-
-      // Clear any existing auth data on error
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      setUser(null);
+      console.error("Google Login error:", err);
+      const message = err.response?.data?.message || err.message || "Google login failed";
       setError(message);
+      return { success: false, error: message };
+    }
+  };
 
-      return {
-        success: false,
-        error: message,
-        unverified,
-      };
+  // Firebase Email/Password Login
+  const loginWithFirebase = async (email, password) => {
+    try {
+      setError(null);
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const idToken = await result.user.getIdToken();
+
+      // Sync with our backend
+      const response = await authAPI.firebaseSync(idToken);
+      const { user: loggedInUser, tokens } = response.data.data;
+
+      localStorage.setItem("accessToken", tokens.accessToken);
+      localStorage.setItem("refreshToken", tokens.refreshToken);
+      localStorage.setItem("user", JSON.stringify(loggedInUser));
+      setUser(loggedInUser);
+
+      return { success: true };
+    } catch (err) {
+      console.error("Firebase Login error:", err);
+      const message = err.response?.data?.message || err.message || "Login failed";
+      setError(message);
+      return { success: false, error: message };
     }
   };
 
   // Logout
-  const logout = () => {
-    localStorage.removeItem("token");
+  const logout = async () => {
+    try {
+      await firebaseSignOut(auth);
+    } catch (err) {
+      console.warn("Firebase sign out failed:", err);
+    }
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
     setUser(null);
     setError(null);
@@ -166,7 +218,9 @@ export const AuthProvider = ({ children }) => {
     loading,
     error,
     register,
-    login,
+    registerWithFirebase,
+    loginWithGoogle,
+    loginWithFirebase,
     logout,
     verifyEmail,
     verifyPhone,

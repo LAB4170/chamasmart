@@ -12,7 +12,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const { login } = useAuth();
+  const { loginWithFirebase, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -27,16 +27,27 @@ const Login = () => {
     setError("");
     setLoading(true);
 
-    const result = await login(formData);
+    const result = await loginWithFirebase(formData.email, formData.password);
 
     if (result.success) {
       navigate("/dashboard");
     } else {
       setError(result.error);
-      if (result.unverified) {
-        // Redirect unverified users to the account verification screen
-        navigate("/verify-account");
-      }
+    }
+
+    setLoading(false);
+  };
+
+  const handleGoogleLogin = async () => {
+    setError("");
+    setLoading(true);
+
+    const result = await loginWithGoogle();
+
+    if (result.success) {
+      navigate("/dashboard");
+    } else {
+      setError(result.error);
     }
 
     setLoading(false);
@@ -98,6 +109,20 @@ const Login = () => {
               {loading ? "Logging in..." : "Login"}
             </button>
           </form>
+
+          <div className="auth-divider">
+            <span>OR</span>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-outline btn-block google-login"
+            onClick={handleGoogleLogin}
+            disabled={loading}
+          >
+            <img src="/google-icon.svg" alt="" className="btn-icon" />
+            Sign in with Google
+          </button>
 
           <p className="text-center mt-3">
             Don't have an account? <Link to="/register">Register here</Link>

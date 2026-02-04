@@ -59,7 +59,7 @@ const Register = () => {
   const [error, setError] = useState("");
   const [registrationData, setRegistrationData] = useState(null);
 
-  const { register, verifyOTP, resendOTP } = useAuth();
+  const { register, registerWithFirebase, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -140,34 +140,39 @@ const Register = () => {
       return;
     }
 
-    setLoading(true);
-
     try {
-      // Call the register function from AuthContext
-      const result = await register({
+      const result = await registerWithFirebase(formData.email, formData.password, {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        email: formData.email,
-        phoneNumber: formData.phoneNumber,
-        password: formData.password,
+        phoneNumber: formData.phoneNumber
       });
 
       if (result.success) {
-        // Save registration data for OTP verification
-        setRegistrationData({
-          email: formData.email,
-          phoneNumber: formData.phoneNumber,
-        });
-        setCurrentStep(2); // Move to OTP verification step
+        navigate("/dashboard");
       } else {
-        setError(result.error || "Registration failed. Please try again.");
+        setError(result.error || "Registration failed");
       }
     } catch (err) {
-      setError("An error occurred. Please try again later.");
+      setError(err.message || "Registration failed");
       console.error("Registration error:", err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleRegister = async () => {
+    setError("");
+    setLoading(true);
+
+    const result = await loginWithGoogle();
+
+    if (result.success) {
+      navigate("/dashboard");
+    } else {
+      setError(result.error);
+    }
+
+    setLoading(false);
   };
 
   const handleVerifyOtp = async (e) => {
@@ -406,6 +411,20 @@ const Register = () => {
               {loading ? "Creating Account..." : "Create Account"}
             </button>
           </form>
+
+          <div className="auth-divider">
+            <span>OR</span>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-outline btn-block google-login"
+            onClick={handleGoogleRegister}
+            disabled={loading}
+          >
+            <img src="/google-icon.svg" alt="" className="btn-icon" />
+            Sign up with Google
+          </button>
 
           <div className="text-center mt-4">
             <p>

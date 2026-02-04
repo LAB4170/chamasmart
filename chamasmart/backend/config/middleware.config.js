@@ -1,8 +1,3 @@
-/**
- * Centralized Middleware Configuration
- * All configurable values in one place
- */
-
 module.exports = {
   // Rate Limiting
   rateLimit: {
@@ -27,7 +22,7 @@ module.exports = {
     contributionsTtl: parseInt(process.env.CACHE_CONTRIBUTIONS_TTL) || 60,
     meetingsTtl: parseInt(process.env.CACHE_MEETINGS_TTL) || 300,
     loansTtl: parseInt(process.env.CACHE_LOANS_TTL) || 120,
-    maxSize: process.env.CACHE_MAX_SIZE || '100mb',
+    maxSize: process.env.CACHE_MAX_SIZE || "100mb",
     compressionThreshold:
       parseInt(process.env.CACHE_COMPRESSION_THRESHOLD) || 1024, // 1KB
   },
@@ -37,32 +32,32 @@ module.exports = {
     maxFileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024, // 10MB
     maxFiles: parseInt(process.env.MAX_FILES) || 5,
     allowedMimeTypes: [
-      'application/pdf',
-      'image/jpeg',
-      'image/png',
-      'image/jpg',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      "application/pdf",
+      "image/jpeg",
+      "image/png",
+      "image/jpg",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ],
-    virusScanEnabled: process.env.VIRUS_SCAN_ENABLED === 'true',
+    virusScanEnabled: process.env.VIRUS_SCAN_ENABLED === "true",
   },
 
   // Security
   security: {
-    csrfEnabled: process.env.CSRF_ENABLED !== 'false', // Enabled by default
-    corsOrigins: process.env.CORS_ORIGINS?.split(',') || [
-      'http://localhost:3000',
+    csrfEnabled: process.env.CSRF_ENABLED !== "false", // Enabled by default
+    corsOrigins: process.env.CORS_ORIGINS?.split(",") || [
+      "http://localhost:3000",
     ],
     requestTimeout: parseInt(process.env.REQUEST_TIMEOUT) || 30000, // 30 seconds
     maxRequestSize: parseInt(process.env.MAX_REQUEST_SIZE) || 10 * 1024 * 1024, // 10MB
-    trustedProxies: process.env.TRUSTED_PROXIES?.split(',') || [],
+    trustedProxies: process.env.TRUSTED_PROXIES?.split(",") || [],
   },
 
   // Authentication
   auth: {
     jwtSecret: process.env.JWT_SECRET,
-    jwtExpiry: process.env.JWT_EXPIRY || '1d',
-    refreshTokenExpiry: process.env.REFRESH_TOKEN_EXPIRY || '7d',
+    jwtExpiry: process.env.JWT_EXPIRY || "1d",
+    refreshTokenExpiry: process.env.REFRESH_TOKEN_EXPIRY || "7d",
     maxApiKeysPerUser: parseInt(process.env.MAX_API_KEYS_PER_USER) || 10,
     apiKeyDefaultExpiry:
       parseInt(process.env.API_KEY_DEFAULT_EXPIRY_DAYS) || 365,
@@ -79,38 +74,38 @@ module.exports = {
 
   // Logging
   logging: {
-    level: process.env.LOG_LEVEL || 'info',
-    enableDetailedLogging: process.env.DETAILED_LOGGING === 'true',
+    level: process.env.LOG_LEVEL || "info",
+    enableDetailedLogging: process.env.DETAILED_LOGGING === "true",
     logSamplingRate: parseFloat(process.env.LOG_SAMPLING_RATE) || 1.0, // 1.0 = 100%
     sensitiveFields: [
-      'password',
-      'password_hash',
-      'token',
-      'authorization',
-      'cookie',
-      'jwt',
-      'secret',
-      'api_key',
-      'apiKey',
-      'ssn',
-      'credit_card',
+      "password",
+      "password_hash",
+      "token",
+      "authorization",
+      "cookie",
+      "jwt",
+      "secret",
+      "api_key",
+      "apiKey",
+      "ssn",
+      "credit_card",
     ],
   },
 
   // Metrics
   metrics: {
-    enabled: process.env.METRICS_ENABLED !== 'false',
+    enabled: process.env.METRICS_ENABLED !== "false",
     authToken: process.env.METRICS_AUTH_TOKEN,
     slowRequestThreshold: parseInt(process.env.SLOW_REQUEST_THRESHOLD) || 1000, // 1 second
   },
 
   // Redis
   redis: {
-    host: process.env.REDIS_HOST || 'localhost',
+    host: process.env.REDIS_HOST || "localhost",
     port: parseInt(process.env.REDIS_PORT) || 6379,
     password: process.env.REDIS_PASSWORD,
     url: process.env.REDIS_URL,
-    keyPrefix: process.env.REDIS_KEY_PREFIX || 'chamasmart:',
+    keyPrefix: process.env.REDIS_KEY_PREFIX || "chamasmart:",
     maxRetries: parseInt(process.env.REDIS_MAX_RETRIES) || 3,
     retryDelay: parseInt(process.env.REDIS_RETRY_DELAY) || 50,
   },
@@ -134,17 +129,17 @@ module.exports = {
 
   // Member Status
   memberStatus: {
-    ACTIVE: 'active',
-    PENDING: 'pending',
-    INACTIVE: 'inactive',
-    SUSPENDED: 'suspended',
+    ACTIVE: "active",
+    PENDING: "pending",
+    INACTIVE: "inactive",
+    SUSPENDED: "suspended",
   },
 
   // User Roles
   roles: {
-    CHAIRPERSON: 'CHAIRPERSON',
-    SECRETARY: 'SECRETARY',
-    TREASURER: 'TREASURER',
-    MEMBER: 'MEMBER',
+    CHAIRPERSON: "CHAIRPERSON",
+    SECRETARY: "SECRETARY",
+    TREASURER: "TREASURER",
+    MEMBER: "MEMBER",
   },
 };

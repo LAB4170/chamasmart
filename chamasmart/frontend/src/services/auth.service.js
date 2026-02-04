@@ -17,4 +17,8 @@ export const authAPI = {
             email: credentials.email,
             password: credentials.password,
         }),
+
+    // Firebase Sync
+    firebaseSync: (idToken) =>
+        api.post("/auth/firebase-sync", { idToken }),
 };

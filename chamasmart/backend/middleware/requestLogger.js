@@ -1,5 +1,5 @@
-const morgan = require('morgan');
-const logger = require('../utils/logger');
+const { logger } = require('../utils/logger');
+const crypto = require('crypto');
 
 // Sensitive fields to exclude from logging
 const SENSITIVE_FIELDS = [
@@ -12,22 +12,43 @@ const SENSITIVE_FIELDS = [
   'secret',
   'api_key',
   'apiKey',
+  'refreshToken',
+  'accessToken',
+  'creditCard',
+  'cvv',
+  'ssn',
 ];
 
-// Sanitize request body
-const sanitizeBody = body => {
-  if (!body || typeof body !== 'object') return body;
+/**
+ * Deeply sanitize an object by redacting sensitive fields
+ */
+const deepSanitize = (obj, path = '') => {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(item => deepSanitize(item, path));
 
-  const sanitized = { ...body };
+  return Object.entries(obj).reduce((acc, [key, value]) => {
+    const currentPath = path ? `${path}.${key}` : key;
+    
+    // Check if this is a sensitive field
+    const isSensitive = SENSITIVE_FIELDS.some(field => 
+      currentPath.toLowerCase().includes(field.toLowerCase())
+    );
 
-  for (const field of SENSITIVE_FIELDS) {
-    if (sanitized[field]) {
-      sanitized[field] = '[REDACTED]';
+    if (isSensitive) {
+      return { ...acc, [key]: '[REDACTED]' };
     }
-  }
 
-  return sanitized;
+    // Recursively sanitize nested objects
+    if (value && typeof value === 'object') {
+      return { ...acc, [key]: deepSanitize(value, currentPath) };
+    }
+
+    return { ...acc, [key]: value };
+  }, {});
 };
+
+// Sanitize request body
+const sanitizeBody = body => deepSanitize(body);
 
 // Sanitize headers
 const sanitizeHeaders = headers => {
@@ -35,18 +56,11 @@ const sanitizeHeaders = headers => {
 
   const sanitized = { ...headers };
 
-  // Redact all sensitive fields except authorization which we handle specially
-  for (const field of SENSITIVE_FIELDS) {
-    if (field !== 'authorization' && sanitized[field]) {
-      sanitized[field] = '[REDACTED]';
-    }
-  }
-
-  // Partially redact authorization header (handle specially)
+  // Handle authorization header specially
   if (sanitized.authorization) {
     const parts = sanitized.authorization.split(' ');
     if (parts.length === 2) {
-      sanitized.authorization = `${parts[0]} ${parts[1].substring(0, 10)}...`;
+      sanitized.authorization = `${parts[0]} [REDACTED]`;
     } else {
       sanitized.authorization = '[REDACTED]';
     }
@@ -55,56 +69,44 @@ const sanitizeHeaders = headers => {
   return sanitized;
 };
 
-// Custom Morgan token for sanitized body
-morgan.token('sanitized-body', req => {
-  if (!req.body || Object.keys(req.body).length === 0) return '';
-  return JSON.stringify(sanitizeBody(req.body));
-});
-
-// Custom Morgan token for user ID
-morgan.token('user-id', req => req.user?.user_id || 'anonymous');
-
-// Custom Morgan token for request ID (if using request ID middleware)
-morgan.token('request-id', req => req.id || '-');
-
-// Development format - more verbose
-const developmentFormat = ':method :url :status :response-time ms - :user-id - :sanitized-body';
-
-// Production format - structured
-const productionFormat = JSON.stringify({
-  method: ':method',
-  url: ':url',
-  status: ':status',
-  responseTime: ':response-time',
-  userId: ':user-id',
-  requestId: ':request-id',
-  userAgent: ':user-agent',
-  remoteAddr: ':remote-addr',
+/**
+ * Request logger middleware
+ * Logs incoming requests and outgoing responses with detailed information
+ */
+const requestLogger = (req, res, next) => {
+  const startTime = process.hrtime();
+  const requestId = req.id || (req.id = crypto.randomUUID());
+  
+  // Add request ID to response headers
+  res.setHeader('X-Request-ID', requestId);
+  
+  // Log request details
+  const requestLog = {
+  remoteAddr: ":remote-addr",
 });
 
 // Create Morgan middleware
 const requestLogger = morgan(
-  process.env.NODE_ENV === 'production' ? productionFormat : developmentFormat,
+  process.env.NODE_ENV === "production" ? productionFormat : developmentFormat,
   {
     stream: logger.stream,
-    skip: req =>
+    skip: (req) =>
       // Skip health check and metrics endpoints to reduce noise
-      req.url === '/api/health' || req.url === '/metrics'
-    ,
+      req.url === "/api/health" || req.url === "/metrics",
   },
 );
 
 // Detailed request logger middleware (only in development or when debugging)
 const detailedRequestLogger = (req, res, next) => {
   // Only log in development or when DEBUG flag is set
-  if (process.env.NODE_ENV === 'production' && !process.env.DEBUG) {
+  if (process.env.NODE_ENV === "production" && !process.env.DEBUG) {
     return next();
   }
 
   const startTime = Date.now();
 
   // Log request
-  logger.debug('Incoming request', {
+  logger.debug("Incoming request", {
     method: req.method,
     url: req.url,
     headers: sanitizeHeaders(req.headers),
@@ -118,15 +120,15 @@ const detailedRequestLogger = (req, res, next) => {
   res.send = function (data) {
     const duration = Date.now() - startTime;
 
-    logger.debug('Outgoing response', {
+    logger.debug("Outgoing response", {
       method: req.method,
       url: req.url,
       statusCode: res.statusCode,
       duration: `${duration}ms`,
       // Don't log response body in production
-      ...(process.env.NODE_ENV !== 'production' && {
+      ...(process.env.NODE_ENV !== "production" && {
         responseBody:
-          typeof data === 'string' ? data.substring(0, 500) : '[Binary Data]',
+          typeof data === "string" ? data.substring(0, 500) : "[Binary Data]",
       }),
     });
 

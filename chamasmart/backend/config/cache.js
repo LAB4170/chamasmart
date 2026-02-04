@@ -1,7 +1,35 @@
-const Redis = require('ioredis');
-const crypto = require('crypto');
-const logger = require('../utils/logger');
-const { metrics } = require('../middleware/metrics');
+const Redis = require("ioredis");
+const crypto = require("crypto");
+const LRU = require("lru-cache");
+const logger = require("../utils/logger");
+const { metrics } = require("../middleware/metrics");
+
+// Cache configuration constants
+const CACHE_CONFIG = {
+  // Memory cache defaults
+  MEMORY: {
+    MAX_ITEMS: 1000,
+    TTL_MS: 60 * 1000, // 1 minute
+    MAX_SIZE_BYTES: 50 * 1024 * 1024, // 50MB
+  },
+  // Redis scan defaults
+  SCAN: {
+    BATCH_SIZE: 100,
+    TIMEOUT_MS: 5000, // 5 seconds
+  },
+  // Lock defaults
+  LOCK: {
+    TTL_SECONDS: 10,
+    RETRY_DELAY_MS: 100,
+  },
+  // Default TTLs (in seconds)
+  TTL: {
+    DEFAULT: 3600, // 1 hour
+    SHORT: 300, // 5 minutes
+    MEDIUM: 3600, // 1 hour
+    LONG: 86400, // 1 day
+  },
+};
 
 /**
  * Advanced Cache Manager with:
@@ -16,24 +44,63 @@ const { metrics } = require('../middleware/metrics');
 class CacheManager {
   constructor() {
     this.redis = null;
-    this.memoryCache = new Map();
-    this.memoryCacheTTL = 60000; // 1 minute
-    this.maxMemoryCacheSize = 1000; // LRU limit
+    this.cleanupHandlers = [];
+    this.intervals = [];
+    this.timeouts = [];
+    this.pendingFetches = new Map();
+    this.pendingLocks = new Map();
+    this.circuitBreaker = {
+      state: "CLOSED",
+      failureCount: 0,
+      nextAttempt: 0,
+      threshold: 5,
+      resetTimeout: 30000, // 30 seconds
+    };
+
+    // Initialize LRU cache with configuration
+    this.memoryCache = new LRU({
+      max: parseInt(
+        process.env.MAX_MEMORY_CACHE_ITEMS || CACHE_CONFIG.MEMORY.MAX_ITEMS,
+      ),
+      ttl: parseInt(
+        process.env.MEMORY_CACHE_TTL_MS || CACHE_CONFIG.MEMORY.TTL_MS,
+      ),
+      updateAgeOnGet: true,
+      updateAgeOnHas: true,
+      allowStale: false,
+      noDisposeOnSet: true,
+      sizeCalculation: (value, key) =>
+        Buffer.byteLength(JSON.stringify(value)) + Buffer.byteLength(key),
+      maxSize: parseInt(
+        process.env.MAX_MEMORY_CACHE_SIZE || CACHE_CONFIG.MEMORY.MAX_SIZE_BYTES,
+      ),
+    });
+
     this.isRedisAvailable = false;
     this.pendingFetches = new Map(); // For stampede protection
-    this.cacheVersion = process.env.CACHE_VERSION || 'v1';
+    this.cacheVersion = process.env.CACHE_VERSION || "v1";
+    this.scanTimeout = parseInt(
+      process.env.REDIS_SCAN_TIMEOUT_MS || CACHE_CONFIG.SCAN.TIMEOUT_MS,
+    );
+    this.scanBatchSize = parseInt(
+      process.env.REDIS_SCAN_BATCH_SIZE || CACHE_CONFIG.SCAN.BATCH_SIZE,
+    );
+    this.lockTTL = CACHE_CONFIG.LOCK.TTL_SECONDS;
+    this.retryDelay = CACHE_CONFIG.LOCK.RETRY_DELAY_MS;
 
     this.initializeRedis();
-    this.startMemoryCacheCleanup();
   }
 
   initializeRedis() {
     const redisConfig = this.getRedisConfig();
 
     if (!redisConfig) {
-      logger.warn('Redis not configured, using in-memory cache only');
+      logger.warn("Redis not configured, using in-memory cache only");
       return;
     }
+
+    // Clean up any existing Redis client
+    this.cleanupRedis();
 
     try {
       if (redisConfig.cluster) {
@@ -44,13 +111,13 @@ class CacheManager {
             enableReadyCheck: true,
             maxRetriesPerRequest: 3,
           },
-          scaleReads: 'slave',
+          scaleReads: "slave",
           maxRedirections: 16,
           retryDelayOnFailover: 100,
           retryDelayOnClusterDown: 300,
-          clusterRetryStrategy: times => Math.min(times * 100, 2000),
+          clusterRetryStrategy: (times) => Math.min(times * 100, 2000),
         });
-        logger.info('Redis Cluster initialized', {
+        logger.info("Redis Cluster initialized", {
           nodes: redisConfig.nodes.length,
         });
       } else {
@@ -59,9 +126,9 @@ class CacheManager {
           port: redisConfig.port,
           password: redisConfig.password,
           db: 0,
-          retryStrategy: times => {
+          retryStrategy: (times) => {
             if (times > 10) {
-              logger.error('Redis max retries exceeded');
+              logger.error("Redis max retries exceeded");
               return null; // Stop retrying
             }
             return Math.min(times * 50, 2000);
@@ -70,7 +137,7 @@ class CacheManager {
           enableReadyCheck: true,
           lazyConnect: false,
         });
-        logger.info('Redis client initialized', {
+        logger.info("Redis client initialized", {
           host: redisConfig.host,
           port: redisConfig.port,
         });
@@ -78,53 +145,53 @@ class CacheManager {
 
       this.setupRedisEventHandlers();
     } catch (error) {
-      logger.error('Failed to initialize Redis', { error: error.message });
+      logger.error("Failed to initialize Redis", { error: error.message });
       this.redis = null;
     }
   }
 
   setupRedisEventHandlers() {
-    this.redis.on('connect', () => {
+    this.redis.on("connect", () => {
       this.isRedisAvailable = true;
-      logger.info('Redis connected successfully');
+      logger.info("Redis connected successfully");
     });
 
-    this.redis.on('ready', () => {
+    this.redis.on("ready", () => {
       this.isRedisAvailable = true;
-      logger.info('Redis ready to accept commands');
+      logger.info("Redis ready to accept commands");
     });
 
-    this.redis.on('error', err => {
+    this.redis.on("error", (err) => {
       this.isRedisAvailable = false;
-      logger.error('Redis error', { error: err.message });
+      logger.error("Redis error", { error: err.message });
 
       if (metrics?.cacheOperations) {
         metrics.cacheOperations.inc({
-          operation: 'error',
-          result: 'error',
+          operation: "error",
+          result: "error",
         });
       }
     });
 
-    this.redis.on('close', () => {
+    this.redis.on("close", () => {
       this.isRedisAvailable = false;
-      logger.warn('Redis connection closed');
+      logger.warn("Redis connection closed");
     });
 
-    this.redis.on('reconnecting', delay => {
-      logger.info('Redis reconnecting...', { delay });
+    this.redis.on("reconnecting", (delay) => {
+      logger.info("Redis reconnecting...", { delay });
     });
 
-    this.redis.on('end', () => {
+    this.redis.on("end", () => {
       this.isRedisAvailable = false;
-      logger.warn('Redis connection ended');
+      logger.warn("Redis connection ended");
     });
   }
 
   getRedisConfig() {
     if (process.env.REDIS_CLUSTER_NODES) {
-      const nodes = process.env.REDIS_CLUSTER_NODES.split(',').map(node => {
-        const [host, port] = node.trim().split(':');
+      const nodes = process.env.REDIS_CLUSTER_NODES.split(",").map((node) => {
+        const [host, port] = node.trim().split(":");
         return { host, port: parseInt(port) || 6379 };
       });
 
@@ -138,7 +205,7 @@ class CacheManager {
     if (process.env.REDIS_HOST || process.env.REDIS_URL) {
       return {
         cluster: false,
-        host: process.env.REDIS_HOST || 'localhost',
+        host: process.env.REDIS_HOST || "localhost",
         port: parseInt(process.env.REDIS_PORT) || 6379,
         password: process.env.REDIS_PASSWORD,
       };
@@ -152,34 +219,11 @@ class CacheManager {
     return `${this.cacheVersion}:${key}`;
   }
 
-  // LRU eviction for memory cache
-  evictOldestFromMemory() {
-    if (this.memoryCache.size <= this.maxMemoryCacheSize) {
-      return;
-    }
-
-    // Find oldest entry
-    let oldestKey = null;
-    let oldestTime = Date.now();
-
-    for (const [key, value] of this.memoryCache.entries()) {
-      if (value.timestamp < oldestTime) {
-        oldestTime = value.timestamp;
-        oldestKey = key;
-      }
-    }
-
-    if (oldestKey) {
-      this.memoryCache.delete(oldestKey);
-      logger.debug('Evicted from memory cache (LRU)', { key: oldestKey });
-    }
-  }
-
   // Multi-layer get with stampede protection
   async get(key, options = {}) {
     const start = Date.now();
     const versionedKey = this.versionKey(key);
-    const customTTL = options.ttl || this.memoryCacheTTL;
+    const customTTL = options.ttl || this.memoryCache.options.ttl;
 
     try {
       // Layer 1: Memory cache
@@ -187,15 +231,15 @@ class CacheManager {
       if (memCached && Date.now() - memCached.timestamp < customTTL) {
         if (metrics?.cacheOperations) {
           metrics.cacheOperations.inc({
-            operation: 'get',
-            result: 'hit_memory',
+            operation: "get",
+            result: "hit_memory",
           });
         }
 
         // Update access time for LRU
         memCached.timestamp = Date.now();
 
-        logger.debug('Cache hit (memory)', {
+        logger.debug("Cache hit (memory)", {
           key,
           duration: Date.now() - start,
         });
@@ -209,7 +253,6 @@ class CacheManager {
           const value = JSON.parse(cached);
 
           // Populate memory cache with LRU eviction
-          this.evictOldestFromMemory();
           this.memoryCache.set(versionedKey, {
             value,
             timestamp: Date.now(),
@@ -217,12 +260,12 @@ class CacheManager {
 
           if (metrics?.cacheOperations) {
             metrics.cacheOperations.inc({
-              operation: 'get',
-              result: 'hit_redis',
+              operation: "get",
+              result: "hit_redis",
             });
           }
 
-          logger.debug('Cache hit (Redis)', {
+          logger.debug("Cache hit (Redis)", {
             key,
             duration: Date.now() - start,
           });
@@ -233,37 +276,61 @@ class CacheManager {
       // Cache miss
       if (metrics?.cacheOperations) {
         metrics.cacheOperations.inc({
-          operation: 'get',
-          result: 'miss',
+          operation: "get",
+          result: "miss",
         });
       }
 
-      logger.debug('Cache miss', {
+      logger.debug("Cache miss", {
         key,
         duration: Date.now() - start,
       });
       return null;
     } catch (error) {
-      logger.error('Cache get error', {
+      logger.error("Cache get error", {
         key,
         error: error.message,
       });
       if (metrics?.cacheOperations) {
         metrics.cacheOperations.inc({
-          operation: 'get',
-          result: 'error',
+          operation: "get",
+          result: "error",
         });
       }
       return null;
     }
   }
 
+  // Validate cache entry size
+  validateCacheEntry(key, value) {
+    // Maximum key size: 1KB
+    if (Buffer.byteLength(key, "utf8") > 1024) {
+      throw new Error(`Cache key too large: ${key.length} bytes`);
+    }
+
+    // Maximum value size: 1MB (configurable via env)
+    const maxValueSize = parseInt(
+      process.env.MAX_CACHE_VALUE_SIZE || "1048576",
+    ); // 1MB default
+    const valueSize = Buffer.byteLength(JSON.stringify(value), "utf8");
+
+    if (valueSize > maxValueSize) {
+      throw new Error(
+        `Cache value too large: ${valueSize} bytes (max: ${maxValueSize})`,
+      );
+    }
+
+    return true;
+  }
+
   async set(key, value, ttl = 3600) {
     const versionedKey = this.versionKey(key);
 
     try {
+      // Validate cache entry size
+      this.validateCacheEntry(key, value);
+
       // Set in memory cache with LRU eviction
-      this.evictOldestFromMemory();
       this.memoryCache.set(versionedKey, {
         value,
         timestamp: Date.now(),
@@ -276,24 +343,24 @@ class CacheManager {
 
         if (metrics?.cacheOperations) {
           metrics.cacheOperations.inc({
-            operation: 'set',
-            result: 'success',
+            operation: "set",
+            result: "success",
           });
         }
 
-        logger.debug('Cache set', { key, ttl });
+        logger.debug("Cache set", { key, ttl });
       }
 
       return true;
     } catch (error) {
-      logger.error('Cache set error', {
+      logger.error("Cache set error", {
         key,
         error: error.message,
       });
       if (metrics?.cacheOperations) {
         metrics.cacheOperations.inc({
-          operation: 'set',
-          result: 'error',
+          operation: "set",
+          result: "error",
         });
       }
       return false;
@@ -302,84 +369,117 @@ class CacheManager {
 
   // Cache-aside with stampede protection
   async getOrSet(key, fetchFn, ttl = 3600) {
+    // First, try to get from cache
     const cached = await this.get(key);
     if (cached !== null) {
       return cached;
     }
 
-    // Stampede protection: check if fetch is already in progress
     const fetchKey = `fetch:${key}`;
+    const versionedKey = this.versionKey(key);
+
+    // Check if there's already a pending fetch for this key
     if (this.pendingFetches.has(fetchKey)) {
-      logger.debug('Waiting for pending fetch', { key });
-      return this.pendingFetches.get(fetchKey);
+      logger.debug("Waiting for pending fetch", { key });
+      try {
+        return await this.pendingFetches.get(fetchKey);
+      } catch (error) {
+        // If the pending fetch fails, we'll try to fetch again
+        logger.warn("Pending fetch failed, retrying", {
+          key,
+          error: error.message,
+        });
+      }
     }
 
     // Distributed lock for multi-instance deployments
-    const lockKey = `lock:${this.versionKey(key)}`;
-    const lockValue = crypto.randomBytes(16).toString('hex');
+    const lockKey = `lock:${versionedKey}`;
+    const lockValue = crypto.randomBytes(16).toString("hex");
     const lockTTL = 10; // 10 seconds
+    let lockAcquired = false;
+    let fetchPromise = null;
 
     try {
-      // Try to acquire lock
-      let lockAcquired = false;
-
-      if (this.isRedisAvailable && this.redis) {
-        lockAcquired = await this.redis.set(
-          lockKey,
-          lockValue,
-          'NX',
-          'EX',
-          lockTTL,
-        );
-      } else {
-        // In-memory lock fallback
-        lockAcquired = true;
-      }
-
-      if (!lockAcquired) {
-        // Another instance is fetching, wait and retry
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Try to get from cache again
-        const retryCache = await this.get(key);
-        if (retryCache !== null) {
-          return retryCache;
-        }
-
-        // If still not available, fetch anyway (lock might have expired)
-      }
-
-      // Create promise for fetch
-      const fetchPromise = (async () => {
+      // Create the fetch promise first to ensure it's set before any awaits
+      fetchPromise = (async () => {
         try {
+          // Try to get from cache again in case it was set while we were waiting
+          const recheckCache = await this.get(key);
+          if (recheckCache !== null) {
+            return recheckCache;
+          }
+
+          // Try to acquire lock
+          if (this.isRedisAvailable && this.redis) {
+            lockAcquired = await this.redis.set(
+              lockKey,
+              lockValue,
+              "NX",
+              "EX",
+              lockTTL,
+            );
+          } else {
+            // In-memory lock fallback
+            lockAcquired = true;
+          }
+
+          if (!lockAcquired) {
+            // Another instance is fetching, wait and retry
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            const retryCache = await this.get(key);
+            if (retryCache !== null) {
+              return retryCache;
+            }
+            // If still not available, continue to fetch (lock might have expired)
+          }
+
+          // Execute the fetch function
           const value = await fetchFn();
+
+          // Only set the cache if we got a valid value
           if (value !== null && value !== undefined) {
             await this.set(key, value, ttl);
           }
+
           return value;
         } finally {
-          // Release lock
-          if (this.isRedisAvailable && this.redis) {
-            const script = `
-                            if redis.call("get", KEYS[1]) == ARGV[1] then
-                                return redis.call("del", KEYS[1])
-                            else
-                                return 0
-                            end
-                        `;
-            await this.redis.eval(script, 1, lockKey, lockValue);
+          // Always clean up the lock and pending fetch
+          try {
+            if (lockAcquired && this.isRedisAvailable && this.redis) {
+              const script = `
+                if redis.call("get", KEYS[1]) == ARGV[1] then
+                  return redis.call("del", KEYS[1])
+                end
+                return 0
+              `;
+              await this.redis
+                .eval(script, 1, lockKey, lockValue)
+                .catch((err) => {
+                  logger.error("Failed to release lock", {
+                    key,
+                    error: err.message,
+                  });
+                });
+            }
+          } finally {
+            // Always remove from pendingFetches, even if there was an error
+            this.pendingFetches.delete(fetchKey);
           }
-          this.pendingFetches.delete(fetchKey);
         }
       })();
 
+      // Set the pending fetch before any awaits
       this.pendingFetches.set(fetchKey, fetchPromise);
+
+      // Now await the result (this will throw if there's an error)
       return await fetchPromise;
     } catch (error) {
+      // Clean up in case of error
       this.pendingFetches.delete(fetchKey);
-      logger.error('Cache getOrSet error', {
+      logger.error("Cache getOrSet error", {
         key,
         error: error.message,
+        stack: error.stack,
       });
       throw error;
     }
@@ -396,16 +496,16 @@ class CacheManager {
 
         if (metrics?.cacheOperations) {
           metrics.cacheOperations.inc({
-            operation: 'delete',
-            result: 'success',
+            operation: "delete",
+            result: "success",
           });
         }
       }
 
-      logger.debug('Cache deleted', { key });
+      logger.debug("Cache deleted", { key });
       return true;
     } catch (error) {
-      logger.error('Cache delete error', {
+      logger.error("Cache delete error", {
         key,
         error: error.message,
       });
@@ -413,56 +513,69 @@ class CacheManager {
     }
   }
 
-  // Non-blocking invalidation using SCAN
-  async invalidate(pattern) {
+  // Non-blocking invalidation using SCAN with backpressure
+  async invalidate(pattern, timeoutMs = this.scanTimeout) {
+    if (!this.redis) return { processed: 0, remaining: 0 };
+
+    const versionedPattern = this.versionKey(pattern);
+    let cursor = "0";
+    let processed = 0;
+    const startTime = Date.now();
+    let batchCount = 0;
+    const batchSize = this.scanBatchSize;
+
     try {
-      const versionedPattern = this.versionKey(pattern);
-
-      // Clear memory cache
-      let memoryCleared = 0;
-      for (const key of this.memoryCache.keys()) {
-        if (this.matchPattern(key, versionedPattern)) {
-          this.memoryCache.delete(key);
-          memoryCleared++;
+      do {
+        // Check if we've exceeded our time budget
+        if (Date.now() - startTime > timeoutMs) {
+          logger.warn("SCAN operation timed out", {
+            pattern,
+            processed,
+            batchCount,
+            durationMs: Date.now() - startTime,
+          });
+          break;
         }
-      }
 
-      // Clear Redis using SCAN (non-blocking)
-      if (this.isRedisAvailable && this.redis) {
-        let cursor = '0';
-        let totalCleared = 0;
+        // Process a batch of keys
+        const [newCursor, scanKeys] = await this.redis.scan(
+          cursor,
+          "MATCH",
+          versionedPattern,
+          "COUNT",
+          batchSize,
+        );
 
-        do {
-          const [newCursor, keys] = await this.redis.scan(
-            cursor,
-            'MATCH',
-            versionedPattern,
-            'COUNT',
-            100,
-          );
+        cursor = newCursor;
 
-          cursor = newCursor;
-
-          if (keys.length > 0) {
-            await this.redis.del(...keys);
-            totalCleared += keys.length;
+        if (scanKeys.length > 0) {
+          // Process keys in smaller chunks to prevent blocking
+          const chunkSize = 100;
+          for (let i = 0; i < scanKeys.length; i += chunkSize) {
+            const chunk = scanKeys.slice(i, i + chunkSize);
+            await this.redis.del(...chunk);
+            processed += chunk.length;
           }
-        } while (cursor !== '0');
+        }
 
-        logger.info('Cache invalidated', {
-          pattern,
-          redisCleared: totalCleared,
-          memoryCleared,
-        });
-      }
+        batchCount++;
 
-      return true;
+        // Small delay to prevent event loop blocking
+        if (batchCount % 10 === 0) {
+          await new Promise((resolve) => setImmediate(resolve));
+        }
+      } while (cursor !== "0");
+
+      return { processed, remaining: cursor !== "0" };
     } catch (error) {
-      logger.error('Cache invalidation error', {
-        pattern,
+      logger.error("Error during cache invalidation", {
         error: error.message,
+        pattern,
+        processed,
+        batchCount,
+        durationMs: Date.now() - startTime,
       });
-      return false;
+      throw error;
     }
   }
 
@@ -472,11 +585,11 @@ class CacheManager {
         return keys.map(() => null);
       }
 
-      const versionedKeys = keys.map(k => this.versionKey(k));
+      const versionedKeys = keys.map((k) => this.versionKey(k));
       const values = await this.redis.mget(versionedKeys);
-      return values.map(v => (v ? JSON.parse(v) : null));
+      return values.map((v) => (v ? JSON.parse(v) : null));
     } catch (error) {
-      logger.error('Cache mget error', { error: error.message });
+      logger.error("Cache mget error", { error: error.message });
       return keys.map(() => null);
     }
   }
@@ -495,7 +608,6 @@ class CacheManager {
         pipeline.setex(versionedKey, ttl, serialized);
 
         // Also set in memory cache
-        this.evictOldestFromMemory();
         this.memoryCache.set(versionedKey, {
           value,
           timestamp: Date.now(),
@@ -503,12 +615,12 @@ class CacheManager {
       }
 
       await pipeline.exec();
-      logger.debug('Cache mset', {
+      logger.debug("Cache mset", {
         count: Object.keys(keyValuePairs).length,
       });
       return true;
     } catch (error) {
-      logger.error('Cache mset error', { error: error.message });
+      logger.error("Cache mset error", { error: error.message });
       return false;
     }
   }
@@ -529,23 +641,23 @@ class CacheManager {
 
       return value;
     } catch (error) {
-      logger.error('Cache incr error', { key, error: error.message });
+      logger.error("Cache incr error", { key, error: error.message });
       return 1;
     }
   }
 
   // Advanced: Cache warming
   async warm(keysToWarm) {
-    logger.info('Starting cache warming', {
-      count: keysToWarm.length,
-    });
+    logger.info("Starting cache warming", { count: keysToWarm.length });
 
     const results = await Promise.allSettled(
-      keysToWarm.map(({ key, fetchFn, ttl }) => this.getOrSet(key, fetchFn, ttl)),
+      keysToWarm.map(({ key, fetchFn, ttl }) =>
+        this.getOrSet(key, fetchFn, ttl),
+      ),
     );
 
-    const successful = results.filter(r => r.status === 'fulfilled').length;
-    logger.info('Cache warming completed', {
+    const successful = results.filter((r) => r.status === "fulfilled").length;
+    logger.info("Cache warming completed", {
       total: keysToWarm.length,
       successful,
     });
@@ -555,31 +667,78 @@ class CacheManager {
 
   matchPattern(str, pattern) {
     const regex = new RegExp(
-      `^${pattern.replace(/\*/g, '.*').replace(/\?/g, '.')}$`,
+      `^${pattern.replace(/\*/g, ".*").replace(/\?/g, ".")}$`,
     );
     return regex.test(str);
   }
 
-  startMemoryCacheCleanup() {
-    setInterval(() => {
-      const now = Date.now();
-      let cleaned = 0;
+  /**
+   * Clean up resources
+   */
+  async cleanup() {
+    // Clear all intervals and timeouts
+    this.intervals.forEach(clearInterval);
+    this.timeouts.forEach(clearTimeout);
+    this.intervals = [];
+    this.timeouts = [];
 
-      for (const [key, value] of this.memoryCache.entries()) {
-        if (now - value.timestamp > this.memoryCacheTTL) {
-          this.memoryCache.delete(key);
-          cleaned++;
-        }
-      }
-
-      if (cleaned > 0) {
-        logger.debug('Memory cache cleanup', {
-          cleaned,
-          remaining: this.memoryCache.size,
-        });
-      }
-    }, 60000);
+    // Clean up Redis
+    await this.cleanupRedis();
   }
+
+  /**
+   * Clean up Redis client
+   */
+  async cleanupRedis() {
+    if (this.redis) {
+      try {
+        await this.redis.quit();
+      } catch (err) {
+        logger.warn("Error while closing Redis connection", {
+          error: err.message,
+        });
+      } finally {
+        this.redis = null;
+        this.isRedisAvailable = false;
+      }
+    }
+  }
+
+  // Circuit breaker methods
+  isCircuitOpen() {
+    if (this.circuitBreaker.state === "OPEN") {
+      if (Date.now() > this.circuitBreaker.nextAttempt) {
+        this.circuitBreaker.state = "HALF-OPEN";
+        return false;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  recordFailure() {
+    this.circuitBreaker.failureCount++;
+
+    if (this.circuitBreaker.failureCount >= this.circuitBreaker.threshold) {
+      this.circuitBreaker.state = "OPEN";
+      this.circuitBreaker.nextAttempt =
+        Date.now() + this.circuitBreaker.resetTimeout;
+      logger.error("Circuit breaker tripped", {
+        state: "OPEN",
+        nextAttempt: new Date(this.circuitBreaker.nextAttempt).toISOString(),
+      });
+    }
+  }
+
+  recordSuccess() {
+    this.circuitBreaker.failureCount = 0;
+    if (this.circuitBreaker.state === "HALF-OPEN") {
+      this.circuitBreaker.state = "CLOSED";
+      logger.info("Circuit breaker reset", { state: "CLOSED" });
+    }
+  }
+
+  // Memory cache cleanup is now handled automatically by lru-cache
 
   getStats() {
     return {
@@ -590,7 +749,7 @@ class CacheManager {
       },
       redis: {
         available: this.isRedisAvailable,
-        type: this.redis instanceof Redis.Cluster ? 'cluster' : 'single',
+        type: this.redis instanceof Redis.Cluster ? "cluster" : "single",
       },
       version: this.cacheVersion,
       pendingFetches: this.pendingFetches.size,
@@ -600,7 +759,7 @@ class CacheManager {
   async quit() {
     if (this.redis) {
       await this.redis.quit();
-      logger.info('Redis connection closed');
+      logger.info("Redis connection closed");
     }
   }
 }
@@ -608,11 +767,11 @@ class CacheManager {
 const cacheManager = new CacheManager();
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
+process.on("SIGTERM", async () => {
   await cacheManager.quit();
 });
 
-process.on('SIGINT', async () => {
+process.on("SIGINT", async () => {
   await cacheManager.quit();
 });
 
