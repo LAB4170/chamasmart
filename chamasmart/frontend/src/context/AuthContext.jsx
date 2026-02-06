@@ -134,6 +134,62 @@ export const AuthProvider = ({ children }) => {
     setError(null);
   };
 
+  // Verify Email
+  const verifyEmail = async (token) => {
+    try {
+      setError(null);
+      const response = await authAPI.verifyEmail(token);
+      return { success: true, message: response.data.message };
+    } catch (err) {
+      console.error("Email verification error:", err);
+      const message = err.response?.data?.message || err.message || "Email verification failed";
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  // Verify Phone
+  const verifyPhone = async (otp) => {
+    try {
+      setError(null);
+      const response = await authAPI.verifyPhone(otp);
+      return { success: true, message: response.data.message };
+    } catch (err) {
+      console.error("Phone verification error:", err);
+      const message = err.response?.data?.message || err.message || "Phone verification failed";
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  // Resend Email Verification
+  const resendEmailVerification = async () => {
+    try {
+      setError(null);
+      const response = await authAPI.resendEmailVerification();
+      return { success: true, message: response.data.message };
+    } catch (err) {
+      console.error("Resend email verification error:", err);
+      const message = err.response?.data?.message || err.message || "Failed to resend email verification";
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  // Resend Phone Verification
+  const resendPhoneVerification = async () => {
+    try {
+      setError(null);
+      const response = await authAPI.resendPhoneVerification();
+      return { success: true, message: response.data.message };
+    } catch (err) {
+      console.error("Resend phone verification error:", err);
+      const message = err.response?.data?.message || err.message || "Failed to resend phone verification";
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
   const value = {
     user,
     loading,

@@ -101,7 +101,8 @@ const helmetConfig = helmet({
     },
   },
   crossOriginEmbedderPolicy: false,
-  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+  // Relaxed policy for Google OAuth popups
+  crossOriginOpenerPolicy: { policy: 'unsafe-none' },
   hsts: {
     maxAge: 31536000,
     includeSubDomains: true,
@@ -275,7 +276,11 @@ module.exports = {
   contentTypeValidation,
   securityHeaders,
   csrfProtection: (req, res, next) => {
-    if (process.env.NODE_ENV === 'test') {
+    // Skip CSRF for test environment or auth routes
+    if (
+      process.env.NODE_ENV === 'test'
+      || req.path.startsWith('/api/auth/')
+    ) {
       return next();
     }
     return csrf({

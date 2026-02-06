@@ -55,6 +55,20 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const { register, loginWithGoogle } = useAuth();
+  const navigate = useNavigate();
+
+  // Handle form input changes
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+    // Clear error when user starts typing
+    if (error) setError("");
+  };
+
   const validateForm = () => {
     // Validate required fields
     if (

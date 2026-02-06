@@ -181,36 +181,36 @@ const initializeRedis = async () => {
     // Add metrics for command timing
     const originalSendCommand = redisClient.sendCommand.bind(redisClient);
     redisClient.sendCommand = async (command) => {
-      const start = process.hrtime();
-      const tags = { command: command.name };
+      // const start = process.hrtime();
+      // const tags = { command: command.name };
 
       try {
-        metrics.increment("redis.command.started", 1, tags);
+        // metrics.increment("redis.command.started", 1, tags);
         const result = await originalSendCommand(command);
-        const [seconds, nanoseconds] = process.hrtime(start);
-        const duration = seconds * 1000 + nanoseconds / 1e6;
+        // const [seconds, nanoseconds] = process.hrtime(start);
+        // const duration = seconds * 1000 + nanoseconds / 1e6;
 
-        metrics.timing("redis.command.duration", duration, tags);
-        metrics.increment("redis.command.completed", 1, {
-          ...tags,
-          status: "success",
-        });
+        // metrics.timing("redis.command.duration", duration, tags);
+        // metrics.increment("redis.command.completed", 1, {
+        //   ...tags,
+        //   status: "success",
+        // });
 
         circuitBreaker.onSuccess();
         return result;
       } catch (error) {
-        const [seconds, nanoseconds] = process.hrtime(start);
-        const duration = seconds * 1000 + nanoseconds / 1e6;
+        // const [seconds, nanoseconds] = process.hrtime(start);
+        // const duration = seconds * 1000 + nanoseconds / 1e6;
 
-        metrics.timing("redis.command.duration", duration, {
-          ...tags,
-          error: error.code || "unknown",
-        });
-        metrics.increment("redis.command.failed", 1, {
-          ...tags,
-          status: "error",
-          error: error.code || "unknown",
-        });
+        // metrics.timing("redis.command.duration", duration, {
+        //   ...tags,
+        //   error: error.code || "unknown",
+        // });
+        // metrics.increment("redis.command.failed", 1, {
+        //   ...tags,
+        //   status: "error",
+        //   error: error.code || "unknown",
+        // });
 
         circuitBreaker.onFailure();
         throw error;
@@ -226,14 +226,14 @@ const initializeRedis = async () => {
     await Promise.race([pingPromise, timeoutPromise]);
 
     logger.info("Redis connected successfully");
-    metrics.gauge("redis.connection.status", 1);
+    // metrics.gauge("redis.connection.status", 1);
 
     // Set up error handling
     redisClient.on("error", (error) => {
-      metrics.increment("redis.error", 1, {
-        type: error.code || "unknown",
-        from: "event",
-      });
+      // metrics.increment("redis.error", 1, {
+      //   type: error.code || "unknown",
+      //   from: "event",
+      // });
       logger.error("Redis error", {
         error: error.message,
         code: error.code,
@@ -244,18 +244,18 @@ const initializeRedis = async () => {
     // Set up reconnection monitoring
     redisClient.on("connect", () => {
       logger.info("Redis connection established");
-      metrics.gauge("redis.connection.status", 1);
+      // metrics.gauge("redis.connection.status", 1);
       circuitBreaker.reset();
     });
 
     redisClient.on("reconnecting", () => {
       logger.warn("Redis reconnecting...");
-      metrics.gauge("redis.connection.status", 0);
+      // metrics.gauge("redis.connection.status", 0);
     });
 
     redisClient.on("close", () => {
       logger.warn("Redis connection closed");
-      metrics.gauge("redis.connection.status", 0);
+      // metrics.gauge("redis.connection.status", 0);
     });
 
     redis = redisClient;
@@ -263,7 +263,7 @@ const initializeRedis = async () => {
     return true;
   } catch (error) {
     circuitBreaker.onFailure();
-    metrics.increment("redis.connection.failed");
+    // metrics.increment("redis.connection.failed");
 
     logger.error("Failed to connect to Redis", {
       error: error.message,

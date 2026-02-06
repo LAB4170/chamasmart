@@ -128,11 +128,30 @@ const corsManager = initCors();
  * Parse and validate allowed origins from environment
  */
 const getAllowedOrigins = () => {
-  const envOrigins = process.env.ALLOWED_ORIGINS;
+  const envOrigins = process.env.ALLOWED_ORIGINS || process.env.CORS_ORIGIN;
+
+  const defaults = [
+    "http://localhost:5173",
+    "http://localhost:5000",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5000",
+    "http://127.0.0.1:3000",
+  ];
+
+  let origins = [];
 
   if (envOrigins) {
-    const origins = envOrigins.split(",").map((origin) => origin.trim());
+    origins = envOrigins.split(",").map((origin) => origin.trim());
+  }
 
+  // In development, always include accessible defaults
+  if (process.env.NODE_ENV !== "production") {
+    logger.info("Merging development CORS defaults");
+    origins = [...new Set([...origins, ...defaults])];
+  }
+
+  if (origins.length > 0) {
     // Validate origins
     const validOrigins = origins.filter((origin) => {
       // Allow wildcards
@@ -158,24 +177,13 @@ const getAllowedOrigins = () => {
     return validOrigins;
   }
 
-  // Development defaults
-  if (process.env.NODE_ENV !== "production") {
-    logger.info("Using default development CORS origins");
-    return [
-      "http://localhost:5173",
-      "http://localhost:5000",
-      "http://localhost:3000",
-      "http://127.0.0.1:5173",
-      "http://127.0.0.1:5000",
-      "http://127.0.0.1:3000",
-    ];
+  // Production must have ALLOWED_ORIGINS
+  if (process.env.NODE_ENV === "production") {
+    logger.error("ALLOWED_ORIGINS not set in production - CORS will fail");
+    return [];
   }
 
-  // Production must have ALLOWED_ORIGINS
-  logger.error("ALLOWED_ORIGINS not set in production - CORS will fail");
-
-  // Return empty array to force explicit configuration
-  return [];
+  return defaults;
 };
 
 /**
@@ -185,37 +193,35 @@ const getAllowedOrigins = () => {
  * - Wildcard subdomain: https://*.example.com
  * - Full wildcard: * (not recommended for production)
  */
-const isOriginAllowed = (origin, allowedOrigins) => {
+const isOriginAllowed = (origin, pattern) => {
   if (!origin) return false;
 
-  for (const allowed of allowedOrigins) {
-    // Exact match
-    if (allowed === origin) {
-      return true;
+  // Exact match
+  if (pattern === origin) {
+    return true;
+  }
+
+  // Full wildcard (not allowed in production)
+  if (pattern === "*") {
+    if (process.env.NODE_ENV === "production") {
+      logger.error("Wildcard CORS origin not allowed in production", {
+        origin,
+      });
+      return false;
     }
+    logger.warn("Wildcard CORS origin allowed in development", { origin });
+    return true;
+  }
 
-    // Full wildcard (not allowed in production)
-    if (allowed === "*") {
-      if (process.env.NODE_ENV === "production") {
-        logger.error("Wildcard CORS origin not allowed in production", {
-          origin,
-        });
-        return false;
-      }
-      logger.warn("Wildcard CORS origin allowed in development", { origin });
+  // Wildcard subdomain matching
+  if (pattern.includes("*")) {
+    const regexPattern = pattern
+      .replace(/\./g, "\\.") // Escape dots
+      .replace(/\*/g, "[a-zA-Z0-9-]+"); // Replace * with subdomain pattern
+
+    const regex = new RegExp(`^${regexPattern}$`);
+    if (regex.test(origin)) {
       return true;
-    }
-
-    // Wildcard subdomain matching
-    if (allowed.includes("*")) {
-      const pattern = allowed
-        .replace(/\./g, "\\.") // Escape dots
-        .replace(/\*/g, "[a-zA-Z0-9-]+"); // Replace * with subdomain pattern
-
-      const regex = new RegExp(`^${pattern}$`);
-      if (regex.test(origin)) {
-        return true;
-      }
     }
   }
 

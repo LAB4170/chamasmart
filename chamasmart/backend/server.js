@@ -75,7 +75,16 @@ const swaggerOptions = {
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
-// Apply enhanced security middleware FIRST (before all routes)
+// Trust proxy
+app.set("trust proxy", 1);
+
+// CRITICAL: Apply CORS BEFORE ALL security middleware
+// This ensures preflight checks pass even if other middleware blocks requests
+app.use(cors(corsOptions));
+app.use(express.json({ limit: "10kb" }));
+app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+
+// Apply enhanced security middleware
 app.use(helmetConfig);
 app.use(securityHeaders);
 app.use(ipRateLimit);
@@ -83,43 +92,13 @@ app.use(xssProtection);
 app.use(sqlInjectionProtection);
 app.use(suspiciousActivityDetection);
 
-// API Documentation endpoint
-app.use(
-  "/api-docs",
-  swaggerUi.serve,
-  swaggerUi.setup(swaggerSpec, {
-    explorer: true,
-    customCss: ".swagger-ui .topbar { display: none }",
-    customSiteTitle: "ChamaSmart API Documentation",
-  }),
-);
-
-// Swagger JSON endpoint
-app.get("/api-docs.json", (req, res) => {
-  res.setHeader("Content-Type", "application/json");
-  res.send(swaggerSpec);
-});
-
-// Basic health check (no middleware)
-app.get("/api/ping", (req, res) =>
-  res.json({ success: true, message: "pong" }),
-);
-
-// Apply CSRF protection after static files but before other routes
+// Apply CSRF protection AFTER CORS
 app.use(csrfProtection);
 
 // CSRF Token endpoint
 app.get("/api/csrf-token", (req, res) => {
   res.json({ csrfToken: req.csrfToken() });
 });
-
-// Trust proxy
-app.set("trust proxy", 1);
-
-// Core middleware
-app.use(cors(corsOptions));
-app.use(express.json({ limit: "10kb" }));
-app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 
 // Add request ID and logging middleware
 app.use(requestId); // Add request ID to all requests

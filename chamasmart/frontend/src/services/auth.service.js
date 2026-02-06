@@ -26,4 +26,21 @@ export const authAPI = {
             lastName: userData.lastName,
             phoneNumber: userData.phoneNumber
         }),
+
+    // Verify email with token
+    verifyEmail: (token) =>
+        api.post("/auth/verify-email", { token }),
+
+    // Verify phone with OTP
+    verifyPhone: (otp) =>
+        api.post("/auth/verify-phone", { otp }),
+
+    // Resend email verification
+    resendEmailVerification: () =>
+        api.post("/auth/resend-email-verification"),
+
+    // Resend phone verification
+    resendPhoneVerification: () =>
+        api.post("/auth/resend-phone-verification"),
 };
+

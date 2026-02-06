@@ -628,7 +628,10 @@ async function firebaseSync(req, res) {
 
   try {
     // 1. Verify Firebase Token
+    // console.log("Debug: Verifying ID Token...");
     const decodedToken = await admin.auth().verifyIdToken(idToken);
+    // console.log("Debug: Token Verified:", decodedToken.uid);
+
     const {
       uid, email, name, picture, email_verified: emailVerified, firebase,
       phone_number: firebasePhone
@@ -636,7 +639,9 @@ async function firebaseSync(req, res) {
     const providerId = firebase.sign_in_provider;
 
     // 2. Check if user exists in PG
+    // console.log("Debug: Connecting to DB...");
     const client = await pool.connect();
+    // console.log("Debug: DB Connected");
     try {
       await client.query('BEGIN');
 
@@ -743,7 +748,8 @@ async function firebaseSync(req, res) {
     }
   } catch (error) {
     logger.error('Firebase Sync Error:', { error: error.message, uid: error.uid });
-    return res.status(error.code === 'auth/id-token-expired' ? 401 : 500).json({
+    const isAuthError = error.code && error.code.startsWith('auth/');
+    return res.status(isAuthError ? 401 : 500).json({
       success: false,
       message: 'Authentication failed',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
@@ -1443,6 +1449,173 @@ const sendPhoneVerification = async (phone, otp) => {
     // await smsService.sendVerificationSMS(phone, otp);
   } catch (error) {
     logger.logError(error, { context: 'sendPhoneVerification', phone });
+  }
+};
+
+// ============================================================================
+// FIREBASE SYNC ENDPOINT
+// ============================================================================
+
+/**
+ * Firebase Sync - Authenticate users via Firebase (Google OAuth, etc.)
+ * Creates or updates user in database based on Firebase ID token
+ */
+const firebaseSync_unused = async (req, res) => {
+  const { idToken, firstName, lastName, phoneNumber } = req.body;
+
+  try {
+    // Validate ID token is provided
+    if (!idToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Firebase ID token is required',
+      });
+    }
+
+    // Verify Firebase ID token
+    const admin = require('firebase-admin');
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const { uid, email, name, picture } = decodedToken;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email not found in Firebase token',
+      });
+    }
+
+    // Start transaction
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Check if user exists
+      const existingUser = await client.query(
+        'SELECT * FROM users WHERE email = $1 OR firebase_uid = $2',
+        [email, uid]
+      );
+
+      let user;
+      let isNewUser = false;
+
+      if (existingUser.rows.length > 0) {
+        // Update existing user
+        user = existingUser.rows[0];
+
+        // Update Firebase UID if not set
+        if (!user.firebase_uid) {
+          await client.query(
+            'UPDATE users SET firebase_uid = $1, updated_at = NOW() WHERE user_id = $2',
+            [uid, user.user_id]
+          );
+        }
+      } else {
+        // Create new user
+        isNewUser = true;
+
+        // Parse name if provided
+        const nameParts = name ? name.split(' ') : [];
+        const userFirstName = firstName || nameParts[0] || 'User';
+        const userLastName = lastName || nameParts.slice(1).join(' ') || '';
+
+        const insertResult = await client.query(
+          `INSERT INTO users (
+            email, 
+            firebase_uid, 
+            first_name, 
+            last_name, 
+            phone_number,
+            email_verified,
+            created_at,
+            updated_at
+          ) VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())
+          RETURNING *`,
+          [email, uid, userFirstName, userLastName, phoneNumber || null]
+        );
+
+        user = insertResult.rows[0];
+
+        // Log new user registration
+        await logAuditEvent(EVENT_TYPES.USER_REGISTERED, {
+          userId: user.user_id,
+          email: user.email,
+          method: 'firebase',
+          severity: SEVERITY.INFO,
+        });
+      }
+
+      // Generate JWT tokens
+      const accessToken = TokenService.generateAccessToken(user.user_id, user.email);
+      const refreshToken = TokenService.generateRefreshToken(user.user_id);
+
+      // Store refresh token
+      await client.query(
+        `INSERT INTO refresh_tokens (user_id, token, expires_at, created_at)
+         VALUES ($1, $2, $3, NOW())`,
+        [
+          user.user_id,
+          refreshToken,
+          new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        ]
+      );
+
+      await client.query('COMMIT');
+
+      // Log successful login
+      await logAuditEvent(EVENT_TYPES.USER_LOGIN, {
+        userId: user.user_id,
+        email: user.email,
+        method: 'firebase',
+        severity: SEVERITY.INFO,
+      });
+
+      // Return user data and tokens
+      return res.status(isNewUser ? 201 : 200).json({
+        success: true,
+        message: isNewUser ? 'User registered successfully' : 'User logged in successfully',
+        data: {
+          user: {
+            user_id: user.user_id,
+            email: user.email,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            phone_number: user.phone_number,
+            email_verified: user.email_verified,
+          },
+          tokens: {
+            accessToken,
+            refreshToken,
+          },
+        },
+      });
+    } catch (dbError) {
+      await client.query('ROLLBACK');
+      throw dbError;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    logger.logError(error, { context: 'firebaseSync', email: req.body.email });
+
+    // Handle specific Firebase errors
+    if (error.code === 'auth/id-token-expired') {
+      return res.status(401).json({
+        success: false,
+        message: 'Firebase token has expired',
+      });
+    }
+
+    if (error.code === 'auth/argument-error') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Firebase token',
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: 'Error during Firebase authentication',
+    });
   }
 };
 
