@@ -13,6 +13,8 @@ const {
   login,
   verifyEmail,
   verifyPhone,
+  refreshTokens,
+  logout,
   firebaseSync,
 } = require("../controllers/authController");
 
@@ -51,6 +53,11 @@ router.post(
   validate(loginPasswordSchema),
   login,
 );
+
+router.post("/refresh", applyAuthRateLimiting, refreshTokens);
+
+router.post("/logout", protect, applyAuthRateLimiting, logout);
+
 
 // ============================================================================
 // VERIFICATION ENDPOINTS

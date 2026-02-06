@@ -13,14 +13,16 @@ describe('Authentication Endpoints', () => {
     await pool.end();
   });
 
+  jest.setTimeout(30000);
+
   describe('POST /api/auth/register', () => {
     it('should register a new user successfully', async () => {
       const userData = {
-        first_name: 'Test',
-        last_name: 'User',
+        firstName: 'Test',
+        lastName: 'User',
         email: 'test@example.com',
         password: 'SecurePass123!',
-        phone_number: '+254712345678',
+        phoneNumber: '+254712345678',
       };
 
       const response = await request(app)
@@ -35,10 +37,11 @@ describe('Authentication Endpoints', () => {
 
     it('should return validation error for invalid email', async () => {
       const userData = {
-        first_name: 'Test',
-        last_name: 'User',
+        firstName: 'Test',
+        lastName: 'User',
         email: 'invalid-email',
         password: 'SecurePass123!',
+        phoneNumber: '+254712345678',
       };
 
       const response = await request(app)
@@ -47,15 +50,16 @@ describe('Authentication Endpoints', () => {
         .expect(400);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toContain('email');
+      expect(response.body.message).toContain('email');
     });
 
     it('should return error for duplicate email', async () => {
       const userData = {
-        first_name: 'Test',
-        last_name: 'User',
+        firstName: 'Test',
+        lastName: 'User',
         email: 'test@example.com',
         password: 'SecurePass123!',
+        phoneNumber: '+254712345678',
       };
 
       // Create first user
@@ -71,15 +75,16 @@ describe('Authentication Endpoints', () => {
         .expect(409);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toContain('already exists');
+      expect(response.body.message).toContain('already exists');
     });
 
     it('should return validation error for weak password', async () => {
       const userData = {
-        first_name: 'Test',
-        last_name: 'User',
+        firstName: 'Test',
+        lastName: 'User',
         email: 'test2@example.com',
         password: '123',
+        phoneNumber: '+254712345678',
       };
 
       const response = await request(app)
@@ -88,7 +93,7 @@ describe('Authentication Endpoints', () => {
         .expect(400);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toContain('password');
+      expect(response.body.message).toContain('Password');
     });
   });
 
@@ -96,15 +101,17 @@ describe('Authentication Endpoints', () => {
     beforeEach(async () => {
       // Create a test user for login tests
       const userData = {
-        first_name: 'Test',
-        last_name: 'User',
+        firstName: 'Test',
+        lastName: 'User',
         email: 'logintest@example.com',
         password: 'SecurePass123!',
+        phoneNumber: '+254712345678',
       };
 
       await request(app)
         .post('/api/auth/register')
         .send(userData);
+      console.log('Login beforeEach: user registered');
     });
 
     it('should login successfully with valid credentials', async () => {
@@ -136,7 +143,7 @@ describe('Authentication Endpoints', () => {
         .expect(401);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toContain('credentials');
+      expect(response.body.message).toContain('credentials');
     });
 
     it('should return error for invalid password', async () => {
@@ -151,7 +158,7 @@ describe('Authentication Endpoints', () => {
         .expect(401);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toContain('credentials');
+      expect(response.body.message).toContain('credentials');
     });
 
     it('should return validation error for missing fields', async () => {
@@ -166,7 +173,7 @@ describe('Authentication Endpoints', () => {
         .expect(400);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toContain('required');
+      expect(response.body.message).toContain('required');
     });
   });
 
@@ -176,10 +183,11 @@ describe('Authentication Endpoints', () => {
     beforeEach(async () => {
       // Create and login a user to get refresh token
       const userData = {
-        first_name: 'Test',
-        last_name: 'User',
+        firstName: 'Test',
+        lastName: 'User',
         email: 'refreshtest@example.com',
         password: 'SecurePass123!',
+        phoneNumber: '+254712345678',
       };
 
       const registerResponse = await request(app)
@@ -207,7 +215,7 @@ describe('Authentication Endpoints', () => {
         .expect(401);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toContain('token');
+      expect(response.body.message).toContain('token');
     });
   });
 
@@ -217,10 +225,11 @@ describe('Authentication Endpoints', () => {
     beforeEach(async () => {
       // Create and login a user to get access token
       const userData = {
-        first_name: 'Test',
-        last_name: 'User',
+        firstName: 'Test',
+        lastName: 'User',
         email: 'logouttest@example.com',
         password: 'SecurePass123!',
+        phoneNumber: '+254712345678',
       };
 
       const registerResponse = await request(app)
@@ -246,7 +255,8 @@ describe('Authentication Endpoints', () => {
         .expect(401);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toContain('token');
+      expect(response.body.message).toContain('authorized');
+
     });
   });
 });

@@ -252,8 +252,12 @@ const corsOptions = {
     }
 
     // Check if origin is allowed
-    if (isOriginAllowed(origin, allowedOrigins)) {
-      callback(null, true);
+    const allowed = allowedOrigins.find(o => isOriginAllowed(origin, o));
+    if (allowed) {
+      // Use the actual allowed origin from our list if it doesn't contain wildcards
+      // Otherwise use the reflected origin but we've already validated it
+      const originToReturn = allowed.includes('*') ? origin : allowed;
+      callback(null, originToReturn);
     } else {
       // Rate-limited security logging
       if (securityRateLimiter.shouldLog(origin)) {

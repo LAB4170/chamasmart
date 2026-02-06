@@ -50,30 +50,10 @@ const Register = () => {
     confirmPassword: "",
   });
 
-  // Step 2: OTP verification state
-  const [otp, setOtp] = useState("");
-  const [currentStep, setCurrentStep] = useState(1); // 1 = registration, 2 = OTP verification
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [registrationData, setRegistrationData] = useState(null);
-
-  const { register, registerWithFirebase, loginWithGoogle } = useAuth();
-  const navigate = useNavigate();
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleOtpChange = (e) => {
-    // Only allow numbers and limit to 6 digits
-    const value = e.target.value.replace(/\D/g, "").slice(0, 6);
-    setOtp(value);
-  };
 
   const validateForm = () => {
     // Validate required fields
@@ -140,8 +120,13 @@ const Register = () => {
       return;
     }
 
+    setLoading(true);
+
     try {
-      const result = await registerWithFirebase(formData.email, formData.password, {
+      // Use the consolidated register from AuthContext
+      const result = await register({
+        email: formData.email,
+        password: formData.password,
         firstName: formData.firstName,
         lastName: formData.lastName,
         phoneNumber: formData.phoneNumber
@@ -174,116 +159,6 @@ const Register = () => {
 
     setLoading(false);
   };
-
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    setError("");
-
-    if (!otp || otp.length !== 6) {
-      setError("Please enter a valid 6-digit OTP");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // Call the verifyOTP function from AuthContext
-      const result = await verifyOTP(registrationData.email, otp);
-
-      if (result.success) {
-        // Redirect to login or dashboard
-        navigate("/login", {
-          state: {
-            message: "Registration successful! Please log in.",
-            email: registrationData.email,
-          },
-        });
-      } else {
-        setError(result.error || "Verification failed. Please try again.");
-      }
-    } catch (err) {
-      setError("An error occurred. Please try again later.");
-      console.error("OTP verification error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    setError("");
-    setLoading(true);
-
-    try {
-      const result = await resendOTP(registrationData.email);
-      if (result.success) {
-        setError("New OTP has been sent to your email/phone.");
-      } else {
-        setError(result.error || "Failed to resend OTP. Please try again.");
-      }
-    } catch (err) {
-      setError("An error occurred. Please try again later.");
-      console.error("Resend OTP error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Render OTP verification step
-  if (currentStep === 2) {
-    return (
-      <div className="auth-page">
-        <div className="auth-container">
-          <div className="auth-card">
-            <h1 className="text-center">Verify Your Account</h1>
-            <p className="text-center text-muted">
-              We've sent a 6-digit verification code to {registrationData.email}{" "}
-              and {registrationData.phoneNumber}
-            </p>
-
-            {error && <div className="alert alert-error">{error}</div>}
-
-            <form onSubmit={handleVerifyOtp}>
-              <div className="form-group">
-                <label className="form-label">Verification Code</label>
-                <input
-                  type="text"
-                  name="otp"
-                  className="form-input text-center"
-                  placeholder="Enter 6-digit code"
-                  value={otp}
-                  onChange={handleOtpChange}
-                  maxLength={6}
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="btn btn-primary btn-block"
-                disabled={loading}
-              >
-                {loading ? "Verifying..." : "Verify Account"}
-              </button>
-
-              <div className="text-center mt-4">
-                <p>
-                  Didn't receive a code?{" "}
-                  <button
-                    type="button"
-                    className="text-primary"
-                    onClick={handleResendOtp}
-                    disabled={loading}
-                  >
-                    {loading ? "Sending..." : "Resend Code"}
-                  </button>
-                </p>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // Render registration form (step 1)
   return (

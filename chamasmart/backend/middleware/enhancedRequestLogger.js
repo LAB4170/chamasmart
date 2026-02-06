@@ -1,4 +1,4 @@
-const { logger } = require("../utils/logger");
+const logger = require("../utils/logger");
 const crypto = require("crypto");
 
 // Sensitive fields to exclude from logging

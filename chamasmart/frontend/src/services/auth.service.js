@@ -18,7 +18,12 @@ export const authAPI = {
             password: credentials.password,
         }),
 
-    // Firebase Sync
-    firebaseSync: (idToken) =>
-        api.post("/auth/firebase-sync", { idToken }),
+    // Firebase Sync with backend
+    firebaseSync: (idToken, userData = {}) =>
+        api.post("/auth/firebase-sync", {
+            idToken,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            phoneNumber: userData.phoneNumber
+        }),
 };

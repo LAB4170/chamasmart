@@ -7,10 +7,11 @@ const validate = (schema, property = 'body') => (req, res, next) => {
     if (error) {
       return res.status(400).json({
         success: false,
-        message: 'Validation error',
-        error: errorMessage,
+        message: error.details[0].message,
+        details: error.details.map(d => d.message),
       });
     }
+
 
     next();
   } catch (err) {

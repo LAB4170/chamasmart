@@ -27,7 +27,7 @@ const protect = async (req, res, next) => {
     // Get user from database
     const result = await pool.query(
       'SELECT user_id, email, first_name, last_name, phone_number FROM users WHERE user_id = $1',
-      [decoded.id],
+      [decoded.sub],
     );
 
     if (result.rows.length === 0) {

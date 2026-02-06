@@ -530,7 +530,6 @@ class CacheManager {
         if (Date.now() - startTime > timeoutMs) {
           logger.warn("SCAN operation timed out", {
             pattern,
-            processed,
             batchCount,
             durationMs: Date.now() - startTime,
           });

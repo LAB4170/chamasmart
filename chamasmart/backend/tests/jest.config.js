@@ -40,9 +40,9 @@ module.exports = {
   clearMocks: true,
 
   // Transform configuration
-  transform: {
-    '^.+\\.js$': 'babel-jest',
-  },
+  transform: {},
+
+
 
   // Ignore patterns
   testPathIgnorePatterns: ['/node_modules/'],

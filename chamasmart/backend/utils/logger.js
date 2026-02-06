@@ -101,16 +101,15 @@ const logger = winston.createLogger({
   transports: [],
 });
 
-// Add console transport for non-test environments
-if (!isTest) {
-  logger.add(
-    new winston.transports.Console({
-      format: consoleFormat,
-      handleExceptions: true,
-      handleRejections: true,
-    }),
-  );
-}
+// Add console transport
+logger.add(
+  new winston.transports.Console({
+    format: consoleFormat,
+    handleExceptions: true,
+    handleRejections: true,
+    silent: false, // Enable logging in tests for debugging
+  }),
+);
 
 // File transports for production
 if (isProduction) {

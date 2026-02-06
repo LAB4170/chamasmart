@@ -18,10 +18,10 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
       
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@64edc713793237893130d427218632835928d39c # v4
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
@@ -66,10 +66,10 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
       
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@64edc713793237893130d427218632835928d39c # v4
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
@@ -91,7 +91,7 @@ jobs:
       run: npm run test:ci
       
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@23e988355694a50d83be1257404f1770e0676059 # v3
       with:
         file: ./coverage/lcov.info
         flags: unittests
@@ -103,10 +103,10 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
       
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@64edc713793237893130d427218632835928d39c # v4
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
@@ -118,7 +118,7 @@ jobs:
       run: npm audit --audit-level=moderate
       
     - name: Run Snyk security scan
-      uses: snyk/actions/node@master
+      uses: snyk/actions/node@8e6c4391629828469e3828c46522ae2499d25515 # v3
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       with:
@@ -131,20 +131,20 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
       
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@d70bba72b1f345484437f16752e805432944efd9 # v3
       
     - name: Login to Docker Hub
-      uses: docker/login-action@v3
+      uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9 # v3
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
         
     - name: Extract metadata
       id: meta
-      uses: docker/metadata-action@v5
+      uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38 # v5
       with:
         images: chamasmart/backend
         tags: |
@@ -154,7 +154,7 @@ jobs:
           type=raw,value=latest,enable={{is_default_branch}}
           
     - name: Build and push Docker image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@0565240c2134707831f855d0484a1a3641042784 # v5
       with:
         context: ./backend
         push: true
@@ -199,10 +199,10 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
       
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@64edc713793237893130d427218632835928d39c # v4
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
@@ -217,7 +217,7 @@ jobs:
         # Example: npm run test:performance
         
     - name: Upload performance results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@272b573f0ea375edb22dfa643034d0b135028639 # v3
       with:
         name: performance-results
         path: performance-results/
@@ -231,7 +231,7 @@ jobs:
     steps:
     - name: Notify Slack on success
       if: needs.lint.result == 'success' && needs.test.result == 'success' && needs.security.result == 'success'
-      uses: 8398a7/action-slack@v3
+      uses: 8398a7/action-slack@56247c490a076cd8217316a3c942474136952865 # v3
       with:
         status: success
         channel: '#deployments'
@@ -241,7 +241,7 @@ jobs:
         
     - name: Notify Slack on failure
       if: needs.lint.result == 'failure' || needs.test.result == 'failure' || needs.security.result == 'failure'
-      uses: 8398a7/action-slack@v3
+      uses: 8398a7/action-slack@56247c490a076cd8217316a3c942474136952865 # v3
       with:
         status: failure
         channel: '#deployments'

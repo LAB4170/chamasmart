@@ -6,6 +6,7 @@
 const xss = require('xss-clean');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const csrf = require('csurf');
 
 /**
  * XSS Protection Middleware
@@ -28,11 +29,11 @@ const xssProtection = (req, res, next) => {
  */
 const sqlInjectionProtection = (req, res, next) => {
   const sqlPatterns = [
-    /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION|SCRIPT)\b)/gi,
-    /(--|\*\/|\/\*)/g,
-    /(\bOR\b.*=.*\bOR\b)/gi,
-    /(\bAND\b.*=.*\bAND\b)/gi,
-    /(\'|\"|`|;|--|\||\*|\?)/g,
+    /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION|SCRIPT|TRUNCATE|GRANT|REVOKE)\b)/gi,
+    /(--|\/\*|\*\/)/g,
+    /((\%27)|(\'))\s*(OR|AND)\s*((\%27)|(\'))/gi,
+    /(\b(WAITFOR|DELAY|SLEEP|BENCHMARK)\b)/gi,
+    /xp_[a-zA-Z0-9_]+/gi,
   ];
 
   const checkForSQLInjection = value => {
@@ -146,26 +147,32 @@ const parseSize = size => {
 /**
  * IP-based Rate Limiting
  */
-const ipRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: {
-    success: false,
-    message: 'Too many requests from this IP',
-    errorCode: 'RATE_LIMIT_EXCEEDED',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    console.warn(`Rate limit exceeded for IP: ${req.ip}`);
-    res.status(429).json({
+const ipRateLimit = (req, res, next) => {
+  if (process.env.NODE_ENV === 'test') {
+    return next();
+  }
+  return rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: {
       success: false,
       message: 'Too many requests from this IP',
       errorCode: 'RATE_LIMIT_EXCEEDED',
-      retryAfter: Math.round(req.rateLimit.resetTime / 1000),
-    });
-  },
-});
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+      console.warn(`Rate limit exceeded for IP: ${req.ip}`);
+      res.status(429).json({
+        success: false,
+        message: 'Too many requests from this IP',
+        errorCode: 'RATE_LIMIT_EXCEEDED',
+        retryAfter: Math.round(req.rateLimit.resetTime / 1000),
+      });
+    },
+  })(req, res, next);
+};
+
 
 /**
  * Suspicious Activity Detection
@@ -267,4 +274,16 @@ module.exports = {
   suspiciousActivityDetection,
   contentTypeValidation,
   securityHeaders,
+  csrfProtection: (req, res, next) => {
+    if (process.env.NODE_ENV === 'test') {
+      return next();
+    }
+    return csrf({
+      cookie: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+      },
+    })(req, res, next);
+  },
 };

@@ -3,6 +3,7 @@ const cors = require("cors");
 const path = require("path");
 const http = require("http");
 const fs = require("fs");
+const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
 // Import API Documentation
@@ -11,7 +12,8 @@ const swaggerUi = require("swagger-ui-express");
 const swaggerDefinition = require("./swaggerDef");
 
 // Import custom modules
-const { logger, requestId } = require("./utils/logger");
+const logger = require("./utils/logger");
+const { requestId } = logger;
 const {
   requestLogger,
   detailedRequestLogger,
@@ -34,6 +36,7 @@ const {
   suspiciousActivityDetection,
   securityHeaders,
   ipRateLimit,
+  csrfProtection,
 } = require("./middleware/enhancedSecurity");
 const {
   errorHandler,
@@ -60,6 +63,9 @@ require("./config/firebase");
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5005;
+
+// Middleware for parsing cookies (required for CSRF)
+app.use(cookieParser());
 
 // Configure Swagger Documentation
 const swaggerOptions = {
@@ -98,6 +104,14 @@ app.get("/api-docs.json", (req, res) => {
 app.get("/api/ping", (req, res) =>
   res.json({ success: true, message: "pong" }),
 );
+
+// Apply CSRF protection after static files but before other routes
+app.use(csrfProtection);
+
+// CSRF Token endpoint
+app.get("/api/csrf-token", (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
 
 // Trust proxy
 app.set("trust proxy", 1);

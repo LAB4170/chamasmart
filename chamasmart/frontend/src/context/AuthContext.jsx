@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }) => {
 
   // Check if user is logged in on mount
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
+    const token = localStorage.getItem("token");
     const savedUser = localStorage.getItem("user");
 
     if (token && savedUser) {
@@ -35,121 +35,45 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  // Traditional Backend Register (Email/Password)
+  // Consolidated Firebase-based Register
   const register = async (userData) => {
     try {
       setError(null);
-      const response = await authAPI.register(userData);
 
-      const { user: newUser, tokens } = response.data.data;
+      // 1. Create user in Firebase
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        userData.email,
+        userData.password
+      );
 
-      localStorage.setItem("accessToken", tokens.accessToken);
-      localStorage.setItem("refreshToken", tokens.refreshToken);
-      localStorage.setItem("user", JSON.stringify(newUser));
-      setUser(newUser);
+      // 2. Get ID Token
+      const idToken = await userCredential.user.getIdToken();
 
-      return { success: true, user: newUser };
-    } catch (err) {
-      const message = err.response?.data?.message || "Registration failed";
-      setError(message);
-      return { success: false, error: message };
-    }
-  };
+      // 3. Sync with our backend (passing names and phone separately)
+      const response = await authAPI.firebaseSync(idToken, {
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        phoneNumber: userData.phoneNumber
+      });
 
-  // Firebase Email/Password Register
-  const registerWithFirebase = async (email, password, additionalData = {}) => {
-    try {
-      setError(null);
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-
-      // Update Firebase profile with name if provided
-      if (additionalData.firstName || additionalData.lastName) {
-        const { updateProfile } = await import("firebase/auth");
-        await updateProfile(result.user, {
-          displayName: `${additionalData.firstName} ${additionalData.lastName}`.trim()
-        });
-      }
-
-      const idToken = await result.user.getIdToken();
-
-      // Sync with our backend
-      const response = await authAPI.firebaseSync(idToken, additionalData);
       const { user: syncedUser, tokens } = response.data.data;
 
-      localStorage.setItem("accessToken", tokens.accessToken);
-      localStorage.setItem("refreshToken", tokens.refreshToken);
+      localStorage.setItem("token", tokens.accessToken);
       localStorage.setItem("user", JSON.stringify(syncedUser));
       setUser(syncedUser);
 
-      return { success: true };
+      return { success: true, user: syncedUser };
     } catch (err) {
-      console.error("Firebase Registration error:", err);
+      console.error("Registration error:", err);
       const message = err.response?.data?.message || err.message || "Registration failed";
       setError(message);
       return { success: false, error: message };
     }
   };
 
-  const verifyEmail = async (token) => {
-    try {
-      setError(null);
-      const response = await authAPI.verifyEmail({ token });
-      return { success: true, message: response.data.message };
-    } catch (err) {
-      const message =
-        err.response?.data?.message || "Email verification failed";
-      setError(message);
-      return { success: false, error: message };
-    }
-  };
-
-  const verifyPhone = async (code) => {
-    try {
-      setError(null);
-      const response = await authAPI.verifyPhone({ code });
-      // Optionally update local user state to mark phone as verified
-      if (user) {
-        const updated = { ...user, phoneVerified: true };
-        setUser(updated);
-        localStorage.setItem("user", JSON.stringify(updated));
-      }
-      return { success: true, message: response.data.message };
-    } catch (err) {
-      const message =
-        err.response?.data?.message || "Phone verification failed";
-      setError(message);
-      return { success: false, error: message };
-    }
-  };
-
-  const resendEmailVerification = async () => {
-    try {
-      setError(null);
-      const response = await authAPI.resendEmailVerification();
-      return { success: true, message: response.data.message };
-    } catch (err) {
-      const message =
-        err.response?.data?.message || "Failed to resend verification email";
-      setError(message);
-      return { success: false, error: message };
-    }
-  };
-
-  const resendPhoneVerification = async () => {
-    try {
-      setError(null);
-      const response = await authAPI.resendPhoneVerification();
-      return { success: true, message: response.data.message };
-    } catch (err) {
-      const message =
-        err.response?.data?.message || "Failed to resend phone code";
-      setError(message);
-      return { success: false, error: message };
-    }
-  };
-
-  // Firebase OAuth Login (e.g., Google)
-  const loginWithGoogle = async () => {
+  // Improved Login with Sync support
+  const loginWithGoogle = async (userData = {}) => {
     try {
       setError(null);
       const provider = new GoogleAuthProvider();
@@ -157,11 +81,10 @@ export const AuthProvider = ({ children }) => {
       const idToken = await result.user.getIdToken();
 
       // Sync with our backend
-      const response = await authAPI.firebaseSync(idToken);
+      const response = await authAPI.firebaseSync(idToken, userData);
       const { user: loggedInUser, tokens } = response.data.data;
 
-      localStorage.setItem("accessToken", tokens.accessToken);
-      localStorage.setItem("refreshToken", tokens.refreshToken);
+      localStorage.setItem("token", tokens.accessToken);
       localStorage.setItem("user", JSON.stringify(loggedInUser));
       setUser(loggedInUser);
 
@@ -174,19 +97,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Firebase Email/Password Login
+  // Combined Firebase Login
   const loginWithFirebase = async (email, password) => {
     try {
       setError(null);
       const result = await signInWithEmailAndPassword(auth, email, password);
       const idToken = await result.user.getIdToken();
 
-      // Sync with our backend
+      // Sync with our backend (simple login, no extra data needed usually)
       const response = await authAPI.firebaseSync(idToken);
       const { user: loggedInUser, tokens } = response.data.data;
 
-      localStorage.setItem("accessToken", tokens.accessToken);
-      localStorage.setItem("refreshToken", tokens.refreshToken);
+      localStorage.setItem("token", tokens.accessToken);
       localStorage.setItem("user", JSON.stringify(loggedInUser));
       setUser(loggedInUser);
 
@@ -206,8 +128,7 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.warn("Firebase sign out failed:", err);
     }
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);
     setError(null);
@@ -218,7 +139,6 @@ export const AuthProvider = ({ children }) => {
     loading,
     error,
     register,
-    registerWithFirebase,
     loginWithGoogle,
     loginWithFirebase,
     logout,

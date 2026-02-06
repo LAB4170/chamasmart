@@ -545,6 +545,8 @@ class TokenService {
     }
   }
 
+
+
   /**
    * Check if token is blacklisted
    */
@@ -705,13 +707,6 @@ async function firebaseSync(req, res) {
       const accessToken = TokenService.generateAccessToken(user);
       const refreshToken = TokenService.generateRefreshToken(user);
 
-      // === STORE REFRESH TOKEN ===
-      await client.query(
-        `INSERT INTO refresh_tokens (user_id, token, expires_at)
-         VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
-        [user.user_id, refreshToken],
-      );
-
       // Log success
       await logAuditEvent({
         eventType: EVENT_TYPES.AUTH_LOGIN_SUCCESS,
@@ -871,7 +866,7 @@ const register = async (req, res) => {
           severity: SEVERITY.LOW,
         });
 
-        return res.status(400).json({
+        return res.status(409).json({
           success: false,
           message: 'User with this email or phone number already exists',
         });
@@ -1084,6 +1079,7 @@ const login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password_hash);
 
     if (!isMatch) {
+      console.log(`Login failed: Password mismatch for ${email}. Hash: ${user.password_hash}`);
       logger.logSecurityEvent('Failed login - incorrect password', {
         userId: user.user_id,
         email,
@@ -1187,6 +1183,110 @@ const login = async (req, res) => {
     });
   }
 };
+
+// ============================================================================
+// REFRESH TOKEN ENDPOINT
+// ============================================================================
+
+const refreshTokens = async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(400).json({
+      success: false,
+      message: 'Refresh token is required',
+    });
+  }
+
+  try {
+    // 1. Verify token
+    const decoded = TokenService.verify(refreshToken, 'refresh');
+
+    // 2. Check if blacklisted
+    const isBlacklisted = await TokenService.isBlacklisted(refreshToken, 'refresh');
+    if (isBlacklisted) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token has been revoked',
+      });
+    }
+
+    // 3. Find user
+    const result = await pool.query('SELECT * FROM users WHERE user_id = $1', [decoded.sub]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const user = result.rows[0];
+
+    // 4. Generate new tokens
+    const newAccessToken = TokenService.generateAccessToken(user);
+    const newRefreshToken = TokenService.generateRefreshToken(user);
+
+    // 5. Update refresh token in DB
+    await pool.query(
+      'UPDATE refresh_tokens SET token = $1, expires_at = NOW() + INTERVAL \'7 days\' WHERE token = $2',
+      [newRefreshToken, refreshToken],
+    );
+
+    return res.json({
+      success: true,
+      data: {
+        tokens: {
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken,
+          expiresIn: SECURITY_CONFIG.JWT.ACCESS_TOKEN_EXPIRY,
+        },
+      },
+    });
+  } catch (error) {
+    logger.logError(error, { context: 'refreshToken' });
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid or expired refresh token',
+    });
+  }
+};
+
+// ============================================================================
+// LOGOUT ENDPOINT
+// ============================================================================
+
+const logout = async (req, res) => {
+  const authHeader = req.get('Authorization');
+  const accessToken = authHeader?.split(' ')[1];
+  const refreshToken = req.body?.refreshToken;
+
+  try {
+    // Revoke access token if present
+    if (accessToken) {
+      await TokenService.revoke(accessToken, 'access');
+    }
+
+    // Revoke refresh token if present
+    if (refreshToken) {
+      await TokenService.revoke(refreshToken, 'refresh');
+      await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Successfully logged out',
+    });
+  } catch (error) {
+    logger.logError(error, { context: 'logout' });
+    return res.status(500).json({
+      success: false,
+      message: 'Error during logout',
+    });
+  }
+};
+
+
 
 // ============================================================================
 // EMAIL VERIFICATION ENDPOINT
@@ -1353,6 +1453,8 @@ const sendPhoneVerification = async (phone, otp) => {
 module.exports = {
   register,
   login,
+  refreshTokens,
+  logout,
   firebaseSync,
   verifyEmail,
   verifyPhone,

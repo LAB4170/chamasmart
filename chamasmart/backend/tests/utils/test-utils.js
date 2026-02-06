@@ -1,6 +1,6 @@
 // Test utilities for ChamaSmart backend
 
-export const createTestUser = (overrides = {}) => ({
+const createTestUser = (overrides = {}) => ({
   id: 1,
   email: 'test@example.com',
   password: 'hashedpassword',
@@ -14,7 +14,7 @@ export const createTestUser = (overrides = {}) => ({
   ...overrides,
 });
 
-export const createTestChama = (overrides = {}) => ({
+const createTestChama = (overrides = {}) => ({
   id: 1,
   name: 'Test Chama',
   description: 'A test chama group',
@@ -26,7 +26,7 @@ export const createTestChama = (overrides = {}) => ({
   ...overrides,
 });
 
-export const createTestMember = (overrides = {}) => ({
+const createTestMember = (overrides = {}) => ({
   id: 1,
   user_id: 1,
   chama_id: 1,
@@ -37,7 +37,7 @@ export const createTestMember = (overrides = {}) => ({
 });
 
 // Mock Express response object
-export const mockResponse = () => {
+const mockResponse = () => {
   const res = {};
   res.status = jest.fn().mockReturnValue(res);
   res.json = jest.fn().mockReturnValue(res);
@@ -48,7 +48,7 @@ export const mockResponse = () => {
 };
 
 // Mock Express request object
-export const mockRequest = (
+const mockRequest = (
   body = {},
   params = {},
   query = {},
@@ -64,4 +64,14 @@ export const mockRequest = (
 });
 
 // Mock Next function
-export const mockNext = jest.fn();
+const mockNext = jest.fn();
+
+module.exports = {
+  createTestUser,
+  createTestChama,
+  createTestMember,
+  mockResponse,
+  mockRequest,
+  mockNext,
+};
+

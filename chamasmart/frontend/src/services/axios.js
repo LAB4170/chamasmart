@@ -13,7 +13,7 @@ const api = axios.create({
 // Add token to requests if it exists
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem("accessToken");
+        const token = localStorage.getItem("token");
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -35,8 +35,7 @@ api.interceptors.response.use(
                 window.location.pathname !== "/login" &&
                 window.location.pathname !== "/register"
             ) {
-                localStorage.removeItem("accessToken");
-                localStorage.removeItem("refreshToken");
+                localStorage.removeItem("token");
                 localStorage.removeItem("user");
                 window.location.replace("/login");
             }

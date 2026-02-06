@@ -5,16 +5,22 @@ const { redis } = require('../config/redis');
 /**
  * Apply authentication-specific rate limiting
  */
-const applyAuthRateLimiting = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Limit each IP to 10 auth requests per windowMs
-  message: {
-    success: false,
-    message: 'Too many authentication attempts, please try again later.',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+const applyAuthRateLimiting = (req, res, next) => {
+  if (process.env.NODE_ENV === 'test') {
+    return next();
+  }
+  return rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // Limit each IP to 10 auth requests per windowMs
+    message: {
+      success: false,
+      message: 'Too many authentication attempts, please try again later.',
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+  })(req, res, next);
+};
+
 
 /**
  * General rate limiting for non-auth endpoints
