@@ -271,9 +271,11 @@ const approveClaim = async (req, res) => {
   const { claimId } = req.params;
   const { approverId, status, comments } = req.body;
 
+  const client = await pool.connect();
+
   try {
     // Start transaction
-    await pool.query('BEGIN');
+    await client.query('BEGIN');
 
     // Record approval
     const approvalQuery = `
@@ -286,7 +288,7 @@ const approveClaim = async (req, res) => {
       RETURNING *
     `;
 
-    await pool.query(approvalQuery, [claimId, approverId, status, comments]);
+    await client.query(approvalQuery, [claimId, approverId, status, comments]);
 
     // Check if we have enough approvals
     const checkApprovalsQuery = `
@@ -304,7 +306,7 @@ const approveClaim = async (req, res) => {
 
     const {
       rows: [claimInfo],
-    } = await pool.query(checkApprovalsQuery, [claimId]);
+    } = await client.query(checkApprovalsQuery, [claimId]);
 
     // If we have at least 2 approvals or this is the last admin to approve
     if (
@@ -312,13 +314,14 @@ const approveClaim = async (req, res) => {
       || claimInfo.approval_count >= claimInfo.total_admins
     ) {
       // Update claim status to approved
-      await pool.query(
+      await client.query(
         'UPDATE welfare_claims SET status = \'APPROVED\' WHERE id = $1',
         [claimId],
       );
 
       // Process payment (simplified - in reality, you'd integrate with M-Pesa API)
-      await processWelfarePayout(claimInfo);
+      // Passing client to helper to maintain transaction context
+      await processWelfarePayout(claimInfo, client);
 
       // Notify the claimant
       await sendNotification({
@@ -331,13 +334,15 @@ const approveClaim = async (req, res) => {
       });
     }
 
-    await pool.query('COMMIT');
+    await client.query('COMMIT');
 
     res.json({ message: 'Approval recorded successfully' });
   } catch (error) {
-    await pool.query('ROLLBACK');
+    await client.query('ROLLBACK');
     logger.error('Error processing approval:', error);
     res.status(500).json({ message: 'Error processing approval' });
+  } finally {
+    client.release();
   }
 };
 
@@ -365,13 +370,13 @@ async function notifyAdminsAboutNewClaim(chamaId, claimId) {
   }
 }
 
-async function processWelfarePayout(claim) {
+async function processWelfarePayout(claim, client = pool) {
   try {
     // In a real implementation, this would integrate with M-Pesa API
     // For now, we'll just update the status and log the transaction
 
     // Record the payout
-    await pool.query(
+    await client.query(
       `INSERT INTO transactions (
         chama_id, 
         member_id, 
@@ -385,13 +390,13 @@ async function processWelfarePayout(claim) {
     );
 
     // Update the claim status
-    await pool.query(
+    await client.query(
       'UPDATE welfare_claims SET status = \'PAID\', updated_at = CURRENT_TIMESTAMP WHERE id = $1',
       [claim.id],
     );
 
     // Update the welfare fund balance
-    await pool.query(
+    await client.query(
       'UPDATE welfare_fund SET balance = balance - $1 WHERE chama_id = $2',
       [claim.claim_amount, claim.chama_id],
     );

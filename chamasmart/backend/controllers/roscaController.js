@@ -349,26 +349,26 @@ const processPayout = async (req, res) => {
 
     const rosterEntry = rosterResult.rows[0];
 
-    // Verify all members have paid for this round
+    // Verify all members (except the recipient) have paid enough times for this position
+    // E.g. If Payout Position is 3, everyone else should have made at least 3 contributions to this cycle
     const unpaidCount = await client.query(
       `SELECT COUNT(*) FROM rosca_roster rr
              WHERE rr.cycle_id = $1 
-             AND rr.position < $2
-             AND NOT EXISTS (
-                 SELECT 1 FROM contributions c 
+             AND rr.user_id != $2 -- Exclude the person being paid
+             AND (
+                 SELECT COUNT(*) FROM contributions c 
                  WHERE c.cycle_id = rr.cycle_id 
                  AND c.user_id = rr.user_id
-                 AND c.contribution_date >= $3
-                 AND c.amount >= $4
-             )`,
-      [cycleId, payoutPosition, cycle.start_date, cycle.contribution_amount],
+                 AND c.amount >= $3
+             ) < $4`,
+      [cycleId, rosterEntry.user_id, cycle.contribution_amount, payoutPosition],
     );
 
     if (parseInt(unpaidCount.rows[0].count) > 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: 'Not all members have paid for this round',
+        message: `Not all members have contributed for round ${payoutPosition}. Waiting for contributions.`,
       });
     }
 
