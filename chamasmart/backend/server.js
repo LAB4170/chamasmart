@@ -109,11 +109,11 @@ if (process.env.NODE_ENV === "development") {
   app.use(detailedRequestLogger);
 }
 
-// Request validation
-app.use(validateQueryParams);
-
-// Response formatting
+// Response formatting (MUST come before validation to add res.validationError method)
 app.use(responseFormatterMiddleware);
+
+// Request validation (depends on responseFormatterMiddleware)
+app.use(validateQueryParams);
 
 // Metrics
 // Note: metricsMiddleware will be added later after import

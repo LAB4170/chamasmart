@@ -10,20 +10,30 @@ const MeetingList = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchMeetings();
-    }, [id]);
+        let isMounted = true;
 
-    const fetchMeetings = async () => {
-        try {
-            const res = await meetingAPI.getAll(id);
-            setMeetings(res.data.data || res.data);
-            setLoading(false);
-        } catch (err) {
-            console.error(err);
-            toast.error("Failed to fetch meetings");
-            setLoading(false);
-        }
-    };
+        const fetchMeetings = async () => {
+            try {
+                const res = await meetingAPI.getAll(id);
+                if (isMounted) {
+                    setMeetings(res.data.data || res.data);
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error(err);
+                if (isMounted) {
+                    toast.error("Failed to fetch meetings");
+                    setLoading(false);
+                }
+            }
+        };
+
+        fetchMeetings();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [id]);
 
     const getStatusClass = (status) => {
         switch (status.toLowerCase()) {

@@ -16,30 +16,40 @@ const PayoutManagement = () => {
     const [error, setError] = useState("");
 
     useEffect(() => {
+        let isMounted = true;
+
+        const fetchData = async () => {
+            try {
+                if (isMounted) setLoading(true);
+                const [chamaRes, payoutsRes, eligibleRes, membersRes] = await Promise.all([
+                    chamaAPI.getById(id),
+                    payoutAPI.getAll(id),
+                    payoutAPI.getEligible(id),
+                    chamaAPI.getMembers(id),
+                ]);
+
+                if (isMounted) {
+                    setChama(chamaRes.data.data);
+                    setPayouts(payoutsRes.data.data);
+                    setEligibleMembers(eligibleRes.data.data);
+                    setMembers(membersRes.data.data);
+                }
+            } catch (err) {
+                if (isMounted) {
+                    setError("Failed to load payout data");
+                    console.error(err);
+                }
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+
         fetchData();
+
+        return () => {
+            isMounted = false;
+        };
     }, [id]);
-
-    const fetchData = async () => {
-        try {
-            setLoading(true);
-            const [chamaRes, payoutsRes, eligibleRes, membersRes] = await Promise.all([
-                chamaAPI.getById(id),
-                payoutAPI.getAll(id),
-                payoutAPI.getEligible(id),
-                chamaAPI.getMembers(id),
-            ]);
-
-            setChama(chamaRes.data.data);
-            setPayouts(payoutsRes.data.data);
-            setEligibleMembers(eligibleRes.data.data);
-            setMembers(membersRes.data.data);
-        } catch (err) {
-            setError("Failed to load payout data");
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const getUserRole = () => {
         const member = members.find((m) => m.user_id === user?.id);

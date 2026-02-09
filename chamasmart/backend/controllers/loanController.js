@@ -385,7 +385,7 @@ class DefaultDetector {
       for (const installment of result.rows) {
         const daysOverdue = Math.floor(
           (Date.now() - new Date(installment.due_date).getTime())
-            / (1000 * 60 * 60 * 24),
+          / (1000 * 60 * 60 * 24),
         );
 
         // Get chama's penalty configuration
@@ -1349,9 +1349,139 @@ const getUserLoans = async (req, res) => {
   }
 };
 
-// ============================================================================
-// EXPORTS
-// ============================================================================
+// @desc    Get user's incoming guarantee requests and status
+// @route   GET /api/loans/my-guarantees
+// @access  Private
+const getMyGuarantees = async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+    const { status, page = 1, limit = 20 } = req.query;
+
+    const offset = (page - 1) * limit;
+    const params = [userId];
+    let whereClause = 'WHERE lg.guarantor_id = $1';
+
+    if (status && status !== 'ALL') {
+      whereClause += ' AND lg.status = $2';
+      params.push(status);
+    }
+
+    const result = await pool.query(
+      `SELECT 
+        l.loan_id,
+        l.loan_amount,
+        l.status,
+        lg.guaranteed_amount,
+        lg.status as guarantee_status,
+        u.first_name || ' ' || u.last_name as borrower_name,
+        u.user_id as borrower_id
+       FROM loan_guarantors lg
+       JOIN loans l ON lg.loan_id = l.loan_id
+       JOIN users u ON l.borrower_id = u.user_id
+       ${whereClause}
+       ORDER BY l.created_at DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset],
+    );
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) as total 
+       FROM loan_guarantors lg 
+       JOIN loans l ON lg.loan_id = l.loan_id
+       ${whereClause}`,
+      params,
+    );
+
+    const guarantees = result.rows.map(g => ({
+      ...g,
+      loan_amount: fromCents(g.loan_amount),
+      guaranteed_amount: fromCents(g.guaranteed_amount),
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        data: guarantees,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: parseInt(countResult.rows[0].total),
+          pages: Math.ceil(countResult.rows[0].total / limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Get guarantees error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving guarantees',
+    });
+  }
+};
+
+// @desc    Respond to a guarantee request
+// @route   POST /api/loans/:loanId/guarantee/respond
+// @access  Private
+const respondToGuaranteeRequest = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const userId = req.user.user_id;
+    const { loanId } = req.params;
+    const { decision } = req.body; // ACCEPT or REJECT
+
+    if (!['ACCEPT', 'REJECT'].includes(decision)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid decision. Must be ACCEPT or REJECT',
+      });
+    }
+
+    // Verify the request exists and belongs to user
+    const checkRes = await client.query(
+      `SELECT * FROM loan_guarantors 
+       WHERE loan_id = $1 AND guarantor_id = $2 AND status = 'PENDING'`,
+      [loanId, userId],
+    );
+
+    if (checkRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        success: false,
+        message: 'Guarantee request not found or already processed',
+      });
+    }
+
+    const status = decision === 'ACCEPT' ? 'ACCEPTED' : 'REJECTED';
+
+    await client.query(
+      `UPDATE loan_guarantors 
+       SET status = $1, updated_at = NOW() 
+       WHERE loan_id = $2 AND guarantor_id = $3`,
+      [status, loanId, userId],
+    );
+
+    // If REJECTED, might want to notify borrower or update loan status?
+    // For now, just update the status.
+    // Ideally, if a guarantor rejects, the loan might need to go back to draft or prompt borrower.
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: `Guarantee request ${status.toLowerCase()}`,
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Respond guarantee error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error processing response',
+    });
+  } finally {
+    client.release();
+  }
+};
 
 module.exports = {
   applyForLoan,
@@ -1361,6 +1491,8 @@ module.exports = {
   rejectLoan,
   makeRepayment,
   getUserLoans,
+  getMyGuarantees,
+  respondToGuaranteeRequest,
   // Export services
   LoanCalculator,
   GuarantorService,

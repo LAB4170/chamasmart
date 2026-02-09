@@ -42,8 +42,10 @@ export const SocketProvider = ({ children }) => {
         socketRef.current.close();
       }
 
-      // Use the same base URL as the API, but without the /api prefix
-      const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
+      // Align with axios.js logic: Use env var or default to localhost:5005
+      // We must strip '/api' because socket.io connects to the root
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5005/api";
+      const baseUrl = apiUrl.replace(/\/api\/?$/, "");
 
       console.log("Creating new socket connection to:", baseUrl);
       const newSocket = io(baseUrl, {
@@ -81,8 +83,19 @@ export const SocketProvider = ({ children }) => {
       return () => {
         console.log("Cleaning up socket connection");
         if (socketRef.current) {
+          // Remove specific listeners first
           socketRef.current.off("connect", onConnect);
           socketRef.current.off("connect_error", onConnectError);
+
+          // Remove any other listeners that might have been added
+          socketRef.current.removeAllListeners();
+
+          // Disconnect if connected
+          if (socketRef.current.connected) {
+            socketRef.current.disconnect();
+          }
+
+          // Close the socket
           socketRef.current.close();
           socketRef.current = null;
         }

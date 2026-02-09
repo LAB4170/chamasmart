@@ -313,9 +313,13 @@ const socketCorsOptions = {
       return callback(null, true);
     }
 
-    if (isOriginAllowed(origin, allowedOrigins)) {
+    // Fix: Iterate over allowedOrigins array instead of passing it as a single pattern
+    const isAllowed = allowedOrigins.some(pattern => isOriginAllowed(origin, pattern));
+
+    if (isAllowed) {
       callback(null, true);
     } else {
+      // Only log if not allowed
       if (securityRateLimiter.shouldLog(origin)) {
         logger.logSecurityEvent("SOCKET_CORS_VIOLATION", {
           origin,
@@ -324,6 +328,7 @@ const socketCorsOptions = {
         });
       }
 
+      console.log("Socket CORS Blocked Origin:", origin); // Direct console log for debugging
       callback(new Error("Not allowed by CORS"));
     }
   },

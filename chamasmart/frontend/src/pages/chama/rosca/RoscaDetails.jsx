@@ -10,20 +10,30 @@ const RoscaDetails = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchRoster();
-    }, [cycleId]);
+        let isMounted = true;
 
-    const fetchRoster = async () => {
-        try {
-            const res = await roscaAPI.getRoster(cycleId);
-            setRoster(res.data.data || res.data);
-            setLoading(false);
-        } catch (err) {
-            console.error(err);
-            toast.error("Failed to load roster");
-            setLoading(false);
-        }
-    };
+        const fetchRoster = async () => {
+            try {
+                const res = await roscaAPI.getRoster(cycleId);
+                if (isMounted) {
+                    setRoster(res.data.data || res.data);
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error(err);
+                if (isMounted) {
+                    toast.error("Failed to load roster");
+                    setLoading(false);
+                }
+            }
+        };
+
+        fetchRoster();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [cycleId]);
 
     if (loading) return <div className="loading-spinner">Loading roster...</div>;
 

@@ -52,16 +52,18 @@ module.exports = {
       logger.warn('Redis not configured, Socket.io will use in-memory adapter (single server only)');
     }
 
-    // JWT Authentication Middleware for Socket.io
+    // JWT Authentication Middleware for Socket.io (OPTIONAL - allows connection without auth)
     io.use((socket, next) => {
       const token = socket.handshake.auth.token || socket.handshake.headers.authorization;
 
       if (!token) {
-        logger.warn('Socket connection without token', {
+        logger.warn('Socket connection without token - allowing but marking as unauthenticated', {
           socketId: socket.id,
           ip: socket.handshake.address,
         });
-        return next(new Error('Authentication error'));
+        socket.userId = null; // Mark as unauthenticated
+        socket.userEmail = null;
+        return next(); // Allow connection
       }
 
       try {
@@ -76,11 +78,13 @@ module.exports = {
 
         next();
       } catch (err) {
-        logger.error('Socket authentication failed', {
+        logger.warn('Socket authentication failed - allowing connection but marking as unauthenticated', {
           socketId: socket.id,
           error: err.message,
         });
-        next(new Error('Authentication error'));
+        socket.userId = null; // Mark as unauthenticated
+        socket.userEmail = null;
+        next(); // Allow connection even with invalid/expired token
       }
     });
 
@@ -96,27 +100,22 @@ module.exports = {
         metrics.socketConnections.inc();
       }
 
-      if (!userId) {
-        logger.warn('Unauthenticated socket connection rejected', {
-          socketId: socket.id,
-          ip: socket.handshake.address,
-        });
-        if (metrics?.socketConnections) {
-          metrics.socketConnections.dec();
-        }
-        socket.disconnect(true);
-        return;
-      }
-
-      logger.debug('New client connected', { socketId: socket.id, userId });
-
-      socket.join(`user_${userId}`);
-      activeUsers.add(userId);
-      io.emit('presence_update', Array.from(activeUsers));
-      logger.debug('User joined personal room', {
-        userId,
-        activeUsersCount: activeUsers.size,
+      logger.debug('New client connected', {
+        socketId: socket.id,
+        userId: userId || 'unauthenticated',
+        authenticated: !!userId
       });
+
+      // Only join user room if authenticated
+      if (userId) {
+        socket.join(`user_${userId}`);
+        activeUsers.add(userId);
+        io.emit('presence_update', Array.from(activeUsers));
+        logger.debug('User joined personal room', {
+          userId,
+          activeUsersCount: activeUsers.size,
+        });
+      }
 
       // Join chama room
       socket.on('join_chama', chamaId => {

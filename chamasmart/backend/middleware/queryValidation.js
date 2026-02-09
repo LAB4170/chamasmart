@@ -19,13 +19,14 @@ const querySchema = Joi.object({
   sortBy: Joi.string().min(1).max(50),
   sortOrder: Joi.string().valid('asc', 'desc').default('desc'),
 
-  // Search
-  search: Joi.string().min(1).max(200),
-  query: Joi.string().min(1).max(200),
+  // Search (allow empty strings since frontend sends "" when not searching)
+  search: Joi.string().allow('').max(200),
+  query: Joi.string().allow('').max(200),
 
-  // Filtering
-  status: Joi.string().max(50),
-  type: Joi.string().max(50),
+  // Filtering (allow empty strings)
+  status: Joi.string().allow('').max(50),
+  type: Joi.string().allow('').max(50),
+  chamaType: Joi.string().allow('').max(50),
   startDate: Joi.date().iso(),
   endDate: Joi.date().iso(),
 

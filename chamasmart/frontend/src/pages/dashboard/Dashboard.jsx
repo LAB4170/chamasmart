@@ -81,21 +81,35 @@ const Dashboard = () => {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetchMyChamas();
-  }, []);
+    let isMounted = true;
 
-  const fetchMyChamas = async () => {
-    try {
-      setLoading(true);
-      const response = await chamaAPI.getMyChamas();
-      setChamas(response.data.data);
-    } catch (err) {
-      setError("Failed to load your chamas");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const fetchMyChamas = async () => {
+      try {
+        if (isMounted) {
+          setLoading(true);
+        }
+        const response = await chamaAPI.getMyChamas();
+        if (isMounted) {
+          setChamas(response.data.data);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError("Failed to load your chamas");
+          console.error(err);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchMyChamas();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const getChamaTypeLabel = (type) => {
     const types = {

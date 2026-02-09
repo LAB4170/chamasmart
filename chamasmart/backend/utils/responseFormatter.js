@@ -59,17 +59,32 @@ const error = (
 
 /**
  * Validation Error Response Format
- * @param {*} errors - Validation errors (usually from Joi)
+ * @param {*} errors - Validation errors (can be raw Joi errors or pre-formatted)
  * @param {string} requestId - Request ID for tracing
  */
 const validationError = (errors, requestId = null) => {
-  const formattedErrors = Array.isArray(errors)
-    ? errors.map(err => ({
-      field: err.path.join('.'),
-      message: err.message,
-      type: err.type,
-    }))
-    : errors;
+  let formattedErrors;
+
+  if (Array.isArray(errors)) {
+    // Check if errors are already formatted (have 'field' property)
+    if (errors.length > 0 && errors[0].field !== undefined) {
+      // Already formatted by queryValidation.js
+      formattedErrors = errors;
+    } else if (errors.length > 0 && errors[0].path !== undefined) {
+      // Raw Joi errors - need formatting
+      formattedErrors = errors.map(err => ({
+        field: Array.isArray(err.path) ? err.path.join('.') : String(err.path || 'unknown'),
+        message: err.message,
+        type: err.type,
+      }));
+    } else {
+      // Unknown format - pass through
+      formattedErrors = errors;
+    }
+  } else {
+    // Not an array - pass through as-is
+    formattedErrors = errors;
+  }
 
   return {
     success: false,

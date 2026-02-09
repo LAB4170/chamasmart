@@ -17,25 +17,35 @@ const InviteManagement = () => {
     const [newInvite, setNewInvite] = useState(null);
 
     useEffect(() => {
-        fetchData();
-    }, [id]);
+        let isMounted = true;
 
-    const fetchData = async () => {
-        try {
-            setLoading(true);
-            const [chamaRes, invitesRes] = await Promise.all([
-                chamaAPI.getById(id),
-                inviteAPI.getAll(id)
-            ]);
-            setChama(chamaRes.data.data);
-            setInvites(invitesRes.data.data);
-        } catch (err) {
-            setError('Failed to load invite data');
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
+        const fetchData = async () => {
+            try {
+                if (isMounted) setLoading(true);
+                const [chamaRes, invitesRes] = await Promise.all([
+                    chamaAPI.getById(id),
+                    inviteAPI.getAll(id)
+                ]);
+                if (isMounted) {
+                    setChama(chamaRes.data.data);
+                    setInvites(invitesRes.data.data);
+                }
+            } catch (err) {
+                if (isMounted) {
+                    setError('Failed to load invite data');
+                    console.error(err);
+                }
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+
+        fetchData();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [id]);
 
     const handleGenerateInvite = async () => {
         setError('');

@@ -9,23 +9,38 @@ const MyGuarantees = () => {
     const [filter, setFilter] = useState("ALL");
 
     useEffect(() => {
+        let isMounted = true;
+
+        const fetchGuarantees = async () => {
+            try {
+                if (isMounted) {
+                    setLoading(true);
+                    setError("");
+                }
+
+                const res = await loanAPI.getMyGuarantees();
+
+                if (isMounted) {
+                    setItems(res.data.data || []);
+                }
+            } catch (err) {
+                console.error(err);
+                if (isMounted) {
+                    setError("Failed to load your guarantees");
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
         fetchGuarantees();
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
-
-    const fetchGuarantees = async () => {
-        try {
-            setLoading(true);
-            setError("");
-
-            const res = await loanAPI.getMyGuarantees();
-            setItems(res.data.data || []);
-        } catch (err) {
-            console.error(err);
-            setError("Failed to load your guarantees");
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleRespond = async (loanId, decision) => {
         try {

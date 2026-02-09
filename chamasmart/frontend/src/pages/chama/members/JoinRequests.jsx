@@ -17,28 +17,38 @@ const JoinRequests = () => {
     const [processingId, setProcessingId] = useState(null);
 
     useEffect(() => {
+        let isMounted = true;
+
+        const fetchData = async () => {
+            try {
+                if (isMounted) setLoading(true);
+                const [chamaRes, requestsRes, membersRes] = await Promise.all([
+                    chamaAPI.getById(id),
+                    joinRequestAPI.getAll(id),
+                    chamaAPI.getMembers(id),
+                ]);
+
+                if (isMounted) {
+                    setChama(chamaRes.data.data);
+                    setRequests(requestsRes.data.data);
+                    setMembers(membersRes.data.data);
+                }
+            } catch (err) {
+                if (isMounted) {
+                    setError("Failed to load join requests");
+                    console.error(err);
+                }
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+
         fetchData();
+
+        return () => {
+            isMounted = false;
+        };
     }, [id]);
-
-    const fetchData = async () => {
-        try {
-            setLoading(true);
-            const [chamaRes, requestsRes, membersRes] = await Promise.all([
-                chamaAPI.getById(id),
-                joinRequestAPI.getAll(id),
-                chamaAPI.getMembers(id),
-            ]);
-
-            setChama(chamaRes.data.data);
-            setRequests(requestsRes.data.data);
-            setMembers(membersRes.data.data);
-        } catch (err) {
-            setError("Failed to load join requests");
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleRespond = async (requestId, status, requesterName) => {
         const action = status === "APPROVED" ? "approve" : "reject";

@@ -10,20 +10,30 @@ const AscaDashboard = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchEquity();
-    }, [id]);
+        let isMounted = true;
 
-    const fetchEquity = async () => {
-        try {
-            const res = await ascaAPI.getEquity(id);
-            setEquity(res.data.data || res.data);
-            setLoading(false);
-        } catch (err) {
-            console.error(err);
-            toast.error("Failed to fetch equity data");
-            setLoading(false);
-        }
-    };
+        const fetchEquity = async () => {
+            try {
+                const res = await ascaAPI.getEquity(id);
+                if (isMounted) {
+                    setEquity(res.data.data || res.data);
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error(err);
+                if (isMounted) {
+                    toast.error("Failed to fetch equity data");
+                    setLoading(false);
+                }
+            }
+        };
+
+        fetchEquity();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [id]);
 
     if (loading) return <div className="loading-spinner">Loading equity...</div>;
 

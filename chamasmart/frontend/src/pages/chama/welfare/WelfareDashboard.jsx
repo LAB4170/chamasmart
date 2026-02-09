@@ -16,32 +16,46 @@ const WelfareDashboard = () => {
     const [error, setError] = useState(null);
 
     useEffect(() => {
+        let isMounted = true;
+
+        const fetchWelfareData = async () => {
+            try {
+                if (isMounted) {
+                    setLoading(true);
+                    setError(null);
+                }
+
+                const [fundRes, claimsRes, configRes] = await Promise.all([
+                    welfareAPI.getFund(id),
+                    welfareAPI.getMemberClaims(id, user.user_id),
+                    welfareAPI.getConfig(id)
+                ]);
+
+                if (isMounted) {
+                    setFundValues(fundRes.data);
+                    setMyClaims(claimsRes.data);
+                    setConfig(configRes.data);
+                }
+            } catch (err) {
+                console.error("Error loading welfare data:", err);
+                const errorMsg = err.response?.data?.message || "Failed to load welfare information.";
+                if (isMounted) {
+                    setError(errorMsg);
+                    toast.error(errorMsg);
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
         fetchWelfareData();
-    }, [id]);
 
-    const fetchWelfareData = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-
-            const [fundRes, claimsRes, configRes] = await Promise.all([
-                welfareAPI.getFund(id),
-                welfareAPI.getMemberClaims(id, user.user_id),
-                welfareAPI.getConfig(id)
-            ]);
-
-            setFundValues(fundRes.data);
-            setMyClaims(claimsRes.data);
-            setConfig(configRes.data);
-        } catch (err) {
-            console.error("Error loading welfare data:", err);
-            const errorMsg = err.response?.data?.message || "Failed to load welfare information.";
-            setError(errorMsg);
-            toast.error(errorMsg);
-        } finally {
-            setLoading(false);
-        }
-    };
+        return () => {
+            isMounted = false;
+        };
+    }, [id, user.user_id]);
 
     if (loading) return <div className="loading-spinner">Loading Welfare Data...</div>;
 

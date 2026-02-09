@@ -10,6 +10,8 @@ const {
   rejectLoan,
   makeRepayment,
   getUserLoans,
+  getMyGuarantees,
+  respondToGuaranteeRequest,
 } = require('../controllers/loanController');
 const validate = require('../middleware/validate');
 const { applyLoanSchema } = require('../utils/validationSchemas');
@@ -27,6 +29,15 @@ router.use(protect);
 
 // Get user's loan history
 router.get('/my-loans', getUserLoans);
+
+// Get user's guarantees
+router.get('/my-guarantees', getMyGuarantees);
+
+// Respond to guarantee request
+router.post('/:loanId/guarantee/respond', respondToGuaranteeRequest);
+// MyGuarantees.jsx calls: respondGuarantor(loanId, decision) -> usually maps to POST /:loanId/respond OR POST /respond {loanId}
+// Let's stick to RESTful: POST /:loanId/guarantee/respond
+
 
 // ============================================================================
 // CHAMA LOAN MANAGEMENT

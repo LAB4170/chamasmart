@@ -20,28 +20,38 @@ const LoanManagement = () => {
     const [loanDetails, setLoanDetails] = useState(null);
 
     useEffect(() => {
+        let isMounted = true;
+
+        const fetchData = async () => {
+            try {
+                if (isMounted) setLoading(true);
+                const [chamaRes, loansRes, membersRes] = await Promise.all([
+                    chamaAPI.getById(id),
+                    loanAPI.getChamaLoans(id),
+                    chamaAPI.getMembers(id),
+                ]);
+
+                if (isMounted) {
+                    setChama(chamaRes.data.data || chamaRes.data);
+                    setLoans(loansRes.data.data || loansRes.data);
+                    setMembers(membersRes.data.data || membersRes.data);
+                }
+            } catch (err) {
+                if (isMounted) {
+                    setError("Failed to load loan data");
+                    console.error(err);
+                }
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+
         fetchData();
+
+        return () => {
+            isMounted = false;
+        };
     }, [id]);
-
-    const fetchData = async () => {
-        try {
-            setLoading(true);
-            const [chamaRes, loansRes, membersRes] = await Promise.all([
-                chamaAPI.getById(id),
-                loanAPI.getChamaLoans(id),
-                chamaAPI.getMembers(id),
-            ]);
-
-            setChama(chamaRes.data.data || chamaRes.data);
-            setLoans(loansRes.data.data || loansRes.data);
-            setMembers(membersRes.data.data || membersRes.data);
-        } catch (err) {
-            setError("Failed to load loan data");
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleApproveLoan = async (loanId) => {
         try {

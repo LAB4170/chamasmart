@@ -22,47 +22,57 @@ const ProcessPayout = () => {
     const [success, setSuccess] = useState("");
 
     useEffect(() => {
-        fetchData();
-    }, [id]);
+        let isMounted = true;
 
-    const fetchData = async () => {
-        try {
-            setPageLoading(true);
-            const [chamaRes, eligibleRes, meetingsRes, payoutsRes] = await Promise.all([
-                chamaAPI.getById(id),
-                payoutAPI.getEligible(id),
-                meetingAPI.getAll(id),
-                payoutAPI.getAll(id),
-            ]);
+        const fetchData = async () => {
+            try {
+                if (isMounted) setPageLoading(true);
+                const [chamaRes, eligibleRes, meetingsRes, payoutsRes] = await Promise.all([
+                    chamaAPI.getById(id),
+                    payoutAPI.getEligible(id),
+                    meetingAPI.getAll(id),
+                    payoutAPI.getAll(id),
+                ]);
 
-            const chamaData = chamaRes.data.data;
-            const eligibleData = eligibleRes.data.data;
-            const membersCount = eligibleData.length;
+                if (isMounted) {
+                    const chamaData = chamaRes.data.data;
+                    const eligibleData = eligibleRes.data.data;
+                    const membersCount = eligibleData.length;
 
-            setChama(chamaData);
-            setEligibleMembers(eligibleData);
-            setMeetings(meetingsRes.data.data);
-            setPayouts(payoutsRes.data.data);
+                    setChama(chamaData);
+                    setEligibleMembers(eligibleData);
+                    setMeetings(meetingsRes.data.data);
+                    setPayouts(payoutsRes.data.data);
 
-            // Auto-select next recipient and calculate amount
-            const receivedPayouts = payoutsRes.data.data.map((p) => p.user_id);
-            const nextRecipient = eligibleData.find((m) => !receivedPayouts.includes(m.user_id));
+                    // Auto-select next recipient and calculate amount
+                    const receivedPayouts = payoutsRes.data.data.map((p) => p.user_id);
+                    const nextRecipient = eligibleData.find((m) => !receivedPayouts.includes(m.user_id));
 
-            if (nextRecipient) {
-                const expectedAmount = parseFloat(chamaData.contribution_amount) * membersCount;
-                setFormData((prev) => ({
-                    ...prev,
-                    userId: nextRecipient.user_id,
-                    amount: expectedAmount.toFixed(2),
-                }));
+                    if (nextRecipient) {
+                        const expectedAmount = parseFloat(chamaData.contribution_amount) * membersCount;
+                        setFormData((prev) => ({
+                            ...prev,
+                            userId: nextRecipient.user_id,
+                            amount: expectedAmount.toFixed(2),
+                        }));
+                    }
+                }
+            } catch (err) {
+                if (isMounted) {
+                    setError("Failed to load data");
+                    console.error(err);
+                }
+            } finally {
+                if (isMounted) setPageLoading(false);
             }
-        } catch (err) {
-            setError("Failed to load data");
-            console.error(err);
-        } finally {
-            setPageLoading(false);
-        }
-    };
+        };
+
+        fetchData();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [id]);
 
     const handleChange = (e) => {
         setFormData({

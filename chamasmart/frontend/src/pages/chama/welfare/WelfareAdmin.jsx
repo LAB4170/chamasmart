@@ -16,22 +16,32 @@ const WelfareAdmin = () => {
     const [actionLoading, setActionLoading] = useState(null);
 
     useEffect(() => {
-        fetchClaims();
-    }, [id]);
+        let isMounted = true;
 
-    const fetchClaims = async () => {
-        try {
-            const response = await welfareAPI.getChamaClaims(id);
-            setClaims(response.data);
-            setLoading(false);
-        } catch (err) {
-            console.error("Error loading claims:", err);
-            const errorMsg = err.response?.data?.message || "Failed to load claims. Please try again.";
-            setError(errorMsg);
-            toast.error(errorMsg);
-            setLoading(false);
-        }
-    };
+        const fetchClaims = async () => {
+            try {
+                const response = await welfareAPI.getChamaClaims(id);
+                if (isMounted) {
+                    setClaims(response.data);
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error("Error loading claims:", err);
+                const errorMsg = err.response?.data?.message || "Failed to load claims. Please try again.";
+                if (isMounted) {
+                    setError(errorMsg);
+                    toast.error(errorMsg);
+                    setLoading(false);
+                }
+            }
+        };
+
+        fetchClaims();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [id]);
 
     const handleApproval = async (claimId, status) => {
         try {

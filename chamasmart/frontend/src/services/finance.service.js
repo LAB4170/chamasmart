@@ -20,6 +20,9 @@ export const loanAPI = {
         api.put(`/loans/${chamaId}/${loanId}/reject`, { reason }),
     repay: (chamaId, loanId, repaymentData) =>
         api.post(`/loans/${chamaId}/${loanId}/repay`, repaymentData),
+    getMyGuarantees: (params) => api.get("/loans/my-guarantees", { params }),
+    respondGuarantor: (loanId, decision) =>
+        api.post(`/loans/${loanId}/guarantee/respond`, { decision }),
 };
 
 // Payout API calls

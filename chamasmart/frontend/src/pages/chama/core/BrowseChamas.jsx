@@ -78,6 +78,34 @@ const BrowseChamas = () => {
     const [requestingId, setRequestingId] = useState(null);
     const [requestedChamas, setRequestedChamas] = useState(new Set());
 
+    // Memoized fetch function to prevent unnecessary re-renders
+    const fetchPublicChamas = useCallback(async () => {
+        let isMounted = true;
+
+        try {
+            if (isMounted) {
+                setLoading(true);
+            }
+            const response = await chamaAPI.getPublicChamas({ search, chamaType });
+            if (isMounted) {
+                setChamas(response.data.data);
+            }
+        } catch (err) {
+            if (isMounted) {
+                setError("Failed to load public chamas");
+                console.error(err);
+            }
+        } finally {
+            if (isMounted) {
+                setLoading(false);
+            }
+        }
+
+        return () => {
+            isMounted = false;
+        };
+    }, [search, chamaType]);
+
     // Debounced search effect
     useEffect(() => {
         const debounceTimer = setTimeout(() => {
@@ -85,20 +113,7 @@ const BrowseChamas = () => {
         }, 500); // 500ms delay
 
         return () => clearTimeout(debounceTimer);
-    }, [search, chamaType]);
-
-    const fetchPublicChamas = async () => {
-        try {
-            setLoading(true);
-            const response = await chamaAPI.getPublicChamas({ search, chamaType });
-            setChamas(response.data.data);
-        } catch (err) {
-            setError("Failed to load public chamas");
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [fetchPublicChamas]);
 
     const handleRequestToJoin = async (chamaId, chamaName) => {
         const message = prompt(`Why do you want to join ${chamaName}?`);

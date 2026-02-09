@@ -15,25 +15,35 @@ const SecurityMonitor = () => {
     });
 
     useEffect(() => {
+        let isMounted = true;
+
+        const fetchSecurityLogs = async () => {
+            try {
+                const response = await auditAPI.getSecurityLogs();
+                const data = response.data.data || response.data;
+                if (isMounted) {
+                    setLogs(data.logs);
+                    setStats(data.stats);
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error(err);
+                if (isMounted) {
+                    toast.error("Failed to fetch security logs");
+                    setLoading(false);
+                }
+            }
+        };
+
         fetchSecurityLogs();
         // Set up polling for real-time updates every 30 seconds
         const interval = setInterval(fetchSecurityLogs, 30000);
-        return () => clearInterval(interval);
-    }, []);
 
-    const fetchSecurityLogs = async () => {
-        try {
-            const response = await auditAPI.getSecurityLogs();
-            const data = response.data.data || response.data;
-            setLogs(data.logs);
-            setStats(data.stats);
-            setLoading(false);
-        } catch (err) {
-            console.error(err);
-            toast.error("Failed to fetch security logs");
-            setLoading(false);
-        }
-    };
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
+    }, []);
 
     if (loading) return <div className="loading-spinner">Initializing Security Monitor...</div>;
 

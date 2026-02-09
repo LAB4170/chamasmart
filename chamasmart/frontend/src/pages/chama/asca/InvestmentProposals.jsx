@@ -10,20 +10,30 @@ const InvestmentProposals = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchProposals();
-    }, [id]);
+        let isMounted = true;
 
-    const fetchProposals = async () => {
-        try {
-            const res = await ascaAPI.getProposals(id);
-            setProposals(res.data.data || res.data);
-            setLoading(false);
-        } catch (err) {
-            console.error(err);
-            toast.error("Failed to fetch proposals");
-            setLoading(false);
-        }
-    };
+        const fetchProposals = async () => {
+            try {
+                const res = await ascaAPI.getProposals(id);
+                if (isMounted) {
+                    setProposals(res.data.data || res.data);
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error(err);
+                if (isMounted) {
+                    toast.error("Failed to fetch proposals");
+                    setLoading(false);
+                }
+            }
+        };
+
+        fetchProposals();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [id]);
 
     const handleVote = async (proposalId, choice) => {
         try {

@@ -11,20 +11,30 @@ const ApiKeyManagement = () => {
     const [generatedKey, setGeneratedKey] = useState(null);
 
     useEffect(() => {
-        fetchKeys();
-    }, []);
+        let isMounted = true;
 
-    const fetchKeys = async () => {
-        try {
-            const response = await apiKeyAPI.list();
-            setKeys(response.data.data || response.data);
-            setLoading(false);
-        } catch (err) {
-            console.error("Error fetching keys:", err);
-            toast.error("Failed to load API keys");
-            setLoading(false);
-        }
-    };
+        const fetchKeys = async () => {
+            try {
+                const response = await apiKeyAPI.list();
+                if (isMounted) {
+                    setKeys(response.data.data || response.data);
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error("Error fetching keys:", err);
+                if (isMounted) {
+                    toast.error("Failed to load API keys");
+                    setLoading(false);
+                }
+            }
+        };
+
+        fetchKeys();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const handleCreateKey = async (e) => {
         e.preventDefault();

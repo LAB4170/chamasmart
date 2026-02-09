@@ -23,32 +23,42 @@ const RecordContribution = () => {
   const [success, setSuccess] = useState("");
 
   useEffect(() => {
+    let isMounted = true;
+
+    const fetchData = async () => {
+      try {
+        if (isMounted) setPageLoading(true);
+        const [chamaRes, membersRes] = await Promise.all([
+          chamaAPI.getById(id),
+          chamaAPI.getMembers(id),
+        ]);
+
+        if (isMounted) {
+          const chamaData = chamaRes.data.data;
+          setChama(chamaData);
+          setMembers(membersRes.data.data);
+
+          setFormData((prev) => ({
+            ...prev,
+            amount: chamaData.contribution_amount,
+          }));
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError("Failed to load chama data");
+          console.error(err);
+        }
+      } finally {
+        if (isMounted) setPageLoading(false);
+      }
+    };
+
     fetchData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
-
-  const fetchData = async () => {
-    try {
-      setPageLoading(true);
-      const [chamaRes, membersRes] = await Promise.all([
-        chamaAPI.getById(id),
-        chamaAPI.getMembers(id),
-      ]);
-
-      const chamaData = chamaRes.data.data;
-      setChama(chamaData);
-      setMembers(membersRes.data.data);
-
-      setFormData((prev) => ({
-        ...prev,
-        amount: chamaData.contribution_amount,
-      }));
-    } catch (err) {
-      setError("Failed to load chama data");
-      console.error(err);
-    } finally {
-      setPageLoading(false);
-    }
-  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;

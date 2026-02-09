@@ -146,14 +146,14 @@ class MockRedis {
 
 // Redis configuration with proper retry strategy
 const redisConfig = {
-  host: process.env.REDIS_HOST || "localhost",
+  host: process.env.REDIS_HOST, // Remove default "localhost" to allow explicit disable
   port: parseInt(process.env.REDIS_PORT) || 6379,
   password: process.env.REDIS_PASSWORD || undefined,
   db: parseInt(process.env.REDIS_DB) || 0,
   retryDelayOnFailover: 100,
   maxRetriesPerRequest: 3, // Allow retries
   lazyConnect: false, // Connect immediately
-  connectTimeout: 10000, // Longer timeout
+  connectTimeout: 5000, // Reduced timeout
   commandTimeout: 5000,
   enableOfflineQueue: true,
   retryStrategy: (times) => {
@@ -176,6 +176,13 @@ function getRedisClient() {
 
 const initializeRedis = async () => {
   try {
+    if (!redisConfig.host) {
+      logger.info("Redis host not configured, skipping connection and using in-memory store");
+      redis = new MockRedis();
+      redisAvailable = false;
+      return false;
+    }
+
     const redisClient = new Redis(redisConfig);
 
     // Add metrics for command timing

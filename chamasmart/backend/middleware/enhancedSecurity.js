@@ -84,25 +84,34 @@ const sqlInjectionProtection = (req, res, next) => {
 
 /**
  * Enhanced Helmet Configuration
+ * Updated to allow Firebase authentication and socket.io connections
  */
 const helmetConfig = helmet({
   contentSecurityPolicy: {
     directives: {
-      defaultSrc: ['\'self\''],
-      styleSrc: ['\'self\'', '\'unsafe-inline\'', 'https://fonts.googleapis.com'],
-      fontSrc: ['\'self\'', 'https://fonts.gstatic.com'],
-      imgSrc: ['\'self\'', 'data:', 'https:'],
-      scriptSrc: ['\'self\''],
-      connectSrc: ['\'self\''],
-      frameSrc: ['\'none\''],
-      objectSrc: ['\'none\''],
-      mediaSrc: ['\'self\''],
-      manifestSrc: ['\'self\''],
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      connectSrc: [
+        "'self'",
+        'https://*.googleapis.com',
+        'https://*.firebaseio.com',
+        'https://*.firebase.com',
+        'wss://*.firebaseio.com',
+        'ws://localhost:*',
+        'wss://localhost:*',
+      ],
+      frameSrc: ["'self'", 'https://*.firebaseapp.com'],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      manifestSrc: ["'self'"],
     },
   },
   crossOriginEmbedderPolicy: false,
-  // Relaxed policy for Google OAuth popups
-  crossOriginOpenerPolicy: { policy: 'unsafe-none' },
+  crossOriginOpenerPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
   hsts: {
     maxAge: 31536000,
     includeSubDomains: true,
@@ -280,6 +289,7 @@ module.exports = {
     if (
       process.env.NODE_ENV === 'test'
       || req.path.startsWith('/api/auth/')
+      || req.path.startsWith('/socket.io')
     ) {
       return next();
     }

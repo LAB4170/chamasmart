@@ -10,20 +10,30 @@ const RoscaDashboard = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchCycles();
-    }, [id]);
+        let isMounted = true;
 
-    const fetchCycles = async () => {
-        try {
-            const res = await roscaAPI.getCycles(id);
-            setCycles(res.data.data || res.data);
-            setLoading(false);
-        } catch (err) {
-            console.error(err);
-            toast.error("Failed to fetch merry-go-round cycles");
-            setLoading(false);
-        }
-    };
+        const fetchCycles = async () => {
+            try {
+                const res = await roscaAPI.getCycles(id);
+                if (isMounted) {
+                    setCycles(res.data.data || res.data);
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error(err);
+                if (isMounted) {
+                    toast.error("Failed to fetch merry-go-round cycles");
+                    setLoading(false);
+                }
+            }
+        };
+
+        fetchCycles();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [id]);
 
     if (loading) return <div className="loading-spinner">Loading cycles...</div>;
 
