@@ -50,6 +50,38 @@
   --warning-dark: #92400e;
   --info-light: #dbeafe;
   --info-dark: #1e40af;
+
+  /* Elevations */
+  --surface-1: var(--white);
+  --surface-2: #f9fafb;
+}
+
+[data-theme='dark'] {
+  --primary: #3b82f6;
+  --primary-dark: #2563eb;
+  --primary-light: #1e3a8a;
+  --secondary: #10b981;
+  --secondary-dark: #059669;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --success: #34d399;
+  --dark: #f9fafb;
+  --gray: #9ca3af;
+  --gray-light: #6b7280;
+  --light-gray: #1f2937;
+  --white: #111827;
+  --border: #374151;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.3);
+
+  /* Elevations */
+  --surface-1: #111827;
+  --surface-2: #1f2937;
+
+  /* Text Aliases */
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
 }
 
 body {
@@ -3818,14 +3850,8 @@ button:focus,
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
 
-.chamas-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 2rem;
-}
-
 .chama-card {
-  background: #ffffff;
+  background: var(--surface-1);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   text-decoration: none;

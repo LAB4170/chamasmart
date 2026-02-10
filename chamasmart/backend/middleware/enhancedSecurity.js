@@ -285,10 +285,10 @@ module.exports = {
   contentTypeValidation,
   securityHeaders,
   csrfProtection: (req, res, next) => {
-    // Skip CSRF for test environment or auth routes
+    // Skip CSRF for test environment, API routes, or socket connections
     if (
       process.env.NODE_ENV === 'test'
-      || req.path.startsWith('/api/auth/')
+      || req.path.startsWith('/api/')
       || req.path.startsWith('/socket.io')
     ) {
       return next();

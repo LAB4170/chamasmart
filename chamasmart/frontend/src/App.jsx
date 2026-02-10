@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { SocketProvider } from "./context/SocketContext";
 import Navbar from "./components/layout/Navbar";
 import ErrorBoundary from "./components/ErrorBoundary";
+import RoleRoute from "./components/auth/RoleRoute";
 
 // Lazy load all pages for better performance
 const Login = lazy(() => import("./pages/auth/Login"));
@@ -390,7 +391,9 @@ function App() {
                     path="/chamas/:id/join-requests"
                     element={
                       <ProtectedRoute>
-                        <JoinRequests />
+                        <RoleRoute allowedRoles={['admin', 'treasurer']}>
+                          <JoinRequests />
+                        </RoleRoute>
                       </ProtectedRoute>
                     }
                   />
@@ -430,7 +433,9 @@ function App() {
                     path="/chamas/:id/welfare/admin"
                     element={
                       <ProtectedRoute>
-                        <WelfareAdmin />
+                        <RoleRoute allowedRoles={['admin']}>
+                          <WelfareAdmin />
+                        </RoleRoute>
                       </ProtectedRoute>
                     }
                   />
@@ -438,7 +443,9 @@ function App() {
                     path="/chamas/:id/manage"
                     element={
                       <ProtectedRoute>
-                        <ManageChama />
+                        <RoleRoute allowedRoles={['admin']}>
+                          <ManageChama />
+                        </RoleRoute>
                       </ProtectedRoute>
                     }
                   />

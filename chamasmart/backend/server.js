@@ -3,23 +3,14 @@ const cors = require("cors");
 const path = require("path");
 const http = require("http");
 const fs = require("fs");
-const cookieParser = require("cookie-parser");
 require("dotenv").config();
-
-// Import API Documentation
-const swaggerJsdoc = require("swagger-jsdoc");
-const swaggerUi = require("swagger-ui-express");
-const swaggerDefinition = require("./swaggerDef");
 
 // Import custom modules
 const logger = require("./utils/logger");
-const { requestId } = logger;
-const {
-  requestLogger,
-  detailedRequestLogger,
-} = require("./middleware/enhancedRequestLogger");
+const { requestLogger } = require("./middleware/enhancedRequestLogger");
 const { corsOptions } = require("./config/cors");
 const {
+  metricsMiddleware,
   healthCheckEndpoint,
   metricsEndpoint,
   readinessCheckEndpoint,
@@ -28,95 +19,49 @@ const { securityMiddleware } = require("./middleware/security");
 const { responseFormatterMiddleware } = require("./utils/responseFormatter");
 const { validateQueryParams } = require("./middleware/queryValidation");
 
-// Import enhanced security and error handling
-const {
-  helmetConfig,
-  xssProtection,
-  sqlInjectionProtection,
-  suspiciousActivityDetection,
-  securityHeaders,
-  ipRateLimit,
-  csrfProtection,
-} = require("./middleware/enhancedSecurity");
-const {
-  errorHandler,
-  notFoundHandler,
-} = require("./middleware/enhancedErrorHandler");
-
-// Import advanced caching
-const {
-  userProfileCache,
-  chamaListCache,
-  chamaDetailsCache,
-  loanListCache,
-  contributionListCache,
-  meetingListCache,
-} = require("./middleware/advancedCache");
-
 // Initialize database connection
 require("./config/db");
-
-// Initialize Firebase Admin
-require("./config/firebase");
 
 // Create Express app
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5005;
 
-// Middleware for parsing cookies (required for CSRF)
-app.use(cookieParser());
+// Apply security middleware FIRST (before all routes)
+securityMiddleware(app);
 
-// Configure Swagger Documentation
-const swaggerOptions = {
-  definition: swaggerDefinition,
-  apis: ["./routes/*.js", "./controllers/*.js"], // Path to the API docs
-};
-
-const swaggerSpec = swaggerJsdoc(swaggerOptions);
+// Basic health check (no middleware)
+app.get("/api/ping", (req, res) =>
+  res.json({ success: true, message: "pong" }),
+);
+app.get("/health", (req, res) =>
+  res.json({
+    uptime: process.uptime(),
+    message: "OK",
+    timestamp: Date.now(),
+    port: PORT,
+  }),
+);
 
 // Trust proxy
 app.set("trust proxy", 1);
 
-// CRITICAL: Apply CORS BEFORE ALL security middleware
-// This ensures preflight checks pass even if other middleware blocks requests
+// Middleware
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 
-// Apply enhanced security middleware
-app.use(helmetConfig);
-app.use(securityHeaders);
-app.use(ipRateLimit);
-app.use(xssProtection);
-app.use(sqlInjectionProtection);
-app.use(suspiciousActivityDetection);
+// Request logging
+app.use(requestLogger);
 
-// Apply CSRF protection AFTER CORS
-app.use(csrfProtection);
-
-// CSRF Token endpoint
-app.get("/api/csrf-token", (req, res) => {
-  res.json({ csrfToken: req.csrfToken() });
-});
-
-// Add request ID and logging middleware
-app.use(requestId); // Add request ID to all requests
-app.use(requestLogger); // Main request logging
-
-// Detailed request logging in development
-if (process.env.NODE_ENV === "development") {
-  app.use(detailedRequestLogger);
-}
-
-// Response formatting (MUST come before validation to add res.validationError method)
-app.use(responseFormatterMiddleware);
-
-// Request validation (depends on responseFormatterMiddleware)
+// Query parameter validation
 app.use(validateQueryParams);
 
+// Standard response formatter middleware
+app.use(responseFormatterMiddleware);
+
 // Metrics
-// Note: metricsMiddleware will be added later after import
+app.use(metricsMiddleware);
 
 // ============================================================================
 // CRITICAL: Rate Limiting Middleware for Authentication
@@ -208,42 +153,16 @@ logger.info("Rate limiting middleware activated", {
 // End Rate Limiting Section
 // ============================================================================
 
-// ============================================================================
-// Metrics and Monitoring
-// ============================================================================
-// Note: Advanced metrics temporarily disabled for startup stability
-// TODO: Re-enable after fixing dependencies
-
-// Simple metrics endpoint (requires authentication)
-app.get("/api/metrics", (req, res) => {
-  // Check if user is authenticated for metrics access
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({
-      success: false,
-      error: "Authentication required for metrics access",
-    });
-  }
-
-  // Return basic metrics for now
-  res.json({
-    success: true,
-    data: {
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      timestamp: new Date().toISOString(),
-      version: "1.0.0",
-      environment: process.env.NODE_ENV || "development",
-    },
-  });
-});
-
-// ============================================================================
 // API Routes
-// ============================================================================
+app.get("/api/ping", (req, res) =>
+  res.json({ success: true, message: "pong" }),
+);
 
 // Legacy auth routes (existing)
 app.use("/api/auth", require("./routes/auth"));
+
+// NEW: Multi-option auth routes (Email OTP, Phone OTP, Google OAuth, API Keys)
+app.use("/api/auth/v2", require("./routes/authV2"));
 
 app.use("/api/chamas", require("./routes/chamas"));
 app.use("/api/members", require("./routes/members"));
@@ -260,6 +179,7 @@ app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/welfare", require("./routes/welfareRoutes"));
 
 // Health/Metrics
+app.get("/health", healthCheckEndpoint);
 app.get("/metrics", metricsEndpoint);
 app.get("/api/health", healthCheckEndpoint);
 app.get("/readiness", readinessCheckEndpoint);
@@ -270,7 +190,62 @@ if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
 }
 
-// Middle catch-all and legacy error handling removed in favor of enhanced handlers at the end
+// Final Catch-all Middleware (Replaces app.get('*'))
+app.use((req, res, next) => {
+  // If API route not found
+  if (req.originalUrl.startsWith("/api")) {
+    return res.status(404).json({
+      success: false,
+      message: `API endpoint ${req.originalUrl} not found`,
+    });
+  }
+
+  // If Static file not found, fallback to index.html (SPA)
+  if (fs.existsSync(distPath)) {
+    return res.sendFile(path.join(distPath, "index.html"));
+  }
+
+  // Otherwise 404
+  res.status(404).json({ success: false, message: "Resource not found" });
+});
+
+// Global error handling
+app.use((err, req, res, next) => {
+  err.statusCode = err.statusCode || 500;
+  console.error("SERVER ERROR:", err.message);
+  logger.error({
+    message: err.message,
+    stack: err.stack,
+    method: req.method,
+    url: req.url,
+  });
+  res
+    .status(err.statusCode)
+    .json({ success: false, message: "Internal server error" });
+});
+
+// Start server
+server.on("error", (err) => {
+  console.error("SERVER FATAL ERROR:", err.message);
+  if (err.code === "EADDRINUSE") {
+    process.exit(1);
+  }
+});
+
+server.listen(PORT, async () => {
+  console.log(`STABILIZED: Server running on port ${PORT}`);
+  logger.info(`Server running on port ${PORT}`);
+
+  // Run health checks
+  if (process.env.NODE_ENV !== "test") {
+    const { performHealthCheck } = require("./utils/healthCheck");
+    try {
+      await performHealthCheck();
+    } catch (error) {
+      console.error("Health check error:", error);
+    }
+  }
+});
 
 // Initialize Socket.io (if configured) except during unit tests to avoid
 // attempting external Redis connections in CI/test environments.
@@ -279,57 +254,15 @@ if (process.env.NODE_ENV !== "test") {
     const socketModule = require("./socket");
     // init is async but we don't need to block server start in tests
     socketModule.init(server).catch((err) => {
-      console.error("Socket.io initialization failed:", err.message);
+      logger.error("Socket.io initialization failed", { error: err.message });
     });
   } catch (err) {
-    console.warn("Socket module not available or failed to load:", err.message);
+    logger.warn("Socket module not available or failed to load", {
+      error: err.message,
+    });
   }
 } else {
-  console.log("Skipping Socket.io initialization in test environment");
-}
-
-// ============================================================================
-// ENHANCED ERROR HANDLING (must be last)
-// ============================================================================
-
-// 404 handler
-app.use(notFoundHandler);
-
-// Global error handler
-app.use(errorHandler);
-
-// Handle server errors
-server.on("error", (err) => {
-  console.error("SERVER ERROR:", err);
-  if (err.code === "EADDRINUSE") {
-    console.error(`ERROR: Port ${PORT} is already in use`);
-  }
-  process.exit(1);
-});
-
-// Only start the server if this file is run directly (not when imported as a module)
-if (require.main === module) {
-  // Start the server
-  server.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-    logger.info(`Server started on port ${PORT}`, {
-      environment: process.env.NODE_ENV || "development",
-      timestamp: new Date().toISOString(),
-    });
-  });
-
-  // Handle uncaught exceptions
-  process.on("uncaughtException", (error) => {
-    console.error("UNCAUGHT EXCEPTION:", error);
-    if (process.env.NODE_ENV === "production") {
-      process.exit(1);
-    }
-  });
-
-  // Handle unhandled promise rejections
-  process.on("unhandledRejection", (reason, promise) => {
-    console.error("UNHANDLED REJECTION at:", promise, "reason:", reason);
-  });
+  logger.info("Skipping Socket.io initialization in test environment");
 }
 
 module.exports = app;

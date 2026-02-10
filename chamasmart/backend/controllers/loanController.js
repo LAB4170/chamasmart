@@ -757,7 +757,7 @@ const applyForLoan = async (req, res) => {
     if (guarantorArray.length > 0) {
       for (const g of guarantorArray) {
         await client.query(
-          `INSERT INTO loan_guarantors (loan_id, guarantor_id, guaranteed_amount, status)
+          `INSERT INTO loan_guarantors (loan_id, guarantor_user_id, guarantee_amount, status)
            VALUES ($1, $2, $3, 'PENDING')`,
           [loan.loan_id, g.userId, g.amount],
         );
@@ -1359,7 +1359,7 @@ const getMyGuarantees = async (req, res) => {
 
     const offset = (page - 1) * limit;
     const params = [userId];
-    let whereClause = 'WHERE lg.guarantor_id = $1';
+    let whereClause = 'WHERE lg.guarantor_user_id = $1';
 
     if (status && status !== 'ALL') {
       whereClause += ' AND lg.status = $2';
@@ -1371,7 +1371,7 @@ const getMyGuarantees = async (req, res) => {
         l.loan_id,
         l.loan_amount,
         l.status,
-        lg.guaranteed_amount,
+        lg.guarantee_amount,
         lg.status as guarantee_status,
         u.first_name || ' ' || u.last_name as borrower_name,
         u.user_id as borrower_id
@@ -1395,21 +1395,16 @@ const getMyGuarantees = async (req, res) => {
     const guarantees = result.rows.map(g => ({
       ...g,
       loan_amount: fromCents(g.loan_amount),
-      guaranteed_amount: fromCents(g.guaranteed_amount),
+      guaranteed_amount: fromCents(g.guarantee_amount),
     }));
 
-    res.json({
-      success: true,
-      data: {
-        data: guarantees,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total: parseInt(countResult.rows[0].total),
-          pages: Math.ceil(countResult.rows[0].total / limit),
-        },
-      },
-    });
+    res.paginated(
+      guarantees,
+      parseInt(page),
+      parseInt(limit),
+      parseInt(countResult.rows[0].total),
+      'Guarantees retrieved successfully'
+    );
   } catch (error) {
     console.error('Get guarantees error:', error);
     res.status(500).json({
@@ -1440,7 +1435,7 @@ const respondToGuaranteeRequest = async (req, res) => {
     // Verify the request exists and belongs to user
     const checkRes = await client.query(
       `SELECT * FROM loan_guarantors 
-       WHERE loan_id = $1 AND guarantor_id = $2 AND status = 'PENDING'`,
+       WHERE loan_id = $1 AND guarantor_user_id = $2 AND status = 'PENDING'`,
       [loanId, userId],
     );
 
@@ -1452,12 +1447,12 @@ const respondToGuaranteeRequest = async (req, res) => {
       });
     }
 
-    const status = decision === 'ACCEPT' ? 'ACCEPTED' : 'REJECTED';
+    const status = decision === 'ACCEPT' ? 'APPROVED' : 'REJECTED';
 
     await client.query(
       `UPDATE loan_guarantors 
        SET status = $1, updated_at = NOW() 
-       WHERE loan_id = $2 AND guarantor_id = $3`,
+       WHERE loan_id = $2 AND guarantor_user_id = $3`,
       [status, loanId, userId],
     );
 

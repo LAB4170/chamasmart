@@ -55,3 +55,43 @@
     cursor: pointer;
     flex: 1;
 }
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .welfare-admin-container {
+        padding: 1rem;
+    }
+
+    .claim-card-admin {
+        padding: 1rem;
+    }
+
+    .claim-header {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .claim-actions {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .btn-approve,
+    .btn-reject {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .welfare-admin-container {
+        padding: 0.5rem;
+    }
+
+    .claim-type {
+        font-size: 1rem;
+    }
+
+    .claim-body p {
+        font-size: 0.9rem;
+    }
+}

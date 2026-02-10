@@ -11,6 +11,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { FixedSizeList as List } from "react-window";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 // --- Memoized Sub-components ---
 
@@ -1079,6 +1080,63 @@ const ChamaDetails = () => {
                     <button className="btn btn-sm btn-outline">
                       📊 Export Excel
                     </button>
+                  </div>
+                </div>
+
+                {/* Contribution Trends Chart */}
+                <div className="report-card" style={{ gridColumn: '1 / -1' }}>
+                  <div className="report-header">
+                    <div className="report-icon">📈</div>
+                    <h4>Contribution Trends</h4>
+                  </div>
+                  <div className="report-content">
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart
+                        data={(() => {
+                          // Aggregate contributions by month
+                          const monthlyData = {};
+                          contributions.forEach(c => {
+                            const date = new Date(c.contribution_date);
+                            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                            const monthLabel = date.toLocaleDateString('en', { month: 'short', year: 'numeric' });
+
+                            if (!monthlyData[monthKey]) {
+                              monthlyData[monthKey] = { month: monthLabel, amount: 0, count: 0 };
+                            }
+                            monthlyData[monthKey].amount += parseFloat(c.amount);
+                            monthlyData[monthKey].count += 1;
+                          });
+
+                          return Object.values(monthlyData).sort((a, b) => a.month.localeCompare(b.month));
+                        })()}
+                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip
+                          formatter={(value, name) => {
+                            if (name === 'amount') return [formatCurrency(value), 'Total Amount'];
+                            return [value, 'Transactions'];
+                          }}
+                        />
+                        <Legend />
+                        <Line
+                          type="monotone"
+                          dataKey="amount"
+                          stroke="var(--primary, #4f46e5)"
+                          strokeWidth={2}
+                          name="Total Amount"
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="count"
+                          stroke="var(--secondary, #10b981)"
+                          strokeWidth={2}
+                          name="Transactions"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
 

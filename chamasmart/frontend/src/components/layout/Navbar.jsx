@@ -1,11 +1,22 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useState, useEffect } from "react";
 import NotificationBell from "../NotificationBell";
 
 
 const Navbar = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
 
   const handleLogout = () => {
     logout();
@@ -38,6 +49,14 @@ const Navbar = () => {
                 My Guarantees
               </Link>
               <NotificationBell />
+              <button
+                onClick={toggleTheme}
+                className="btn btn-sm btn-outline"
+                style={{ marginRight: '1rem' }}
+                title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+              >
+                {theme === 'light' ? '🌙' : '☀️'}
+              </button>
               <div className="navbar-user">
                 <Link to="/profile" className="user-name" style={{ textDecoration: 'none', marginRight: '1rem', fontWeight: 'bold' }}>
                   {user?.firstName} {user?.lastName}

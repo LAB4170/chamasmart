@@ -21,7 +21,9 @@ const MyGuarantees = () => {
                 const res = await loanAPI.getMyGuarantees();
 
                 if (isMounted) {
-                    setItems(res.data.data || []);
+                    // Extract data array from paginated response
+                    const dataArray = res.data.data?.data || res.data.data || [];
+                    setItems(Array.isArray(dataArray) ? dataArray : []);
                 }
             } catch (err) {
                 console.error(err);
@@ -104,10 +106,10 @@ const MyGuarantees = () => {
                         Pending ({items.filter((l) => l.guarantee_status === 'PENDING').length})
                     </button>
                     <button
-                        className={`filter-btn ${filter === 'ACCEPTED' ? 'active' : ''}`}
-                        onClick={() => setFilter('ACCEPTED')}
+                        className={`filter-btn ${filter === 'APPROVED' ? 'active' : ''}`}
+                        onClick={() => setFilter('APPROVED')}
                     >
-                        Accepted ({items.filter((l) => l.guarantee_status === 'ACCEPTED').length})
+                        Accepted ({items.filter((l) => l.guarantee_status === 'APPROVED').length})
                     </button>
                     <button
                         className={`filter-btn ${filter === 'REJECTED' ? 'active' : ''}`}

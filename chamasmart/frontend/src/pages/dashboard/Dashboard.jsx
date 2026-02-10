@@ -3,6 +3,16 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { chamaAPI } from "../../services/api";
 import LoadingSkeleton from "../../components/LoadingSkeleton";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
 
 // Memoized Stat Card component
 const StatCard = memo(({ icon, value, label }) => (
@@ -191,6 +201,56 @@ const Dashboard = () => {
                 )}
                 label="Total Members"
               />
+            </div>
+
+            {/* Contribution Trends Chart */}
+            <div className="card">
+              <div className="card-header">
+                <h2>📈 Contribution Status by Chama</h2>
+                <p className="text-muted">Your total contributions vs annual target</p>
+              </div>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart
+                  data={chamas.slice(0, 6).map((chama, index) => ({
+                    name: chama.chama_name.length > 15
+                      ? chama.chama_name.substring(0, 15) + "..."
+                      : chama.chama_name,
+                    contributions: parseFloat(chama.total_contributions || 0),
+                    target: parseFloat(chama.contribution_amount || 0) * 12,
+                  }))}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="name"
+                    angle={-45}
+                    textAnchor="end"
+                    height={100}
+                  />
+                  <YAxis />
+                  <Tooltip
+                    formatter={(value) => formatCurrency(value)}
+                    contentStyle={{
+                      backgroundColor: "var(--white)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "var(--radius)",
+                    }}
+                  />
+                  <Legend />
+                  <Bar
+                    dataKey="contributions"
+                    fill="var(--primary)"
+                    name="Your Contributions"
+                    radius={[8, 8, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="target"
+                    fill="var(--secondary)"
+                    name="Annual Target"
+                    radius={[8, 8, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
 
             <div className="card">

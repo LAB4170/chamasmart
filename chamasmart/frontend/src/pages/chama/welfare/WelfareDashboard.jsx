@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { welfareAPI } from "../../../services/api";
+import { welfareAPI, chamaAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import { toast } from "react-toastify";
 import "./WelfareDashboard.css"; // We'll create this CSS file next
@@ -14,6 +14,7 @@ const WelfareDashboard = () => {
     const [myClaims, setMyClaims] = useState([]);
     const [config, setConfig] = useState([]);
     const [error, setError] = useState(null);
+    const [userRole, setUserRole] = useState(null);
 
     useEffect(() => {
         let isMounted = true;
@@ -25,16 +26,22 @@ const WelfareDashboard = () => {
                     setError(null);
                 }
 
-                const [fundRes, claimsRes, configRes] = await Promise.all([
+                const [fundRes, claimsRes, configRes, membersRes] = await Promise.all([
                     welfareAPI.getFund(id),
                     welfareAPI.getMemberClaims(id, user.user_id),
-                    welfareAPI.getConfig(id)
+                    welfareAPI.getConfig(id),
+                    chamaAPI.getMembers(id)
                 ]);
 
                 if (isMounted) {
                     setFundValues(fundRes.data);
                     setMyClaims(claimsRes.data);
                     setConfig(configRes.data);
+
+                    // Get user's role in this chama
+                    const members = membersRes.data.data || membersRes.data;
+                    const currentMember = members.find(m => m.user_id === user.user_id);
+                    setUserRole(currentMember?.role || 'MEMBER');
                 }
             } catch (err) {
                 console.error("Error loading welfare data:", err);
@@ -143,11 +150,13 @@ const WelfareDashboard = () => {
                 )}
             </div>
 
-            <div className="admin-actions-link">
-                <button onClick={() => navigate(`/chamas/${id}/welfare/admin`)}>
-                    Stop viewing as Member (Switch to Admin View)
-                </button>
-            </div>
+            {userRole === 'CHAIRPERSON' && (
+                <div className="admin-actions-link">
+                    <button onClick={() => navigate(`/chamas/${id}/welfare/admin`)}>
+                        Admin View
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

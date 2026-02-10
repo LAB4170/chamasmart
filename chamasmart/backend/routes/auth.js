@@ -1,13 +1,5 @@
-/**
- * Unified Authentication Routes
- * Supports: Password, Email OTP, Phone OTP, Google OAuth, API Keys
- */
-
 const express = require("express");
-
 const router = express.Router();
-
-// Controllers
 const {
   register,
   login,
@@ -17,59 +9,20 @@ const {
   logout,
   firebaseSync,
 } = require("../controllers/authController");
-
-// Middleware
 const { protect } = require("../middleware/auth");
-const {
-  apiKeyAuth,
-  createAPIKey,
-  listAPIKeys,
-  revokeAPIKey,
-  deleteAPIKey,
-} = require("../middleware/apiKeyAuth");
 const validate = require("../middleware/validate");
-const { applyAuthRateLimiting } = require("../middleware/rateLimiting");
+const { registerSchema, loginSchema } = require("../utils/validationSchemas");
 
-// Validation schemas
-const {
-  registerPasswordSchema,
-  loginPasswordSchema,
-} = require("../utils/validationSchemas");
+// Public routes
+router.post("/register", validate(registerSchema), register);
+router.post("/login", validate(loginSchema), login);
+router.post("/refresh", refreshTokens); // NEW: Token refresh endpoint
+router.post("/verify-email", verifyEmail);
+router.post("/firebase-sync", firebaseSync); // NEW: Firebase sync endpoint
 
-// ============================================================================
-// PASSWORD-BASED AUTHENTICATION
-// ============================================================================
-
-router.post(
-  "/register",
-  applyAuthRateLimiting,
-  validate(registerPasswordSchema),
-  register,
-);
-
-router.post(
-  "/login",
-  applyAuthRateLimiting,
-  validate(loginPasswordSchema),
-  login,
-);
-
-router.post("/refresh", applyAuthRateLimiting, refreshTokens);
-
-router.post("/logout", protect, applyAuthRateLimiting, logout);
-
-
-// ============================================================================
-// VERIFICATION ENDPOINTS
-// ============================================================================
-
-// Verify email address
-router.post("/verify/email", protect, applyAuthRateLimiting, verifyEmail);
-
-// Verify phone number
-router.post("/verify/phone", protect, applyAuthRateLimiting, verifyPhone);
-
-// Firebase Synchronization
-router.post("/firebase-sync", applyAuthRateLimiting, firebaseSync);
+// Protected routes
+router.get("/me", protect, (req, res) => res.json({ success: true, data: req.user }));
+router.post("/logout", protect, logout); // NEW: Logout endpoint
+router.post("/verify-phone", protect, verifyPhone);
 
 module.exports = router;
