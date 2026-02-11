@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { chamaAPI } from "../../../services/api";
-
+import { motion, AnimatePresence } from "framer-motion";
 
 const CreateChama = () => {
+  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     chamaName: "",
     chamaType: "ROSCA",
@@ -16,6 +17,9 @@ const CreateChama = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [meetingType, setMeetingType] = useState("PHYSICAL");
+  const [meetingPattern, setMeetingPattern] = useState("FIRST_SATURDAY");
+  const [meetingLocation, setMeetingLocation] = useState("");
 
   const navigate = useNavigate();
 
@@ -26,10 +30,8 @@ const CreateChama = () => {
     });
   };
 
-  // Section 4: Meetings
-  const [meetingType, setMeetingType] = useState("PHYSICAL"); // PHYSICAL or ONLINE
-  const [meetingPattern, setMeetingPattern] = useState("FIRST_SATURDAY");
-  const [meetingLocation, setMeetingLocation] = useState("");
+  const nextStep = () => setStep(s => s + 1);
+  const prevStep = () => setStep(s => s - 1);
 
   const meetingPatterns = [
     { id: "FIRST_SATURDAY", name: "1st Saturday" },
@@ -42,20 +44,20 @@ const CreateChama = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (step < 3) return nextStep();
+
     setError("");
     setLoading(true);
 
-    // Prepare structured meeting day string
     const dayName = meetingPatterns.find(p => p.id === meetingPattern)?.name || "Scheduled";
     const typeLabel = meetingType === "ONLINE" ? "Online" : "Physical";
     const locationInfo = meetingLocation ? ` at ${meetingLocation}` : "";
-
     const finalMeetingDay = `${dayName} (${typeLabel})${locationInfo}`;
 
     const submissionData = {
       ...formData,
       meetingDay: meetingPattern === "CUSTOM" ? formData.meetingDay : finalMeetingDay,
-      meetingTime: formData.meetingTime || null // Convert empty string to null for DB
+      meetingTime: formData.meetingTime || null
     };
 
     try {
@@ -70,309 +72,211 @@ const CreateChama = () => {
   };
 
   const chamaTypes = [
-    { id: "ROSCA", name: "Merry-Go-Round", icon: "🔄", desc: "Members take turns receiving the pooled funds" },
-    { id: "ASCA", name: "Investment", icon: "📈", desc: "Funds are invested collectively for long-term growth" },
-    { id: "TABLE_BANKING", name: "Table Banking", icon: "🏦", desc: "Members can borrow from the pool with interest" },
-    { id: "WELFARE", name: "Welfare", icon: "🤝", desc: "Funds support members during critical life events" },
+    { id: "ROSCA", name: "Merry-Go-Round", icon: "🔄", desc: "Turns to receive fund" },
+    { id: "ASCA", name: "Investment", icon: "📈", desc: "In-house lending & growth" },
+    { id: "TABLE_BANKING", name: "Table Banking", icon: "🏦", desc: "Instant group banking" },
+    { id: "WELFARE", name: "Welfare", icon: "🤝", desc: "Emergency & support" },
   ];
 
-  const visibilityOptions = [
-    { id: "PRIVATE", name: "Private", icon: "🔒", desc: "Invite-only via secure codes" },
-    { id: "PUBLIC", name: "Public", icon: "🌐", desc: "Discoverable by everyone" },
-  ];
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("en-KE", {
+      style: "currency",
+      currency: "KES",
+    }).format(amount || 0);
+  };
 
   return (
     <div className="page">
-      <div className="container container-sm">
-        <div className="page-header text-center mb-5">
-          <h1 className="hero-title">
-            Start Your <span className="hero-accent">Chama</span>
-          </h1>
-          <p className="text-muted">
-            Configure your savings group and begin your financial journey.
-          </p>
+      <div className="container" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) 1fr', gap: '3rem', alignItems: 'start' }}>
+
+        {/* Left Side: Form Wizard */}
+        <div>
+          <div className="page-header mb-5">
+            <h1 className="hero-title">Start Your <span className="hero-accent">Chama</span></h1>
+            <p className="text-muted">Step {step} of 3: {step === 1 ? 'Identity' : step === 2 ? 'Finance & Privacy' : 'Logistics'}</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="card p-0 overflow-hidden" style={{ border: 'none', boxShadow: 'var(--shadow-xl)', borderRadius: '16px' }}>
+            <div className="wizard-progress" style={{ height: '4px', background: 'var(--border)', display: 'flex' }}>
+              <div style={{ width: `${(step / 3) * 100}%`, background: 'var(--primary)', transition: 'width 0.4s ease' }}></div>
+            </div>
+
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="form-section p-6"
+              >
+                {step === 1 && (
+                  <>
+                    <div className="section-header-modern mb-4">
+                      <span className="section-number">01</span>
+                      <div>
+                        <h3>General Details</h3>
+                        <p>What should we call your group?</p>
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Chama Name</label>
+                      <input type="text" name="chamaName" className="form-input" placeholder="e.g., Tumaini Savings Group" value={formData.chamaName} onChange={handleChange} required />
+                    </div>
+
+                    <div className="form-group mt-4">
+                      <label className="form-label">Chama Type</label>
+                      <div className="selection-grid grid-2">
+                        {chamaTypes.map((type) => (
+                          <div key={type.id} className={`selection-card compact ${formData.chamaType === type.id ? 'active' : ''}`} onClick={() => setFormData({ ...formData, chamaType: type.id })}>
+                            <div className="selection-icon small">{type.icon}</div>
+                            <div className="selection-content">
+                              <div className="selection-name">{type.name}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="form-group mt-4">
+                      <label className="form-label">Description</label>
+                      <textarea name="description" className="form-textarea" placeholder="Briefly describe your chama's purpose" value={formData.description} onChange={handleChange} rows="3" />
+                    </div>
+                  </>
+                )}
+
+                {step === 2 && (
+                  <>
+                    <div className="section-header-modern mb-4">
+                      <span className="section-number">02</span>
+                      <div>
+                        <h3>Finance & Privacy</h3>
+                        <p>Set the rules for funds and access.</p>
+                      </div>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label">Contribution (KES)</label>
+                        <input type="number" name="contributionAmount" className="form-input" placeholder="5000" value={formData.contributionAmount} onChange={handleChange} required />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Frequency</label>
+                        <select name="contributionFrequency" className="form-select" value={formData.contributionFrequency} onChange={handleChange}>
+                          <option value="WEEKLY">Weekly</option>
+                          <option value="MONTHLY">Monthly</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="form-group mt-4">
+                      <label className="form-label">Visibility</label>
+                      <div className="selection-grid grid-2">
+                        <div className={`selection-card compact ${formData.visibility === 'PRIVATE' ? 'active' : ''}`} onClick={() => setFormData({ ...formData, visibility: 'PRIVATE' })}>
+                          <div className="selection-icon small">🔒</div>
+                          <div className="selection-name">Private</div>
+                        </div>
+                        <div className={`selection-card compact ${formData.visibility === 'PUBLIC' ? 'active' : ''}`} onClick={() => setFormData({ ...formData, visibility: 'PUBLIC' })}>
+                          <div className="selection-icon small">🌐</div>
+                          <div className="selection-name">Public</div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {step === 3 && (
+                  <>
+                    <div className="section-header-modern mb-4">
+                      <span className="section-number">03</span>
+                      <div>
+                        <h3>Meetings & Logistics</h3>
+                        <p>When and where will you meet?</p>
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <div className="meeting-type-toggle" style={{ display: 'flex', background: 'var(--bg-secondary)', borderRadius: '8px', padding: '4px' }}>
+                        <button type="button" className={`btn btn-sm ${meetingType === 'PHYSICAL' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setMeetingType("PHYSICAL")} style={{ flex: 1, border: 'none' }}>📍 Physical</button>
+                        <button type="button" className={`btn btn-sm ${meetingType === 'ONLINE' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setMeetingType("ONLINE")} style={{ flex: 1, border: 'none' }}>💻 Online</button>
+                      </div>
+                    </div>
+
+                    <div className="form-row mt-4">
+                      <div className="form-group">
+                        <label className="form-label">Occurs</label>
+                        <select className="form-select" value={meetingPattern} onChange={(e) => setMeetingPattern(e.target.value)}>
+                          {meetingPatterns.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Time</label>
+                        <input type="time" name="meetingTime" className="form-input" value={formData.meetingTime} onChange={handleChange} />
+                      </div>
+                    </div>
+
+                    <div className="form-group mt-4">
+                      <label className="form-label">{meetingType === "ONLINE" ? "Meeting Link" : "Venue Location"}</label>
+                      <input type="text" className="form-input" placeholder={meetingType === "ONLINE" ? "zoom.us/..." : "e.g., Star Hub"} value={meetingLocation} onChange={(e) => setMeetingLocation(e.target.value)} />
+                    </div>
+                  </>
+                )}
+              </motion.div>
+            </AnimatePresence>
+
+            <div className="form-actions p-6 bg-light d-flex gap-3" style={{ background: 'var(--surface-2)', borderTop: '1px solid var(--border)' }}>
+              {step > 1 && (
+                <button type="button" className="btn btn-outline" onClick={prevStep} style={{ flex: 1 }}>Back</button>
+              )}
+              <button type="submit" className="btn btn-primary" disabled={loading} style={{ flex: 2 }}>
+                {loading ? 'Creating...' : step < 3 ? 'Continue →' : 'Launch My Chama 🚀'}
+              </button>
+            </div>
+          </form>
+          {error && <div className="alert alert-error mt-4">{error}</div>}
         </div>
 
-        {error && <div className="alert alert-error">{error}</div>}
+        {/* Right Side: Live Preview */}
+        <div style={{ position: 'sticky', top: '2rem' }}>
+          <div className="p-4" style={{ background: 'var(--primary-light)', borderRadius: '16px', border: '1px dashed var(--primary)' }}>
+            <h4 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>✨</span> Live Card Preview
+            </h4>
 
-        <form onSubmit={handleSubmit} className="card p-0 overflow-hidden">
-          {/* Section 1: Basic Info */}
-          <div className="form-section">
-            <div className="section-header-modern">
-              <span className="section-number">01</span>
-              <div>
-                <h3>General Details</h3>
-                <p>Give your chama a name and choose the type that fits your goals.</p>
+            <div className="chama-card" style={{ boxShadow: 'var(--shadow-xl)', pointerEvents: 'none' }}>
+              <div className="chama-card-header">
+                <div className="chama-type-badge">{formData.chamaType}</div>
+                <h3>{formData.chamaName || "Your Chama Name"}</h3>
               </div>
-            </div>
-
-            <div className="form-group px-4 pt-2">
-              <label className="form-label">Chama Name</label>
-              <input
-                type="text"
-                name="chamaName"
-                className="form-input"
-                placeholder="e.g., Tumaini Savings Group"
-                value={formData.chamaName}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="form-group px-4 mt-4">
-              <label className="form-label">Chama Type</label>
-              <div className="selection-grid">
-                {chamaTypes.map((type) => (
-                  <div
-                    key={type.id}
-                    className={`selection-card ${formData.chamaType === type.id ? 'active' : ''}`}
-                    onClick={() => setFormData({ ...formData, chamaType: type.id })}
-                  >
-                    <div className="selection-icon">{type.icon}</div>
-                    <div className="selection-content">
-                      <div className="selection-name">{type.name}</div>
-                      <div className="selection-desc">{type.desc}</div>
-                    </div>
-                    {formData.chamaType === type.id && <div className="selection-badge">✓</div>}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="form-group px-4 mt-4">
-              <label className="form-label">Description</label>
-              <textarea
-                name="description"
-                className="form-textarea"
-                placeholder="Briefly describe your chama's purpose (optional)"
-                value={formData.description}
-                onChange={handleChange}
-                rows="3"
-              />
-            </div>
-          </div>
-
-          <hr className="section-divider" />
-
-          {/* Section 2: Visibility & Access */}
-          <div className="form-section">
-            <div className="section-header-modern">
-              <span className="section-number">02</span>
-              <div>
-                <h3>Access & Privacy</h3>
-                <p>Control who can see and join your chama.</p>
-              </div>
-            </div>
-
-            <div className="form-group px-4">
-              <div className="selection-grid grid-2">
-                {visibilityOptions.map((v) => (
-                  <div
-                    key={v.id}
-                    className={`selection-card compact ${formData.visibility === v.id ? 'active' : ''}`}
-                    onClick={() => setFormData({ ...formData, visibility: v.id })}
-                  >
-                    <div className="selection-icon small">{v.icon}</div>
-                    <div className="selection-content">
-                      <div className="selection-name">{v.name}</div>
-                      <div className="selection-desc">{v.desc}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <hr className="section-divider" />
-
-          {/* Section 3: Financials */}
-          <div className="form-section">
-            <div className="section-header-modern">
-              <span className="section-number">03</span>
-              <div>
-                <h3>Financial Setup</h3>
-                <p>Set contribution amounts and frequency.</p>
-              </div>
-            </div>
-
-            <div className="form-row px-4">
-              <div className="form-group">
-                <label className="form-label">Contribution Amount (KES)</label>
-                <div className="input-with-icon">
-                  <span className="input-prefix">KES</span>
-                  <input
-                    type="number"
-                    name="contributionAmount"
-                    className="form-input pl-12"
-                    placeholder="e.g., 5000"
-                    min="1"
-                    step="0.01"
-                    value={formData.contributionAmount}
-                    onChange={handleChange}
-                    required
-                  />
+              <div className="chama-card-body">
+                <p className="chama-description text-muted">
+                  {formData.description || "Describe your vision here..."}
+                </p>
+                <div className="chama-info">
+                  <span className="info-label">Membership</span>
+                  <span className="info-value">{formData.visibility}</span>
+                </div>
+                <div className="chama-info">
+                  <span className="info-label">Contribution</span>
+                  <span className="info-value text-success">{formatCurrency(formData.contributionAmount)}</span>
+                </div>
+                <div className="chama-info">
+                  <span className="info-label">Meeting</span>
+                  <span className="info-value">{meetingPattern.replace('_', ' ')}</span>
                 </div>
               </div>
-
-              <div className="form-group">
-                <label className="form-label">Contribution Frequency</label>
-                <select
-                  name="contributionFrequency"
-                  className="form-select"
-                  value={formData.contributionFrequency}
-                  onChange={handleChange}
-                  required
-                >
-                  <option value="WEEKLY">Weekly</option>
-                  <option value="BI_WEEKLY">Bi-Weekly</option>
-                  <option value="MONTHLY">Monthly</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <hr className="section-divider" />
-
-          {/* Section 4: Meetings */}
-          <div className="form-section">
-            <div className="section-header-modern">
-              <span className="section-number">04</span>
-              <div>
-                <h3>Meeting Schedule</h3>
-                <p>When and where does your group meet to sync up?</p>
+              <div className="chama-card-footer">
+                Pending Creation...
               </div>
             </div>
 
-            <div className="px-4">
-              <div className="form-group">
-                <label className="form-label">Meeting Type</label>
-                <div className="meeting-type-toggle">
-                  <button
-                    type="button"
-                    className={`toggle-btn ${meetingType === "PHYSICAL" ? "active" : ""}`}
-                    onClick={() => setMeetingType("PHYSICAL")}
-                  >
-                    📍 Physical Meeting
-                  </button>
-                  <button
-                    type="button"
-                    className={`toggle-btn ${meetingType === "ONLINE" ? "active" : ""}`}
-                    onClick={() => setMeetingType("ONLINE")}
-                  >
-                    💻 Online / Virtual
-                  </button>
-                </div>
-              </div>
-
-              <div className="form-grid-3 mt-4">
-                <div className="form-group">
-                  <label className="form-label">Meeting Occurs</label>
-                  <select
-                    className="form-select"
-                    value={meetingPattern}
-                    onChange={(e) => setMeetingPattern(e.target.value)}
-                  >
-                    {meetingPatterns.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {meetingPattern === "CUSTOM" ? (
-                  <div className="form-group">
-                    <label className="form-label">Specify Day</label>
-                    <input
-                      type="text"
-                      name="meetingDay"
-                      className="form-input"
-                      placeholder="e.g., Every 10th"
-                      value={formData.meetingDay}
-                      onChange={handleChange}
-                    />
-                  </div>
-                ) : (
-                  <div className="form-group">
-                    <label className="form-label">Meeting Time</label>
-                    <input
-                      type="time"
-                      name="meetingTime"
-                      className="form-input"
-                      value={formData.meetingTime}
-                      onChange={handleChange}
-                    />
-                  </div>
-                )}
-
-                {meetingPattern !== "CUSTOM" && (
-                  <div className="form-group">
-                    <label className="form-label">
-                      {meetingType === "ONLINE" ? "Meeting Link" : "Venue / Location"}
-                    </label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder={meetingType === "ONLINE" ? "zoom.us/j/..." : "e.g., Westlands Hub"}
-                      value={meetingLocation}
-                      onChange={(e) => setMeetingLocation(e.target.value)}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {meetingPattern === "CUSTOM" && (
-                <div className="form-row mt-4">
-                  <div className="form-group">
-                    <label className="form-label">Meeting Time</label>
-                    <input
-                      type="time"
-                      name="meetingTime"
-                      className="form-input"
-                      value={formData.meetingTime}
-                      onChange={handleChange}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">
-                      {meetingType === "ONLINE" ? "Meeting Link" : "Venue / Location"}
-                    </label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder={meetingType === "ONLINE" ? "zoom.us/j/..." : "e.g., Westlands Hub"}
-                      value={meetingLocation}
-                      onChange={(e) => setMeetingLocation(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
+            <div className="mt-4 p-3 tip-card">
+              💡 <strong>Senior Tip:</strong> Chamas with clear descriptions and regular meeting schedules have 40% higher engagement.
             </div>
           </div>
+        </div>
 
-          <div className="form-actions-modern bg-light px-4 py-4 mt-4">
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={() => navigate("/dashboard")}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary btn-lg"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <span className="spinner-sm mr-2"></span> Creating...
-                </>
-              ) : (
-                "Create My Chama"
-              )}
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   );

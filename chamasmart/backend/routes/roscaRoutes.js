@@ -38,7 +38,7 @@ router.use(protect);
 // Get all cycles for a chama
 router.get(
   '/chama/:chamaId/cycles',
-  authorize('member', 'admin', 'treasurer', 'chairperson'),
+  authorize('MEMBER', 'ADMIN', 'TREASURER', 'CHAIRPERSON'),
   getChamaCycles,
 );
 

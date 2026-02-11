@@ -54,16 +54,32 @@ const changePasswordSchema = Joi.object({
 });
 
 // Chama Schemas
+// Chama Schemas
 const createChamaSchema = Joi.object({
-  name: Joi.string().min(3).max(100).required(),
-  description: Joi.string().max(500).optional(),
-  type: Joi.string().valid('chama', 'rosca', 'asca').required(),
-  maxMembers: Joi.number().integer().min(3).max(1000)
-    .required(),
+  chamaName: Joi.string().min(3).max(100).required(),
+  chamaType: Joi.string().valid('ROSCA', 'ASCA', 'TABLE_BANKING', 'WELFARE').required(),
+  description: Joi.string().max(500).optional().allow(''),
   contributionAmount: Joi.number().positive().required(),
   contributionFrequency: Joi.string()
-    .valid('daily', 'weekly', 'monthly', 'yearly')
+    .valid('WEEKLY', 'MONTHLY', 'BI_WEEKLY')
     .required(),
+  meetingDay: Joi.string().required(),
+  meetingTime: Joi.string().optional().allow(null, ''),
+  visibility: Joi.string().valid('PUBLIC', 'PRIVATE').default('PRIVATE'),
+});
+
+const updateChamaSchema = Joi.object({
+  chamaName: Joi.string().min(3).max(100).optional(),
+  chamaType: Joi.string().valid('ROSCA', 'ASCA', 'TABLE_BANKING', 'WELFARE').optional(),
+  description: Joi.string().max(500).optional().allow(''),
+  contributionAmount: Joi.number().positive().optional(),
+  contributionFrequency: Joi.string()
+    .valid('WEEKLY', 'MONTHLY', 'BI_WEEKLY')
+    .optional(),
+  meetingDay: Joi.string().optional(),
+  meetingTime: Joi.string().optional().allow(null, ''),
+  visibility: Joi.string().valid('PUBLIC', 'PRIVATE').optional(),
+  constitution_config: Joi.object().optional(),
 });
 
 // Contribution Schemas
@@ -185,6 +201,7 @@ module.exports = {
 
   // Chama Management
   createChamaSchema,
+  updateChamaSchema,
 
   // Contributions
   contributionSchema,

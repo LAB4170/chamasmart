@@ -54,6 +54,16 @@
   /* Elevations */
   --surface-1: var(--white);
   --surface-2: #f9fafb;
+  --surface-3: #f3f4f6;
+
+  /* Card */
+  --card-bg: var(--white);
+  --card-border: var(--border);
+
+  /* Inputs */
+  --input-bg: var(--white);
+  --input-border: var(--border);
+  --input-text: var(--text-primary);
 }
 
 [data-theme='dark'] {
@@ -78,21 +88,37 @@
   /* Elevations */
   --surface-1: #111827;
   --surface-2: #1f2937;
+  --surface-3: #374151;
 
   /* Text Aliases */
   --text-primary: #f9fafb;
   --text-secondary: #9ca3af;
+
+  /* Card Override */
+  --card-bg: var(--surface-2);
+  --card-border: var(--border);
+
+  /* Inputs Override */
+  --input-bg: var(--surface-3);
+  --input-border: var(--border);
+  --input-text: var(--text-primary);
+  --bg-primary-light: rgba(59, 130, 246, 0.2);
+  --bg-secondary: var(--surface-2);
+  --bg-neutral: var(--surface-1);
+  --light-gray: var(--surface-1);
+  /* Fix for body background */
 }
 
 body {
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
     Arial, sans-serif;
-  color: var(--dark);
+  color: var(--text-primary);
   background-color: var(--light-gray);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Typography */
@@ -105,7 +131,7 @@ h6 {
   margin-bottom: 1rem;
   font-weight: 600;
   line-height: 1.2;
-  color: var(--dark);
+  color: var(--text-primary);
   transition: color var(--transition-fast);
 }
 
@@ -127,7 +153,7 @@ h4 {
 
 p {
   margin-bottom: 1rem;
-  color: var(--gray);
+  color: var(--text-secondary);
 }
 
 /* Layout */
@@ -176,13 +202,13 @@ p {
 
 /* Cards */
 .card {
-  background: var(--white);
+  background: var(--card-bg);
   border-radius: var(--radius-lg);
   padding: 1.5rem;
   box-shadow: var(--shadow);
   margin-bottom: 1.5rem;
   transition: var(--transition);
-  border: 1px solid var(--border);
+  border: 1px solid var(--card-border);
 }
 
 .card:hover {
@@ -320,7 +346,7 @@ p {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
-  color: var(--dark);
+  color: var(--text-primary);
 }
 
 .form-input,
@@ -329,9 +355,10 @@ p {
   width: 100%;
   padding: 0.75rem 1rem;
   font-size: 1rem;
-  border: 2px solid var(--border);
+  border: 2px solid var(--input-border);
   border-radius: var(--radius);
-  background: var(--white);
+  background: var(--input-bg);
+  color: var(--input-text);
   transition: var(--transition);
   outline: none;
 }
@@ -396,21 +423,18 @@ p {
 }
 
 .alert-success {
-  background: #d1fae5;
-  color: #065f46;
-  border: 1px solid #10b981;
+  background: var(--success-light);
+  color: var(--success-dark);
 }
 
 .alert-error {
-  background: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #ef4444;
+  background: var(--error-light);
+  color: var(--error-dark);
 }
 
 .alert-warning {
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #f59e0b;
+  background: var(--warning-light);
+  color: var(--warning-dark);
 }
 
 .alert-info {
@@ -656,17 +680,17 @@ button:focus,
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  background: var(--white);
+  background: var(--card-bg);
 }
 
 .selection-card:hover {
   border-color: var(--primary-light);
-  background: #f8fafc;
+  background: var(--bg-neutral);
 }
 
 .selection-card.active {
   border-color: var(--primary);
-  background: #f0f7ff;
+  background: var(--bg-primary-light);
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
 }
 
@@ -687,12 +711,12 @@ button:focus,
 .selection-name {
   font-weight: 700;
   font-size: 1rem;
-  color: var(--dark);
+  color: var(--text-primary);
 }
 
 .selection-desc {
   font-size: 0.8rem;
-  color: var(--gray);
+  color: var(--text-secondary);
 }
 
 .selection-badge {
@@ -789,6 +813,18 @@ button:focus,
   position: relative;
   overflow: hidden;
   border-bottom: 1px solid var(--border);
+}
+
+.navbar-brand h2 {
+  color: var(--primary);
+  margin-bottom: 0;
+}
+
+.user-name {
+  color: var(--text-primary);
+  text-decoration: none;
+  margin-right: 1rem;
+  font-weight: bold;
 }
 
 .hero-section::after {

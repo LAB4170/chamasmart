@@ -58,7 +58,7 @@ const Navbar = () => {
                 {theme === 'light' ? '🌙' : '☀️'}
               </button>
               <div className="navbar-user">
-                <Link to="/profile" className="user-name" style={{ textDecoration: 'none', marginRight: '1rem', fontWeight: 'bold' }}>
+                <Link to="/profile" className="user-name">
                   {user?.firstName} {user?.lastName}
                 </Link>
                 <button

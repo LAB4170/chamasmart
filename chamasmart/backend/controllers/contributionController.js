@@ -270,7 +270,7 @@ const recordContribution = async (req, res, next) => {
 
       // Verify member exists and is active
       const memberResult = await client.query(
-        `SELECT user_id, total_contributions_cents, is_active 
+        `SELECT user_id, total_contributions, is_active 
          FROM chama_members 
          WHERE chama_id = $1 AND user_id = $2 
          FOR UPDATE`,
@@ -292,15 +292,15 @@ const recordContribution = async (req, res, next) => {
       // Record contribution
       const contributionResult = await client.query(
         `INSERT INTO contributions 
-         (chama_id, user_id, amount_cents, payment_method, receipt_number, 
+         (chama_id, user_id, amount, payment_method, receipt_number, 
           recorded_by, notes, contribution_date, idempotency_key)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-         RETURNING contribution_id, chama_id, user_id, amount_cents, 
+         RETURNING contribution_id, chama_id, user_id, amount, 
                    payment_method, receipt_number, contribution_date, created_at`,
         [
           chamaId,
           userId,
-          amountCents,
+          amount,
           paymentMethod,
           receiptNumber || null,
           req.user.user_id,
@@ -315,27 +315,27 @@ const recordContribution = async (req, res, next) => {
       // Update chama fund
       const updateChamaResult = await client.query(
         `UPDATE chamas 
-         SET current_fund_cents = COALESCE(current_fund_cents, 0) + $1,
+         SET current_fund = COALESCE(current_fund, 0) + $1,
              updated_at = NOW()
          WHERE chama_id = $2
-         RETURNING current_fund_cents`,
-        [amountCents, chamaId],
+         RETURNING current_fund`,
+        [amount, chamaId],
       );
 
-      const newChamaBalance = updateChamaResult.rows[0].current_fund_cents;
+      const newChamaBalance = updateChamaResult.rows[0].current_fund;
 
       // Update member contributions
       const updateMemberResult = await client.query(
         `UPDATE chama_members 
-         SET total_contributions_cents = COALESCE(total_contributions_cents, 0) + $1,
+         SET total_contributions = COALESCE(total_contributions, 0) + $1,
              updated_at = NOW()
          WHERE chama_id = $2 AND user_id = $3
-         RETURNING total_contributions_cents`,
-        [amountCents, chamaId, userId],
+         RETURNING total_contributions`,
+        [amount, chamaId, userId],
       );
 
       const newMemberBalance =
-        updateMemberResult.rows[0].total_contributions_cents;
+        updateMemberResult.rows[0].total_contributions;
 
       // Commit transaction
       await client.query("COMMIT");
@@ -344,11 +344,11 @@ const recordContribution = async (req, res, next) => {
       const responseData = {
         contribution: {
           ...contribution,
-          amount: Money.fromCents(contribution.amount_cents),
+          amount: parseFloat(contribution.amount),
         },
         balances: {
-          chamaBalance: Money.fromCents(newChamaBalance),
-          memberBalance: Money.fromCents(newMemberBalance),
+          chamaBalance: parseFloat(newChamaBalance),
+          memberBalance: parseFloat(newMemberBalance),
         },
       };
 
@@ -451,7 +451,7 @@ const getContributions = async (req, res, next) => {
     // Build query
     const offset = (parseInt(page) - 1) * parseInt(limit);
     let query = `
-      SELECT c.contribution_id, c.chama_id, c.user_id, c.amount_cents,
+      SELECT c.contribution_id, c.chama_id, c.user_id, c.amount,
              c.payment_method, c.receipt_number, c.contribution_date, c.created_at,
              u.first_name || ' ' || u.last_name as contributor_name,
              r.first_name || ' ' || r.last_name as recorded_by_name
@@ -464,9 +464,9 @@ const getContributions = async (req, res, next) => {
     const params = [chamaId];
     let paramIndex = 2;
 
-    if (userId) {
+    if (userId && !isNaN(parseInt(userId))) {
       query += ` AND c.user_id = $${paramIndex}`;
-      params.push(userId);
+      params.push(parseInt(userId));
       paramIndex++;
     }
 
@@ -490,9 +490,9 @@ const getContributions = async (req, res, next) => {
     let countQuery =
       "SELECT COUNT(*) as total FROM contributions WHERE chama_id = $1 AND is_deleted = false";
     const countParams = [chamaId];
-    if (userId) {
+    if (userId && !isNaN(parseInt(userId))) {
       countQuery += " AND user_id = $2";
-      countParams.push(userId);
+      countParams.push(parseInt(userId));
     }
 
     const [result, countResult] = await Promise.all([
@@ -502,7 +502,7 @@ const getContributions = async (req, res, next) => {
 
     const contributions = result.rows.map((row) => ({
       ...row,
-      amount: Money.fromCents(row.amount_cents),
+      amount: parseFloat(row.amount),
     }));
 
     const total = parseInt(countResult.rows[0].total);
@@ -550,7 +550,7 @@ const deleteContribution = async (req, res, next) => {
     try {
       // Get and lock contribution
       const contributionResult = await client.query(
-        `SELECT user_id, amount_cents, is_deleted 
+        `SELECT user_id, amount, is_deleted 
          FROM contributions 
          WHERE chama_id = $1 AND contribution_id = $2
          FOR UPDATE`,
@@ -601,18 +601,18 @@ const deleteContribution = async (req, res, next) => {
       // Compensate balances
       await client.query(
         `UPDATE chamas 
-         SET current_fund_cents = current_fund_cents - $1,
+         SET current_fund = current_fund - $1,
              updated_at = NOW()
          WHERE chama_id = $2`,
-        [contribution.amount_cents, chamaId],
+        [contribution.amount, chamaId],
       );
 
       await client.query(
         `UPDATE chama_members 
-         SET total_contributions_cents = total_contributions_cents - $1,
+         SET total_contributions = total_contributions - $1,
              updated_at = NOW()
          WHERE chama_id = $2 AND user_id = $3`,
-        [contribution.amount_cents, chamaId, contribution.user_id],
+        [contribution.amount, chamaId, contribution.user_id],
       );
 
       await client.query("COMMIT");

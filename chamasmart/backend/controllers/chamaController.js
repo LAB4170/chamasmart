@@ -92,7 +92,6 @@ const getChamaById = async (req, res) => {
     const result = await pool.query(
       `SELECT c.chama_id, c.chama_name, c.chama_type, c.description, c.contribution_amount, 
               c.contribution_frequency, c.meeting_day, c.meeting_time, c.current_fund, 
-              c.contribution_frequency, c.meeting_day, c.meeting_time, c.current_fund, 
               c.total_members, c.visibility, c.created_at, c.constitution_config,
               u.first_name || ' ' || u.last_name as creator_name
        FROM chamas c

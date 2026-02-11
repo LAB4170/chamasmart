@@ -514,7 +514,7 @@ const getMemberContributions = async (req, res, next) => {
     // Build query
     const offset = (parseInt(page) - 1) * parseInt(limit);
     let query = `
-      SELECT c.contribution_id, c.amount_cents, c.payment_method, 
+      SELECT c.contribution_id, c.amount, c.payment_method, 
              c.receipt_number, c.contribution_date, c.created_at,
              u.first_name || ' ' || u.last_name as recorded_by_name
       FROM contributions c
@@ -543,7 +543,7 @@ const getMemberContributions = async (req, res, next) => {
 
     // Get total
     let countQuery = `
-      SELECT COUNT(*) as total, COALESCE(SUM(amount_cents), 0) as total_cents
+      SELECT COUNT(*) as total, COALESCE(SUM(amount), 0) as total_amount
       FROM contributions 
       WHERE chama_id = $1 AND user_id = $2 AND is_deleted = false
     `;
@@ -566,13 +566,11 @@ const getMemberContributions = async (req, res, next) => {
 
     const contributions = result.rows.map((row) => ({
       ...row,
-      amount: parseFloat((row.amount_cents / 100).toFixed(2)),
+      amount: parseFloat(row.amount),
     }));
 
     const total = parseInt(countResult.rows[0].total);
-    const totalAmount = parseFloat(
-      (countResult.rows[0].total_cents / 100).toFixed(2),
-    );
+    const totalAmount = parseFloat(countResult.rows[0].total_amount);
 
     res.json({
       success: true,

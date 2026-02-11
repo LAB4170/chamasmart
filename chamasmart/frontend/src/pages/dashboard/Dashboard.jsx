@@ -12,6 +12,8 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  AreaChart,
+  Area,
 } from "recharts";
 
 // Memoized Stat Card component
@@ -163,14 +165,34 @@ const Dashboard = () => {
             <LoadingSkeleton type="card" count={4} />
           </div>
         ) : chamas.length === 0 ? (
-          <div className="card text-center">
-            <h3>You're not part of any chama yet</h3>
-            <p className="text-muted">
-              Create your first chama or ask to join an existing one
+          <div className="card text-center" style={{ padding: '3rem 2rem' }}>
+            <div className="mb-4" style={{ fontSize: '4rem', opacity: 0.5 }}>📊</div>
+            <h2 style={{ fontSize: '1.8rem', marginBottom: '1rem' }}>Your Financial Journey Starts Here</h2>
+            <p className="text-muted" style={{ maxWidth: '600px', margin: '0 auto 2rem', fontSize: '1.1rem' }}>
+              Once you join a Chama, this dashboard will come alive with real-time growth trends, contribution tracking, and group analytics.
             </p>
-            <Link to="/chamas/create" className="btn btn-primary">
-              Create Your First Chama
-            </Link>
+
+            <div className="ghost-analytics-preview" style={{ opacity: 0.3, marginBottom: '3rem' }}>
+              <ResponsiveContainer width="100%" height={150}>
+                <AreaChart data={[
+                  { name: 'Jan', value: 100 }, { name: 'Feb', value: 150 },
+                  { name: 'Mar', value: 300 }, { name: 'Apr', value: 250 },
+                  { name: 'May', value: 500 }
+                ]}>
+                  <Area type="monotone" dataKey="value" stroke="var(--primary)" fill="var(--primary-light)" />
+                </AreaChart>
+              </ResponsiveContainer>
+              <p className="text-muted" style={{ fontSize: '0.9rem' }}>Example: Potential Growth over 6 months</p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <Link to="/chamas/create" className="btn btn-primary btn-lg">
+                + Create Your Chama
+              </Link>
+              <Link to="/browse-chamas" className="btn btn-outline btn-lg">
+                Browse Groups
+              </Link>
+            </div>
           </div>
         ) : (
           <>
@@ -203,10 +225,39 @@ const Dashboard = () => {
               />
             </div>
 
+            {/* Growth Trend Chart (New Area Chart) */}
+            <div className="card">
+              <div className="card-header">
+                <h2>🌊 Personal Wealth Growth</h2>
+                <p className="text-muted">Cumulative savings across all chamas</p>
+              </div>
+              <ResponsiveContainer width="100%" height={250}>
+                <AreaChart
+                  data={chamas.map((c, i) => ({
+                    name: c.chama_name.substring(0, 10),
+                    total: parseFloat(c.total_contributions || 0)
+                  }))}
+                  margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.8} />
+                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <Tooltip formatter={(value) => formatCurrency(value)} />
+                  <Area type="monotone" dataKey="total" stroke="var(--primary)" fillOpacity={1} fill="url(#colorTotal)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
             {/* Contribution Trends Chart */}
             <div className="card">
               <div className="card-header">
-                <h2>📈 Contribution Status by Chama</h2>
+                <h2>📊 Contribution Status by Chama</h2>
                 <p className="text-muted">Your total contributions vs annual target</p>
               </div>
               <ResponsiveContainer width="100%" height={300}>
@@ -231,9 +282,10 @@ const Dashboard = () => {
                   <Tooltip
                     formatter={(value) => formatCurrency(value)}
                     contentStyle={{
-                      backgroundColor: "var(--white)",
+                      backgroundColor: "var(--surface-1)",
                       border: "1px solid var(--border)",
                       borderRadius: "var(--radius)",
+                      color: "var(--text-primary)"
                     }}
                   />
                   <Legend />

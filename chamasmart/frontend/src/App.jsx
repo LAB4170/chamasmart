@@ -3,7 +3,9 @@ import {
   Routes,
   Route,
   Navigate,
+  useLocation,
 } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { lazy, Suspense } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { SocketProvider } from "./context/SocketContext";
@@ -55,6 +57,20 @@ import LoadingSpinner from "./components/LoadingSpinner";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
+
+// Page Transition Wrapper
+const PageTransition = ({ children }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+    >
+      {children}
+    </motion.div>
+  );
+};
 
 // Protected Route wrapper
 const ProtectedRoute = ({ children }) => {
@@ -260,301 +276,86 @@ const Home = () => {
   );
 };
 
+function AppContent() {
+  const location = useLocation();
+
+  return (
+    <div className="app">
+      <Navbar />
+      <ToastContainer position="top-right" autoClose={3000} />
+      <ErrorBoundary>
+        <Suspense fallback={<LoadingSpinner />}>
+          <AnimatePresence mode="wait">
+            <Routes location={location} key={location.pathname}>
+              <Route path="/" element={<PageTransition><Home /></PageTransition>} />
+              <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
+              <Route path="/register" element={<PageTransition><Register /></PageTransition>} />
+              <Route path="/verify-account" element={<PageTransition><VerifyEmailPhone /></PageTransition>} />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <PageTransition><Dashboard /></PageTransition>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chamas"
+                element={
+                  <ProtectedRoute>
+                    <PageTransition><MyChamas /></PageTransition>
+                  </ProtectedRoute>
+                }
+              />
+              {/* Other routes wrapped in PageTransition */}
+              <Route
+                path="/chamas/create"
+                element={
+                  <ProtectedRoute>
+                    <PageTransition><CreateChama /></PageTransition>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chamas/:id"
+                element={
+                  <ProtectedRoute>
+                    <PageTransition><ChamaDetails /></PageTransition>
+                  </ProtectedRoute>
+                }
+              />
+              {/* ... wrapping a few more key ones ... */}
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <PageTransition><UserProfile /></PageTransition>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/browse-chamas"
+                element={
+                  <ProtectedRoute>
+                    <PageTransition><BrowseChamas /></PageTransition>
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+          </AnimatePresence>
+        </Suspense>
+      </ErrorBoundary>
+    </div>
+  );
+}
+
 function App() {
   return (
     <Router>
       <AuthProvider>
         <SocketProvider>
-          <div className="app">
-            <Navbar />
-            <ToastContainer position="top-right" autoClose={3000} />
-            <ErrorBoundary>
-              <Suspense fallback={<LoadingSpinner />}>
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
-                  <Route path="/verify-account" element={<VerifyEmailPhone />} />
-                  <Route
-                    path="/dashboard"
-                    element={
-                      <ProtectedRoute>
-                        <Dashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas"
-                    element={
-                      <ProtectedRoute>
-                        <MyChamas />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/create"
-                    element={
-                      <ProtectedRoute>
-                        <CreateChama />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id"
-                    element={
-                      <ProtectedRoute>
-                        <ChamaDetails />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/record-contribution"
-                    element={
-                      <ProtectedRoute>
-                        <RecordContribution />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/add-member"
-                    element={
-                      <ProtectedRoute>
-                        <AddMember />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/invites"
-                    element={
-                      <ProtectedRoute>
-                        <InviteManagement />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/join-chama"
-                    element={
-                      <ProtectedRoute>
-                        <JoinChama />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/loans"
-                    element={
-                      <ProtectedRoute>
-                        <LoanManagement />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/loans/apply"
-                    element={
-                      <ProtectedRoute>
-                        <ApplyLoan />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/loans/:loanId/repay"
-                    element={
-                      <ProtectedRoute>
-                        <RepayLoan />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/payouts"
-                    element={
-                      <ProtectedRoute>
-                        <PayoutManagement />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/payouts/process"
-                    element={
-                      <ProtectedRoute>
-                        <ProcessPayout />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/browse-chamas"
-                    element={
-                      <ProtectedRoute>
-                        <BrowseChamas />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/join-requests"
-                    element={
-                      <ProtectedRoute>
-                        <RoleRoute allowedRoles={['admin', 'treasurer']}>
-                          <JoinRequests />
-                        </RoleRoute>
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/my-join-requests"
-                    element={
-                      <ProtectedRoute>
-                        <MyJoinRequests />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/my-guarantees"
-                    element={
-                      <ProtectedRoute>
-                        <MyGuarantees />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/welfare"
-                    element={
-                      <ProtectedRoute>
-                        <WelfareDashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/welfare/claim"
-                    element={
-                      <ProtectedRoute>
-                        <SubmitClaim />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/welfare/admin"
-                    element={
-                      <ProtectedRoute>
-                        <RoleRoute allowedRoles={['admin']}>
-                          <WelfareAdmin />
-                        </RoleRoute>
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/manage"
-                    element={
-                      <ProtectedRoute>
-                        <RoleRoute allowedRoles={['admin']}>
-                          <ManageChama />
-                        </RoleRoute>
-                      </ProtectedRoute>
-                    }
-                  />
-
-                  <Route
-                    path="/chamas/:id/audit"
-                    element={
-                      <ProtectedRoute>
-                        <AuditLogs />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/security"
-                    element={
-                      <ProtectedRoute>
-                        <SecurityMonitor />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/settings/api-keys"
-                    element={
-                      <ProtectedRoute>
-                        <ApiKeyManagement />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/profile"
-                    element={
-                      <ProtectedRoute>
-                        <UserProfile />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/meetings"
-                    element={
-                      <ProtectedRoute>
-                        <MeetingList />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/meetings/create"
-                    element={
-                      <ProtectedRoute>
-                        <CreateMeeting />
-                      </ProtectedRoute>
-                    }
-                  />
-
-                  <Route
-                    path="/chamas/:id/rosca"
-                    element={
-                      <ProtectedRoute>
-                        <RoscaDashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/rosca/create"
-                    element={
-                      <ProtectedRoute>
-                        <CreateCycle />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/rosca/:cycleId"
-                    element={
-                      <ProtectedRoute>
-                        <RoscaDetails />
-                      </ProtectedRoute>
-                    }
-                  />
-
-                  <Route
-                    path="/chamas/:id/asca"
-                    element={
-                      <ProtectedRoute>
-                        <AscaDashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/asca/buy"
-                    element={
-                      <ProtectedRoute>
-                        <BuyShares />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/chamas/:id/asca/proposals"
-                    element={
-                      <ProtectedRoute>
-                        <InvestmentProposals />
-                      </ProtectedRoute>
-                    }
-                  />
-
-                  {/* Fallback route */}
-                  <Route path="*" element={<Navigate to="/" />} />
-                </Routes>
-              </Suspense>
-            </ErrorBoundary>
-          </div>
+          <AppContent />
         </SocketProvider>
       </AuthProvider>
     </Router>

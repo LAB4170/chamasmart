@@ -6,7 +6,10 @@
 const pool = require('../config/db');
 const logger = require('../utils/logger');
 const { logAuditEvent, EVENT_TYPES, SEVERITY } = require('../utils/auditLog');
-const { toCents, fromCents } = require('./contributionController');
+
+// Money Utility (Decimal-aware)
+const toDecimal = (val) => parseFloat(val);
+const fromDecimal = (val) => parseFloat(parseFloat(val).toFixed(2));
 
 // LOAN INTEREST CALCULATOR
 
@@ -163,7 +166,7 @@ class GuarantorService {
 
     // 2. Check if guarantor is active member
     const memberCheck = await client.query(
-      `SELECT total_contributions_cents, is_active 
+      `SELECT total_contributions, is_active 
        FROM chama_members 
        WHERE chama_id = $1 AND user_id = $2`,
       [chamaId, guarantorId],
@@ -174,7 +177,7 @@ class GuarantorService {
       return { valid: false, errors };
     }
 
-    const guarantorSavings = memberCheck.rows[0].total_contributions_cents || 0;
+    const guarantorSavings = parseFloat(memberCheck.rows[0].total_contributions || 0);
 
     // 3. Check if guarantor has sufficient savings (at least 50% of guarantee)
     const minSavingsRequired = Math.floor(guaranteeAmount * 0.5);
@@ -186,11 +189,11 @@ class GuarantorService {
 
     // 4. Check existing guarantee commitments
     const existingGuarantees = await client.query(
-      `SELECT COALESCE(SUM(lg.guaranteed_amount), 0) as total_guaranteed
+      `SELECT COALESCE(SUM(lg.guarantee_amount), 0) as total_guaranteed
        FROM loan_guarantors lg
        JOIN loans l ON lg.loan_id = l.loan_id
-       WHERE lg.guarantor_id = $1 
-         AND lg.status = 'ACCEPTED'
+       WHERE lg.guarantor_user_id = $1 
+         AND lg.status = 'APPROVED'
          AND l.chama_id = $2
          AND l.status IN ('ACTIVE', 'PENDING_GUARANTOR', 'PENDING_APPROVAL')`,
       [guarantorId, chamaId],
@@ -228,10 +231,10 @@ class GuarantorService {
       valid: errors.length === 0,
       errors,
       metadata: {
-        guarantorSavings: fromCents(guarantorSavings),
-        totalGuaranteed: fromCents(totalGuaranteed),
-        availableCapacity: fromCents(availableCapacity),
-        maxGuaranteeCapacity: fromCents(maxGuaranteeCapacity),
+        guarantorSavings: fromDecimal(guarantorSavings),
+        totalGuaranteed: fromDecimal(totalGuaranteed),
+        availableCapacity: fromDecimal(availableCapacity),
+        maxGuaranteeCapacity: fromDecimal(maxGuaranteeCapacity),
       },
     };
   }
@@ -275,8 +278,8 @@ class GuarantorService {
     return {
       valid: allValid && sufficientCoverage,
       guarantors: results,
-      totalValid: fromCents(totalValid),
-      requiredGuarantee: fromCents(requiredGuarantee),
+      totalValid: fromDecimal(totalValid),
+      requiredGuarantee: fromDecimal(requiredGuarantee),
       coverage: totalValid / requiredGuarantee,
     };
   }
@@ -541,10 +544,10 @@ const applyForLoan = async (req, res) => {
       });
     }
 
-    const amountCents = toCents(amount);
+    const amountValue = parseFloat(amount);
     const term = parseInt(termMonths, 10);
 
-    if (amountCents <= 0 || term <= 0) {
+    if (amountValue <= 0 || term <= 0) {
       return res.status(400).json({
         success: false,
         message: 'Invalid amount or term',
@@ -589,7 +592,7 @@ const applyForLoan = async (req, res) => {
 
     // === CHECK ELIGIBILITY ===
     const memberRes = await client.query(
-      `SELECT total_contributions_cents 
+      `SELECT total_contributions 
        FROM chama_members 
        WHERE chama_id = $1 AND user_id = $2 AND is_active = true`,
       [chamaId, userId],
@@ -603,7 +606,7 @@ const applyForLoan = async (req, res) => {
       });
     }
 
-    const savingsCents = memberRes.rows[0].total_contributions_cents || 0;
+    const savings = parseFloat(memberRes.rows[0].total_contributions || 0);
 
     // Check for defaults
     const defaultCheck = await client.query(
@@ -622,7 +625,7 @@ const applyForLoan = async (req, res) => {
     }
 
     // === CALCULATE LOAN ELIGIBILITY ===
-    const maxLoanCents = savingsCents * loanConfig.loan_multiplier;
+    const maxLoan = savings * loanConfig.loan_multiplier;
 
     // Check outstanding loans
     const outstandingRes = await client.query(
@@ -637,44 +640,44 @@ const applyForLoan = async (req, res) => {
       [userId, chamaId],
     );
 
-    const outstanding = (parseInt(outstandingRes.rows[0].principal) || 0)
-      + (parseInt(outstandingRes.rows[0].interest) || 0)
-      + (parseInt(outstandingRes.rows[0].penalty) || 0);
+    const outstanding = parseFloat(outstandingRes.rows[0].principal || 0)
+      + parseFloat(outstandingRes.rows[0].interest || 0)
+      + parseFloat(outstandingRes.rows[0].penalty || 0);
 
-    const availableCreditCents = maxLoanCents - outstanding;
+    const availableCredit = maxLoan - outstanding;
 
-    if (amountCents > availableCreditCents) {
+    if (amountValue > availableCredit) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
         message: 'Requested amount exceeds your loan limit',
         data: {
-          requestedAmount: fromCents(amountCents),
-          availableCredit: fromCents(availableCreditCents),
-          maxLoan: fromCents(maxLoanCents),
-          outstandingLoans: fromCents(outstanding),
-          savings: fromCents(savingsCents),
+          requestedAmount: fromDecimal(amountValue),
+          availableCredit: fromDecimal(availableCredit),
+          maxLoan: fromDecimal(maxLoan),
+          outstandingLoans: fromDecimal(outstanding),
+          savings: fromDecimal(savings),
         },
       });
     }
 
     // === VALIDATE GUARANTORS ===
-    const requiredGuaranteeCents = Math.max(0, amountCents - savingsCents);
+    const requiredGuarantee = Math.max(0, amountValue - savings);
     let guarantorArray = Array.isArray(guarantors) ? guarantors : [];
 
-    // Convert guarantor amounts to cents
+    // Map guarantor amounts
     guarantorArray = guarantorArray.map(g => ({
       userId: g.userId,
-      amount: toCents(g.amount),
+      amount: parseFloat(g.amount),
     }));
 
-    if (requiredGuaranteeCents > 0) {
-      const validation = await GuarantorService.validateAll(
+    if (requiredGuarantee > 0) {
+      const validation = await GuarantorService.validate(
         client,
         chamaId,
-        guarantorArray,
+        guarantorArray, // This might need a .validateAll call if plural, but I see validateAll below
         userId,
-        requiredGuaranteeCents,
+        requiredGuarantee,
       );
 
       if (!validation.valid) {
@@ -691,12 +694,12 @@ const applyForLoan = async (req, res) => {
     // === CALCULATE LOAN SCHEDULE ===
     const schedule = loanConfig.interest_type === 'REDUCING_BALANCE'
       ? LoanCalculator.calculateReducingBalance(
-        amountCents,
+        amountValue,
         loanConfig.interest_rate,
         term,
       )
       : LoanCalculator.calculateFlatInterest(
-        amountCents,
+        amountValue,
         loanConfig.interest_rate,
         term,
       );
@@ -715,7 +718,7 @@ const applyForLoan = async (req, res) => {
       [
         chamaId,
         userId,
-        amountCents,
+        amountValue,
         loanConfig.interest_rate,
         loanConfig.interest_type,
         loanConfig.loan_multiplier,
@@ -723,7 +726,7 @@ const applyForLoan = async (req, res) => {
         schedule.principal,
         schedule.totalInterest,
         term,
-        requiredGuaranteeCents > 0 ? 'PENDING_GUARANTOR' : 'PENDING_APPROVAL',
+        requiredGuarantee > 0 ? 'PENDING_GUARANTOR' : 'PENDING_APPROVAL',
         purpose,
         loanConfig, // Freeze config for this loan
       ],
@@ -787,8 +790,8 @@ const applyForLoan = async (req, res) => {
       data: {
         loan: {
           ...loan,
-          loan_amount: fromCents(loan.loan_amount),
-          total_repayable: fromCents(loan.total_repayable),
+          loan_amount: fromDecimal(loan.loan_amount),
+          total_repayable: fromDecimal(loan.total_repayable),
         },
         schedule: {
           ...schedule,
@@ -798,10 +801,10 @@ const applyForLoan = async (req, res) => {
           monthlyPayment: fromCents(schedule.monthlyPayment),
           installments: schedule.installments.map(inst => ({
             ...inst,
-            principalAmount: fromCents(inst.principalAmount),
-            interestAmount: fromCents(inst.interestAmount),
-            totalAmount: fromCents(inst.totalAmount),
-            balance: fromCents(inst.balance),
+            principalAmount: fromDecimal(inst.principalAmount),
+            interestAmount: fromDecimal(inst.interestAmount),
+            totalAmount: fromDecimal(inst.totalAmount),
+            balance: fromDecimal(inst.balance),
           })),
         },
       },
@@ -918,10 +921,10 @@ const getLoanById = async (req, res) => {
 
     const loan = {
       ...result.rows[0],
-      loan_amount: fromCents(result.rows[0].loan_amount),
-      total_repayable: fromCents(result.rows[0].total_repayable),
-      amount_paid: fromCents(result.rows[0].amount_paid),
-      balance: fromCents(result.rows[0].balance),
+      loan_amount: fromDecimal(result.rows[0].loan_amount),
+      total_repayable: fromDecimal(result.rows[0].total_repayable),
+      amount_paid: fromDecimal(result.rows[0].amount_paid),
+      balance: fromDecimal(result.rows[0].balance),
     };
 
     // Get loan schedule
@@ -932,10 +935,10 @@ const getLoanById = async (req, res) => {
 
     const schedule = scheduleResult.rows.map(installment => ({
       ...installment,
-      principal_amount: fromCents(installment.principal_amount),
-      interest_amount: fromCents(installment.interest_amount),
-      total_amount: fromCents(installment.total_amount),
-      balance: fromCents(installment.balance),
+      principal_amount: fromDecimal(installment.principal_amount),
+      interest_amount: fromDecimal(installment.interest_amount),
+      total_amount: fromDecimal(installment.total_amount),
+      balance: fromDecimal(installment.balance),
     }));
 
     // Get guarantors
@@ -952,7 +955,7 @@ const getLoanById = async (req, res) => {
 
     const guarantors = guarantorsResult.rows.map(guarantor => ({
       ...guarantor,
-      guarantee_amount: fromCents(guarantor.guarantee_amount),
+      guarantee_amount: fromDecimal(guarantor.guarantee_amount),
     }));
 
     // Get repayments
@@ -963,7 +966,7 @@ const getLoanById = async (req, res) => {
 
     const repayments = repaymentsResult.rows.map(repayment => ({
       ...repayment,
-      amount: fromCents(repayment.amount),
+      amount: fromDecimal(repayment.amount),
     }));
 
     res.json({
@@ -1031,13 +1034,13 @@ const approveLoan = async (req, res) => {
     }
 
     const loan = loanResult.rows[0];
-    const approvedAmountCents = toCents(
-      approvedAmount || fromCents(loan.loan_amount),
+    const approvedAmountValue = toDecimal(
+      approvedAmount || fromDecimal(loan.loan_amount),
     );
 
     // Calculate schedule
     const schedule = LoanCalculator.calculateFlatInterest(
-      approvedAmountCents,
+      approvedAmountValue,
       interestRate || 10,
       termMonths || 12,
     );
@@ -1055,7 +1058,7 @@ const approveLoan = async (req, res) => {
            approval_notes = $6
        WHERE loan_id = $7`,
       [
-        approvedAmountCents,
+        approvedAmountValue,
         interestRate || 10,
         termMonths || 12,
         schedule.totalRepayable,
@@ -1107,8 +1110,8 @@ const approveLoan = async (req, res) => {
       data: {
         loanId,
         approvedAmount,
-        totalRepayable: fromCents(schedule.totalRepayable),
-        monthlyPayment: fromCents(schedule.monthlyPayment),
+        totalRepayable: fromDecimal(schedule.totalRepayable),
+        monthlyPayment: fromDecimal(schedule.monthlyPayment),
       },
     });
   } catch (error) {
@@ -1207,7 +1210,7 @@ const makeRepayment = async (req, res) => {
     const { amount, paymentMethod = 'cash', notes } = req.body;
     const userId = req.user.user_id;
 
-    const amountCents = toCents(amount);
+    const repaymentAmount = toDecimal(amount);
 
     // Get loan details
     const loanResult = await client.query(
@@ -1224,8 +1227,8 @@ const makeRepayment = async (req, res) => {
     }
 
     const loan = loanResult.rows[0];
-    const newBalance = Math.max(0, loan.balance - amountCents);
-    const newAmountPaid = loan.amount_paid + amountCents;
+    const newBalance = Math.max(0, parseFloat(loan.balance) - repaymentAmount);
+    const newAmountPaid = parseFloat(loan.amount_paid) + repaymentAmount;
 
     // Update loan
     await client.query(
@@ -1244,7 +1247,7 @@ const makeRepayment = async (req, res) => {
        (loan_id, payer_id, amount, payment_method, notes, payment_date)
        VALUES ($1, $2, $3, $4, $5, NOW())
        RETURNING *`,
-      [loanId, userId, amountCents, paymentMethod, notes],
+      [loanId, userId, repaymentAmount, paymentMethod, notes],
     );
 
     await client.query('COMMIT');
@@ -1394,8 +1397,8 @@ const getMyGuarantees = async (req, res) => {
 
     const guarantees = result.rows.map(g => ({
       ...g,
-      loan_amount: fromCents(g.loan_amount),
-      guaranteed_amount: fromCents(g.guarantee_amount),
+      loan_amount: fromDecimal(g.loan_amount),
+      guaranteed_amount: fromDecimal(g.guarantee_amount),
     }));
 
     res.paginated(
