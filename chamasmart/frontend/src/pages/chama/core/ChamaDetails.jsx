@@ -45,13 +45,12 @@ const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavig
         <button className="btn btn-modern btn-reports" onClick={() => onTabChange("reports")}>
           <span className="btn-icon">📊</span> Reports
         </button>
-        <button className="btn btn-modern btn-secondary" onClick={() => onNavigate(`/chamas/${chama.chama_id}/meetings`)} style={{ marginLeft: '0.5rem' }}>
+        <button className="btn btn-modern btn-secondary" onClick={() => onNavigate(`/chamas/${chama.chama_id}/meetings`)}>
           <span className="btn-icon">📅</span> Meetings
         </button>
         {isOfficial && (
           <button
             className="btn btn-modern btn-secondary"
-            style={{ marginLeft: '0.5rem' }}
             onClick={() => onNavigate(`/chamas/${chama.chama_id}/invites`)}
           >
             <span className="btn-icon">📨</span> Invites
@@ -60,7 +59,6 @@ const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavig
         {chama.chama_type === "TABLE_BANKING" && (
           <button
             className="btn btn-modern btn-secondary"
-            style={{ marginLeft: '0.5rem' }}
             onClick={() => onNavigate(`/chamas/${chama.chama_id}/loans`)}
           >
             <span className="btn-icon">🏦</span> Loans
@@ -69,7 +67,6 @@ const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavig
         {chama.chama_type === "WELFARE" && (
           <button
             className="btn btn-modern btn-secondary"
-            style={{ marginLeft: '0.5rem' }}
             onClick={() => onNavigate(`/chamas/${chama.chama_id}/welfare`)}
           >
             <span className="btn-icon">🏥</span> Welfare
@@ -78,7 +75,6 @@ const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavig
         {chama.chama_type === "ROSCA" && (
           <button
             className="btn btn-modern btn-secondary"
-            style={{ marginLeft: '0.5rem' }}
             onClick={() => onNavigate(`/chamas/${chama.chama_id}/rosca`)}
           >
             <span className="btn-icon">🎡</span> Merry-Go-Round
@@ -87,7 +83,6 @@ const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavig
         {chama.chama_type === "ASCA" && (
           <button
             className="btn btn-modern btn-secondary"
-            style={{ marginLeft: '0.5rem' }}
             onClick={() => onNavigate(`/chamas/${chama.chama_id}/asca`)}
           >
             <span className="btn-icon">📈</span> Investments

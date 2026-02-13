@@ -4091,3 +4091,241 @@ button:focus,
 .swap-request-card {
   border: 1px solid var(--border);
 }
+
+/* 
+   DARK MODE OVERRIDES 
+   Fixes for hardcoded light backgrounds 
+*/
+
+[data-theme='dark'] .hero-section {
+  background: linear-gradient(135deg, var(--surface-1) 0%, var(--surface-2) 50%, #0f172a 100%);
+  border-bottom-color: var(--border);
+}
+
+[data-theme='dark'] .hero-section::after {
+  background-image:
+    radial-gradient(circle at 25% 25%,
+      rgba(59, 130, 246, 0.1) 0%,
+      transparent 50%),
+    radial-gradient(circle at 75% 75%,
+      rgba(16, 185, 129, 0.1) 0%,
+      transparent 50%);
+  opacity: 0.3;
+}
+
+[data-theme='dark'] .auth-page {
+  background: linear-gradient(135deg, var(--surface-1) 0%, var(--surface-2) 100%);
+}
+
+[data-theme='dark'] .auth-page::before {
+  background:
+    radial-gradient(circle at 20% 80%,
+      rgba(59, 130, 246, 0.15) 0%,
+      transparent 50%),
+    radial-gradient(circle at 80% 20%,
+      rgba(59, 130, 246, 0.1) 0%,
+      transparent 50%);
+}
+
+[data-theme='dark'] .auth-card {
+  background: var(--surface-2);
+  border-color: var(--border);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] .bg-light {
+  background-color: var(--surface-2);
+}
+
+[data-theme='dark'] .table th {
+  background-color: var(--surface-2);
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .table tr:hover {
+  background-color: var(--surface-2);
+}
+
+[data-theme='dark'] .cta-section {
+  background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%);
+}
+
+/* 
+   CHAMA DETAILS PAGE - RESPONSIVE LAYOUT 
+*/
+
+.chama-header {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.chama-title-section {
+  flex: 1;
+  min-width: 250px;
+}
+
+.chama-title {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  margin-bottom: 0.75rem;
+  color: var(--text-primary);
+}
+
+.chama-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.chama-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-primary-light);
+  color: var(--primary);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.badge-icon {
+  font-size: 1.2rem;
+}
+
+.user-role-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.role-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.role-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.role-chairperson {
+  background: var(--primary);
+  color: white;
+}
+
+.role-treasurer {
+  background: var(--success);
+  color: white;
+}
+
+.role-secretary {
+  background: var(--warning);
+  color: white;
+}
+
+.role-member {
+  background: var(--light-gray);
+  color: var(--text-primary);
+}
+
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.btn-modern {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-radius: var(--radius);
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.btn-reports {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-manage {
+  background: var(--warning);
+  color: white;
+}
+
+.btn-icon {
+  font-size: 1rem;
+}
+
+/* Responsive breakpoints */
+@media (max-width: 1024px) {
+  .header-content {
+    gap: 1rem;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+  }
+
+  .chama-title-section {
+    width: 100%;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .header-actions .btn {
+    flex: 1 1 calc(50% - 0.25rem);
+    min-width: 140px;
+    justify-content: center;
+  }
+
+  .chama-header {
+    padding: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-actions .btn {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .chama-header {
+    padding: 1rem;
+  }
+
+  .chama-meta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
