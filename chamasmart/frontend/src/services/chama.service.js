@@ -15,21 +15,21 @@ export const chamaAPI = {
 
 // Member API calls
 export const memberAPI = {
-  add: (chamaId, memberData) => api.post(`/members/${chamaId}/add`, memberData),
+  add: (chamaId, memberData) => api.post(`/chamas/${chamaId}/members`, memberData),
   updateRole: (chamaId, userId, roleData) =>
-    api.put(`/members/${chamaId}/role/${userId}`, roleData),
+    api.put(`/chamas/${chamaId}/members/${userId}/role`, roleData),
   remove: (chamaId, userId) =>
-    api.delete(`/members/${chamaId}/remove/${userId}`),
+    api.delete(`/chamas/${chamaId}/members/${userId}`),
   getContributions: (chamaId, userId) =>
-    api.get(`/members/${chamaId}/contributions/${userId}`),
+    api.get(`/contributions/${chamaId}`, { params: { userId } }),
 };
 
 // Invite API calls
 export const inviteAPI = {
   generate: (chamaId, inviteData) =>
-    api.post(`/invites/${chamaId}/generate`, inviteData),
+    api.post(`/chamas/${chamaId}/invites`, inviteData),
   join: (inviteCode) => api.post("/invites/join", { inviteCode }),
-  getAll: (chamaId) => api.get(`/invites/${chamaId}`),
+  getAll: (chamaId) => api.get(`/chamas/${chamaId}/invites`),
   deactivate: (inviteId) => api.delete(`/invites/${inviteId}`),
-  send: (chamaId, email) => api.post(`/invites/${chamaId}/send`, { email }),
+  send: (chamaId, email) => api.post(`/chamas/${chamaId}/invites/send`, { email }),
 };

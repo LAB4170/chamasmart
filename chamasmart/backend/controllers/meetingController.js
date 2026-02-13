@@ -152,13 +152,12 @@ const createMeeting = async (req, res, next) => {
     // Create meeting
     const result = await pool.query(
       `INSERT INTO meetings 
-       (chama_id, meeting_date, meeting_time, location, agenda, recorded_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
+       (chama_id, scheduled_date, location, description, created_by)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
       [
         chamaId,
         meetingDate,
-        meetingTime || null,
         location || null,
         agenda || null,
         req.user.user_id,
@@ -203,9 +202,9 @@ const getChamaMeetings = async (req, res, next) => {
     const params = [chamaId];
 
     if (upcoming === "true") {
-      whereClause += " AND m.meeting_date >= CURRENT_DATE";
+      whereClause += " AND m.scheduled_date >= CURRENT_DATE";
     } else if (past === "true") {
-      whereClause += " AND m.meeting_date < CURRENT_DATE";
+      whereClause += " AND m.scheduled_date < CURRENT_DATE";
     }
 
     // Get total count
@@ -215,13 +214,13 @@ const getChamaMeetings = async (req, res, next) => {
     // Get meetings
     const query = `
       SELECT m.*, 
-             u.first_name || ' ' || u.last_name as recorded_by_name,
+             u.first_name || ' ' || u.last_name as created_by_name,
              (SELECT COUNT(*) FROM meeting_attendance 
               WHERE meeting_id = m.meeting_id AND attended = true) as attendees_count
       FROM meetings m
-      LEFT JOIN users u ON m.recorded_by = u.user_id
+      LEFT JOIN users u ON m.created_by = u.user_id
       ${whereClause}
-      ORDER BY m.meeting_date DESC, m.created_at DESC
+      ORDER BY m.scheduled_date DESC, m.created_at DESC
       LIMIT $${params.length + 1} OFFSET $${params.length + 2}
     `;
 
@@ -258,9 +257,9 @@ const getMeetingById = async (req, res, next) => {
 
     // Get meeting details
     const meetingResult = await pool.query(
-      `SELECT m.*, u.first_name || ' ' || u.last_name as recorded_by_name
+      `SELECT m.*, u.first_name || ' ' || u.last_name as created_by_name
        FROM meetings m
-       LEFT JOIN users u ON m.recorded_by = u.user_id
+       LEFT JOIN users u ON m.created_by = u.user_id
        WHERE m.chama_id = $1 AND m.meeting_id = $2`,
       [chamaId, id],
     );
@@ -317,12 +316,11 @@ const updateMeeting = async (req, res, next) => {
 
     // Build update query safely
     const allowedFields = {
-      meetingDate: "meeting_date",
-      meetingTime: "meeting_time",
+      meetingDate: "scheduled_date",
       location: "location",
-      agenda: "agenda",
+      description: "description",
       minutes: "minutes",
-      totalCollected: "total_collected",
+      status: "status",
     };
 
     const updates = [];

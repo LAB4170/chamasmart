@@ -44,10 +44,10 @@ export const notificationAPI = {
 // Join Request API calls
 export const joinRequestAPI = {
     request: (chamaId, message) =>
-        api.post(`/join-requests/${chamaId}/request`, { message }),
-    getAll: (chamaId) => api.get(`/join-requests/${chamaId}`),
+        api.post(`/chamas/${chamaId}/join-requests`, { message }),
+    getAll: (chamaId) => api.get(`/chamas/${chamaId}/join-requests`),
     respond: (requestId, status) =>
-        api.put(`/join-requests/${requestId}/respond`, { status }),
+        api.put(`/join-requests/${requestId}`, { status }),
     getMyRequests: () => api.get("/join-requests/my"),
 };
 
