@@ -19,7 +19,7 @@
 }
 
 .claim-card {
-    background: white;
+    background: var(--card-bg);
     border-radius: 12px;
     padding: 2rem;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);

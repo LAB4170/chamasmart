@@ -9,7 +9,7 @@
 }
 
 .meeting-card {
-    background: white;
+    background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     padding: 1.5rem;
@@ -85,7 +85,7 @@
 
 /* Meeting Details */
 .meeting-details-header {
-    background: white;
+    background: var(--card-bg);
     padding: 2rem;
     border-radius: var(--radius-lg);
     margin-bottom: 2rem;
@@ -100,7 +100,7 @@
 }
 
 .attendance-card {
-    background: white;
+    background: var(--card-bg);
     padding: 1rem;
     border-radius: var(--radius-md);
     border: 1px solid var(--border-color);
@@ -130,7 +130,7 @@
     padding: 0.25rem;
     border-radius: 4px;
     border: 1px solid var(--border-color);
-    background: white;
+    background: var(--card-bg);
     cursor: pointer;
 }
 

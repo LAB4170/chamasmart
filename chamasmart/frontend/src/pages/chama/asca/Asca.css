@@ -46,7 +46,7 @@
 }
 
 .proposal-card {
-    background: white;
+    background: var(--card-bg);
     padding: 1.5rem;
     border-radius: var(--radius-md);
     border: 1px solid var(--border-color);

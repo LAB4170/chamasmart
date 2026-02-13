@@ -2357,7 +2357,7 @@ button:focus,
 }
 
 .chama-content {
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   padding: 2rem;
@@ -3018,7 +3018,7 @@ button:focus,
 }
 
 .timeline-content {
-  background: white;
+  background: var(--card-bg);
   padding: 1rem;
   border-radius: 8px;
   box-shadow: var(--shadow);
@@ -3150,7 +3150,7 @@ button:focus,
 }
 
 .chama-card {
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow: hidden;
@@ -3240,7 +3240,7 @@ button:focus,
   padding: 0.5rem 1rem;
   border: 1px solid var(--border);
   border-radius: 25px;
-  background: white;
+  background: var(--card-bg);
   cursor: pointer;
   transition: all 0.3s ease;
 }
@@ -3294,7 +3294,7 @@ button:focus,
 }
 
 .report-card {
-  background: white;
+  background: var(--card-bg);
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -4328,4 +4328,200 @@ button:focus,
     flex-direction: column;
     align-items: flex-start;
   }
+}
+/* 
+   ========================================
+   COMPREHENSIVE TRUE DARK MODE OVERRIDES
+   ========================================
+   Ensures complete dark theme with no white patches
+*/
+
+[data-theme='dark'] {
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] body {
+  background: var(--surface-1) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] #root {
+  background: var(--surface-1) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Main containers */
+[data-theme='dark'] .container,
+[data-theme='dark'] .page,
+[data-theme='dark'] .page-container,
+[data-theme='dark'] .dashboard,
+[data-theme='dark'] .main-content {
+  background: var(--surface-1) !important;
+  color: var(--text-primary) !important;
+}
+
+/* All headings */
+[data-theme='dark'] h1,
+[data-theme='dark'] h2,
+[data-theme='dark'] h3,
+[data-theme='dark'] h4,
+[data-theme='dark'] h5,
+[data-theme='dark'] h6 {
+  color: var(--text-primary) !important;
+}
+
+/* Paragraphs and text */
+[data-theme='dark'] p,
+[data-theme='dark'] span,
+[data-theme='dark'] label,
+[data-theme='dark'] .text {
+  color: var(--text-primary);
+}
+
+/* Links */
+[data-theme='dark'] a {
+  color: var(--primary);
+}
+
+/* Navbar specific */
+[data-theme='dark'] .navbar {
+  background: var(--surface-2) !important;
+  border-bottom: 1px solid var(--border);
+}
+
+[data-theme='dark'] .navbar-brand,
+[data-theme='dark'] .nav-link {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .nav-link:hover {
+  color: var(--primary) !important;
+}
+
+/* Tables */
+[data-theme='dark'] table {
+  background: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] th,
+[data-theme='dark'] td {
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] thead {
+  background: var(--surface-3) !important;
+}
+
+/* Forms and inputs */
+[data-theme='dark'] input,
+[data-theme='dark'] textarea,
+[data-theme='dark'] select {
+  background: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme='dark'] input::placeholder,
+[data-theme='dark'] textarea::placeholder {
+  color: var(--text-secondary) !important;
+}
+
+/* Modals */
+[data-theme='dark'] .modal,
+[data-theme='dark'] .modal-content {
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Dropdowns */
+[data-theme='dark'] .dropdown,
+[data-theme='dark'] .dropdown-menu {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+}
+
+/* Charts */
+[data-theme='dark'] .chart-container,
+[data-theme='dark'] canvas {
+  background: transparent !important;
+}
+
+/* Sidebar */
+[data-theme='dark'] .sidebar {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+}
+
+/* Footer */
+[data-theme='dark'] .footer {
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Stat cards */
+[data-theme='dark'] .stat-card,
+[data-theme='dark'] .info-card,
+[data-theme='dark'] .data-card {
+  background: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Force override any inline styles */
+[data-theme='dark'] *[style*="background: white"],
+[data-theme='dark'] *[style*="background-color: white"],
+[data-theme='dark'] *[style*="background: #fff"],
+[data-theme='dark'] *[style*="background-color: #fff"] {
+  background: var(--card-bg) !important;
+}
+
+[data-theme='dark'] *[style*="color: black"],
+[data-theme='dark'] *[style*="color: #000"] {
+  color: var(--text-primary) !important;
+}
+
+/* Dashboard specific */
+[data-theme='dark'] .dashboard-container {
+  background: var(--surface-1) !important;
+}
+
+[data-theme='dark'] .dashboard-card {
+  background: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Chama details page */
+[data-theme='dark'] .chama-details {
+  background: var(--surface-1) !important;
+}
+
+[data-theme='dark'] .chama-info {
+  background: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Login/Register pages */
+[data-theme='dark'] .auth-container,
+[data-theme='dark'] .login-container,
+[data-theme='dark'] .register-container {
+  background: var(--surface-1) !important;
+}
+
+[data-theme='dark'] .auth-card,
+[data-theme='dark'] .login-card,
+[data-theme='dark'] .register-card {
+  background: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Buttons - ensure text is visible */
+[data-theme='dark'] .btn-outline {
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme='dark'] .btn-outline:hover {
+  background: var(--surface-3) !important;
 }

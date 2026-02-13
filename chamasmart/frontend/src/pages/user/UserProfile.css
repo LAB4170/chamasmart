@@ -10,7 +10,7 @@
 }
 
 .profile-card {
-    background: white;
+    background: var(--card-bg);
     padding: 2rem;
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow);
