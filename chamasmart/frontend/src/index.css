@@ -4525,3 +4525,412 @@ button:focus,
 [data-theme='dark'] .btn-outline:hover {
   background: var(--surface-3) !important;
 }
+
+/* ============================================================
+   TRUE DARK MODE FIX - Targeting hardcoded white gradients
+   ============================================================ */
+
+/* Card: Override hardcoded white gradient at line 2700 */
+[data-theme='dark'] .card {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme='dark'] .card:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Stat-card: Override hardcoded white gradient at line 2150 */
+[data-theme='dark'] .stat-card {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Stat-card text */
+[data-theme='dark'] .stat-card h3 {
+  color: var(--primary) !important;
+}
+
+[data-theme='dark'] .stat-card p {
+  color: var(--text-secondary) !important;
+}
+
+/* Tabs: Override hardcoded white gradient at line 2261 */
+[data-theme='dark'] .tabs-modern {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme='dark'] .tabs-modern::before {
+  background: linear-gradient(45deg,
+    rgba(59, 130, 246, 0.1),
+    rgba(16, 185, 129, 0.1)) !important;
+}
+
+/* Tab buttons: Override hardcoded gray color at line 2294 */
+[data-theme='dark'] .tab-modern {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme='dark'] .tab-modern:hover {
+  color: var(--text-primary) !important;
+  background: var(--surface-3) !important;
+}
+
+[data-theme='dark'] .tab-modern.active {
+  color: white !important;
+}
+
+/* Info items: Override hardcoded white gradient at line 2601 */
+[data-theme='dark'] .info-item {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Info label: Override hardcoded #6b7280 at line 2678 */
+[data-theme='dark'] .info-label {
+  color: var(--text-secondary) !important;
+}
+
+/* Info value: Override hardcoded #1f2937 at line 2689 */
+[data-theme='dark'] .info-value {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .info-item:hover .info-value {
+  color: #34d399 !important;
+}
+
+/* Navbar: Override hardcoded rgba(255,255,255,0.95) at line 1388 */
+[data-theme='dark'] .navbar {
+  background: rgba(17, 24, 39, 0.95) !important;
+  backdrop-filter: blur(10px);
+  border-bottom-color: var(--border) !important;
+}
+
+[data-theme='dark'] .navbar:hover {
+  background: rgba(17, 24, 39, 0.98) !important;
+}
+
+/* Nav links */
+[data-theme='dark'] .nav-link {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .nav-link:hover {
+  color: var(--primary) !important;
+}
+
+[data-theme='dark'] .navbar-brand {
+  color: var(--primary) !important;
+}
+
+/* User name in navbar */
+[data-theme='dark'] .user-name {
+  color: var(--text-primary) !important;
+}
+
+/* Chama card in dashboard */
+[data-theme='dark'] .chama-card {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .chama-card-header {
+  border-color: var(--border) !important;
+}
+
+[data-theme='dark'] .chama-card-header h3 {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .chama-card-body {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .chama-info {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .chama-card-footer {
+  border-color: var(--border) !important;
+}
+
+/* Auth page (Login/Register) */
+[data-theme='dark'] .auth-page {
+  background: var(--surface-1) !important;
+}
+
+[data-theme='dark'] .auth-card {
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme='dark'] .auth-card h1 {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .form-label {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .form-input {
+  background: var(--surface-3) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme='dark'] .form-input::placeholder {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme='dark'] .auth-divider span {
+  color: var(--text-secondary) !important;
+  background: var(--surface-2) !important;
+}
+
+[data-theme='dark'] .auth-divider::before,
+[data-theme='dark'] .auth-divider::after {
+  background: var(--border) !important;
+}
+
+/* Password toggle */
+[data-theme='dark'] .password-toggle {
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Chama Details Root */
+[data-theme='dark'] .chama-details-root {
+  background: var(--surface-1) !important;
+}
+
+/* Chama header */
+[data-theme='dark'] .chama-header {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+}
+
+/* Role badge member */
+[data-theme='dark'] .role-member {
+  background: var(--surface-3) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Explanation items (How ROSCA Works) */
+[data-theme='dark'] .explanation-item {
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .explanation-item h5 {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .explanation-item p {
+  color: var(--text-secondary) !important;
+}
+
+/* Virtual table */
+[data-theme='dark'] .v-table {
+  background: var(--surface-2) !important;
+}
+
+[data-theme='dark'] .v-thead {
+  background: var(--surface-3) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .v-th {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .v-tr {
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .v-td {
+  color: var(--text-primary) !important;
+}
+
+/* Text helpers */
+[data-theme='dark'] .text-muted {
+  color: var(--text-secondary) !important;
+}
+
+/* Card header text */
+[data-theme='dark'] .card-header h2,
+[data-theme='dark'] .card-header h3 {
+  color: var(--text-primary) !important;
+}
+
+/* Chama card override for dashboard grid items */
+[data-theme='dark'] .chamas-grid .chama-card {
+  background: var(--surface-2) !important;
+}
+
+/* Tab content area */
+[data-theme='dark'] .tab-content {
+  background: transparent !important;
+}
+
+/* Equity cards (ASCA) */
+[data-theme='dark'] .equity-card {
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .equity-label {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme='dark'] .equity-value {
+  color: var(--text-primary) !important;
+}
+
+/* Cycle info */
+[data-theme='dark'] .cycle-stat {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .stat-label {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme='dark'] .stat-value {
+  color: var(--text-primary) !important;
+}
+
+/* ROSCA explanation */
+[data-theme='dark'] .rosca-explanation {
+  background: transparent !important;
+}
+
+/* Progress bar */
+[data-theme='dark'] .progress-bar {
+  background: var(--surface-3) !important;
+}
+
+/* Recipient card */
+[data-theme='dark'] .recipient-card {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+}
+
+/* Landing page */
+[data-theme='dark'] .hero-section {
+  background: var(--surface-1) !important;
+}
+
+[data-theme='dark'] .features-section {
+  background: var(--surface-1) !important;
+}
+
+[data-theme='dark'] .feature-card {
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .feature-card h3 {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .feature-card p {
+  color: var(--text-secondary) !important;
+}
+
+/* Recharts override - chart text */
+[data-theme='dark'] .recharts-text,
+[data-theme='dark'] .recharts-cartesian-axis-tick-value {
+  fill: var(--text-secondary) !important;
+}
+
+[data-theme='dark'] .recharts-legend-item-text {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .recharts-cartesian-grid line {
+  stroke: var(--border) !important;
+}
+
+[data-theme='dark'] .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Loading skeleton */
+[data-theme='dark'] .skeleton {
+  background: var(--surface-3) !important;
+}
+
+/* Browse / Join chama pages */
+[data-theme='dark'] .browse-container,
+[data-theme='dark'] .join-container {
+  background: var(--surface-1) !important;
+}
+
+/* Any remaining white backgrounds - nuclear option */
+[data-theme='dark'] div[class]:not([class*='btn']):not([class*='badge']):not([class*='progress-fill']) {
+  border-color: var(--border);
+}
+
+/* Fix chama-card-header text: var(--white) becomes dark in dark mode */
+[data-theme='dark'] .chama-card-header {
+  color: #ffffff !important;
+}
+
+[data-theme='dark'] .chama-card-header h3 {
+  color: #ffffff !important;
+}
+
+/* Fix chama-card-body text in dark mode */
+[data-theme='dark'] .chama-card-body .info-label {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme='dark'] .chama-card-body .info-value {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .chama-card-footer {
+  background: transparent !important;
+  border-top: 1px solid var(--border) !important;
+}
+
+/* Fix dashboard-header text */
+[data-theme='dark'] .dashboard-header h1 {
+  color: var(--text-primary) !important;
+}
+
+/* Google login button text */
+[data-theme='dark'] .google-login {
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+/* Landing page hero */
+[data-theme='dark'] .hero {
+  background: var(--surface-1) !important;
+}
+
+[data-theme='dark'] .hero h1,
+[data-theme='dark'] .hero h2 {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] .hero p {
+  color: var(--text-secondary) !important;
+}
+
+/* Fix any remaining chama-type-badge on the header */
+[data-theme='dark'] .chama-type-badge {
+  color: #ffffff !important;
+}
