@@ -61,13 +61,27 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
-        // Only handle 401 Unauthorized errors (not 404, etc.)
+        // Only handle 401 Unauthorized errors
         if (error.response?.status === 401) {
+            console.error(`[Axios] 401 Unauthorized at ${error.config.url}`);
+
+            // Check if this is a "soft" 401 that shouldn't trigger full logout
+            // e.g. checking for invite codes shouldn't kill the session if it fails
+            const softFailUrls = ["/invites", "/notifications"];
+            const isSoftFail = softFailUrls.some(url => error.config.url.includes(url));
+
+            if (isSoftFail) {
+                console.warn("[Axios] Suppressing logout for soft 401 failure");
+                return Promise.reject(error);
+            }
+
             // Only clear and redirect if we're not already on the login/register page
             if (
                 window.location.pathname !== "/login" &&
                 window.location.pathname !== "/register"
             ) {
+                // Optional: Show a toast or alert before logging out?
+                // For now, we stick to the existing behavior but with the soft-fail guard
                 localStorage.removeItem("token");
                 localStorage.removeItem("user");
                 window.location.replace("/login");

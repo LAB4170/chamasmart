@@ -84,10 +84,12 @@ const updateChamaSchema = Joi.object({
 
 // Contribution Schemas
 const contributionSchema = Joi.object({
-  memberId: Joi.number().integer().required(),
+  userId: Joi.number().integer().required(),
   amount: Joi.number().positive().required(),
-  type: Joi.string().valid('contribution', 'penalty', 'bonus').required(),
-  description: Joi.string().max(200).optional(),
+  paymentMethod: Joi.string().valid('CASH', 'MPESA', 'BANK_TRANSFER', 'CHEQUE').optional(),
+  receiptNumber: Joi.string().max(100).optional().allow(''),
+  notes: Joi.string().max(500).optional().allow(''),
+  contributionDate: Joi.date().iso().optional()
 });
 
 // Meeting Schemas
@@ -113,7 +115,7 @@ const applyLoanSchema = Joi.object({
 const generateInviteSchema = Joi.object({
   maxUses: Joi.number().integer().min(1).max(100)
     .default(1),
-  expiresAt: Joi.date().iso().greater('now').required(),
+  expiresAt: Joi.date().iso().required(),
   role: Joi.string()
     .valid('member', 'treasurer', 'chairperson')
     .default('member'),

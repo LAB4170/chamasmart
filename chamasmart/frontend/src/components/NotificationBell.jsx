@@ -36,7 +36,7 @@ const NotificationBell = () => {
             const response = await notificationAPI.getUnreadCount();
             setUnreadCount(response.data.count);
         } catch (err) {
-            console.error("Failed to fetch unread count:", err);
+            // Silently fail - notifications are optional, axios interceptor handles 401s
         }
     };
 
@@ -46,7 +46,7 @@ const NotificationBell = () => {
             const response = await notificationAPI.getAll(10);
             setNotifications(response.data.data);
         } catch (err) {
-            console.error("Failed to fetch notifications:", err);
+            // Silently fail - notifications are optional
         } finally {
             setLoading(false);
         }

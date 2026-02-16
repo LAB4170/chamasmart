@@ -1,9 +1,14 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { welfareAPI, chamaAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import { toast } from "react-toastify";
-import "./WelfareDashboard.css"; // We'll create this CSS file next
+import {
+    HeartHandshake, Wallet, AlertTriangle, ShieldCheck,
+    FileText, ArrowLeft, ArrowRight, CheckCircle2,
+    Clock, XCircle, Settings, Plus
+} from "lucide-react";
+import "./WelfareDashboard.css";
 
 const WelfareDashboard = () => {
     const { id } = useParams();
@@ -21,10 +26,7 @@ const WelfareDashboard = () => {
 
         const fetchWelfareData = async () => {
             try {
-                if (isMounted) {
-                    setLoading(true);
-                    setError(null);
-                }
+                if (isMounted) { setLoading(true); setError(null); }
 
                 const [fundRes, claimsRes, configRes, membersRes] = await Promise.all([
                     welfareAPI.getFund(id),
@@ -37,8 +39,6 @@ const WelfareDashboard = () => {
                     setFundValues(fundRes.data);
                     setMyClaims(claimsRes.data);
                     setConfig(configRes.data);
-
-                    // Get user's role in this chama
                     const members = membersRes.data.data || membersRes.data;
                     const currentMember = members.find(m => m.user_id === user.user_id);
                     setUserRole(currentMember?.role || 'MEMBER');
@@ -46,117 +46,156 @@ const WelfareDashboard = () => {
             } catch (err) {
                 console.error("Error loading welfare data:", err);
                 const errorMsg = err.response?.data?.message || "Failed to load welfare information.";
-                if (isMounted) {
-                    setError(errorMsg);
-                    toast.error(errorMsg);
-                }
+                if (isMounted) { setError(errorMsg); toast.error(errorMsg); }
             } finally {
-                if (isMounted) {
-                    setLoading(false);
-                }
+                if (isMounted) { setLoading(false); }
             }
         };
 
         fetchWelfareData();
-
-        return () => {
-            isMounted = false;
-        };
+        return () => { isMounted = false; };
     }, [id, user.user_id]);
 
     if (loading) return <div className="loading-spinner">Loading Welfare Data...</div>;
 
-    const getStatusClass = (status) => {
+    const getStatusIcon = (status) => {
         switch (status) {
-            case 'APPROVED': return 'status-approved';
-            case 'PAID': return 'status-paid';
-            case 'REJECTED': return 'status-rejected';
-            default: return 'status-pending';
+            case 'APPROVED': return <CheckCircle2 size={14} />;
+            case 'PAID': return <ShieldCheck size={14} />;
+            case 'REJECTED': return <XCircle size={14} />;
+            default: return <Clock size={14} />;
         }
     };
 
+    const getStatusClass = (status) => {
+        switch (status) {
+            case 'APPROVED': return 'badge-success';
+            case 'PAID': return 'badge-info';
+            case 'REJECTED': return 'badge-danger';
+            default: return 'badge-warning';
+        }
+    };
+
+    const balance = Number(fundValues?.balance || 0);
+
     return (
-        <div className="welfare-dashboard-container">
-            <div className="welfare-header">
-                <div>
-                    <h2>Welfare & Benevolent Fund</h2>
-                    <p>Support for members during difficult times</p>
-                </div>
-                <button
-                    className="btn-report-incident"
-                    onClick={() => navigate(`/chamas/${id}/welfare/claim`)}
-                >
-                    🚨 Report Incident
-                </button>
-            </div>
-
-            {error && <div className="error-message">{error}</div>}
-
-            <div className="welfare-stats-grid">
-                <div className="stat-card fund-balance-card">
-                    <h3>Fund Balance</h3>
-                    <div className="balance-amount">KES {Number(fundValues?.balance || 0).toLocaleString()}</div>
-                    <p className="fund-status">
-                        Status: <span className="healthy">Healthy</span>
-                    </p>
-                </div>
-
-                <div className="stat-card coverage-card">
-                    <h3>Your Coverage</h3>
-                    <ul>
-                        {config.map(item => (
-                            <li key={item.id}>
-                                <span>{item.event_type.replace(/_/g, ' ')}</span>
-                                <span className="amount">KES {Number(item.payout_amount).toLocaleString()}</span>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            </div>
-
-            <div className="claims-section">
-                <h3>Your Claim History</h3>
-                {myClaims.length === 0 ? (
-                    <div className="empty-state">
-                        <p>You haven't submitted any welfare claims.</p>
+        <div className="page">
+            <div className="container">
+                {/* Page Header */}
+                <div className="page-header-modern">
+                    <Link to={`/chamas/${id}`} className="back-link">
+                        <ArrowLeft size={18} />
+                        <span>Back to Chama</span>
+                    </Link>
+                    <div className="page-header-row">
+                        <div className="page-header-info">
+                            <div className="page-header-icon purple">
+                                <HeartHandshake size={24} />
+                            </div>
+                            <div>
+                                <h1>Welfare & Benevolent Fund</h1>
+                                <p className="page-subtitle">Support for members during difficult times</p>
+                            </div>
+                        </div>
+                        <div className="page-header-actions">
+                            <button
+                                className="btn-action-primary"
+                                onClick={() => navigate(`/chamas/${id}/welfare/claim`)}
+                            >
+                                <AlertTriangle size={18} />
+                                <span>Report Incident</span>
+                            </button>
+                            {userRole === 'CHAIRPERSON' && (
+                                <button
+                                    className="btn-action-secondary"
+                                    onClick={() => navigate(`/chamas/${id}/welfare/admin`)}
+                                >
+                                    <Settings size={18} />
+                                    <span>Admin</span>
+                                </button>
+                            )}
+                        </div>
                     </div>
-                ) : (
-                    <div className="claims-table-container">
-                        <table className="claims-table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Event</th>
-                                    <th>Amount</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {myClaims.map(claim => (
-                                    <tr key={claim.id}>
-                                        <td>{new Date(claim.created_at).toLocaleDateString()}</td>
-                                        <td>{claim.event_type}</td>
-                                        <td>KES {Number(claim.claim_amount).toLocaleString()}</td>
-                                        <td>
-                                            <span className={`status-badge ${getStatusClass(claim.status)}`}>
-                                                {claim.status}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                </div>
+
+                {error && <div className="error-banner"><AlertTriangle size={16} /> {error}</div>}
+
+                {/* Stats */}
+                <div className="stats-row">
+                    <div className="mini-stat-card">
+                        <div className="mini-stat-icon green">
+                            <Wallet size={20} />
+                        </div>
+                        <div>
+                            <div className="mini-stat-value">KES {balance.toLocaleString()}</div>
+                            <div className="mini-stat-label">Fund Balance</div>
+                        </div>
+                    </div>
+                    <div className="mini-stat-card">
+                        <div className="mini-stat-icon blue">
+                            <FileText size={20} />
+                        </div>
+                        <div>
+                            <div className="mini-stat-value">{myClaims.length}</div>
+                            <div className="mini-stat-label">Your Claims</div>
+                        </div>
+                    </div>
+                    <div className="mini-stat-card">
+                        <div className="mini-stat-icon amber">
+                            <ShieldCheck size={20} />
+                        </div>
+                        <div>
+                            <div className="mini-stat-value">{config.length}</div>
+                            <div className="mini-stat-label">Coverage Types</div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Coverage Config */}
+                {config.length > 0 && (
+                    <div className="card-modern">
+                        <h3 className="card-modern-title">Your Coverage</h3>
+                        <div className="coverage-grid">
+                            {config.map(item => (
+                                <div key={item.id} className="coverage-item">
+                                    <div className="coverage-name">{item.event_type.replace(/_/g, ' ')}</div>
+                                    <div className="coverage-amount">KES {Number(item.payout_amount).toLocaleString()}</div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
-            </div>
 
-            {userRole === 'CHAIRPERSON' && (
-                <div className="admin-actions-link">
-                    <button onClick={() => navigate(`/chamas/${id}/welfare/admin`)}>
-                        Admin View
-                    </button>
+                {/* Claims History */}
+                <div className="card-modern">
+                    <h3 className="card-modern-title">Your Claim History</h3>
+                    {myClaims.length === 0 ? (
+                        <div className="empty-state-modern compact">
+                            <div className="empty-state-icon">
+                                <FileText size={36} strokeWidth={1.5} />
+                            </div>
+                            <h3>No Claims Submitted</h3>
+                            <p>You haven't submitted any welfare claims yet.</p>
+                        </div>
+                    ) : (
+                        <div className="claims-list">
+                            {myClaims.map(claim => (
+                                <div key={claim.id} className="claim-row">
+                                    <div className="claim-info">
+                                        <div className="claim-event">{claim.event_type.replace(/_/g, ' ')}</div>
+                                        <div className="claim-date">{new Date(claim.created_at).toLocaleDateString()}</div>
+                                    </div>
+                                    <div className="claim-amount">KES {Number(claim.claim_amount).toLocaleString()}</div>
+                                    <span className={`status-pill ${getStatusClass(claim.status)}`}>
+                                        {getStatusIcon(claim.status)}
+                                        {claim.status}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
-            )}
+            </div>
         </div>
     );
 };

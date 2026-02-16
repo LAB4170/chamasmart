@@ -24,8 +24,8 @@ export const ascaAPI = {
     getProposals: (chamaId) => api.get(`/asca/${chamaId}/proposals`),
     createProposal: (chamaId, payload) =>
         api.post(`/asca/${chamaId}/proposals`, payload),
-    voteOnProposal: (proposalId, choice) =>
-        api.post(`/asca/proposals/${proposalId}/vote`, { choice }),
+    voteOnProposal: (chamaId, proposalId, choice) =>
+        api.post(`/asca/${chamaId}/proposals/${proposalId}/vote`, { choice }),
     getAssets: (chamaId) => api.get(`/asca/${chamaId}/assets`),
     createAsset: (chamaId, payload) =>
         api.post(`/asca/${chamaId}/assets`, payload),

@@ -37,7 +37,7 @@ const InvestmentProposals = () => {
 
     const handleVote = async (proposalId, choice) => {
         try {
-            await ascaAPI.voteOnProposal(proposalId, choice);
+            await ascaAPI.voteOnProposal(id, proposalId, choice);
             toast.success("Vote recorded successfully");
             fetchProposals(); // Refresh to show new vote counts
         } catch (err) {
