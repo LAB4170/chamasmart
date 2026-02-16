@@ -38,7 +38,9 @@ const protect = async (req, res, next) => {
     }
 
     // Attach user to request object
-    req.user = result.rows[0];
+    // Attach user to request object
+    const user = result.rows[0];
+    req.user = { ...user, id: user.user_id };
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);

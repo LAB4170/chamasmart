@@ -1,5 +1,6 @@
 import { useState, useEffect, memo, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import { chamaAPI, contributionAPI, ascaAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import { useSocket } from "../../../context/SocketContext";
@@ -383,10 +384,16 @@ const ChamaDetails = () => {
 
   const fetchContributions = async (f = filters) => {
     try {
-      const response = await contributionAPI.getAll(id, f);
+      // Filter out empty values to prevent 500 errors
+      const cleanFilters = Object.fromEntries(
+        Object.entries(f).filter(([_, v]) => v != null && v !== "")
+      );
+
+      const response = await contributionAPI.getAll(id, cleanFilters);
       setContributions(response.data.data);
     } catch (err) {
       console.error("Failed to fetch contributions:", err);
+      toast.error("Failed to load contribution history");
     }
   };
 
@@ -821,10 +828,10 @@ const ChamaDetails = () => {
                                       position: roster.find(r => r.user_id === getCurrentRecipient().user_id).position,
                                       payment_proof: "MANUAL_DISBURSEMENT"
                                     }).then(() => {
-                                      alert("Payout processed successfully!");
+                                      toast.success("Payout processed successfully!");
                                       fetchChamaData();
                                     }).catch(err => {
-                                      alert(err.response?.data?.message || "Payout failed");
+                                      toast.error(err.response?.data?.message || "Payout failed");
                                     });
                                   }
                                 }}
@@ -837,12 +844,12 @@ const ChamaDetails = () => {
                                   if (window.confirm("Are you sure you want to delete this cycle? This action cannot be undone and will remove all roster and payment history for this cycle.")) {
                                     roscaAPI.deleteCycle(activeCycle.cycle_id)
                                       .then(() => {
-                                        alert("Cycle deleted successfully.");
+                                        toast.success("Cycle deleted successfully.");
                                         fetchChamaData();
                                       })
                                       .catch(err => {
                                         console.error(err);
-                                        alert(err.response?.data?.message || "Failed to delete cycle");
+                                        toast.error(err.response?.data?.message || "Failed to delete cycle");
                                       });
                                   }
                                 }}

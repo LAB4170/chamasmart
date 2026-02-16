@@ -3,7 +3,7 @@ import api from "./axios";
 // Contribution API calls
 export const contributionAPI = {
     record: (chamaId, contributionData) =>
-        api.post(`/contributions/${chamaId}`, contributionData),
+        api.post(`/contributions/${chamaId}/record`, contributionData),
     delete: (chamaId, id) => api.delete(`/contributions/${chamaId}/${id}`),
     getAll: (chamaId, params) => api.get(`/contributions/${chamaId}`, { params }),
 };

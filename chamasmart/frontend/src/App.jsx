@@ -12,6 +12,10 @@ import { SocketProvider } from "./context/SocketContext";
 import Navbar from "./components/layout/Navbar";
 import ErrorBoundary from "./components/ErrorBoundary";
 import RoleRoute from "./components/auth/RoleRoute";
+import {
+    ArrowRight, TrendingUp, Users, BarChart3, Shield, Wallet, RefreshCw,
+    PiggyBank, HeartHandshake, Landmark, CheckCircle, Zap, Clock, Globe
+} from "lucide-react";
 
 // Lazy load all pages for better performance
 const Login = lazy(() => import("./pages/auth/Login"));
@@ -96,179 +100,203 @@ const Home = () => {
         return <Navigate to="/dashboard" />;
     }
 
+
+
+    const chamaTypes = [
+        {
+            id: "rosca",
+            name: "ROSCA",
+            subtitle: "Merry-Go-Round",
+            description: "Members contribute equally and take turns receiving the full pot. Perfect for rotating savings circles where each member gets a lump sum.",
+            icon: <RefreshCw size={28} />,
+            color: "#3b82f6",
+            gradient: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
+            features: ["Automated rotation scheduling", "Contribution tracking per round", "Fair turn allocation"]
+        },
+        {
+            id: "asca",
+            name: "ASCA",
+            subtitle: "Investment & Lending",
+            description: "Accumulating Savings & Credit Association. Pool savings, invest collectively, and lend to members with interest that grows the pool.",
+            icon: <TrendingUp size={28} />,
+            color: "#22c55e",
+            gradient: "linear-gradient(135deg, #22c55e, #16a34a)",
+            features: ["Share-based equity tracking", "Investment proposals & voting", "Internal lending with interest"]
+        },
+        {
+            id: "table_banking",
+            name: "Table Banking",
+            subtitle: "Instant Group Banking",
+            description: "Bring money to the table, lend it out during meetings, and earn interest. Transparent, immediate, and managed collectively.",
+            icon: <Landmark size={28} />,
+            color: "#f59e0b",
+            gradient: "linear-gradient(135deg, #f59e0b, #d97706)",
+            features: ["Real-time loan disbursement", "Meeting-based transactions", "Interest income distribution"]
+        },
+        {
+            id: "welfare",
+            name: "Welfare",
+            subtitle: "Emergency & Support",
+            description: "Benevolent fund for emergencies — bereavements, medical bills, accidents. Members contribute regularly to support each other when it matters most.",
+            icon: <HeartHandshake size={28} />,
+            color: "#8b5cf6",
+            gradient: "linear-gradient(135deg, #8b5cf6, #7c3aed)",
+            features: ["Configurable event categories", "Claims & verification workflow", "Fund health monitoring"]
+        },
+    ];
+
     return (
         <div className="home-page">
             {/* Hero Section */}
-            <section className="hero-section">
+            <section className="hero-section-redesign">
+                <div className="hero-bg-pattern" />
                 <div className="container">
-                    <div className="hero-content">
-                        <div className="hero-text">
-                            <h1 className="hero-title">
-                                Smart Chama Management
-                                <span className="hero-accent">Made Simple</span>
-                            </h1>
-                            <p className="hero-subtitle">
-                                Transform your savings group with powerful tools for tracking
-                                contributions, managing members, and organizing meetings. Join
-                                thousands of successful chamas already using ChamaSmart.
-                            </p>
-                            <div className="hero-actions">
-                                <a href="/register" className="btn btn-primary btn-lg">
-                                    Start Your Chama
-                                    <span className="btn-icon">→</span>
-                                </a>
-                                <a href="/login" className="btn btn-outline btn-lg">
-                                    Sign In
-                                </a>
-                            </div>
-                            <div className="hero-stats">
-                                <div className="stat-item">
-                                    <div className="stat-number">10K+</div>
-                                    <div className="stat-label">Active Chamas</div>
-                                </div>
-                                <div className="stat-item">
-                                    <div className="stat-number">$2M+</div>
-                                    <div className="stat-label">Contributions Tracked</div>
-                                </div>
-                                <div className="stat-item">
-                                    <div className="stat-number">50K+</div>
-                                    <div className="stat-label">Happy Members</div>
-                                </div>
-                            </div>
+                    <div className="hero-content-redesign">
+                        <div className="hero-badge">
+                            <Zap size={14} />
+                            <span>Built for Kenyan Savings Groups</span>
                         </div>
-                        <div className="hero-visual">
-                            <div className="hero-card">
-                                <div className="card-icon">📊</div>
-                                <h3>Real-time Analytics</h3>
-                                <p>Monitor your chama's performance with detailed insights</p>
+                        <h1 className="hero-title-redesign">
+                            Manage Your Chama
+                            <span className="hero-gradient-text"> With Confidence</span>
+                        </h1>
+                        <p className="hero-subtitle-redesign">
+                            The all-in-one platform for ROSCA, ASCA, Table Banking, and Welfare
+                            chamas. Track contributions, manage loans, automate rotations, and
+                            keep every shilling accounted for.
+                        </p>
+                        <div className="hero-actions-redesign">
+                            <a href="/register" className="btn-hero-primary">
+                                <span>Start Your Chama</span>
+                                <ArrowRight size={18} />
+                            </a>
+                            <a href="/login" className="btn-hero-secondary">
+                                Sign In
+                            </a>
+                        </div>
+                        <div className="hero-trust-row">
+                            <div className="trust-item">
+                                <CheckCircle size={16} className="trust-icon" />
+                                <span>Free to use</span>
                             </div>
-                            <div className="hero-card">
-                                <div className="card-icon">💳</div>
-                                <h3>Easy Contributions</h3>
-                                <p>
-                                    Record payments and track member participation effortlessly
-                                </p>
+                            <div className="trust-item">
+                                <Shield size={16} className="trust-icon" />
+                                <span>Bank-grade security</span>
                             </div>
-                            <div className="hero-card">
-                                <div className="card-icon">📅</div>
-                                <h3>Meeting Management</h3>
-                                <p>Schedule meetings and track attendance automatically</p>
+                            <div className="trust-item">
+                                <Clock size={16} className="trust-icon" />
+                                <span>Set up in 2 minutes</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            {/* Features Section */}
-            <section className="features-section">
+            {/* 4 Chama Types Section */}
+            <section className="chama-types-section">
                 <div className="container">
-                    <div className="section-header">
-                        <h2>Everything You Need for Chama Success</h2>
-                        <p>Powerful features designed specifically for savings groups</p>
+                    <div className="section-header-redesign">
+                        <span className="section-label">Chama Models</span>
+                        <h2>One Platform, Four Chama Types</h2>
+                        <p>Whether you run a merry-go-round or a welfare fund, ChamaSmart handles the complexity so you can focus on growing together.</p>
                     </div>
 
-                    <div className="features-grid">
-                        <div className="feature-card">
-                            <div className="feature-icon">💰</div>
+                    <div className="chama-types-grid">
+                        {chamaTypes.map((type) => (
+                            <div key={type.id} className="chama-type-card">
+                                <div className="chama-type-icon" style={{ background: type.gradient }}>
+                                    {type.icon}
+                                </div>
+                                <div className="chama-type-header">
+                                    <h3>{type.name}</h3>
+                                    <span className="chama-type-subtitle">{type.subtitle}</span>
+                                </div>
+                                <p className="chama-type-description">{type.description}</p>
+                                <ul className="chama-type-features">
+                                    {type.features.map((feat, i) => (
+                                        <li key={i}>
+                                            <CheckCircle size={14} style={{ color: type.color }} />
+                                            <span>{feat}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* Features Section */}
+            <section className="features-section-redesign">
+                <div className="container">
+                    <div className="section-header-redesign">
+                        <span className="section-label">Features</span>
+                        <h2>Everything You Need to Run a Successful Chama</h2>
+                        <p>Powerful tools designed specifically for Kenyan savings groups</p>
+                    </div>
+
+                    <div className="features-grid-redesign">
+                        <div className="feature-card-redesign">
+                            <div className="feature-icon-redesign green">
+                                <Wallet size={24} />
+                            </div>
                             <h3>Contribution Tracking</h3>
-                            <p>
-                                Easily record and monitor member contributions in real-time. Set
-                                contribution amounts, track payment history, and generate
-                                detailed financial reports.
-                            </p>
-                            <ul className="feature-list">
-                                <li>Automated contribution reminders</li>
-                                <li>Payment history tracking</li>
-                                <li>Financial reporting</li>
-                            </ul>
+                            <p>Record and monitor member contributions in real-time. Track payment history and generate detailed financial reports.</p>
                         </div>
 
-                        <div className="feature-card">
-                            <div className="feature-icon">👥</div>
+                        <div className="feature-card-redesign">
+                            <div className="feature-icon-redesign blue">
+                                <Users size={24} />
+                            </div>
                             <h3>Member Management</h3>
-                            <p>
-                                Add members, assign roles, and track participation. Manage
-                                permissions and keep everyone informed about chama activities.
-                            </p>
-                            <ul className="feature-list">
-                                <li>Role-based access control</li>
-                                <li>Member communication tools</li>
-                                <li>Participation analytics</li>
-                            </ul>
+                            <p>Add members, assign roles (Chairperson, Treasurer, Secretary), and manage invites with role-based access control.</p>
                         </div>
 
-                        <div className="feature-card">
-                            <div className="feature-icon">📈</div>
-                            <h3>Advanced Analytics</h3>
-                            <p>
-                                Get insights with detailed financial reports and analytics. Make
-                                data-driven decisions to grow your chama successfully.
-                            </p>
-                            <ul className="feature-list">
-                                <li>Performance dashboards</li>
-                                <li>Growth tracking</li>
-                                <li>Custom reports</li>
-                            </ul>
+                        <div className="feature-card-redesign">
+                            <div className="feature-icon-redesign purple">
+                                <BarChart3 size={24} />
+                            </div>
+                            <h3>Financial Reports</h3>
+                            <p>Visual dashboards with contribution trends, loan statuses, and fund balances. Export reports as PDF or Excel.</p>
                         </div>
 
-                        <div className="feature-card">
-                            <div className="feature-icon">📱</div>
-                            <h3>Mobile Optimized</h3>
-                            <p>
-                                Access your chama data anywhere, anytime. Our responsive design
-                                works perfectly on all devices.
-                            </p>
-                            <ul className="feature-list">
-                                <li>Responsive design</li>
-                                <li>Offline capabilities</li>
-                                <li>Push notifications</li>
-                            </ul>
+                        <div className="feature-card-redesign">
+                            <div className="feature-icon-redesign amber">
+                                <PiggyBank size={24} />
+                            </div>
+                            <h3>Loan Management</h3>
+                            <p>Apply for loans, track repayments, manage guarantors, and automate interest calculations with amortization schedules.</p>
                         </div>
 
-                        <div className="feature-card">
-                            <div className="feature-icon">🔒</div>
-                            <h3>Strong Security Practices</h3>
-                            <p>
-                                Your financial data is protected with secure authentication,
-                                role-based access control, and detailed logging and monitoring.
-                            </p>
-                            <ul className="feature-list">
-                                <li>JWT-based authentication</li>
-                                <li>Role-based access control</li>
-                                <li>Sanitized logging and metrics</li>
-                            </ul>
+                        <div className="feature-card-redesign">
+                            <div className="feature-icon-redesign red">
+                                <Shield size={24} />
+                            </div>
+                            <h3>Security & Audit</h3>
+                            <p>JWT authentication, role-based permissions, comprehensive audit logs, and API security monitoring.</p>
                         </div>
 
-                        <div className="feature-card">
-                            <div className="feature-icon">🤝</div>
-                            <h3>Community Support</h3>
-                            <p>
-                                Join a thriving community of chama leaders. Get support, share
-                                experiences, and learn from successful chamas.
-                            </p>
-                            <ul className="feature-list">
-                                <li>Community forums</li>
-                                <li>Expert guidance</li>
-                                <li>Success stories</li>
-                            </ul>
+                        <div className="feature-card-redesign">
+                            <div className="feature-icon-redesign teal">
+                                <Globe size={24} />
+                            </div>
+                            <h3>Browse & Join</h3>
+                            <p>Discover public chamas, send join requests, and get matched with groups that align with your savings goals.</p>
                         </div>
                     </div>
                 </div>
             </section>
 
             {/* CTA Section */}
-            <section className="cta-section">
-                <div className="container text-center">
-                    <h2>Ready to Transform Your Chama?</h2>
-                    <p>Join thousands of successful chamas already using ChamaSmart</p>
-                    <div className="cta-actions">
-                        <a href="/register" className="btn btn-primary btn-xl">
-                            Get Started Free
-                            <span className="btn-icon">🚀</span>
+            <section className="cta-section-redesign">
+                <div className="container">
+                    <div className="cta-content-redesign">
+                        <h2>Ready to Transform Your Chama?</h2>
+                        <p>Join ChamaSmart and bring transparency, accountability, and growth to your savings group.</p>
+                        <a href="/register" className="btn-hero-primary cta-btn">
+                            <span>Create Your Chama Now</span>
+                            <ArrowRight size={18} />
                         </a>
-                        <p className="cta-note">
-                            No credit card required • 14-day free trial
-                        </p>
                     </div>
                 </div>
             </section>

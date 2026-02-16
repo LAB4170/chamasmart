@@ -2,6 +2,10 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ascaAPI } from "../../../services/api";
 import { toast } from "react-toastify";
+import {
+    TrendingUp, Coins, PieChart as PieChartIcon, Percent,
+    ShoppingCart, Vote, ArrowLeft, ArrowRight, Wallet
+} from "lucide-react";
 import "./Asca.css";
 
 const AscaDashboard = () => {
@@ -29,50 +33,105 @@ const AscaDashboard = () => {
         };
 
         fetchEquity();
-
-        return () => {
-            isMounted = false;
-        };
+        return () => { isMounted = false; };
     }, [id]);
 
     if (loading) return <div className="loading-spinner">Loading equity...</div>;
 
+    const ownershipNum = equity?.percentage || 0;
+
     return (
         <div className="page asca-dashboard">
             <div className="container">
-                <div className="page-header">
-                    <div>
-                        <h1>Table Banking (ASCA)</h1>
-                        <p className="subtitle">Accumulating Savings & Credit Association</p>
+                {/* Page Header */}
+                <div className="page-header-modern">
+                    <Link to={`/chamas/${id}`} className="back-link">
+                        <ArrowLeft size={18} />
+                        <span>Back to Chama</span>
+                    </Link>
+                    <div className="page-header-row">
+                        <div className="page-header-info">
+                            <div className="page-header-icon green">
+                                <TrendingUp size={24} />
+                            </div>
+                            <div>
+                                <h1>Investment & Lending</h1>
+                                <p className="page-subtitle">Accumulating Savings & Credit (ASCA)</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* Equity Summary Card */}
-                <div className="equity-card">
-                    <h2>My Equity</h2>
-                    <div className="equity-stats">
-                        <div className="stat-block">
-                            <h3>{equity?.shares || 0}</h3>
-                            <p>Shares Owned</p>
+                {/* Equity Stats */}
+                <div className="stats-row">
+                    <div className="mini-stat-card">
+                        <div className="mini-stat-icon blue">
+                            <Coins size={20} />
                         </div>
-                        <div className="stat-block">
-                            <h3>KES {equity?.value?.toLocaleString() || 0}</h3>
-                            <p>Total Value</p>
+                        <div>
+                            <div className="mini-stat-value">{equity?.shares || 0}</div>
+                            <div className="mini-stat-label">Shares Owned</div>
                         </div>
-                        <div className="stat-block">
-                            <h3>{equity?.percentage || 0}%</h3>
-                            <p>Ownership</p>
+                    </div>
+                    <div className="mini-stat-card">
+                        <div className="mini-stat-icon green">
+                            <Wallet size={20} />
+                        </div>
+                        <div>
+                            <div className="mini-stat-value">KES {equity?.value?.toLocaleString() || 0}</div>
+                            <div className="mini-stat-label">Total Value</div>
+                        </div>
+                    </div>
+                    <div className="mini-stat-card">
+                        <div className="mini-stat-icon purple">
+                            <Percent size={20} />
+                        </div>
+                        <div>
+                            <div className="mini-stat-value">{ownershipNum}%</div>
+                            <div className="mini-stat-label">Ownership</div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Ownership Progress */}
+                <div className="card-modern">
+                    <h3 className="card-modern-title">Your Ownership Share</h3>
+                    <div className="ownership-bar-container">
+                        <div className="ownership-bar">
+                            <div
+                                className="ownership-bar-fill"
+                                style={{ width: `${Math.min(ownershipNum, 100)}%` }}
+                            />
+                        </div>
+                        <div className="ownership-bar-labels">
+                            <span>0%</span>
+                            <span className="ownership-current">{ownershipNum}%</span>
+                            <span>100%</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Quick Actions */}
-                <div className="actions-row">
-                    <Link to={`/chamas/${id}/asca/buy`} className="btn btn-primary flex-1">
-                        💰 Buy Shares
+                <div className="action-cards-grid">
+                    <Link to={`/chamas/${id}/asca/buy`} className="action-card green">
+                        <div className="action-card-icon">
+                            <ShoppingCart size={24} />
+                        </div>
+                        <div className="action-card-content">
+                            <h3>Buy Shares</h3>
+                            <p>Increase your equity by purchasing additional shares in the pool.</p>
+                        </div>
+                        <ArrowRight size={18} className="action-card-arrow" />
                     </Link>
-                    <Link to={`/chamas/${id}/asca/proposals`} className="btn btn-outline flex-1">
-                        🗳️ Investments
+                    <Link to={`/chamas/${id}/asca/proposals`} className="action-card purple">
+                        <div className="action-card-icon">
+                            <Vote size={24} />
+                        </div>
+                        <div className="action-card-content">
+                            <h3>Investment Proposals</h3>
+                            <p>View, vote on, and propose new investment opportunities for the group.</p>
+                        </div>
+                        <ArrowRight size={18} className="action-card-arrow" />
                     </Link>
                 </div>
             </div>

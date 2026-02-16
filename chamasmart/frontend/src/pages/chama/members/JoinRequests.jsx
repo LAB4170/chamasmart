@@ -1,70 +1,59 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import {
+    Users, UserCheck, UserX, MessageSquare,
+    Calendar, ArrowLeft, AlertCircle,
+    CheckCircle2, Loader, Inbox, History
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { joinRequestAPI, chamaAPI } from "../../../services/api";
-import { useAuth } from "../../../context/AuthContext";
+import "./MemberManagement.css";
 
 const JoinRequests = () => {
     const { id } = useParams();
-    const { user } = useAuth();
     const navigate = useNavigate();
 
     const [chama, setChama] = useState(null);
     const [requests, setRequests] = useState([]);
-    const [members, setMembers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [processingId, setProcessingId] = useState(null);
 
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const [chamaRes, requestsRes] = await Promise.all([
+                chamaAPI.getById(id),
+                joinRequestAPI.getAll(id),
+            ]);
+            setChama(chamaRes.data.data);
+            setRequests(requestsRes.data.data);
+        } catch (err) {
+            setError("Failed to load join requests");
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        let isMounted = true;
-
-        const fetchData = async () => {
-            try {
-                if (isMounted) setLoading(true);
-                const [chamaRes, requestsRes, membersRes] = await Promise.all([
-                    chamaAPI.getById(id),
-                    joinRequestAPI.getAll(id),
-                    chamaAPI.getMembers(id),
-                ]);
-
-                if (isMounted) {
-                    setChama(chamaRes.data.data);
-                    setRequests(requestsRes.data.data);
-                    setMembers(membersRes.data.data);
-                }
-            } catch (err) {
-                if (isMounted) {
-                    setError("Failed to load join requests");
-                    console.error(err);
-                }
-            } finally {
-                if (isMounted) setLoading(false);
-            }
-        };
-
         fetchData();
-
-        return () => {
-            isMounted = false;
-        };
     }, [id]);
 
     const handleRespond = async (requestId, status, requesterName) => {
-        const action = status === "APPROVED" ? "approve" : "reject";
-        if (!confirm(`Are you sure you want to ${action} ${requesterName}'s request?`)) {
-            return;
-        }
+        const actionLabel = status === "APPROVED" ? "approve" : "reject";
+        if (!confirm(`Are you sure you want to ${actionLabel} ${requesterName}'s request?`)) return;
 
         try {
             setProcessingId(requestId);
             await joinRequestAPI.respond(requestId, status);
-            setSuccess(`Request ${status.toLowerCase()} successfully!`);
-            await fetchData();
-            setTimeout(() => setSuccess(""), 3000);
+            setSuccess(`${requesterName} has been ${status.toLowerCase()}!`);
+            fetchData();
+            setTimeout(() => setSuccess(""), 4000);
         } catch (err) {
-            setError(err.response?.data?.message || `Failed to ${action} request`);
-            setTimeout(() => setError(""), 3000);
+            setError(err.response?.data?.message || `Failed to ${actionLabel} request`);
+            setTimeout(() => setError(""), 4000);
         } finally {
             setProcessingId(null);
         }
@@ -72,185 +61,162 @@ const JoinRequests = () => {
 
     const formatDate = (dateString) => {
         return new Date(dateString).toLocaleDateString("en-KE", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
+            month: "short", day: "numeric", year: "numeric",
+            hour: "2-digit", minute: "2-digit"
         });
-    };
-
-    const getStatusBadge = (status) => {
-        const badges = {
-            PENDING: "badge-warning",
-            APPROVED: "badge-success",
-            REJECTED: "badge-error",
-        };
-        return badges[status] || "badge-secondary";
     };
 
     const pendingRequests = requests.filter((r) => r.status === "PENDING");
     const reviewedRequests = requests.filter((r) => r.status !== "PENDING");
 
-    if (loading) {
+    if (loading && requests.length === 0) {
         return (
-            <div className="page">
-                <div className="container">
-                    <div className="loading">
-                        <div className="spinner"></div>
-                        <p>Loading join requests...</p>
-                    </div>
-                </div>
+            <div className="add-member-container d-flex flex-column align-center justify-center" style={{ minHeight: '60vh' }}>
+                <Loader size={48} className="spinner-sm" style={{ borderTopColor: 'var(--primary)' }} />
+                <p className="mt-3 text-muted">Retrieving join requests...</p>
             </div>
         );
     }
 
     return (
-        <div className="page">
-            <div className="container">
-                <div className="page-header">
-                    <div>
-                        <h1>Join Requests</h1>
-                        <p className="text-muted">{chama?.chama_name}</p>
-                    </div>
-                    <button
-                        className="btn btn-outline btn-sm"
-                        onClick={() => navigate(`/chamas/${id}`)}
-                    >
-                        ← Back to Chama
-                    </button>
+        <div className="add-member-container">
+            {/* Header */}
+            <div className="add-member-header">
+                <div>
+                    <h1 className="d-flex align-center gap-2">
+                        <Users size={32} style={{ color: 'var(--primary)' }} />
+                        Join Requests
+                    </h1>
+                    <p className="add-member-subtitle">Manage membership applications for <strong>{chama?.chama_name}</strong></p>
+                </div>
+                <button
+                    className="btn btn-outline btn-sm d-flex align-center gap-1"
+                    onClick={() => navigate(`/chamas/${id}`)}
+                >
+                    <ArrowLeft size={16} /> Back
+                </button>
+            </div>
+
+            {error && (
+                <div className="alert alert-error d-flex align-center gap-2 mb-3">
+                    <AlertCircle size={18} /> {error}
+                </div>
+            )}
+            {success && (
+                <div className="alert alert-success d-flex align-center gap-2 mb-3">
+                    <CheckCircle2 size={18} /> {success}
+                </div>
+            )}
+
+            {/* Pending Requests Section */}
+            <div className="mb-5">
+                <div className="d-flex align-center gap-2 mb-3">
+                    <Inbox size={20} style={{ color: "var(--warning)" }} />
+                    <h3 className="mb-0">Pending Review ({pendingRequests.length})</h3>
                 </div>
 
-                {error && <div className="alert alert-error">{error}</div>}
-                {success && <div className="alert alert-success">{success}</div>}
-
-                {/* Pending Requests */}
-                <div className="card">
-                    <div className="card-header">
-                        <h3>Pending Requests ({pendingRequests.length})</h3>
+                {pendingRequests.length === 0 ? (
+                    <div className="card text-center py-5 shadow-sm" style={{ opacity: 0.6 }}>
+                        <UserCheck size={48} className="mb-3 mx-auto" opacity={0.3} />
+                        <p>No pending applications at the moment.</p>
                     </div>
-
-                    {pendingRequests.length === 0 ? (
-                        <p className="text-muted text-center">No pending requests</p>
-                    ) : (
-                        <div style={{ display: "grid", gap: "1rem" }}>
+                ) : (
+                    <div className="grid grid-1 gap-3">
+                        <AnimatePresence>
                             {pendingRequests.map((request) => (
-                                <div
+                                <motion.div
                                     key={request.request_id}
-                                    className="card"
-                                    style={{ backgroundColor: "#fffbeb", borderColor: "#fbbf24" }}
+                                    initial={{ opacity: 0, scale: 0.98 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="user-result-card shadow-sm"
+                                    style={{ borderLeft: "4px solid var(--warning)" }}
                                 >
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
-                                        <div style={{ flex: 1 }}>
-                                            <h4 style={{ marginBottom: "0.5rem" }}>
-                                                {request.first_name} {request.last_name}
-                                            </h4>
-                                            <p className="text-muted" style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
-                                                {request.email} • {request.phone_number}
-                                            </p>
-                                            {request.message && (
-                                                <div
-                                                    style={{
-                                                        backgroundColor: "white",
-                                                        padding: "0.75rem",
-                                                        borderRadius: "0.5rem",
-                                                        marginTop: "0.5rem",
-                                                    }}
-                                                >
-                                                    <p style={{ fontSize: "0.9rem", fontStyle: "italic" }}>
-                                                        "{request.message}"
-                                                    </p>
-                                                </div>
-                                            )}
-                                            <p className="text-muted" style={{ fontSize: "0.85rem", marginTop: "0.5rem" }}>
-                                                Requested {formatDate(request.created_at)}
-                                            </p>
+                                    <div className="user-avatar-large" style={{ background: "var(--warning-light)", color: "var(--warning-dark)" }}>
+                                        {request.first_name[0]}{request.last_name[0]}
+                                    </div>
+                                    <div className="user-details">
+                                        <div className="d-flex justify-between align-start">
+                                            <div>
+                                                <h3>{request.first_name} {request.last_name}</h3>
+                                                <p className="text-muted small mb-3">{request.email} • {request.phone_number}</p>
+                                            </div>
+                                            <span className="small text-muted">{formatDate(request.created_at)}</span>
                                         </div>
-                                        <div style={{ display: "flex", gap: "0.5rem", marginLeft: "1rem" }}>
+
+                                        {request.message && (
+                                            <div style={{ background: "var(--surface-3)", padding: "1rem", borderRadius: "12px", border: "1px solid var(--border)", marginBottom: "1.5rem" }}>
+                                                <div className="d-flex gap-2 text-muted small mb-1">
+                                                    <MessageSquare size={14} /> Application Message
+                                                </div>
+                                                <p className="mb-0" style={{ fontStyle: "italic", color: "var(--text-primary)" }}>"{request.message}"</p>
+                                            </div>
+                                        )}
+
+                                        <div className="d-flex gap-3 justify-end mt-2">
                                             <button
-                                                className="btn btn-success btn-sm"
-                                                onClick={() =>
-                                                    handleRespond(
-                                                        request.request_id,
-                                                        "APPROVED",
-                                                        `${request.first_name} ${request.last_name}`
-                                                    )
-                                                }
+                                                className="btn btn-outline btn-sm text-danger"
+                                                onClick={() => handleRespond(request.request_id, "REJECTED", `${request.first_name} ${request.last_name}`)}
                                                 disabled={processingId === request.request_id}
                                             >
-                                                {processingId === request.request_id ? "..." : "✓ Approve"}
+                                                <UserX size={16} className="mr-1" /> Reject
                                             </button>
                                             <button
-                                                className="btn btn-outline btn-sm"
-                                                onClick={() =>
-                                                    handleRespond(
-                                                        request.request_id,
-                                                        "REJECTED",
-                                                        `${request.first_name} ${request.last_name}`
-                                                    )
-                                                }
+                                                className="btn btn-primary btn-sm"
+                                                onClick={() => handleRespond(request.request_id, "APPROVED", `${request.first_name} ${request.last_name}`)}
                                                 disabled={processingId === request.request_id}
                                             >
-                                                ✗ Reject
+                                                {processingId === request.request_id ? <Loader size={16} className="spinner-sm" /> : <UserCheck size={16} className="mr-1" />}
+                                                Approve Member
                                             </button>
                                         </div>
                                     </div>
-                                </div>
+                                </motion.div>
                             ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* Reviewed Requests */}
-                {reviewedRequests.length > 0 && (
-                    <div className="card">
-                        <div className="card-header">
-                            <h3>Request History ({reviewedRequests.length})</h3>
-                        </div>
-                        <div className="table-responsive">
-                            <table className="table">
-                                <thead>
-                                    <tr>
-                                        <th>Requester</th>
-                                        <th>Message</th>
-                                        <th>Requested</th>
-                                        <th>Reviewed By</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {reviewedRequests.map((request) => (
-                                        <tr key={request.request_id}>
-                                            <td>
-                                                <strong>
-                                                    {request.first_name} {request.last_name}
-                                                </strong>
-                                                <div className="text-muted" style={{ fontSize: "0.85rem" }}>
-                                                    {request.email}
-                                                </div>
-                                            </td>
-                                            <td className="text-muted" style={{ maxWidth: "300px" }}>
-                                                {request.message || "-"}
-                                            </td>
-                                            <td>{formatDate(request.created_at)}</td>
-                                            <td>
-                                                {request.reviewer_first_name
-                                                    ? `${request.reviewer_first_name} ${request.reviewer_last_name}`
-                                                    : "-"}
-                                            </td>
-                                            <td>
-                                                <span className={`badge ${getStatusBadge(request.status)}`}>
-                                                    {request.status}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                        </AnimatePresence>
                     </div>
                 )}
             </div>
+
+            {/* History Section */}
+            {reviewedRequests.length > 0 && (
+                <div className="management-card shadow-sm">
+                    <div className="m-card-title d-flex align-center gap-2">
+                        <History size={18} className="text-muted" />
+                        <h3>Recent Decisions</h3>
+                    </div>
+                    <div className="table-responsive">
+                        <table className="m-table">
+                            <thead>
+                                <tr>
+                                    <th>Applicant</th>
+                                    <th>Status</th>
+                                    <th>Decision Date</th>
+                                    <th>Reviewer</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {reviewedRequests.map((request) => (
+                                    <tr key={request.request_id}>
+                                        <td>
+                                            <div className="font-bold">{request.first_name} {request.last_name}</div>
+                                            <div className="text-muted small">{request.email}</div>
+                                        </td>
+                                        <td>
+                                            <span className={`m-badge ${request.status === "APPROVED" ? "badge-success" : "badge-gray"}`}>
+                                                {request.status}
+                                            </span>
+                                        </td>
+                                        <td className="small text-muted">{formatDate(request.updated_at || request.created_at)}</td>
+                                        <td className="small">
+                                            {request.reviewer_first_name ? `${request.reviewer_first_name} ${request.reviewer_last_name}` : "-"}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

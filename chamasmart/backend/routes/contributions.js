@@ -1,12 +1,14 @@
 const express = require('express');
 
 const router = express.Router();
+
+const { protect, authorize } = require('../middleware/auth');
+const validate = require('../middleware/validate');
 const {
   recordContribution,
   deleteContribution,
+  getContributions,
 } = require('../controllers/contributionController');
-const { protect, authorize } = require('../middleware/auth');
-const validate = require('../middleware/validate');
 const {
   contributionSchema,
   updateContributionSchema,
@@ -29,7 +31,15 @@ router.post(
   authorize('treasurer', 'admin'),
   applyFinancialRateLimiting,
   validate(contributionSchema),
+  validate(contributionSchema),
   recordContribution,
+);
+
+// Get contributions
+router.get(
+  '/:chamaId',
+  authorize('MEMBER', 'ADMIN', 'TREASURER', 'CHAIRPERSON'),
+  getContributions,
 );
 
 // Delete contribution (admin only for safety)

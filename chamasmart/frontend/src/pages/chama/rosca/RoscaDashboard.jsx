@@ -4,6 +4,10 @@ import { roscaAPI, chamaAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import { toast } from "react-toastify";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import {
+    Plus, RefreshCw, Calendar, Users, ArrowRight, CircleDot, CheckCircle2,
+    Clock, ArrowLeft
+} from "lucide-react";
 import "./Rosca.css";
 
 const RoscaDashboard = () => {
@@ -25,12 +29,9 @@ const RoscaDashboard = () => {
 
                 if (isMounted) {
                     setCycles(cyclesRes.data.data || cyclesRes.data);
-
-                    // Get user's role
                     const members = membersRes.data.data || membersRes.data;
                     const currentMember = members.find(m => m.user_id === user.user_id);
                     setUserRole(currentMember?.role || 'MEMBER');
-
                     setLoading(false);
                 }
             } catch (err) {
@@ -43,39 +44,89 @@ const RoscaDashboard = () => {
         };
 
         fetchCycles();
-
-        return () => {
-            isMounted = false;
-        };
+        return () => { isMounted = false; };
     }, [id]);
 
     if (loading) return <div className="loading-spinner">Loading cycles...</div>;
 
+    const activeCycles = cycles.filter(c => c.isActive);
+    const completedCycles = cycles.filter(c => !c.isActive);
+    const chartData = [
+        { name: 'Active', value: activeCycles.length, color: '#22c55e' },
+        { name: 'Completed', value: completedCycles.length, color: '#8b5cf6' }
+    ];
+
+    const canManage = ['CHAIRPERSON', 'TREASURER', 'SECRETARY'].includes(userRole);
+
     return (
         <div className="page">
             <div className="container">
-                <div className="page-header">
-                    <div>
-                        <h1>Merry-Go-Round</h1>
-                        <p className="subtitle">Rotating Savings & Credit (ROSCA)</p>
+                {/* Page Header */}
+                <div className="page-header-modern">
+                    <Link to={`/chamas/${id}`} className="back-link">
+                        <ArrowLeft size={18} />
+                        <span>Back to Chama</span>
+                    </Link>
+                    <div className="page-header-row">
+                        <div className="page-header-info">
+                            <div className="page-header-icon blue">
+                                <RefreshCw size={24} />
+                            </div>
+                            <div>
+                                <h1>Merry-Go-Round</h1>
+                                <p className="page-subtitle">Rotating Savings & Credit (ROSCA)</p>
+                            </div>
+                        </div>
+                        {canManage && (
+                            <Link to={`/chamas/${id}/rosca/create`} className="btn-action-primary">
+                                <Plus size={18} />
+                                <span>New Cycle</span>
+                            </Link>
+                        )}
                     </div>
-                    {['CHAIRPERSON', 'TREASURER', 'SECRETARY'].includes(userRole) && (
-                        <Link to={`/chamas/${id}/rosca/create`} className="btn btn-primary">
-                            + Start New Cycle
-                        </Link>
-                    )}
                 </div>
 
+                {/* Stats Row */}
                 {cycles.length > 0 && (
-                    <div className="cycle-analytics" style={{ marginBottom: '2rem', background: 'white', padding: '1.5rem', borderRadius: '8px' }}>
-                        <h3 style={{ marginBottom: '1rem' }}>Cycle Status Overview</h3>
+                    <div className="stats-row">
+                        <div className="mini-stat-card">
+                            <div className="mini-stat-icon green">
+                                <CircleDot size={20} />
+                            </div>
+                            <div>
+                                <div className="mini-stat-value">{activeCycles.length}</div>
+                                <div className="mini-stat-label">Active Cycles</div>
+                            </div>
+                        </div>
+                        <div className="mini-stat-card">
+                            <div className="mini-stat-icon purple">
+                                <CheckCircle2 size={20} />
+                            </div>
+                            <div>
+                                <div className="mini-stat-value">{completedCycles.length}</div>
+                                <div className="mini-stat-label">Completed</div>
+                            </div>
+                        </div>
+                        <div className="mini-stat-card">
+                            <div className="mini-stat-icon blue">
+                                <Users size={20} />
+                            </div>
+                            <div>
+                                <div className="mini-stat-value">{cycles.reduce((sum, c) => sum + (c.members?.length || 0), 0)}</div>
+                                <div className="mini-stat-label">Total Participants</div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Chart */}
+                {cycles.length > 0 && (
+                    <div className="card-modern chart-card">
+                        <h3 className="card-modern-title">Cycle Status Overview</h3>
                         <ResponsiveContainer width="100%" height={250}>
                             <PieChart>
                                 <Pie
-                                    data={[
-                                        { name: 'Active', value: cycles.filter(c => c.isActive).length, color: '#10b981' },
-                                        { name: 'Completed', value: cycles.filter(c => !c.isActive).length, color: '#6366f1' }
-                                    ]}
+                                    data={chartData}
                                     cx="50%"
                                     cy="50%"
                                     labelLine={false}
@@ -84,10 +135,7 @@ const RoscaDashboard = () => {
                                     fill="#8884d8"
                                     dataKey="value"
                                 >
-                                    {[
-                                        { name: 'Active', value: cycles.filter(c => c.isActive).length, color: '#10b981' },
-                                        { name: 'Completed', value: cycles.filter(c => !c.isActive).length, color: '#6366f1' }
-                                    ].map((entry, index) => (
+                                    {chartData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={entry.color} />
                                     ))}
                                 </Pie>
@@ -98,31 +146,38 @@ const RoscaDashboard = () => {
                     </div>
                 )}
 
+                {/* Cycles Grid */}
                 {cycles.length === 0 ? (
-                    <div className="empty-state">
-                        <div className="empty-icon">🎡</div>
+                    <div className="empty-state-modern">
+                        <div className="empty-state-icon">
+                            <RefreshCw size={48} strokeWidth={1.5} />
+                        </div>
                         <h3>No Active Cycles</h3>
-                        <p>Start a new merry-go-round cycle to begin rotating savings.</p>
-                        {['CHAIRPERSON', 'TREASURER', 'SECRETARY'].includes(userRole) && (
-                            <Link to={`/chamas/${id}/rosca/create`} className="btn btn-primary mt-3">
-                                Create Cycle
+                        <p>Start a new merry-go-round cycle to begin rotating savings among members.</p>
+                        {canManage && (
+                            <Link to={`/chamas/${id}/rosca/create`} className="btn-action-primary">
+                                <Plus size={18} />
+                                <span>Create First Cycle</span>
                             </Link>
                         )}
                     </div>
                 ) : (
                     <div className="rosca-grid">
                         {cycles.map(cycle => (
-                            <Link to={`/chamas/${id}/rosca/${cycle._id}`} key={cycle._id} className="cycle-card">
-                                <span className={`cycle-status ${cycle.isActive ? 'status-active' : 'status-completed'}`}>
-                                    {cycle.isActive ? 'Active' : 'Completed'}
-                                </span>
-                                <h3>{cycle.name}</h3>
-                                <div className="cycle-amount">
+                            <Link to={`/chamas/${id}/rosca/${cycle._id}`} key={cycle._id} className="cycle-card-modern">
+                                <div className="cycle-card-top">
+                                    <span className={`cycle-badge ${cycle.isActive ? 'badge-active' : 'badge-completed'}`}>
+                                        {cycle.isActive ? <><CircleDot size={12} /> Active</> : <><CheckCircle2 size={12} /> Completed</>}
+                                    </span>
+                                    <ArrowRight size={16} className="cycle-arrow" />
+                                </div>
+                                <h3 className="cycle-card-name">{cycle.name}</h3>
+                                <div className="cycle-card-amount">
                                     KES {cycle.amount?.toLocaleString()}
                                 </div>
-                                <div className="cycle-meta">
-                                    <span>📅 {cycle.frequency}</span>
-                                    <span>👥 {cycle.members?.length || 0} Members</span>
+                                <div className="cycle-card-meta">
+                                    <span><Calendar size={14} /> {cycle.frequency}</span>
+                                    <span><Users size={14} /> {cycle.members?.length || 0}</span>
                                 </div>
                             </Link>
                         ))}

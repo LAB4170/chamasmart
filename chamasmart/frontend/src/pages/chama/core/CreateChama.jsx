@@ -2,6 +2,11 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { chamaAPI } from "../../../services/api";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  RefreshCw, TrendingUp, Landmark, HeartHandshake,
+  Lock, Globe, MapPin, Laptop, Calendar, Clock,
+  Target, Shield, ArrowRight, CheckCircle2, AlertCircle
+} from "lucide-react";
 
 const CreateChama = () => {
   const [step, setStep] = useState(1);
@@ -72,10 +77,10 @@ const CreateChama = () => {
   };
 
   const chamaTypes = [
-    { id: "ROSCA", name: "Merry-Go-Round", icon: "🔄", desc: "Turns to receive fund" },
-    { id: "ASCA", name: "Investment", icon: "📈", desc: "In-house lending & growth" },
-    { id: "TABLE_BANKING", name: "Table Banking", icon: "🏦", desc: "Instant group banking" },
-    { id: "WELFARE", name: "Welfare", icon: "🤝", desc: "Emergency & support" },
+    { id: "ROSCA", name: "Merry-Go-Round", icon: RefreshCw, desc: "Turns to receive fund", color: "blue" },
+    { id: "ASCA", name: "Investment", icon: TrendingUp, desc: "In-house lending & growth", color: "green" },
+    { id: "TABLE_BANKING", name: "Table Banking", icon: Landmark, desc: "Instant group banking", color: "amber" },
+    { id: "WELFARE", name: "Welfare", icon: HeartHandshake, desc: "Emergency & support", color: "purple" },
   ];
 
   const formatCurrency = (amount) => {
@@ -84,6 +89,10 @@ const CreateChama = () => {
       currency: "KES",
     }).format(amount || 0);
   };
+
+  // Get current type object for preview
+  const currentType = chamaTypes.find(t => t.id === formData.chamaType) || chamaTypes[0];
+  const TypeIcon = currentType.icon;
 
   return (
     <div className="page">
@@ -129,11 +138,18 @@ const CreateChama = () => {
                       <label className="form-label">Chama Type</label>
                       <div className="selection-grid grid-2">
                         {chamaTypes.map((type) => (
-                          <div key={type.id} className={`selection-card compact ${formData.chamaType === type.id ? 'active' : ''}`} onClick={() => setFormData({ ...formData, chamaType: type.id })}>
-                            <div className="selection-icon small">{type.icon}</div>
+                          <div
+                            key={type.id}
+                            className={`selection-card compact ${formData.chamaType === type.id ? 'active' : ''}`}
+                            onClick={() => setFormData({ ...formData, chamaType: type.id })}
+                          >
+                            <div className={`selection-icon small ${type.color}`}>
+                              <type.icon size={20} />
+                            </div>
                             <div className="selection-content">
                               <div className="selection-name">{type.name}</div>
                             </div>
+                            {formData.chamaType === type.id && <div className="selection-check"><CheckCircle2 size={16} /></div>}
                           </div>
                         ))}
                       </div>
@@ -174,12 +190,14 @@ const CreateChama = () => {
                       <label className="form-label">Visibility</label>
                       <div className="selection-grid grid-2">
                         <div className={`selection-card compact ${formData.visibility === 'PRIVATE' ? 'active' : ''}`} onClick={() => setFormData({ ...formData, visibility: 'PRIVATE' })}>
-                          <div className="selection-icon small">🔒</div>
+                          <div className="selection-icon small"><Lock size={20} /></div>
                           <div className="selection-name">Private</div>
+                          {formData.visibility === 'PRIVATE' && <div className="selection-check"><CheckCircle2 size={16} /></div>}
                         </div>
                         <div className={`selection-card compact ${formData.visibility === 'PUBLIC' ? 'active' : ''}`} onClick={() => setFormData({ ...formData, visibility: 'PUBLIC' })}>
-                          <div className="selection-icon small">🌐</div>
+                          <div className="selection-icon small"><Globe size={20} /></div>
                           <div className="selection-name">Public</div>
+                          {formData.visibility === 'PUBLIC' && <div className="selection-check"><CheckCircle2 size={16} /></div>}
                         </div>
                       </div>
                     </div>
@@ -198,8 +216,12 @@ const CreateChama = () => {
 
                     <div className="form-group">
                       <div className="meeting-type-toggle" style={{ display: 'flex', background: 'var(--bg-secondary)', borderRadius: '8px', padding: '4px' }}>
-                        <button type="button" className={`btn btn-sm ${meetingType === 'PHYSICAL' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setMeetingType("PHYSICAL")} style={{ flex: 1, border: 'none' }}>📍 Physical</button>
-                        <button type="button" className={`btn btn-sm ${meetingType === 'ONLINE' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setMeetingType("ONLINE")} style={{ flex: 1, border: 'none' }}>💻 Online</button>
+                        <button type="button" className={`btn btn-sm ${meetingType === 'PHYSICAL' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setMeetingType("PHYSICAL")} style={{ flex: 1, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                          <MapPin size={16} /> Physical
+                        </button>
+                        <button type="button" className={`btn btn-sm ${meetingType === 'ONLINE' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setMeetingType("ONLINE")} style={{ flex: 1, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                          <Laptop size={16} /> Online
+                        </button>
                       </div>
                     </div>
 
@@ -229,24 +251,26 @@ const CreateChama = () => {
               {step > 1 && (
                 <button type="button" className="btn btn-outline" onClick={prevStep} style={{ flex: 1 }}>Back</button>
               )}
-              <button type="submit" className="btn btn-primary" disabled={loading} style={{ flex: 2 }}>
-                {loading ? 'Creating...' : step < 3 ? 'Continue →' : 'Launch My Chama 🚀'}
+              <button type="submit" className="btn btn-primary" disabled={loading} style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                {loading ? 'Creating...' : step < 3 ? <>Continue <ArrowRight size={16} /></> : 'Launch My Chama 🚀'}
               </button>
             </div>
           </form>
-          {error && <div className="alert alert-error mt-4">{error}</div>}
+          {error && <div className="alert alert-error mt-4"><AlertCircle size={16} /> {error}</div>}
         </div>
 
         {/* Right Side: Live Preview */}
         <div style={{ position: 'sticky', top: '2rem' }}>
           <div className="p-4" style={{ background: 'var(--primary-light)', borderRadius: '16px', border: '1px dashed var(--primary)' }}>
             <h4 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span>✨</span> Live Card Preview
+              <Target size={18} /> Live Card Preview
             </h4>
 
             <div className="chama-card" style={{ boxShadow: 'var(--shadow-xl)', pointerEvents: 'none' }}>
               <div className="chama-card-header">
-                <div className="chama-type-badge">{formData.chamaType}</div>
+                <div className={`chama-type-badge ${currentType.color} flex items-center gap-1`}>
+                  <TypeIcon size={14} /> {formData.chamaType}
+                </div>
                 <h3>{formData.chamaName || "Your Chama Name"}</h3>
               </div>
               <div className="chama-card-body">
@@ -254,15 +278,15 @@ const CreateChama = () => {
                   {formData.description || "Describe your vision here..."}
                 </p>
                 <div className="chama-info">
-                  <span className="info-label">Membership</span>
+                  <span className="info-label"><Globe size={14} /> Membership</span>
                   <span className="info-value">{formData.visibility}</span>
                 </div>
                 <div className="chama-info">
-                  <span className="info-label">Contribution</span>
+                  <span className="info-label"><Target size={14} /> Contribution</span>
                   <span className="info-value text-success">{formatCurrency(formData.contributionAmount)}</span>
                 </div>
                 <div className="chama-info">
-                  <span className="info-label">Meeting</span>
+                  <span className="info-label"><Calendar size={14} /> Meeting</span>
                   <span className="info-value">{meetingPattern.replace('_', ' ')}</span>
                 </div>
               </div>
@@ -272,7 +296,7 @@ const CreateChama = () => {
             </div>
 
             <div className="mt-4 p-3 tip-card">
-              💡 <strong>Senior Tip:</strong> Chamas with clear descriptions and regular meeting schedules have 40% higher engagement.
+              <span className="tip-icon"><Shield size={16} /></span> <strong>Senior Tip:</strong> Chamas with clear descriptions and regular meeting schedules have 40% higher engagement.
             </div>
           </div>
         </div>

@@ -430,10 +430,20 @@ const recordContribution = async (req, res, next) => {
 
 const getContributions = async (req, res, next) => {
   try {
+    console.log("DEBUG: getContributions called");
+    console.log("Params:", req.params);
+    console.log("Query:", req.query);
+    console.log("User:", req.user);
+
     const { chamaId } = req.params;
     const { page = 1, limit = 20, userId, startDate, endDate } = req.query;
 
     // Authorization check
+    if (!req.user || !req.user.user_id) {
+      console.error("AUTH ERROR: req.user is missing in getContributions");
+      return res.status(401).json({ success: false, message: "User not authenticated" });
+    }
+
     const authCheck = await pool.query(
       `SELECT 1 FROM chama_members 
        WHERE chama_id = $1 AND user_id = $2 AND is_active = true`,
@@ -448,8 +458,15 @@ const getContributions = async (req, res, next) => {
       );
     }
 
-    // Build query
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    // Safe pagination parsing
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+
+    // Ensure valid numbers, default if NaN or < 1
+    const safePage = (!isNaN(pageNum) && pageNum > 0) ? pageNum : 1;
+    const safeLimit = (!isNaN(limitNum) && limitNum > 0) ? limitNum : 20;
+
+    const offset = (safePage - 1) * safeLimit;
     let query = `
       SELECT c.contribution_id, c.chama_id, c.user_id, c.amount,
              c.payment_method, c.receipt_number, c.contribution_date, c.created_at,
@@ -464,7 +481,7 @@ const getContributions = async (req, res, next) => {
     const params = [chamaId];
     let paramIndex = 2;
 
-    if (userId && !isNaN(parseInt(userId))) {
+    if (userId && userId !== "undefined" && userId !== "null" && !isNaN(parseInt(userId))) {
       query += ` AND c.user_id = $${paramIndex}`;
       params.push(parseInt(userId));
       paramIndex++;
@@ -484,13 +501,13 @@ const getContributions = async (req, res, next) => {
 
     query += ` ORDER BY c.contribution_date DESC, c.created_at DESC
                LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-    params.push(parseInt(limit), offset);
+    params.push(safeLimit, offset);
 
     // Get total count
     let countQuery =
       "SELECT COUNT(*) as total FROM contributions WHERE chama_id = $1 AND is_deleted = false";
     const countParams = [chamaId];
-    if (userId && !isNaN(parseInt(userId))) {
+    if (userId && userId !== "undefined" && userId !== "null" && !isNaN(parseInt(userId))) {
       countQuery += " AND user_id = $2";
       countParams.push(parseInt(userId));
     }
@@ -511,13 +528,15 @@ const getContributions = async (req, res, next) => {
       success: true,
       data: contributions,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: safePage,
+        limit: safeLimit,
         total,
-        totalPages: Math.ceil(total / parseInt(limit)),
+        totalPages: Math.ceil(total / safeLimit),
       },
     });
   } catch (error) {
+    console.error("CRITICAL ERROR in getContributions:", error);
+    console.error("Stack:", error.stack);
     next(error);
   }
 };

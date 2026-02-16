@@ -2,6 +2,11 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { loanAPI, chamaAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
+import ConfirmDialog from "../../../components/ConfirmDialog";
+import {
+    ArrowLeft, Plus, BarChart2, Clock, CheckCircle2, Wallet,
+    AlertCircle, FileText, X, Check, DollarSign, Calendar
+} from "lucide-react";
 
 const LoanManagement = () => {
     const { id } = useParams();
@@ -18,6 +23,11 @@ const LoanManagement = () => {
     const [detailsLoading, setDetailsLoading] = useState(false);
     const [selectedLoan, setSelectedLoan] = useState(null);
     const [loanDetails, setLoanDetails] = useState(null);
+
+    // Dialog state
+    const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+    const [loanToReject, setLoanToReject] = useState(null);
+    const [rejectReason, setRejectReason] = useState("");
 
     useEffect(() => {
         let isMounted = true;
@@ -57,7 +67,9 @@ const LoanManagement = () => {
         try {
             setActionLoading(loanId);
             await loanAPI.approve(id, loanId);
-            await fetchData();
+            // Refresh data
+            const loansRes = await loanAPI.getChamaLoans(id);
+            setLoans(loansRes.data.data || loansRes.data);
             setActionLoading(null);
         } catch (err) {
             setError(err.response?.data?.message || "Failed to approve loan");
@@ -65,15 +77,24 @@ const LoanManagement = () => {
         }
     };
 
-    const handleRejectLoan = async (loanId) => {
-        const reason = prompt("Please provide a reason for rejection:");
-        if (!reason) return;
+    const initiateRejectLoan = (loanId) => {
+        setLoanToReject(loanId);
+        setRejectReason("");
+        setRejectDialogOpen(true);
+    };
+
+    const handleConfirmReject = async () => {
+        if (!loanToReject || !rejectReason.trim()) return;
 
         try {
-            setActionLoading(loanId);
-            await loanAPI.reject(id, loanId, reason);
-            await fetchData();
+            setActionLoading(loanToReject);
+            setRejectDialogOpen(false);
+            await loanAPI.reject(id, loanToReject, rejectReason);
+            // Refresh data
+            const loansRes = await loanAPI.getChamaLoans(id);
+            setLoans(loansRes.data.data || loansRes.data);
             setActionLoading(null);
+            setLoanToReject(null);
         } catch (err) {
             setError(err.response?.data?.message || "Failed to reject loan");
             setActionLoading(null);
@@ -115,8 +136,6 @@ const LoanManagement = () => {
         setSelectedLoan(null);
         setLoanDetails(null);
     };
-
-
 
     const formatDate = (dateString) => {
         return new Date(dateString).toLocaleDateString("en-KE", {
@@ -172,69 +191,72 @@ const LoanManagement = () => {
     };
 
     if (loading) {
-        return (
-            <div className="page">
-                <div className="container">
-                    <div className="loading">
-                        <div className="spinner"></div>
-                        <p>Loading loans...</p>
-                    </div>
-                </div>
-            </div>
-        );
+        return <div className="loading-spinner">Loading loans...</div>;
     }
 
     return (
         <div className="page">
             <div className="container">
-                <div className="page-header">
-                    <div>
-                        <h1>Loan Management</h1>
-                        <p className="text-muted">{chama?.chama_name}</p>
-                    </div>
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                        <button
-                            className="btn btn-outline btn-sm"
-                            onClick={() => navigate(`/chamas/${id}`)}
-                        >
-                            ← Back to Chama
-                        </button>
-                        <Link to={`/chamas/${id}/loans/apply`} className="btn btn-primary btn-sm">
-                            + Apply for Loan
+                <div className="page-header-modern">
+                    <Link to={`/chamas/${id}`} className="back-link">
+                        <ArrowLeft size={18} />
+                        <span>Back to Chama</span>
+                    </Link>
+                    <div className="page-header-row">
+                        <div className="page-header-info">
+                            <div className="page-header-icon amber">
+                                <DollarSign size={24} />
+                            </div>
+                            <div>
+                                <h1>Loan Management</h1>
+                                <p className="page-subtitle">{chama?.chama_name}</p>
+                            </div>
+                        </div>
+                        <Link to={`/chamas/${id}/loans/apply`} className="btn-action-primary">
+                            <Plus size={18} />
+                            <span>Apply for Loan</span>
                         </Link>
                     </div>
                 </div>
 
-                {error && <div className="alert alert-error">{error}</div>}
+                {error && <div className="alert alert-error"><AlertCircle size={16} /> {error}</div>}
 
                 {/* Stats */}
-                <div className="stats-grid">
-                    <div className="stat-card">
-                        <div className="stat-icon">📊</div>
+                <div className="stats-row">
+                    <div className="mini-stat-card">
+                        <div className="mini-stat-icon blue">
+                            <BarChart2 size={20} />
+                        </div>
                         <div>
-                            <h3>{stats.total}</h3>
-                            <p>Total Loans</p>
+                            <div className="mini-stat-value">{stats.total}</div>
+                            <div className="mini-stat-label">Total Loans</div>
                         </div>
                     </div>
-                    <div className="stat-card">
-                        <div className="stat-icon">⏳</div>
+                    <div className="mini-stat-card">
+                        <div className="mini-stat-icon amber">
+                            <Clock size={20} />
+                        </div>
                         <div>
-                            <h3>{stats.pending}</h3>
-                            <p>Pending Approval</p>
+                            <div className="mini-stat-value">{stats.pending}</div>
+                            <div className="mini-stat-label">Pending Approval</div>
                         </div>
                     </div>
-                    <div className="stat-card">
-                        <div className="stat-icon">✅</div>
+                    <div className="mini-stat-card">
+                        <div className="mini-stat-icon green">
+                            <CheckCircle2 size={20} />
+                        </div>
                         <div>
-                            <h3>{stats.active}</h3>
-                            <p>Active Loans</p>
+                            <div className="mini-stat-value">{stats.active}</div>
+                            <div className="mini-stat-label">Active Loans</div>
                         </div>
                     </div>
-                    <div className="stat-card">
-                        <div className="stat-icon">💰</div>
+                    <div className="mini-stat-card">
+                        <div className="mini-stat-icon purple">
+                            <Wallet size={20} />
+                        </div>
                         <div>
-                            <h3>{formatCurrency(stats.totalAmount)}</h3>
-                            <p>Total Loaned</p>
+                            <div className="mini-stat-value">{formatCurrency(stats.totalAmount)}</div>
+                            <div className="mini-stat-label">Total Loaned</div>
                         </div>
                     </div>
                 </div>
@@ -268,13 +290,19 @@ const LoanManagement = () => {
                 </div>
 
                 {/* Loans List */}
-                <div className="card">
+                <div className="card-modern">
                     <div className="card-header">
                         <h3>Loans</h3>
                     </div>
 
                     {filteredLoans.length === 0 ? (
-                        <p className="text-muted text-center">No loans found</p>
+                        <div className="empty-state-modern compact">
+                            <div className="empty-state-icon">
+                                <FileText size={36} strokeWidth={1.5} />
+                            </div>
+                            <h3>No loans found</h3>
+                            <p>There are no loans matching your current filter.</p>
+                        </div>
                     ) : (
                         <div className="table-responsive">
                             <table className="table">
@@ -319,7 +347,7 @@ const LoanManagement = () => {
                                                 </span>
                                             </td>
                                             <td>
-                                                <div style={{ display: "flex", gap: "0.25rem", flexWrap: 'wrap' }}>
+                                                <div style={{ display: "flex", gap: "0.5rem", flexWrap: 'wrap' }}>
                                                     <button
                                                         className="btn btn-sm btn-outline"
                                                         onClick={() => openLoanDetails(loan)}
@@ -332,15 +360,17 @@ const LoanManagement = () => {
                                                                 className="btn btn-sm btn-success"
                                                                 onClick={() => handleApproveLoan(loan.loan_id)}
                                                                 disabled={actionLoading === loan.loan_id}
+                                                                title="Approve"
                                                             >
-                                                                {actionLoading === loan.loan_id ? "..." : "Approve"}
+                                                                {actionLoading === loan.loan_id ? "..." : <Check size={14} />}
                                                             </button>
                                                             <button
                                                                 className="btn btn-sm btn-danger"
-                                                                onClick={() => handleRejectLoan(loan.loan_id)}
+                                                                onClick={() => initiateRejectLoan(loan.loan_id)}
                                                                 disabled={actionLoading === loan.loan_id}
+                                                                title="Reject"
                                                             >
-                                                                Reject
+                                                                <X size={14} />
                                                             </button>
                                                         </>
                                                     )}
@@ -363,21 +393,19 @@ const LoanManagement = () => {
                 </div>
             </div>
 
+            {/* Loan Details Modal */}
             {selectedLoan && loanDetails && (
                 <div className="modal-backdrop" onClick={closeLoanDetails}>
                     <div className="modal" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3>Loan Details</h3>
-                            <button className="btn btn-sm btn-outline" onClick={closeLoanDetails}>
-                                ✕
+                            <button className="btn-icon" onClick={closeLoanDetails}>
+                                <X size={20} />
                             </button>
                         </div>
                         <div className="modal-body">
                             {detailsLoading ? (
-                                <div className="loading">
-                                    <div className="spinner"></div>
-                                    <p>Loading details...</p>
-                                </div>
+                                <div className="loading-spinner">Loading details...</div>
                             ) : (
                                 <>
                                     <div className="info-grid">
@@ -430,7 +458,6 @@ const LoanManagement = () => {
                                                             <th>Amount</th>
                                                             <th>Principal</th>
                                                             <th>Interest</th>
-                                                            <th>Penalty</th>
                                                             <th>Status</th>
                                                         </tr>
                                                     </thead>
@@ -441,7 +468,6 @@ const LoanManagement = () => {
                                                                 <td>{formatCurrency(inst.amount)}</td>
                                                                 <td>{formatCurrency(inst.principal_amount)}</td>
                                                                 <td>{formatCurrency(inst.interest_amount)}</td>
-                                                                <td>{formatCurrency(inst.penalty_amount)}</td>
                                                                 <td>{inst.status}</td>
                                                             </tr>
                                                         ))}
@@ -461,8 +487,6 @@ const LoanManagement = () => {
                                                             <th>Name</th>
                                                             <th>Guaranteed Amount</th>
                                                             <th>Status</th>
-                                                            <th>Requested At</th>
-                                                            <th>Responded At</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -471,8 +495,6 @@ const LoanManagement = () => {
                                                                 <td>{g.first_name} {g.last_name}</td>
                                                                 <td>{formatCurrency(g.guaranteed_amount)}</td>
                                                                 <td>{g.status}</td>
-                                                                <td>{g.created_at ? new Date(g.created_at).toLocaleString("en-KE") : '-'}</td>
-                                                                <td>{g.responded_at ? new Date(g.responded_at).toLocaleString("en-KE") : '-'}</td>
                                                             </tr>
                                                         ))}
                                                     </tbody>
@@ -486,6 +508,23 @@ const LoanManagement = () => {
                     </div>
                 </div>
             )}
+
+            {/* Reject Dialog */}
+            <ConfirmDialog
+                isOpen={rejectDialogOpen}
+                title="Reject Loan Application"
+                message="Please provide a reason for rejecting this loan application."
+                variant="danger"
+                confirmText="Reject Loan"
+                onConfirm={handleConfirmReject}
+                onCancel={() => setRejectDialogOpen(false)}
+                showInput={true}
+                inputLabel="Rejection Reason"
+                inputPlaceholder="e.g., Insufficient guarantors"
+                inputValue={rejectReason}
+                onInputChange={setRejectReason}
+                loading={actionLoading === loanToReject}
+            />
         </div>
     );
 };
