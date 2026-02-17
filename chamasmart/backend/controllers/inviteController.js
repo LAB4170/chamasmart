@@ -290,7 +290,7 @@ const sendInvite = async (req, res) => {
 
       // Check if already a member
       const memberCheck = await client.query(
-        'SELECT member_id, is_active FROM chama_members WHERE chama_id = $1 AND user_id = $2',
+        'SELECT is_active FROM chama_members WHERE chama_id = $1 AND user_id = $2',
         [chamaId, targetUserId]
       );
 
@@ -304,7 +304,7 @@ const sendInvite = async (req, res) => {
         } else {
           // Reactivate
           await client.query(
-            'UPDATE chama_members SET is_active = true, role = $1, joined_at = NOW() WHERE chama_id = $2 AND user_id = $3',
+            'UPDATE chama_members SET is_active = true, role = $1, join_date = NOW() WHERE chama_id = $2 AND user_id = $3',
             [role, chamaId, targetUserId]
           );
         }
@@ -332,9 +332,9 @@ const sendInvite = async (req, res) => {
 
       // Send application notification
       await client.query(
-        `INSERT INTO notifications (user_id, type, title, message, link, related_id)
-         VALUES ($1, 'JOIN_CHAMA', 'Joined ${chamaName}', 'You have been added to ${chamaName} by ${inviterName}', $2, $3)`,
-        [targetUserId, `/chamas/${chamaId}`, chamaId]
+        `INSERT INTO notifications (user_id, type, title, message, entity_type, entity_id)
+         VALUES ($1, 'MEMBER_ADDED', 'Joined ${chamaName}', 'You have been added to ${chamaName} by ${inviterName}', 'CHAMA', $2)`,
+        [targetUserId, chamaId]
       );
 
       await client.query('COMMIT');
@@ -347,7 +347,20 @@ const sendInvite = async (req, res) => {
     }
 
     // 3. User doesn't exist - Generate Invite Code & Send Email
-    const inviteCode = generateInviteCode();
+    let inviteCode;
+    let isUnique = false;
+
+    while (!isUnique) {
+      inviteCode = generateInviteCode();
+      const exists = await client.query(
+        'SELECT invite_id FROM chama_invites WHERE invite_code = $1',
+        [inviteCode]
+      );
+      if (exists.rows.length === 0) {
+        isUnique = true;
+      }
+    }
+
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 

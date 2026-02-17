@@ -189,10 +189,10 @@ const addMember = async (req, res, next) => {
 
     // Create welcome notification
     await client.query(
-      `INSERT INTO notifications (user_id, type, title, message, link, related_id)
+      `INSERT INTO notifications (user_id, type, title, message, entity_type, entity_id)
        VALUES ($1, 'MEMBER_ADDED', 'Welcome to ${chamaCheck.rows[0].chama_name}', 
                'You have been added as a ${role} to ${chamaCheck.rows[0].chama_name}', 
-               '/chamas/${chamaId}', $2)`,
+               'CHAMA', $2)`,
       [userId, chamaId],
     );
 
@@ -319,10 +319,10 @@ const updateMemberRole = async (req, res, next) => {
 
     // Create notification
     await client.query(
-      `INSERT INTO notifications (user_id, type, title, message, link, related_id)
+      `INSERT INTO notifications (user_id, type, title, message, entity_type, entity_id)
        VALUES ($1, 'ROLE_UPDATED', 'Role Updated', 
                'Your role has been updated from ${oldRole} to ${role}', 
-               '/chamas/${chamaId}', $2)`,
+               'CHAMA', $2)`,
       [parseInt(userId), chamaId],
     );
 
@@ -445,9 +445,10 @@ const removeMember = async (req, res, next) => {
 
     // Create notification
     await client.query(
-      `INSERT INTO notifications (user_id, type, title, message, related_id)
+      `INSERT INTO notifications (user_id, type, title, message, entity_type, entity_id)
        VALUES ($1, 'MEMBER_REMOVED', 'Removed from Chama', 
-               'You have been removed from the chama. Reason: ${reason || "Not specified"}', $2)`,
+               'You have been removed from the chama. Reason: ${reason || "Not specified"}', 
+               'CHAMA', $2)`,
       [parseInt(userId), chamaId],
     );
 
