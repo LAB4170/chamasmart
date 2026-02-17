@@ -947,60 +947,7 @@ const ChamaDetails = () => {
               </div>
             )}
 
-            {activeTab === "reports" && (
-              <div className="card">
-                <div className="card-header flex-between">
-                  <h3>Financial Reports</h3>
-                  <div className="export-actions">
-                    <button className="btn btn-outline btn-sm mr-2" onClick={handleExportPDF} aria-label="Export PDF report">
-                      <FileText size={16} /> Export PDF
-                    </button>
-                    <button className="btn btn-outline btn-sm" onClick={handleExportExcel} aria-label="Export Excel report">
-                      <TrendingUp size={16} /> Export Excel
-                    </button>
-                  </div>
-                </div>
 
-                <div className="reports-grid mt-4">
-                  <div className="report-card">
-                    <h4>Total Funds</h4>
-                    <div className="report-value">{formatCurrency(chama.current_fund)}</div>
-                  </div>
-                  <div className="report-card">
-                    <h4>Total Contributions</h4>
-                    <div className="report-value">{formatCurrency(stats?.totalContributions || 0)}</div>
-                  </div>
-                  <div className="report-card">
-                    <h4>Active Loans</h4>
-                    <div className="report-value">{formatCurrency(stats?.activeLoansBalance || 0)}</div>
-                  </div>
-                  <div className="report-card">
-                    <h4>Total Members</h4>
-                    <div className="report-value">{members.length}</div>
-                  </div>
-                </div>
-
-                <div className="recent-activity-section mt-5">
-                  <h4>Recent Contribution History</h4>
-                  <div className="v-table mt-3" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                    <div className="v-thead">
-                      <div className="v-th">Date</div>
-                      <div className="v-th v-td-lg">Member</div>
-                      <div className="v-th">Amount</div>
-                      <div className="v-th">Method</div>
-                    </div>
-                    {contributions.slice(0, 5).map(c => (
-                      <div key={c.contribution_id} className="v-tr">
-                        <div className="v-td">{formatDate(c.contribution_date)}</div>
-                        <div className="v-td v-td-lg"><strong>{c.contributor_name}</strong></div>
-                        <div className="v-td text-success">{formatCurrency(c.amount)}</div>
-                        <div className="v-td"><span className="badge badge-secondary">{c.payment_method}</span></div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
 
             {activeTab === "members" && (
               <MembersTab
@@ -1097,11 +1044,11 @@ const ChamaDetails = () => {
                 <div className="card-header flex-between">
                   <h3>Chama Reports & Analytics</h3>
                   <div className="report-actions">
-                    <button className="btn btn-sm btn-outline" aria-label="Export PDF report">
-                      <Download size={16} /> Export PDF
+                    <button className="btn btn-sm btn-outline" onClick={handleExportPDF} aria-label="Export PDF report">
+                      <FileText size={16} /> Export PDF
                     </button>
-                    <button className="btn btn-sm btn-outline" aria-label="Export Excel report">
-                      <BarChart3 size={16} /> Export Excel
+                    <button className="btn btn-sm btn-outline" onClick={handleExportExcel} aria-label="Export Excel report">
+                      <Download size={16} /> Export Excel
                     </button>
                   </div>
                 </div>
