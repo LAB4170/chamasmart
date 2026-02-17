@@ -1,8 +1,13 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { payoutAPI, chamaAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
-import { DollarSign, RefreshCw, Clock, Target } from 'lucide-react';
+import {
+    DollarSign, RefreshCw, Clock, Target,
+    ArrowRight, CheckCircle2, AlertCircle,
+    Wallet, TrendingUp, Calendar
+} from 'lucide-react';
+import { motion } from "framer-motion";
 
 const PayoutManagement = () => {
     const { id } = useParams();
@@ -14,14 +19,16 @@ const PayoutManagement = () => {
     const [eligibleMembers, setEligibleMembers] = useState([]);
     const [members, setMembers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
+
+    const [stats, setStats] = useState({
+        totalPayouts: 0,
+        totalDisbursed: 0,
+        nextAmount: 0
+    });
 
     useEffect(() => {
-        let isMounted = true;
-
         const fetchData = async () => {
             try {
-                if (isMounted) setLoading(true);
                 const [chamaRes, payoutsRes, eligibleRes, membersRes] = await Promise.all([
                     chamaAPI.getById(id),
                     payoutAPI.getAll(id),
@@ -29,27 +36,32 @@ const PayoutManagement = () => {
                     chamaAPI.getMembers(id),
                 ]);
 
-                if (isMounted) {
-                    setChama(chamaRes.data.data);
-                    setPayouts(payoutsRes.data.data);
-                    setEligibleMembers(eligibleRes.data.data);
-                    setMembers(membersRes.data.data);
-                }
+                setChama(chamaRes.data.data);
+                const payoutsData = payoutsRes.data.data;
+                const membersData = membersRes.data.data;
+
+                setPayouts(payoutsData);
+                setEligibleMembers(eligibleRes.data.data);
+                setMembers(membersData);
+
+                // Calculate Stats
+                const contributionAmount = parseFloat(chamaRes.data.data.contribution_amount || 0);
+                const totalMembers = membersData.length;
+
+                setStats({
+                    totalPayouts: payoutsData.length,
+                    totalDisbursed: payoutsData.reduce((sum, p) => sum + parseFloat(p.amount), 0),
+                    nextAmount: contributionAmount * totalMembers
+                });
+
+                setLoading(false);
             } catch (err) {
-                if (isMounted) {
-                    setError("Failed to load payout data");
-                    console.error(err);
-                }
-            } finally {
-                if (isMounted) setLoading(false);
+                console.error("Failed to load payout data", err);
+                setLoading(false);
             }
         };
 
         fetchData();
-
-        return () => {
-            isMounted = false;
-        };
     }, [id]);
 
     const getUserRole = () => {
@@ -57,10 +69,14 @@ const PayoutManagement = () => {
         return member?.role || "MEMBER";
     };
 
-    const isOfficial = () => {
-        const role = getUserRole();
-        return ["CHAIRPERSON", "SECRETARY", "TREASURER"].includes(role);
+    const isOfficial = ["CHAIRPERSON", "SECRETARY", "TREASURER"].includes(getUserRole());
+
+    const getNextRecipient = () => {
+        const receivedPayouts = payouts.map((p) => p.user_id);
+        return eligibleMembers.find((m) => !receivedPayouts.includes(m.user_id));
     };
+
+    const nextRecipient = getNextRecipient();
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat("en-KE", {
@@ -69,244 +85,190 @@ const PayoutManagement = () => {
         }).format(amount);
     };
 
-    const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleDateString("en-KE", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-        });
-    };
-
-    const getNextRecipient = () => {
-        // Find member who hasn't received payout yet
-        const receivedPayouts = payouts.map((p) => p.user_id);
-        return eligibleMembers.find((m) => !receivedPayouts.includes(m.user_id));
-    };
-
-    const expectedPayoutAmount = () => {
-        if (!chama || !members.length) return 0;
-        return parseFloat(chama.contribution_amount) * members.length;
-    };
-
-    const stats = {
-        totalPayouts: payouts.length,
-        totalDisbursed: payouts.reduce((sum, p) => sum + parseFloat(p.amount), 0),
-        nextAmount: expectedPayoutAmount(),
-        remaining: members.length - payouts.length,
-    };
-
     if (loading) {
         return (
-            <div className="page">
-                <div className="container">
-                    <div className="loading">
-                        <div className="spinner"></div>
-                        <p>Loading payouts...</p>
-                    </div>
-                </div>
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                Loading payout center...
             </div>
         );
     }
 
-    const nextRecipient = getNextRecipient();
-
     return (
-        <div className="page">
-            <div className="container">
-                <div className="page-header">
+        <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto', color: 'var(--text-primary)' }}>
+
+            {/* Header */}
+            <div style={{ marginBottom: '2rem' }}>
+                <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.75rem', fontWeight: 800, margin: 0 }}>
+                    <div style={{ padding: '0.5rem', borderRadius: '12px', background: 'var(--bg-secondary)', color: 'var(--primary)' }}>
+                        <Wallet size={28} />
+                    </div>
+                    Financial Center
+                </h1>
+                <p style={{ margin: '0.5rem 0 0 3.5rem', color: 'var(--text-secondary)', fontSize: '1rem' }}>
+                    Manage disbursements and track payout history.
+                </p>
+            </div>
+
+            {/* Stats Overview */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
+                <div style={{ background: 'var(--card-bg)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                        <div>
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Total Disbursed</p>
+                            <h3 style={{ margin: '0.25rem 0 0', fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                {formatCurrency(stats.totalDisbursed)}
+                            </h3>
+                        </div>
+                        <div style={{ padding: '0.5rem', background: 'rgba(34, 197, 94, 0.1)', borderRadius: '10px', color: 'var(--success)' }}>
+                            <DollarSign size={20} />
+                        </div>
+                    </div>
+                </div>
+
+                <div style={{ background: 'var(--card-bg)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                        <div>
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Total Payouts</p>
+                            <h3 style={{ margin: '0.25rem 0 0', fontSize: '1.75rem', fontWeight: 700, color: 'var(--primary)' }}>
+                                {stats.totalPayouts}
+                            </h3>
+                        </div>
+                        <div style={{ padding: '0.5rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px', color: 'var(--primary)' }}>
+                            <TrendingUp size={20} />
+                        </div>
+                    </div>
+                </div>
+
+                <div style={{ background: 'var(--card-bg)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                        <div>
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Next Payout</p>
+                            <h3 style={{ margin: '0.25rem 0 0', fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                {formatCurrency(stats.nextAmount)}
+                            </h3>
+                        </div>
+                        <div style={{ padding: '0.5rem', background: 'rgba(168, 85, 247, 0.1)', borderRadius: '10px', color: '#a855f7' }}>
+                            <Target size={20} />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Next Recipient Spotlight */}
+            {isOfficial && nextRecipient ? (
+                <div style={{
+                    background: 'linear-gradient(135deg, var(--primary), #1e40af)',
+                    borderRadius: '20px',
+                    padding: '2rem',
+                    color: 'white',
+                    marginBottom: '3rem',
+                    boxShadow: '0 10px 25px -5px rgba(37, 99, 235, 0.4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '2rem'
+                }}>
                     <div>
-                        <h1>Payout Management</h1>
-                        <p className="text-muted">{chama?.chama_name} - ROSCA Cycle</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                            <span style={{ background: 'rgba(255,255,255,0.2)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600 }}>
+                                Next in Line
+                            </span>
+                        </div>
+                        <h2 style={{ margin: 0, fontSize: '2rem', fontWeight: 800, color: 'white' }}>
+                            {nextRecipient.first_name} {nextRecipient.last_name}
+                        </h2>
+                        <p style={{ margin: '0.5rem 0 0', opacity: 0.9, fontSize: '1.1rem' }}>
+                            Eligible for <strong>{formatCurrency(stats.nextAmount)}</strong>
+                        </p>
                     </div>
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                        <button
-                            className="btn btn-outline btn-sm"
-                            onClick={() => navigate(`/chamas/${id}`)}
-                        >
-                            ← Back to Chama
-                        </button>
-                        {isOfficial() && nextRecipient && (
-                            <Link
-                                to={`/chamas/${id}/payouts/process`}
-                                className="btn btn-primary btn-sm"
-                                aria-label="Process payout"
-                            >
-                                <DollarSign size={16} /> Process Payout
-                            </Link>
-                        )}
-                    </div>
+                    <button
+                        onClick={() => navigate(`/chamas/${id}/payouts/process`)}
+                        style={{
+                            background: 'white',
+                            color: 'var(--primary)',
+                            border: 'none',
+                            padding: '1rem 2rem',
+                            borderRadius: '12px',
+                            fontSize: '1rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                        }}
+                    >
+                        Process Payout <ArrowRight size={20} />
+                    </button>
                 </div>
-
-                {error && <div className="alert alert-error">{error}</div>}
-
-                {/* Stats */}
-                <div className="stats-grid">
-                    <div className="stat-card">
-                        <div className="stat-icon"><RefreshCw size={24} /></div>
-                        <div>
-                            <h3>{stats.totalPayouts}</h3>
-                            <p>Completed Payouts</p>
-                        </div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-icon"><DollarSign size={24} /></div>
-                        <div>
-                            <h3>{formatCurrency(stats.totalDisbursed)}</h3>
-                            <p>Total Disbursed</p>
-                        </div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-icon"><Clock size={24} /></div>
-                        <div>
-                            <h3>{stats.remaining}</h3>
-                            <p>Remaining Members</p>
-                        </div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-icon"><Target size={24} /></div>
-                        <div>
-                            <h3>{formatCurrency(stats.nextAmount)}</h3>
-                            <p>Next Payout Amount</p>
-                        </div>
-                    </div>
+            ) : isOfficial && !nextRecipient && stats.remaining === 0 ? (
+                <div style={{ padding: '2rem', background: 'var(--bg-secondary)', borderRadius: '16px', textAlign: 'center', marginBottom: '3rem' }}>
+                    <CheckCircle2 size={48} style={{ color: 'var(--success)', marginBottom: '1rem' }} />
+                    <h3>All members have been paid!</h3>
+                    <p style={{ color: 'var(--text-secondary)' }}>Cycle complete. Start a new cycle to continue.</p>
                 </div>
+            ) : null}
 
-                {/* Next Recipient */}
-                {nextRecipient && (
-                    <div className="card" style={{ backgroundColor: "#f0fdf4", borderColor: "#10b981" }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <div>
-                                <h3 style={{ color: "#10b981", marginBottom: "0.5rem" }}>
-                                    <Target size={20} /> Next Recipient
-                                </h3>
-                                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                                    <div>
-                                        <h2 style={{ marginBottom: "0.25rem" }}>
-                                            {nextRecipient.first_name} {nextRecipient.last_name}
-                                        </h2>
-                                        <p className="text-muted">
-                                            Position {nextRecipient.rotation_position || eligibleMembers.indexOf(nextRecipient) + 1} in rotation
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div style={{ textAlign: "right" }}>
-                                <p className="text-muted">Expected Amount</p>
-                                <h2 style={{ color: "#10b981" }}>{formatCurrency(expectedPayoutAmount())}</h2>
-                                {isOfficial() && (
-                                    <Link
-                                        to={`/chamas/${id}/payouts/process`}
-                                        className="btn btn-success"
-                                        style={{ marginTop: "0.5rem" }}
-                                    >
-                                        Process Payout
-                                    </Link>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
+            {/* Payout History */}
+            <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Payout History</h3>
 
-                {/* Rotation Order */}
-                <div className="card">
-                    <div className="card-header">
-                        <h3>Rotation Order</h3>
-                    </div>
-                    <div className="table-responsive">
-                        <table className="table">
-                            <thead>
+                <div style={{ background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid var(--border)', overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                            <tr style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
+                                <th style={{ padding: '1rem 1.5rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>Date</th>
+                                <th style={{ padding: '1rem 1.5rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>Recipient</th>
+                                <th style={{ padding: '1rem 1.5rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>Amount</th>
+                                <th style={{ padding: '1rem 1.5rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>Status</th>
+                                <th style={{ padding: '1rem 1.5rem', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>Ref</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {payouts.length === 0 ? (
                                 <tr>
-                                    <th>Position</th>
-                                    <th>Member</th>
-                                    <th>Status</th>
-                                    <th>Payout Date</th>
-                                    <th>Amount</th>
+                                    <td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                        No payouts recorded yet.
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {eligibleMembers.map((member, index) => {
-                                    const payout = payouts.find((p) => p.user_id === member.user_id);
-                                    const isNext = nextRecipient?.user_id === member.user_id;
-
-                                    return (
-                                        <tr key={member.user_id} style={isNext ? { backgroundColor: "#f0fdf4" } : {}}>
-                                            <td>
-                                                <strong>#{index + 1}</strong>
-                                            </td>
-                                            <td>
-                                                {member.first_name} {member.last_name}
-                                                {isNext && (
-                                                    <span className="badge badge-success" style={{ marginLeft: "0.5rem" }}>
-                                                        Next
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td>
-                                                {payout ? (
-                                                    <span className="badge badge-primary">Received</span>
-                                                ) : isNext ? (
-                                                    <span className="badge badge-warning">Pending</span>
-                                                ) : (
-                                                    <span className="badge badge-secondary">Waiting</span>
-                                                )}
-                                            </td>
-                                            <td>
-                                                {payout ? formatDate(payout.payout_date) : "-"}
-                                            </td>
-                                            <td>
-                                                {payout ? (
-                                                    <span className="text-success">{formatCurrency(payout.amount)}</span>
-                                                ) : (
-                                                    "-"
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                {/* Payout History */}
-                <div className="card">
-                    <div className="card-header">
-                        <h3>Payout History</h3>
-                    </div>
-                    {payouts.length === 0 ? (
-                        <p className="text-muted text-center">No payouts processed yet</p>
-                    ) : (
-                        <div className="table-responsive">
-                            <table className="table">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Recipient</th>
-                                        <th>Amount</th>
-                                        <th>Status</th>
-                                        <th>Notes</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {payouts.map((payout) => (
-                                        <tr key={payout.payout_id}>
-                                            <td>{formatDate(payout.payout_date)}</td>
-                                            <td>
-                                                <strong>
-                                                    {payout.first_name} {payout.last_name}
-                                                </strong>
-                                            </td>
-                                            <td className="text-success">{formatCurrency(payout.amount)}</td>
-                                            <td>
-                                                <span className="badge badge-success">{payout.status}</span>
-                                            </td>
-                                            <td className="text-muted">{payout.notes || "-"}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                            ) : (
+                                payouts.map((payout) => (
+                                    <motion.tr
+                                        key={payout.payout_id}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        style={{ borderBottom: '1px solid var(--border)' }}
+                                    >
+                                        <td style={{ padding: '1rem 1.5rem', color: 'var(--text-primary)' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                <Calendar size={16} className="text-muted" />
+                                                {new Date(payout.payment_date).toLocaleDateString()}
+                                            </div>
+                                        </td>
+                                        <td style={{ padding: '1rem 1.5rem' }}>
+                                            <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{payout.first_name} {payout.last_name}</div>
+                                        </td>
+                                        <td style={{ padding: '1rem 1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                            {formatCurrency(payout.amount)}
+                                        </td>
+                                        <td style={{ padding: '1rem 1.5rem' }}>
+                                            <span style={{
+                                                padding: '4px 10px', borderRadius: '20px',
+                                                background: 'var(--success-light)', color: 'var(--success-dark)',
+                                                fontSize: '0.85rem', fontWeight: 600
+                                            }}>
+                                                Completed
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: '1rem 1.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
+                                            #{payout.payout_id.toString().padStart(4, '0')}
+                                        </td>
+                                    </motion.tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

@@ -1080,12 +1080,13 @@ const ChamaDetails = () => {
                 {/* Filtering UI */}
                 {/* Filtering UI - Premium Redesign */}
                 <div style={{
-                  background: 'var(--white)',
+                  background: 'var(--card-bg)',
                   borderRadius: '12px',
                   padding: '1.5rem',
                   marginBottom: '1.5rem',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-                  border: '1px solid var(--border)'
+                  boxShadow: 'var(--shadow)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-primary)'
                 }}>
                   {/* Header & Quick Select Row */}
                   <div style={{
@@ -1106,7 +1107,7 @@ const ChamaDetails = () => {
                     {/* Segmented Control */}
                     <div style={{
                       display: 'inline-flex',
-                      background: 'var(--light-gray)',
+                      background: 'var(--bg-secondary)',
                       padding: '4px',
                       borderRadius: '8px',
                       gap: '4px'
@@ -1127,9 +1128,9 @@ const ChamaDetails = () => {
                               fontWeight: isActive ? 600 : 500,
                               border: 'none',
                               cursor: 'pointer',
-                              background: isActive ? 'var(--white)' : 'transparent',
-                              color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                              boxShadow: isActive ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                              background: isActive ? 'var(--card-bg)' : 'transparent',
+                              color: isActive ? 'var(--primary-color)' : 'var(--text-secondary)',
+                              boxShadow: isActive ? 'var(--shadow)' : 'none',
                               transition: 'all 0.2s ease',
                               whiteSpace: 'nowrap'
                             }}
@@ -1167,12 +1168,12 @@ const ChamaDetails = () => {
                           style={{
                             width: '100%',
                             padding: '0.625rem 0.75rem 0.625rem 2.5rem',
-                            border: '1px solid var(--border)',
+                            border: '1px solid var(--input-border)',
                             borderRadius: '8px',
                             fontSize: '0.9rem',
-                            color: 'var(--text-primary)',
+                            color: 'var(--input-text)',
                             outline: 'none',
-                            background: 'var(--white)',
+                            background: 'var(--input-bg)',
                             transition: 'border-color 0.2s'
                           }}
                         />
@@ -1196,12 +1197,12 @@ const ChamaDetails = () => {
                           style={{
                             width: '100%',
                             padding: '0.625rem 0.75rem 0.625rem 2.5rem',
-                            border: '1px solid var(--border)',
+                            border: '1px solid var(--input-border)',
                             borderRadius: '8px',
                             fontSize: '0.9rem',
-                            color: 'var(--text-primary)',
+                            color: 'var(--input-text)',
                             outline: 'none',
-                            background: 'var(--white)',
+                            background: 'var(--input-bg)',
                             transition: 'border-color 0.2s'
                           }}
                         />
@@ -1224,12 +1225,12 @@ const ChamaDetails = () => {
                           style={{
                             width: '100%',
                             padding: '0.625rem 0.75rem 0.625rem 2.5rem',
-                            border: '1px solid var(--border)',
+                            border: '1px solid var(--input-border)',
                             borderRadius: '8px',
                             fontSize: '0.9rem',
-                            color: 'var(--text-primary)',
+                            color: 'var(--input-text)',
                             outline: 'none',
-                            background: 'var(--white)',
+                            background: 'var(--input-bg)',
                             appearance: 'none',
                             cursor: 'pointer'
                           }}
