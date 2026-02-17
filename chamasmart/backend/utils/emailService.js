@@ -2,9 +2,9 @@ const nodemailer = require('nodemailer');
 
 const createTransporter = () => {
   // If credentials key is missing, incomplete, or set to default placeholders, we'll return null to signal "Console Mode"
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS ||
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD ||
     process.env.EMAIL_USER === 'your_email@gmail.com' ||
-    process.env.EMAIL_PASS === 'your_email_app_password') {
+    process.env.EMAIL_PASSWORD === 'your_email_app_password') {
     return null;
   }
 

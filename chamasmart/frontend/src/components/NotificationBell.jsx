@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { notificationAPI } from "../services/api";
 import { useSocket } from "../context/SocketContext";
+import { useAuth } from "../context/AuthContext";
 
 const NotificationBell = () => {
+    const { isAuthenticated, user } = useAuth();
     const socket = useSocket();
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -11,8 +13,10 @@ const NotificationBell = () => {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        fetchUnreadCount();
-    }, []);
+        if (isAuthenticated && user) {
+            fetchUnreadCount();
+        }
+    }, [isAuthenticated, user]);
 
     useEffect(() => {
         // Listen for real-time notifications
