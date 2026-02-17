@@ -16,7 +16,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import {
   BarChart3, Calendar, Mail, Building2, Heart, RefreshCw, TrendingUp,
   Settings, CreditCard, Users, DollarSign, Handshake, FileText, Download,
-  Target, Bell, Trash2
+  Target, Bell, Trash2, Filter, RotateCcw
 } from 'lucide-react';
 
 // --- Memoized Sub-components ---
@@ -282,20 +282,18 @@ const ChamaDetails = () => {
   }, [id]);
 
   useEffect(() => {
-    // Socket.io real-time updates
+    // Socket.io real-time  useEffect(() => {
     if (socket && id) {
       socket.emit("join_chama", id);
 
       const handleUpdate = () => {
-        console.log("Real-time update received, re-fetching data...");
         fetchChamaData();
       };
 
       socket.on("contribution_recorded", handleUpdate);
       socket.on("contribution_deleted", handleUpdate);
       socket.on("presence_update", (users) => {
-        console.log("Presence update:", users);
-        setActiveUsers(users);
+        setActiveUsers(Array.isArray(users) ? users : []);
       });
 
       return () => {
@@ -306,6 +304,21 @@ const ChamaDetails = () => {
       };
     }
   }, [id, socket]);
+
+  // Check for refresh signal from navigation
+  useEffect(() => {
+    if (location.state?.refresh) {
+      fetchChamaData();
+
+      // If specific tab requested, switch to it
+      if (location.state?.tab) {
+        setActiveTab(location.state.tab);
+      }
+
+      // Clear state to prevent loop
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const fetchChamaData = async () => {
     try {
@@ -414,7 +427,32 @@ const ChamaDetails = () => {
     setFilters(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleQuickFilter = (type) => {
+    const now = new Date();
+    let start = "", end = "";
+
+    if (type === 'thisMonth') {
+      start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    } else if (type === 'lastMonth') {
+      start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
+      end = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
+    } else if (type === 'ytd') {
+      start = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+      end = now.toISOString().split('T')[0];
+    } else if (type === 'all') {
+      start = "";
+      end = "";
+    }
+
+    setFilters(prev => ({ ...prev, startDate: start, endDate: end }));
+  };
+
   const applyFilters = () => {
+    if (filters.startDate && filters.endDate && new Date(filters.startDate) > new Date(filters.endDate)) {
+      toast.error("Start date cannot be after End date");
+      return;
+    }
     fetchContributions();
   };
 
@@ -965,7 +1003,7 @@ const ChamaDetails = () => {
             )}
 
             {activeTab === "contributions" && (
-              <div className="card" style={{ height: "600px", display: "flex", flexDirection: "column" }}>
+              <div className="card" style={{ height: "auto", minHeight: "600px", display: "flex", flexDirection: "column" }}>
                 <div className="card-header flex-between" style={{ flexShrink: 0 }}>
                   <h3>Contributions ({contributions.length})</h3>
                   <div className="flex-gap">
@@ -977,29 +1015,275 @@ const ChamaDetails = () => {
                   </div>
                 </div>
 
+                {/* Contribution Summary Stats */}
+                <div className="stats-grid mb-4">
+                  <div className="stat-card">
+                    <div className="stat-icon bg-primary-light text-primary">
+                      <DollarSign size={20} />
+                    </div>
+                    <div>
+                      <div className="stat-label">Total Collected</div>
+                      <div className="stat-value text-lg">
+                        {formatCurrency(contributions.reduce((sum, c) => sum + parseFloat(c.amount), 0))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-icon bg-success-light text-success">
+                      <Calendar size={20} />
+                    </div>
+                    <div>
+                      <div className="stat-label">This Month</div>
+                      <div className="stat-value text-lg">
+                        {formatCurrency(
+                          contributions
+                            .filter(c => new Date(c.contribution_date).getMonth() === new Date().getMonth())
+                            .reduce((sum, c) => sum + parseFloat(c.amount), 0)
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-icon bg-warning-light text-warning">
+                      <Users size={20} />
+                    </div>
+                    <div>
+                      <div className="stat-label">Members Contributed</div>
+                      <div className="stat-value text-lg">
+                        {new Set(contributions.map(c => c.user_id)).size} / {members.length}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Monthly Progress */}
+                {!isROSCA && (
+                  <div className="progress-section mb-4 p-3 bg-light rounded">
+                    <div className="flex-between mb-2">
+                      <span className="text-sm font-medium">Monthly Target Progress</span>
+                      <span className="text-sm text-muted">
+                        {Math.round((contributions.filter(c => new Date(c.contribution_date).getMonth() === new Date().getMonth()).length / Math.max(members.length, 1)) * 100)}%
+                      </span>
+                    </div>
+                    <div className="progress-bar">
+                      <div
+                        className="progress-fill bg-success"
+                        style={{
+                          width: `${Math.min((contributions.filter(c => new Date(c.contribution_date).getMonth() === new Date().getMonth()).length / Math.max(members.length, 1)) * 100, 100)}%`
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Filtering UI */}
-                <div className="filter-bar mb-3" style={{ padding: '1rem', background: 'var(--light-gray)', borderRadius: 'var(--radius)' }}>
-                  <div className="filter-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', alignItems: 'end' }}>
-                    <div className="filter-item">
-                      <label className="filter-label">From</label>
-                      <input type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} className="form-input btn-sm" />
+                {/* Filtering UI */}
+                {/* Filtering UI - Premium Redesign */}
+                <div style={{
+                  background: 'var(--white)',
+                  borderRadius: '12px',
+                  padding: '1.5rem',
+                  marginBottom: '1.5rem',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                  border: '1px solid var(--border)'
+                }}>
+                  {/* Header & Quick Select Row */}
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '1rem',
+                    marginBottom: '1.5rem',
+                    paddingBottom: '1rem',
+                    borderBottom: '1px solid var(--light-gray)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                      <Filter size={18} className="text-primary" />
+                      <span>Filter Contributions</span>
                     </div>
-                    <div className="filter-item">
-                      <label className="filter-label">To</label>
-                      <input type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} className="form-input btn-sm" />
+
+                    {/* Segmented Control */}
+                    <div style={{
+                      display: 'inline-flex',
+                      background: 'var(--light-gray)',
+                      padding: '4px',
+                      borderRadius: '8px',
+                      gap: '4px'
+                    }}>
+                      {['thisMonth', 'lastMonth', 'ytd', 'all'].map((type) => {
+                        const isActive = (type === 'thisMonth' && new Date(filters.startDate).getMonth() === new Date().getMonth() && !filters.endDate.includes(new Date().getFullYear() + 1)) ||
+                          (type === 'all' && !filters.startDate) ||
+                          (type === 'lastMonth' && new Date(filters.startDate).getMonth() === new Date().getMonth() - 1);
+
+                        return (
+                          <button
+                            key={type}
+                            onClick={() => handleQuickFilter(type)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: '6px',
+                              fontSize: '0.85rem',
+                              fontWeight: isActive ? 600 : 500,
+                              border: 'none',
+                              cursor: 'pointer',
+                              background: isActive ? 'var(--white)' : 'transparent',
+                              color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                              boxShadow: isActive ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                              transition: 'all 0.2s ease',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {type === 'thisMonth' ? 'This Month' :
+                              type === 'lastMonth' ? 'Last Month' :
+                                type === 'ytd' ? 'Year to Date' : 'All Time'}
+                          </button>
+                        );
+                      })}
                     </div>
-                    <div className="filter-item">
-                      <label className="filter-label">Member</label>
-                      <select name="userId" value={filters.userId} onChange={handleFilterChange} className="form-input btn-sm">
-                        <option value="">All Members</option>
-                        {members.map(m => (
-                          <option key={m.user_id} value={m.user_id}>{m.first_name} {m.last_name}</option>
-                        ))}
-                      </select>
+                  </div>
+
+                  {/* Inputs Grid */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: '1.25rem',
+                    alignItems: 'end'
+                  }}>
+                    {/* From Date */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--gray)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        From Date
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <div style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--gray-light)' }}>
+                          <Calendar size={16} />
+                        </div>
+                        <input
+                          type="date"
+                          name="startDate"
+                          value={filters.startDate}
+                          onChange={handleFilterChange}
+                          style={{
+                            width: '100%',
+                            padding: '0.625rem 0.75rem 0.625rem 2.5rem',
+                            border: '1px solid var(--border)',
+                            borderRadius: '8px',
+                            fontSize: '0.9rem',
+                            color: 'var(--text-primary)',
+                            outline: 'none',
+                            background: 'var(--white)',
+                            transition: 'border-color 0.2s'
+                          }}
+                        />
+                      </div>
                     </div>
-                    <div className="filter-actions" style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button className="btn btn-sm btn-secondary" onClick={applyFilters}>Apply</button>
-                      <button className="btn btn-sm btn-outline" onClick={resetFilters}>Reset</button>
+
+                    {/* To Date */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--gray)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        To Date
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <div style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--gray-light)' }}>
+                          <Calendar size={16} />
+                        </div>
+                        <input
+                          type="date"
+                          name="endDate"
+                          value={filters.endDate}
+                          onChange={handleFilterChange}
+                          style={{
+                            width: '100%',
+                            padding: '0.625rem 0.75rem 0.625rem 2.5rem',
+                            border: '1px solid var(--border)',
+                            borderRadius: '8px',
+                            fontSize: '0.9rem',
+                            color: 'var(--text-primary)',
+                            outline: 'none',
+                            background: 'var(--white)',
+                            transition: 'border-color 0.2s'
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Member Select */}
+                    <div style={{ flexGrow: 1.5 }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--gray)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Member
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <div style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--gray-light)' }}>
+                          <Users size={16} />
+                        </div>
+                        <select
+                          name="userId"
+                          value={filters.userId}
+                          onChange={handleFilterChange}
+                          style={{
+                            width: '100%',
+                            padding: '0.625rem 0.75rem 0.625rem 2.5rem',
+                            border: '1px solid var(--border)',
+                            borderRadius: '8px',
+                            fontSize: '0.9rem',
+                            color: 'var(--text-primary)',
+                            outline: 'none',
+                            background: 'var(--white)',
+                            appearance: 'none',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <option value="">All Members</option>
+                          {members.map(m => (
+                            <option key={m.user_id} value={m.user_id}>{m.first_name} {m.last_name}</option>
+                          ))}
+                        </select>
+                        <div style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid var(--gray)' }}></div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                      <button
+                        onClick={applyFilters}
+                        style={{
+                          flex: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.5rem',
+                          background: 'var(--primary)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '0.625rem 1.25rem',
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'
+                        }}
+                      >
+                        <RefreshCw size={16} /> Apply
+                      </button>
+                      <button
+                        onClick={resetFilters}
+                        title="Reset Filters"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: 'transparent',
+                          border: '1px solid var(--border)',
+                          borderRadius: '8px',
+                          padding: '0.625rem',
+                          color: 'var(--gray)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <RotateCcw size={18} />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1013,22 +1297,48 @@ const ChamaDetails = () => {
                       <div className="v-th v-td-lg">Member</div>
                       <div className="v-th">Amount</div>
                       <div className="v-th">Method</div>
+                      <div className="v-th">Status</div>
                     </div>
                     <div style={{ flex: 1 }}>
                       <List
                         height={400}
                         itemCount={contributions.length}
-                        itemSize={60}
+                        itemSize={70}
                         width="100%"
                       >
                         {({ index, style }) => {
                           const c = contributions[index];
+                          const member = members.find(m => m.user_id === c.user_id);
+                          const initials = c.contributor_name ? c.contributor_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '??';
+
                           return (
                             <div className="v-tr" style={style}>
-                              <div className="v-td">{formatDate(c.contribution_date)}</div>
-                              <div className="v-td v-td-lg"><strong>{c.contributor_name}</strong></div>
-                              <div className="v-td text-success">{formatCurrency(c.amount)}</div>
-                              <div className="v-td"><span className="badge badge-secondary">{c.payment_method}</span></div>
+                              <div className="v-td">
+                                <div className="font-medium">{formatDate(c.contribution_date)}</div>
+                                <div className="text-xs text-muted">{new Date(c.contribution_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                              </div>
+                              <div className="v-td v-td-lg">
+                                <div className="flex items-center gap-2">
+                                  <div className="avatar-placeholder bg-primary-light text-primary text-xs rounded-full w-8 h-8 flex items-center justify-center font-bold">
+                                    {initials}
+                                  </div>
+                                  <div>
+                                    <strong>{c.contributor_name}</strong>
+                                    {member?.role && <div className="text-xs text-muted">{member.role}</div>}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="v-td text-success font-bold">{formatCurrency(c.amount)}</div>
+                              <div className="v-td">
+                                <span className={`badge badge-${c.payment_method === 'MPESA' ? 'success' : 'secondary'}`}>
+                                  {c.payment_method}
+                                </span>
+                              </div>
+                              <div className="v-td">
+                                <span className="badge badge-success flex items-center gap-1">
+                                  <CheckCircle size={10} /> Verified
+                                </span>
+                              </div>
                             </div>
                           );
                         }}
