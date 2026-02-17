@@ -3,7 +3,7 @@ const pool = require('../config/db');
 
 // Generate unique invite code
 const generateInviteCode = () => crypto.randomBytes(4).toString('hex').toUpperCase() // e.g., "A3F2B9C1"
-;
+  ;
 
 // @desc    Generate invite code for chama
 // @route   POST /api/invites/:chamaId/generate
@@ -296,7 +296,7 @@ const sendInvite = async (req, res) => {
     // Construct Link: For local dev, frontend is at localhost:5173
     // In prod, use env var.
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const inviteLink = `${frontendUrl}/join?code=${inviteCode}`;
+    const inviteLink = `${frontendUrl}/join-chama?code=${inviteCode}`;
 
     await sendInviteEmail(email, inviteLink, chamaName, inviterName);
 

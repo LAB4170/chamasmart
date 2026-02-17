@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { auditAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import { toast } from "react-toastify";
+import { Download } from 'lucide-react';
 import "./AuditLogs.css"; // Create this CSS file for styling
 
 const AuditLogs = () => {
@@ -77,8 +78,8 @@ const AuditLogs = () => {
                         <button className="btn btn-outline" onClick={() => navigate(`/chamas/${id}`)}>
                             ← Back to Chama
                         </button>
-                        <button className="btn btn-primary" onClick={handleExport}>
-                            📥 Export Logs
+                        <button className="btn btn-primary" onClick={handleExport} aria-label="Export audit logs">
+                            <Download size={18} /> Export Logs
                         </button>
                     </div>
                 </div>

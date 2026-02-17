@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { auditAPI } from "../../services/api";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+import { RefreshCw } from 'lucide-react';
 import "./SecurityMonitor.css";
 
 const SecurityMonitor = () => {
@@ -55,8 +56,8 @@ const SecurityMonitor = () => {
                         <h1>Security Monitor</h1>
                         <p className="subtitle">Real-time security event tracking</p>
                     </div>
-                    <button className="btn btn-primary" onClick={fetchSecurityLogs}>
-                        🔄 Refresh
+                    <button className="btn btn-primary" onClick={fetchSecurityLogs} aria-label="Refresh security logs">
+                        <RefreshCw size={18} /> Refresh
                     </button>
                 </div>
 

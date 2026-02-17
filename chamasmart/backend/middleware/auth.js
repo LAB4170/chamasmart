@@ -52,6 +52,7 @@ const protect = async (req, res, next) => {
 };
 
 // Generic Authorize Middleware (Role based)
+// Generic Authorize Middleware (Role based)
 const authorize = (...roles) => async (req, res, next) => {
   try {
     // If we don't have a chamaId, we can't strictly check chama-specific roles via middleware
@@ -62,6 +63,9 @@ const authorize = (...roles) => async (req, res, next) => {
 
     const { chamaId } = req.params;
     const userId = req.user.user_id;
+
+    // Normalize roles to uppercase
+    const allowedRoles = roles.map(r => r.toUpperCase());
 
     const result = await pool.query(
       'SELECT role FROM chama_members WHERE chama_id = $1 AND user_id = $2 AND is_active = true',
@@ -75,23 +79,29 @@ const authorize = (...roles) => async (req, res, next) => {
       });
     }
 
-    const userRole = result.rows[0].role;
+    const userRole = result.rows[0].role; // Roles in DB are uppercase (CHAIRPERSON, etc.)
 
     // If roles includes 'MEMBER', any valid member passes
-    if (roles.includes('MEMBER')) {
+    if (allowedRoles.includes('MEMBER')) {
       req.memberRole = userRole;
       return next();
     }
 
     // 'ADMIN' is often a shorthand for Officials
-    if (roles.includes('ADMIN')) {
+    if (allowedRoles.includes('ADMIN')) {
       if (['CHAIRPERSON', 'SECRETARY', 'TREASURER'].includes(userRole)) {
         req.memberRole = userRole;
         return next();
       }
     }
 
-    if (!roles.includes(userRole)) {
+    // Allow CHAIRPERSON to act as TREASURER or SECRETARY (Super Admin)
+    if (userRole === 'CHAIRPERSON') {
+      req.memberRole = userRole;
+      return next();
+    }
+
+    if (!allowedRoles.includes(userRole)) {
       return res.status(403).json({
         success: false,
         message: `User role ${userRole} is not authorized to access this route`,
@@ -143,7 +153,7 @@ const isOfficial = async (req, res, next) => {
   }
 };
 
-// Check if user is treasurer
+// Check if user is treasurer (OR CHAIRPERSON as Super Admin)
 const isTreasurer = async (req, res, next) => {
   try {
     const { chamaId } = req.params;
@@ -154,10 +164,11 @@ const isTreasurer = async (req, res, next) => {
       [chamaId, userId],
     );
 
-    if (result.rows.length === 0 || result.rows[0].role !== 'TREASURER') {
+    // Allow CHAIRPERSON to act as Treasurer
+    if (result.rows.length === 0 || (!['TREASURER', 'CHAIRPERSON'].includes(result.rows[0].role))) {
       return res.status(403).json({
         success: false,
-        message: 'Only the treasurer can perform this action',
+        message: 'Only the treasurer or chairperson can perform this action',
       });
     }
 

@@ -58,7 +58,10 @@ const MeetingList = () => {
         <div className="page meetings-page">
             <div className="container">
                 <div className="page-header">
-                    <div>
+                    <div className="header-content">
+                        <Link to={`/chamas/${id}`} className="back-link">
+                            ← Back to Chama
+                        </Link>
                         <h1>Meetings</h1>
                         <p className="subtitle">Schedule and manage chama meetings</p>
                     </div>

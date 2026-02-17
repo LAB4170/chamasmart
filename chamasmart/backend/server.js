@@ -265,5 +265,40 @@ if (process.env.NODE_ENV !== "test") {
   logger.info("Skipping Socket.io initialization in test environment");
 }
 
+// Graceful Shutdown Logic
+const gracefulShutdown = async (signal) => {
+  logger.info(`${signal} received. Starting graceful shutdown...`);
+
+  // 1. Close HTTP server (stop accepting new connections)
+  server.close(() => {
+    logger.info('HTTP server closed.');
+  });
+
+  // 2. Close Socket.io and Redis (via socket module)
+  try {
+    const socketModule = require("./socket");
+    await socketModule.close();
+    logger.info('Socket.io and Redis adapters closed.');
+  } catch (err) {
+    logger.warn('Error closing socket module', { error: err.message });
+  }
+
+  // 3. Close Database Pool
+  try {
+    const pool = require("./config/db");
+    await pool.end();
+    logger.info('Database pool closed.');
+  } catch (err) {
+    logger.error('Error closing database pool', { error: err.message });
+  }
+
+  logger.info('Graceful shutdown completed. Exiting.');
+  process.exit(0);
+};
+
+// Handle termination signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 module.exports = app;
 module.exports.server = server;

@@ -545,6 +545,14 @@ function AppContent() {
                                     </ProtectedRoute>
                                 }
                             />
+                            <Route
+                                path="/join-chama"
+                                element={
+                                    <ProtectedRoute>
+                                        <PageTransition><JoinChama /></PageTransition>
+                                    </ProtectedRoute>
+                                }
+                            />
                             <Route path="*" element={<Navigate to="/" />} />
                         </Routes>
                     </AnimatePresence>

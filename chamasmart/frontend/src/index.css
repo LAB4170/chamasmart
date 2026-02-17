@@ -15,8 +15,10 @@
   --warning: #f59e0b;
   --success: #22c55e;
   --dark: #1f2937;
-  --gray: #6b7280;
-  --gray-light: #9ca3af;
+  --gray: #4b5563;
+  /* Improved contrast: 7.1:1 (WCAG AA compliant) */
+  --gray-light: #6b7280;
+  /* Lighter gray for non-critical text */
   --light-gray: #f3f4f6;
   --white: #ffffff;
   --border: #e5e7eb;

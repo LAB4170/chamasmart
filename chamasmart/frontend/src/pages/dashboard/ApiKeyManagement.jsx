@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { apiKeyAPI } from "../../services/api";
 import { toast } from "react-toastify";
+import { AlertTriangle } from 'lucide-react';
 import "./ApiKeyManagement.css"; // We'll create this CSS file
 
 const ApiKeyManagement = () => {
@@ -187,7 +188,7 @@ const ApiKeyManagement = () => {
                             </div>
                             <div className="modal-body">
                                 <p className="alert alert-warning">
-                                    ⚠️ Copy this key now. You won't be able to see it again!
+                                    <AlertTriangle size={18} /> Copy this key now. You won't be able to see it again!
                                 </p>
                                 <div className="key-display">
                                     <code>{generatedKey}</code>

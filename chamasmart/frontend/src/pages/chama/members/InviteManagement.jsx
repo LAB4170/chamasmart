@@ -48,8 +48,8 @@ const InviteManagement = () => {
 
         try {
             await inviteAPI.generate(id, {
-                max_uses: 1, // Default to single use for management screen
-                expires_in_days: 7
+                maxUses: 1, // Default to single use for management screen
+                expiresInDays: 7
             });
             setSuccess('New invite code generated successfully!');
             fetchData();

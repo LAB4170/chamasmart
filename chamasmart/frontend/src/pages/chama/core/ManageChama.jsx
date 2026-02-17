@@ -26,13 +26,13 @@ const ManageChama = () => {
             const res = await chamaAPI.getById(id);
             const chama = res.data.data;
             setFormData({
-                name: chama.name,
+                name: chama.chama_name || "",
                 description: chama.description || "",
-                type: chama.type,
-                contributionAmount: chama.contributionAmount || "",
-                contributionFrequency: chama.contributionFrequency || "MONTHLY",
-                mpesaPaybill: chama.mpesaPaybill || "",
-                accountNumber: chama.accountNumber || ""
+                type: chama.chama_type || "",
+                contributionAmount: chama.contribution_amount || "",
+                contributionFrequency: chama.contribution_frequency || "MONTHLY",
+                mpesaPaybill: chama.mpesa_paybill || "",
+                accountNumber: chama.account_number || ""
             });
             setLoading(false);
         } catch (err) {
@@ -54,7 +54,17 @@ const ManageChama = () => {
         e.preventDefault();
         try {
             setLoading(true);
-            await chamaAPI.update(id, formData);
+            // Map form data to API expected format (snake_case)
+            const updateData = {
+                chamaName: formData.name,
+                description: formData.description,
+                chamaType: formData.type,
+                contributionAmount: formData.contributionAmount,
+                contributionFrequency: formData.contributionFrequency,
+                mpesaPaybill: formData.mpesaPaybill,
+                accountNumber: formData.accountNumber
+            };
+            await chamaAPI.update(id, updateData);
             toast.success("Chama updated successfully");
             navigate(`/chamas/${id}`);
         } catch (err) {

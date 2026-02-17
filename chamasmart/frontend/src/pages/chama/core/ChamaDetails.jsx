@@ -13,6 +13,11 @@ import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { FixedSizeList as List } from "react-window";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import {
+  BarChart3, Calendar, Mail, Building2, Heart, RefreshCw, TrendingUp,
+  Settings, CreditCard, Users, DollarSign, Handshake, FileText, Download,
+  Target, Bell, Trash2
+} from 'lucide-react';
 
 // --- Memoized Sub-components ---
 
@@ -25,12 +30,12 @@ const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavig
           <span className="chama-type-badge">
             <span className="badge-icon">
               {isROSCA
-                ? "🔄"
+                ? <RefreshCw size={16} />
                 : chama.chama_type === "TABLE_BANKING"
-                  ? "💰"
+                  ? <DollarSign size={16} />
                   : chama.chama_type === "ASCA"
-                    ? "📈"
-                    : "🤝"}
+                    ? <TrendingUp size={16} />
+                    : <Handshake size={16} />}
             </span>
             {getChamaTypeLabel(chama.chama_type)}
           </span>
@@ -43,50 +48,55 @@ const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavig
         </div>
       </div>
       <div className="header-actions">
-        <button className="btn btn-modern btn-reports" onClick={() => onTabChange("reports")}>
-          <span className="btn-icon">📊</span> Reports
+        <button className="btn btn-modern btn-reports" onClick={() => onTabChange("reports")} aria-label="View reports">
+          <BarChart3 size={18} className="btn-icon" aria-hidden="true" /> Reports
         </button>
-        <button className="btn btn-modern btn-secondary" onClick={() => onNavigate(`/chamas/${chama.chama_id}/meetings`)}>
-          <span className="btn-icon">📅</span> Meetings
+        <button className="btn btn-modern btn-secondary" onClick={() => onNavigate(`/chamas/${chama.chama_id}/meetings`)} aria-label="View meetings">
+          <Calendar size={18} className="btn-icon" aria-hidden="true" /> Meetings
         </button>
         {isOfficial && (
           <button
             className="btn btn-modern btn-secondary"
             onClick={() => onNavigate(`/chamas/${chama.chama_id}/invites`)}
+            aria-label="Manage invites"
           >
-            <span className="btn-icon">📨</span> Invites
+            <Mail size={18} className="btn-icon" aria-hidden="true" /> Invites
           </button>
         )}
         {chama.chama_type === "TABLE_BANKING" && (
           <button
             className="btn btn-modern btn-secondary"
             onClick={() => onNavigate(`/chamas/${chama.chama_id}/loans`)}
+            aria-label="View loans"
           >
-            <span className="btn-icon">🏦</span> Loans
+            <Building2 size={18} className="btn-icon" aria-hidden="true" /> Loans
           </button>
         )}
         {chama.chama_type === "WELFARE" && (
           <button
             className="btn btn-modern btn-secondary"
             onClick={() => onNavigate(`/chamas/${chama.chama_id}/welfare`)}
+            aria-label="View welfare"
           >
-            <span className="btn-icon">🏥</span> Welfare
+            <Heart size={18} className="btn-icon" aria-hidden="true" /> Welfare
           </button>
         )}
         {chama.chama_type === "ROSCA" && (
           <button
             className="btn btn-modern btn-secondary"
             onClick={() => onNavigate(`/chamas/${chama.chama_id}/rosca`)}
+            aria-label="View merry-go-round"
           >
-            <span className="btn-icon">🎡</span> Merry-Go-Round
+            <RefreshCw size={18} className="btn-icon" aria-hidden="true" /> Merry-Go-Round
           </button>
         )}
         {chama.chama_type === "ASCA" && (
           <button
             className="btn btn-modern btn-secondary"
             onClick={() => onNavigate(`/chamas/${chama.chama_id}/asca`)}
+            aria-label="View investments"
           >
-            <span className="btn-icon">📈</span> Investments
+            <TrendingUp size={18} className="btn-icon" aria-hidden="true" /> Investments
           </button>
         )}
         {isOfficial && (
@@ -94,14 +104,16 @@ const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavig
             <button
               className="btn btn-modern btn-manage"
               onClick={() => onNavigate(`/chamas/${chama.chama_id}/manage`)}
+              aria-label="Manage chama settings"
             >
-              <span className="btn-icon">⚙️</span> Manage
+              <Settings size={18} className="btn-icon" aria-hidden="true" /> Manage
             </button>
             <button
               className="btn btn-modern btn-primary"
               onClick={() => onNavigate(`/chamas/${chama.chama_id}/record-contribution`)}
+              aria-label="Record payment for member"
             >
-              <span className="btn-icon">💳</span> Record Payment
+              <CreditCard size={18} className="btn-icon" aria-hidden="true" /> Record Payment
             </button>
           </>
         )}
@@ -113,28 +125,28 @@ const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavig
 const StatsSection = memo(({ stats, isROSCA, chama, members, formatCurrency }) => (
   <div className="stats-grid">
     <div className="stat-card">
-      <div className="stat-icon">👥</div>
+      <div className="stat-icon"><Users size={24} /></div>
       <div>
         <h3>{stats.total_members || 0}</h3>
         <p>Members</p>
       </div>
     </div>
     <div className="stat-card">
-      <div className="stat-icon">💰</div>
+      <div className="stat-icon"><DollarSign size={24} /></div>
       <div>
         <h3>{formatCurrency(stats.total_contributions || 0)}</h3>
         <p>Total Collected</p>
       </div>
     </div>
     <div className="stat-card">
-      <div className="stat-icon">🏦</div>
+      <div className="stat-icon"><Building2 size={24} /></div>
       <div>
         <h3>{formatCurrency(stats.current_fund || 0)}</h3>
         <p>Current Fund</p>
       </div>
     </div>
     <div className="stat-card">
-      <div className="stat-icon">{isROSCA ? "🔄" : "📊"}</div>
+      <div className="stat-icon">{isROSCA ? <RefreshCw size={24} /> : <BarChart3 size={24} />}</div>
       <div>
         <h3>
           {isROSCA
@@ -581,32 +593,41 @@ const ChamaDetails = () => {
 
           <div className="tabs-modern">
             <button className={`tab-modern ${activeTab === "overview" ? "active" : ""}`} onClick={() => setActiveTab("overview")}>
-              <span className="tab-icon">📋</span> Overview
+              <FileText size={18} className="tab-icon" aria-hidden="true" /> Overview
             </button>
             {isROSCA && (
               <button
                 className={`tab-modern ${activeTab === "cycle" ? "active" : ""}`}
                 onClick={() => setActiveTab("cycle")}
               >
-                <span className="tab-icon">🔄</span> Cycle info
+                <RefreshCw size={18} className="tab-icon" aria-hidden="true" /> Cycle info
               </button>
             )}
             <button className={`tab-modern ${activeTab === "members" ? "active" : ""}`} onClick={() => setActiveTab("members")}>
-              <span className="tab-icon">👥</span> Members ({members.length})
+              <Users size={18} className="tab-icon" aria-hidden="true" /> Members ({members.length})
             </button>
             <button
               className={`tab-modern ${activeTab === "contributions" ? "active" : ""
                 }`}
               onClick={() => setActiveTab("contributions")}
             >
-              <span className="tab-icon">💰</span> Contributions
+              <DollarSign size={18} className="tab-icon" aria-hidden="true" /> Contributions
             </button>
             <button
               className={`tab-modern ${activeTab === "reports" ? "active" : ""}`}
               onClick={() => setActiveTab("reports")}
+              aria-label="View reports tab"
             >
-              <span className="tab-icon">📊</span> Reports
+              <BarChart3 size={18} className="tab-icon" aria-hidden="true" /> Reports
             </button>
+            {officialStatus && (
+              <button
+                className={`tab-modern ${activeTab === "constitution" ? "active" : ""}`}
+                onClick={() => setActiveTab("constitution")}
+              >
+                <span className="tab-icon">📜</span> Constitution
+              </button>
+            )}
           </div>
 
           <div className="tab-content">
@@ -640,7 +661,7 @@ const ChamaDetails = () => {
                     <h4>How ROSCA Works</h4>
                     <div className="rosca-explanation">
                       <div className="explanation-item">
-                        <div className="explanation-icon">🔄</div>
+                        <div className="explanation-icon"><RefreshCw size={24} /></div>
                         <div>
                           <h5>Cycle Rotation</h5>
                           <p>
@@ -661,7 +682,7 @@ const ChamaDetails = () => {
                         </div>
                       </div>
                       <div className="explanation-item">
-                        <div className="explanation-icon">🎯</div>
+                        <div className="explanation-icon"><Target size={24} /></div>
                         <div>
                           <h5>Guaranteed Returns</h5>
                           <p>
@@ -733,7 +754,7 @@ const ChamaDetails = () => {
                       <div className="swap-requests-section mb-4">
                         {swapRequests.incoming.length > 0 && (
                           <div className="alert alert-info">
-                            <h4>🔔 Incoming Swap Requests</h4>
+                            <h4><Bell size={18} /> Incoming Swap Requests</h4>
                             {swapRequests.incoming.map(req => (
                               <div key={req.request_id} className="swap-request-card flex-between mt-2 p-2 bg-white rounded">
                                 <div>
@@ -854,7 +875,7 @@ const ChamaDetails = () => {
                                   }
                                 }}
                               >
-                                🗑️ Delete Cycle
+                                <Trash2 size={16} /> Delete Cycle
                               </button>
                             </div>
                           )}
@@ -881,7 +902,7 @@ const ChamaDetails = () => {
                               <div className="timeline-marker">
                                 {status === "COMPLETED" && <span>✓</span>}
                                 {status === "CURRENT_RECIPIENT" && (
-                                  <span>🎯</span>
+                                  <Target size={16} />
                                 )}
                                 {status === "WAITING" && <span>⏳</span>}
                               </div>
@@ -931,11 +952,11 @@ const ChamaDetails = () => {
                 <div className="card-header flex-between">
                   <h3>Financial Reports</h3>
                   <div className="export-actions">
-                    <button className="btn btn-outline btn-sm mr-2" onClick={handleExportPDF}>
-                      📄 Export PDF
+                    <button className="btn btn-outline btn-sm mr-2" onClick={handleExportPDF} aria-label="Export PDF report">
+                      <FileText size={16} /> Export PDF
                     </button>
-                    <button className="btn btn-outline btn-sm" onClick={handleExportExcel}>
-                      📈 Export Excel
+                    <button className="btn btn-outline btn-sm" onClick={handleExportExcel} aria-label="Export Excel report">
+                      <TrendingUp size={16} /> Export Excel
                     </button>
                   </div>
                 </div>
@@ -1076,11 +1097,11 @@ const ChamaDetails = () => {
                 <div className="card-header flex-between">
                   <h3>Chama Reports & Analytics</h3>
                   <div className="report-actions">
-                    <button className="btn btn-sm btn-outline">
-                      📥 Export PDF
+                    <button className="btn btn-sm btn-outline" aria-label="Export PDF report">
+                      <Download size={16} /> Export PDF
                     </button>
-                    <button className="btn btn-sm btn-outline">
-                      📊 Export Excel
+                    <button className="btn btn-sm btn-outline" aria-label="Export Excel report">
+                      <BarChart3 size={16} /> Export Excel
                     </button>
                   </div>
                 </div>
@@ -1088,7 +1109,7 @@ const ChamaDetails = () => {
                 {/* Contribution Trends Chart */}
                 <div className="report-card" style={{ gridColumn: '1 / -1' }}>
                   <div className="report-header">
-                    <div className="report-icon">📈</div>
+                    <div className="report-icon"><TrendingUp size={20} /></div>
                     <h4>Contribution Trends</h4>
                   </div>
                   <div className="report-content">
@@ -1146,7 +1167,7 @@ const ChamaDetails = () => {
                   {/* Financial Summary */}
                   <div className="report-card">
                     <div className="report-header">
-                      <div className="report-icon">💰</div>
+                      <div className="report-icon"><DollarSign size={20} /></div>
                       <h4>Financial Summary</h4>
                     </div>
                     <div className="report-content">
@@ -1177,7 +1198,7 @@ const ChamaDetails = () => {
                   {/* Member Performance */}
                   <div className="report-card">
                     <div className="report-header">
-                      <div className="report-icon">📈</div>
+                      <div className="report-icon"><TrendingUp size={20} /></div>
                       <h4>Member Performance</h4>
                     </div>
                     <div className="report-content">
@@ -1202,7 +1223,7 @@ const ChamaDetails = () => {
                   {/* Contribution Trends */}
                   <div className="report-card">
                     <div className="report-header">
-                      <div className="report-icon">📊</div>
+                      <div className="report-icon"><BarChart3 size={20} /></div>
                       <h4>Contribution Trends</h4>
                     </div>
                     <div className="report-content">
@@ -1251,7 +1272,7 @@ const ChamaDetails = () => {
                   {isROSCA && (
                     <div className="report-card">
                       <div className="report-header">
-                        <div className="report-icon">🔄</div>
+                        <div className="report-icon"><RefreshCw size={20} /></div>
                         <h4>ROSCA Cycle Report</h4>
                       </div>
                       <div className="report-content">

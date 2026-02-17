@@ -1,38 +1,61 @@
 
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { inviteAPI } from '../../../services/api';
 
 
 const JoinChama = () => {
-    const [inviteCode, setInviteCode] = useState('');
+    const [searchParams] = useSearchParams();
+    const urlCode = searchParams.get('code');
+    const [inviteCode, setInviteCode] = useState(urlCode || '');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
     const navigate = useNavigate();
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
+    const attemptRef = useRef(false);
 
-        if (!inviteCode.trim()) {
-            setError('Please enter an invite code');
-            return;
+    // Auto-handle URL code
+    useEffect(() => {
+        const hasAttempted = sessionStorage.getItem(`joined_${urlCode}`);
+
+        if (urlCode && !attemptRef.current && !hasAttempted) {
+            setInviteCode(urlCode);
+            attemptRef.current = true; // Prevent double firing in this mount
+
+            // Mark as attempted in session storage to survive page reloads/redirects
+            sessionStorage.setItem(`joined_${urlCode}`, 'true');
+
+            // Optionally auto-submit if you want true 1-click
+            handleJoin(urlCode);
         }
+    }, [urlCode]);
 
+    const handleJoin = async (code) => {
+        if (!code) return;
+        setError('');
         setLoading(true);
 
         try {
-            const response = await inviteAPI.join(inviteCode.trim().toUpperCase());
+            const response = await inviteAPI.join(code.trim().toUpperCase());
             const chamaId = response.data.data.chama.chama_id;
-
-            // Redirect to the chama page
-            navigate(`/ chamas / ${chamaId} `);
+            toast.success("Successfully joined the chama!");
+            navigate(`/chamas/${chamaId}`);
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to join chama. Please check the invite code.');
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!inviteCode.trim()) {
+            setError('Please enter an invite code');
+            return;
+        }
+        handleJoin(inviteCode);
     };
 
     return (
