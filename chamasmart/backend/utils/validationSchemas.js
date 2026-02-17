@@ -95,11 +95,12 @@ const contributionSchema = Joi.object({
 // Meeting Schemas
 const createMeetingSchema = Joi.object({
   title: Joi.string().min(3).max(200).required(),
-  description: Joi.string().max(1000).optional(),
-  meetingType: Joi.string().valid('regular', 'emergency', 'agm').required(),
-  scheduledDate: Joi.date().iso().required(),
-  location: Joi.string().max(200).required(),
-  agenda: Joi.array().items(Joi.string().max(500)).optional(),
+  description: Joi.string().max(1000).optional().allow('', null),
+  type: Joi.string().valid('PHYSICAL', 'VIRTUAL', 'HYBRID').default('PHYSICAL'),
+  scheduledAt: Joi.date().iso().required(),
+  location: Joi.string().max(200).optional().allow('', null),
+  meetingLink: Joi.string().uri().optional().allow('', null),
+  validUntil: Joi.date().iso().optional(),
 });
 
 // Loan Schemas

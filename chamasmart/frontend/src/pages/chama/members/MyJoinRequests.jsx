@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { joinRequestAPI } from "../../../services/api";
+import { Clock, CheckCircle, XCircle, FileText } from 'lucide-react';
 
 const MyJoinRequests = () => {
     const navigate = useNavigate();

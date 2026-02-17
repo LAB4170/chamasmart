@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { payoutAPI, chamaAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
+import { DollarSign, RefreshCw, Clock, Target } from 'lucide-react';
 
 const PayoutManagement = () => {
     const { id } = useParams();
@@ -128,8 +129,9 @@ const PayoutManagement = () => {
                             <Link
                                 to={`/chamas/${id}/payouts/process`}
                                 className="btn btn-primary btn-sm"
+                                aria-label="Process payout"
                             >
-                                💰 Process Payout
+                                <DollarSign size={16} /> Process Payout
                             </Link>
                         )}
                     </div>
@@ -140,28 +142,28 @@ const PayoutManagement = () => {
                 {/* Stats */}
                 <div className="stats-grid">
                     <div className="stat-card">
-                        <div className="stat-icon">🔄</div>
+                        <div className="stat-icon"><RefreshCw size={24} /></div>
                         <div>
                             <h3>{stats.totalPayouts}</h3>
                             <p>Completed Payouts</p>
                         </div>
                     </div>
                     <div className="stat-card">
-                        <div className="stat-icon">💰</div>
+                        <div className="stat-icon"><DollarSign size={24} /></div>
                         <div>
                             <h3>{formatCurrency(stats.totalDisbursed)}</h3>
                             <p>Total Disbursed</p>
                         </div>
                     </div>
                     <div className="stat-card">
-                        <div className="stat-icon">⏳</div>
+                        <div className="stat-icon"><Clock size={24} /></div>
                         <div>
                             <h3>{stats.remaining}</h3>
                             <p>Remaining Members</p>
                         </div>
                     </div>
                     <div className="stat-card">
-                        <div className="stat-icon">🎯</div>
+                        <div className="stat-icon"><Target size={24} /></div>
                         <div>
                             <h3>{formatCurrency(stats.nextAmount)}</h3>
                             <p>Next Payout Amount</p>
@@ -175,7 +177,7 @@ const PayoutManagement = () => {
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                             <div>
                                 <h3 style={{ color: "#10b981", marginBottom: "0.5rem" }}>
-                                    🎯 Next Recipient
+                                    <Target size={20} /> Next Recipient
                                 </h3>
                                 <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                                     <div>

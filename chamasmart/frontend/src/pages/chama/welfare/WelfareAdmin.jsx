@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { welfareAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import { toast } from "react-toastify";
+import { FileText } from 'lucide-react';
 import "./WelfareAdmin.css";
 
 const WelfareAdmin = () => {
@@ -90,8 +91,8 @@ const WelfareAdmin = () => {
                                 <p><strong>Amount:</strong> KES {Number(claim.claim_amount).toLocaleString()}</p>
                                 <p><strong>Description:</strong> {claim.description}</p>
                                 {claim.proof_document_url && (
-                                    <a href={claim.proof_document_url} target="_blank" rel="noopener noreferrer" className="view-proof-link">
-                                        📄 View Proof Document
+                                    <a href={claim.proof_document_url} target="_blank" rel="noopener noreferrer" className="view-proof-link" aria-label="View proof document">
+                                        <FileText size={16} /> View Proof Document
                                     </a>
                                 )}
                             </div>

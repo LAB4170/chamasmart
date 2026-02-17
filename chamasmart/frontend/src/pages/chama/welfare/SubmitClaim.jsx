@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { welfareAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import { toast } from "react-toastify";
+import { Info } from 'lucide-react';
 import "./SubmitClaim.css";
 
 const SubmitClaim = () => {
@@ -114,7 +115,7 @@ const SubmitClaim = () => {
 
                     {selectedEvent && (
                         <div className="entitlement-info">
-                            <span className="icon">ℹ️</span>
+                            <Info size={18} className="icon" />
                             <span>
                                 Standard Payout: <strong>KES {Number(selectedEvent.payout_amount).toLocaleString()}</strong>
                             </span>

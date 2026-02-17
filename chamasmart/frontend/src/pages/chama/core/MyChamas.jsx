@@ -2,65 +2,82 @@ import { useState, useEffect, memo, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { chamaAPI } from "../../../services/api";
 import LoadingSkeleton from "../../../components/LoadingSkeleton";
+import { Building, RefreshCw, TrendingUp, Building2, Handshake, Sparkles, MapPin } from 'lucide-react';
 
-const MyChamaCard = memo(({ chama, getChamaTypeLabel, formatCurrency }) => (
-  <Link
-    to={`/chamas/${chama.chama_id}`}
-    className="chama-card"
-  >
-    <div className="chama-card-header">
-      <div className="chama-type-badge">
-        {getChamaTypeLabel(chama.chama_type)}
-      </div>
-      <h3>{chama.chama_name}</h3>
-    </div>
+const MyChamaCard = memo(({ chama, getChamaTypeLabel, formatCurrency }) => {
+  const handleAuxClick = (e) => {
+    // Prevent middle-click from opening in new tab
+    e.preventDefault();
+  };
 
-    <div className="chama-card-body">
-      {chama.description && (
-        <p className="chama-description text-muted">
-          {chama.description}
-        </p>
-      )}
+  const handleMouseDown = (e) => {
+    // Prevent Ctrl+Click or Cmd+Click from opening in new tab
+    if (e.button === 1 || e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+    }
+  };
 
-      <div className="chama-info">
-        <span className="info-label">Your Role</span>
-        <span
-          className={`badge badge-${chama.role === "CHAIRPERSON"
-            ? "primary"
-            : chama.role === "TREASURER"
-              ? "success"
-              : "secondary"
-            }`}
-        >
-          {chama.role}
-        </span>
+  return (
+    <Link
+      to={`/chamas/${chama.chama_id}`}
+      className="chama-card"
+      onAuxClick={handleAuxClick}
+      onMouseDown={handleMouseDown}
+    >
+      <div className="chama-card-header">
+        <div className="chama-type-badge">
+          {getChamaTypeLabel(chama.chama_type)}
+        </div>
+        <h3>{chama.chama_name}</h3>
       </div>
 
-      <div className="chama-info">
-        <span className="info-label">Members</span>
-        <span className="info-value">{chama.total_members}</span>
+      <div className="chama-card-body">
+        {chama.description && (
+          <p className="chama-description text-muted">
+            {chama.description}
+          </p>
+        )}
+
+        <div className="chama-info">
+          <span className="info-label">Your Role</span>
+          <span
+            className={`badge badge-${chama.role === "CHAIRPERSON"
+              ? "primary"
+              : chama.role === "TREASURER"
+                ? "success"
+                : "secondary"
+              }`}
+          >
+            {chama.role}
+          </span>
+        </div>
+
+        <div className="chama-info">
+          <span className="info-label">Members</span>
+          <span className="info-value">{chama.total_members}</span>
+        </div>
+
+        <div className="chama-info">
+          <span className="info-label">Contribution</span>
+          <span className="info-value">
+            {formatCurrency(chama.contribution_amount)}
+          </span>
+        </div>
+
+        <div className="chama-info">
+          <span className="info-label">Total Saved</span>
+          <span className="info-value text-success" style={{ fontWeight: '700' }}>
+            {formatCurrency(chama.total_contributions || 0)}
+          </span>
+        </div>
       </div>
 
-      <div className="chama-info">
-        <span className="info-label">Contribution</span>
-        <span className="info-value">
-          {formatCurrency(chama.contribution_amount)}
-        </span>
+      <div className="chama-card-footer">
+        Go to Group →
       </div>
-
-      <div className="chama-info">
-        <span className="info-label">Total Saved</span>
-        <span className="info-value text-success" style={{ fontWeight: '700' }}>
-          {formatCurrency(chama.total_contributions || 0)}
-        </span>
-      </div>
-    </div>
-
-    <div className="chama-card-footer">
-      Go to Group →
-    </div>
-  </Link>
-));
+    </Link>
+  );
+});
 
 const MyChamas = () => {
   const [chamas, setChamas] = useState([]);
@@ -107,11 +124,11 @@ const MyChamas = () => {
   }, [chamas, filter]);
 
   const categories = [
-    { id: "ALL", label: "All", icon: "🏢" },
-    { id: "ROSCA", label: "Merry-Go-Round", icon: "🔄" },
-    { id: "ASCA", label: "Investment", icon: "📈" },
-    { id: "TABLE_BANKING", label: "Table Banking", icon: "🏦" },
-    { id: "WELFARE", label: "Welfare", icon: "🤝" },
+    { id: "ALL", label: "All", Icon: Building },
+    { id: "ROSCA", label: "Merry-Go-Round", Icon: RefreshCw },
+    { id: "ASCA", label: "Investment", Icon: TrendingUp },
+    { id: "TABLE_BANKING", label: "Table Banking", Icon: Building2 },
+    { id: "WELFARE", label: "Welfare", Icon: Handshake },
   ];
 
   return (
@@ -122,8 +139,8 @@ const MyChamas = () => {
             <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>My Chamas</h1>
             <p className="text-muted" style={{ fontSize: '1.1rem' }}>Manage your memberships and track your growth.</p>
           </div>
-          <Link to="/chamas/create" className="btn btn-primary btn-lg">
-            ✨ Create New Chama
+          <Link to="/chamas/create" className="btn btn-primary btn-lg" aria-label="Create new chama">
+            <Sparkles size={18} /> Create New Chama
           </Link>
         </div>
 
@@ -136,8 +153,9 @@ const MyChamas = () => {
               key={cat.id}
               className={`filter-btn ${filter === cat.id ? "active" : ""}`}
               onClick={() => setFilter(cat.id)}
+              aria-label={`Filter by ${cat.label}`}
             >
-              <span>{cat.icon}</span>
+              <cat.Icon size={18} />
               {cat.label} ({cat.id === "ALL" ? chamas.length : chamas.filter((c) => c.chama_type === cat.id).length})
             </button>
           ))}
@@ -150,7 +168,7 @@ const MyChamas = () => {
           </div>
         ) : filteredChamas.length === 0 ? (
           <div className="card text-center" style={{ padding: '4rem 2rem' }}>
-            <div className="mb-4" style={{ fontSize: '4rem' }}>🏜️</div>
+            <div className="mb-4" style={{ fontSize: '4rem' }}><MapPin size={64} /></div>
             <h2>No chamas found</h2>
             <p className="text-muted" style={{ fontSize: '1.1rem', maxWidth: '500px', margin: '1rem auto' }}>
               {filter === "ALL"

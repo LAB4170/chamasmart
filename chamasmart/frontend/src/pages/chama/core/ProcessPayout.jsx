@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { payoutAPI, chamaAPI, meetingAPI } from "../../../services/api";
+import { AlertTriangle, DollarSign } from 'lucide-react';
 
 const ProcessPayout = () => {
     const { id } = useParams();
@@ -151,7 +152,7 @@ const ProcessPayout = () => {
                 {/* Available Funds Warning */}
                 {formData.amount && parseFloat(formData.amount) > getAvailableFunds() && (
                     <div className="alert alert-error">
-                        ⚠️ Insufficient funds! Available: {formatCurrency(getAvailableFunds())}
+                        <AlertTriangle size={18} /> Insufficient funds! Available: {formatCurrency(getAvailableFunds())}
                     </div>
                 )}
 
@@ -275,8 +276,9 @@ const ProcessPayout = () => {
                                 type="submit"
                                 className="btn btn-success"
                                 disabled={loading || parseFloat(formData.amount) > getAvailableFunds()}
+                                aria-label="Process payout"
                             >
-                                {loading ? "Processing..." : "💰 Process Payout"}
+                                {loading ? "Processing..." : <><DollarSign size={18} /> Process Payout</>}
                             </button>
                         </div>
                     </form>
