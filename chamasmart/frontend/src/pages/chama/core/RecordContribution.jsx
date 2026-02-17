@@ -76,7 +76,7 @@ const RecordContribution = () => {
       setSuccess("Contribution recorded successfully!");
 
       setTimeout(() => {
-        navigate(`/chamas/${id}`);
+        navigate(`/chamas/${id}`, { state: { refresh: true, tab: 'contributions' } });
       }, 1500);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to record contribution");
