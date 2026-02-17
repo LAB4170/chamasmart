@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { payoutAPI, chamaAPI, meetingAPI } from "../../../services/api";
-import { AlertTriangle, DollarSign } from 'lucide-react';
+import {
+    AlertTriangle, DollarSign, User, Calendar,
+    ArrowLeft, CheckCircle2, FileText, Send
+} from 'lucide-react';
+import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "react-toastify";
 
 const ProcessPayout = () => {
     const { id } = useParams();
@@ -11,23 +16,21 @@ const ProcessPayout = () => {
     const [eligibleMembers, setEligibleMembers] = useState([]);
     const [meetings, setMeetings] = useState([]);
     const [payouts, setPayouts] = useState([]);
+
     const [formData, setFormData] = useState({
         userId: "",
         amount: "",
         meetingId: "",
         notes: "",
     });
+
     const [loading, setLoading] = useState(false);
     const [pageLoading, setPageLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
+    const [success, setSuccess] = useState(false);
 
     useEffect(() => {
-        let isMounted = true;
-
         const fetchData = async () => {
             try {
-                if (isMounted) setPageLoading(true);
                 const [chamaRes, eligibleRes, meetingsRes, payoutsRes] = await Promise.all([
                     chamaAPI.getById(id),
                     payoutAPI.getEligible(id),
@@ -35,44 +38,37 @@ const ProcessPayout = () => {
                     payoutAPI.getAll(id),
                 ]);
 
-                if (isMounted) {
-                    const chamaData = chamaRes.data.data;
-                    const eligibleData = eligibleRes.data.data;
-                    const membersCount = eligibleData.length;
+                const chamaData = chamaRes.data.data;
+                const eligibleData = eligibleRes.data.data;
+                const membersCount = eligibleData.length;
 
-                    setChama(chamaData);
-                    setEligibleMembers(eligibleData);
-                    setMeetings(meetingsRes.data.data);
-                    setPayouts(payoutsRes.data.data);
+                setChama(chamaData);
+                setEligibleMembers(eligibleData);
+                setMeetings(meetingsRes.data.data);
+                setPayouts(payoutsRes.data.data);
 
-                    // Auto-select next recipient and calculate amount
-                    const receivedPayouts = payoutsRes.data.data.map((p) => p.user_id);
-                    const nextRecipient = eligibleData.find((m) => !receivedPayouts.includes(m.user_id));
+                // Auto-select next recipient logic
+                const receivedPayouts = payoutsRes.data.data.map((p) => p.user_id);
+                const nextRecipient = eligibleData.find((m) => !receivedPayouts.includes(m.user_id));
 
-                    if (nextRecipient) {
-                        const expectedAmount = parseFloat(chamaData.contribution_amount) * membersCount;
-                        setFormData((prev) => ({
-                            ...prev,
-                            userId: nextRecipient.user_id,
-                            amount: expectedAmount.toFixed(2),
-                        }));
-                    }
+                if (nextRecipient) {
+                    const expectedAmount = parseFloat(chamaData.contribution_amount) * membersCount;
+                    setFormData(prev => ({
+                        ...prev,
+                        userId: nextRecipient.user_id,
+                        amount: expectedAmount.toFixed(2),
+                    }));
                 }
+
+                setPageLoading(false);
             } catch (err) {
-                if (isMounted) {
-                    setError("Failed to load data");
-                    console.error(err);
-                }
-            } finally {
-                if (isMounted) setPageLoading(false);
+                console.error("Failed to load data", err);
+                toast.error("Failed to load payout details");
+                setPageLoading(false);
             }
         };
 
         fetchData();
-
-        return () => {
-            isMounted = false;
-        };
     }, [id]);
 
     const handleChange = (e) => {
@@ -84,205 +80,218 @@ const ProcessPayout = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError("");
-        setSuccess("");
         setLoading(true);
 
         try {
             await payoutAPI.process(id, formData);
-            setSuccess("Payout processed successfully!");
+            setSuccess(true);
+            toast.success("Payout processed successfully!");
 
             setTimeout(() => {
                 navigate(`/chamas/${id}/payouts`);
             }, 2000);
         } catch (err) {
-            setError(err.response?.data?.message || "Failed to process payout");
-        } finally {
+            console.error(err);
+            toast.error(err.response?.data?.message || "Failed to process payout");
             setLoading(false);
         }
     };
 
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat("en-KE", {
-            style: "currency",
-            currency: "KES",
-        }).format(amount);
-    };
-
-    const getAvailableFunds = () => {
-        return chama?.current_fund || 0;
-    };
+    const selectedMember = eligibleMembers.find(m => m.user_id === parseInt(formData.userId));
 
     if (pageLoading) {
         return (
-            <div className="page">
-                <div className="container">
-                    <div className="loading">
-                        <div className="spinner"></div>
-                        <p>Loading...</p>
-                    </div>
-                </div>
+            <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                Processing configuration...
             </div>
         );
     }
 
-    const selectedMember = eligibleMembers.find(
-        (m) => m.user_id === parseInt(formData.userId)
-    );
+    if (success) {
+        return (
+            <div style={{ padding: '2rem', maxWidth: '600px', margin: '4rem auto', textAlign: 'center' }}>
+                <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                >
+                    <CheckCircle2 size={80} style={{ color: 'var(--success)', marginBottom: '1.5rem' }} />
+                    <h2 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '1rem' }}>Payout Successful!</h2>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>
+                        Funds have been disbursed to {selectedMember?.first_name} {selectedMember?.last_name}.
+                    </p>
+                    <div style={{ marginTop: '2rem', padding: '1rem', background: 'var(--bg-secondary)', borderRadius: '12px', display: 'inline-block' }}>
+                        Redirecting to history...
+                    </div>
+                </motion.div>
+            </div>
+        );
+    }
 
     return (
-        <div className="page">
-            <div className="container">
-                <div className="page-header">
-                    <div>
-                        <h1>Process Payout</h1>
-                        <p className="text-muted">{chama?.chama_name}</p>
+        <div style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto', color: 'var(--text-primary)' }}>
+
+            <button
+                onClick={() => navigate(`/chamas/${id}/payouts`)}
+                style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    background: 'none', border: 'none', color: 'var(--text-secondary)',
+                    cursor: 'pointer', marginBottom: '1.5rem', fontSize: '0.95rem', fontWeight: 500
+                }}
+            >
+                <ArrowLeft size={18} /> Back to Financial Center
+            </button>
+
+            <div style={{ marginBottom: '2rem' }}>
+                <h1 style={{ fontSize: '2rem', fontWeight: 800, margin: '0 0 0.5rem', color: 'var(--text-primary)' }}>Process Payout</h1>
+                <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Confirm details and maximize disbursement.</p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '2rem', alignItems: 'start' }}>
+
+                {/* Recipient Card */}
+                <div style={{ background: 'var(--card-bg)', padding: '2rem', borderRadius: '20px', border: '1px solid var(--border)', textAlign: 'center', boxShadow: 'var(--shadow)' }}>
+                    <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary), #1e40af)', margin: '0 auto 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '2rem', fontWeight: 700, boxShadow: '0 8px 20px -5px rgba(37, 99, 235, 0.4)' }}>
+                        {selectedMember ? selectedMember.first_name[0] : <User size={32} />}
                     </div>
-                    <button
-                        className="btn btn-outline btn-sm"
-                        onClick={() => navigate(`/chamas/${id}/payouts`)}
-                    >
-                        ← Back to Payouts
-                    </button>
+                    <h3 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                        {selectedMember ? `${selectedMember.first_name} ${selectedMember.last_name}` : "Select Member"}
+                    </h3>
+                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                        {selectedMember ? "Next Eligible Recipient" : "Pending Selection"}
+                    </p>
+
+                    <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-light)' }}>
+                        <p style={{ margin: '0 0 0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Amount to Pay</p>
+                        <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--primary)' }}>
+                            <span style={{ fontSize: '1rem', verticalAlign: 'top', marginRight: '4px' }}>KES</span>
+                            {parseFloat(formData.amount || 0).toLocaleString()}
+                        </div>
+                    </div>
                 </div>
 
-                {error && <div className="alert alert-error">{error}</div>}
-                {success && <div className="alert alert-success">{success}</div>}
+                {/* Form */}
+                <form onSubmit={handleSubmit} style={{ background: 'var(--card-bg)', padding: '2rem', borderRadius: '20px', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' }}>
 
-                {/* Available Funds Warning */}
-                {formData.amount && parseFloat(formData.amount) > getAvailableFunds() && (
-                    <div className="alert alert-error">
-                        <AlertTriangle size={18} /> Insufficient funds! Available: {formatCurrency(getAvailableFunds())}
-                    </div>
-                )}
-
-                <div className="card">
-                    <form onSubmit={handleSubmit}>
-                        <div className="form-group">
-                            <label className="form-label">Select Recipient *</label>
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Recipient</label>
+                        <div style={{ position: 'relative' }}>
+                            <User size={18} style={{ position: 'absolute', top: '50%', left: '1rem', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
                             <select
                                 name="userId"
-                                className="form-select"
                                 value={formData.userId}
                                 onChange={handleChange}
                                 required
+                                style={{
+                                    width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem',
+                                    borderRadius: '10px', border: '1px solid var(--border)',
+                                    background: 'var(--bg-secondary)', color: 'var(--text-primary)',
+                                    fontSize: '1rem', outline: 'none'
+                                }}
                             >
-                                <option value="">Choose a member...</option>
-                                {eligibleMembers.map((member) => {
-                                    const hasReceived = payouts.some((p) => p.user_id === member.user_id);
-                                    return (
-                                        <option key={member.user_id} value={member.user_id}>
-                                            {member.first_name} {member.last_name}
-                                            {hasReceived ? " (Already received)" : ""}
-                                        </option>
-                                    );
-                                })}
-                            </select>
-                            {selectedMember && (
-                                <small className="text-muted">
-                                    Position {selectedMember.rotation_position || eligibleMembers.indexOf(selectedMember) + 1} in rotation
-                                </small>
-                            )}
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label">Payout Amount (KES) *</label>
-                            <input
-                                type="number"
-                                name="amount"
-                                className="form-input"
-                                placeholder="Enter amount"
-                                min="1"
-                                step="0.01"
-                                value={formData.amount}
-                                onChange={handleChange}
-                                required
-                            />
-                            <small className="text-muted">
-                                Available Funds: {formatCurrency(getAvailableFunds())}
-                            </small>
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label">Associated Meeting (Optional)</label>
-                            <select
-                                name="meetingId"
-                                className="form-select"
-                                value={formData.meetingId}
-                                onChange={handleChange}
-                            >
-                                <option value="">No meeting selected</option>
-                                {meetings.slice(0, 10).map((meeting) => (
-                                    <option key={meeting.meeting_id} value={meeting.meeting_id}>
-                                        {new Date(meeting.meeting_date).toLocaleDateString()} -{" "}
-                                        {meeting.location || "No location"}
+                                <option value="">Select Member</option>
+                                {eligibleMembers.map(member => (
+                                    <option key={member.user_id} value={member.user_id}>
+                                        {member.first_name} {member.last_name}
                                     </option>
                                 ))}
                             </select>
                         </div>
+                    </div>
 
-                        <div className="form-group">
-                            <label className="form-label">Notes</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Amount (KES)</label>
+                            <div style={{ position: 'relative' }}>
+                                <DollarSign size={18} style={{ position: 'absolute', top: '50%', left: '1rem', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                                <input
+                                    type="number"
+                                    name="amount"
+                                    value={formData.amount}
+                                    onChange={handleChange}
+                                    required
+                                    style={{
+                                        width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem',
+                                        borderRadius: '10px', border: '1px solid var(--border)',
+                                        background: 'var(--bg-secondary)', color: 'var(--text-primary)',
+                                        fontSize: '1rem', outline: 'none'
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Meeting</label>
+                            <div style={{ position: 'relative' }}>
+                                <Calendar size={18} style={{ position: 'absolute', top: '50%', left: '1rem', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                                <select
+                                    name="meetingId"
+                                    value={formData.meetingId}
+                                    onChange={handleChange}
+                                    style={{
+                                        width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem',
+                                        borderRadius: '10px', border: '1px solid var(--border)',
+                                        background: 'var(--bg-secondary)', color: 'var(--text-primary)',
+                                        fontSize: '1rem', outline: 'none'
+                                    }}
+                                >
+                                    <option value="">No Meeting</option>
+                                    {meetings.map(meeting => (
+                                        <option key={meeting.meeting_id} value={meeting.meeting_id}>
+                                            {new Date(meeting.meeting_date).toLocaleDateString()}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{ marginBottom: '2rem' }}>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Notes (Optional)</label>
+                        <div style={{ position: 'relative' }}>
+                            <FileText size={18} style={{ position: 'absolute', top: '1rem', left: '1rem', color: 'var(--text-secondary)' }} />
                             <textarea
                                 name="notes"
-                                className="form-textarea"
-                                placeholder="Any additional notes about this payout..."
                                 value={formData.notes}
                                 onChange={handleChange}
                                 rows="3"
+                                style={{
+                                    width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem',
+                                    borderRadius: '10px', border: '1px solid var(--border)',
+                                    background: 'var(--bg-secondary)', color: 'var(--text-primary)',
+                                    fontSize: '1rem', outline: 'none', resize: 'vertical'
+                                }}
                             />
                         </div>
+                    </div>
 
-                        {/* Payout Summary */}
-                        {formData.userId && formData.amount && (
-                            <div className="card" style={{ backgroundColor: "#f0fdf4", marginTop: "1rem" }}>
-                                <h4>Payout Summary</h4>
-                                <div className="info-grid">
-                                    <div className="info-item">
-                                        <span className="info-label">Recipient</span>
-                                        <span className="info-value">
-                                            {selectedMember?.first_name} {selectedMember?.last_name}
-                                        </span>
-                                    </div>
-                                    <div className="info-item">
-                                        <span className="info-label">Amount</span>
-                                        <span className="info-value text-success">
-                                            <strong>{formatCurrency(formData.amount)}</strong>
-                                        </span>
-                                    </div>
-                                    <div className="info-item">
-                                        <span className="info-label">Available Funds</span>
-                                        <span className="info-value">{formatCurrency(getAvailableFunds())}</span>
-                                    </div>
-                                    <div className="info-item">
-                                        <span className="info-label">Remaining After Payout</span>
-                                        <span className="info-value">
-                                            {formatCurrency(getAvailableFunds() - parseFloat(formData.amount))}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        style={{
+                            width: '100%',
+                            padding: '1rem',
+                            background: 'var(--primary)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '12px',
+                            fontSize: '1.1rem',
+                            fontWeight: 700,
+                            cursor: loading ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.75rem',
+                            opacity: loading ? 0.7 : 1,
+                            transition: 'all 0.2s',
+                            boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
+                        }}
+                    >
+                        {loading ? <RefreshCw className="spin" /> : <Send size={20} />}
+                        {loading ? "Processing..." : "Confirm Disbursement"}
+                    </button>
 
-                        <div className="form-actions">
-                            <button
-                                type="button"
-                                className="btn btn-outline"
-                                onClick={() => navigate(`/chamas/${id}/payouts`)}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                className="btn btn-success"
-                                disabled={loading || parseFloat(formData.amount) > getAvailableFunds()}
-                                aria-label="Process payout"
-                            >
-                                {loading ? "Processing..." : <><DollarSign size={18} /> Process Payout</>}
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                </form>
             </div>
         </div>
     );

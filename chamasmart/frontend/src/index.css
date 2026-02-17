@@ -2747,11 +2747,7 @@ button:focus,
   margin: 0;
   font-size: 1.5rem;
   font-weight: 700;
-  color: #1f2937;
-  background: linear-gradient(135deg, #1f2937, #374151);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text-primary);
 }
 
 .card h4 {
@@ -4809,6 +4805,8 @@ button:focus,
 }
 
 [data-theme='dark'] .stat-value {
+  background: none !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
   color: var(--text-primary) !important;
 }
 
@@ -6067,4 +6065,50 @@ button:focus,
   display: flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+/* Global Theme Visibility Overrides */
+[data-theme='dark'] h1,
+[data-theme='dark'] h2,
+[data-theme='dark'] h3,
+[data-theme='dark'] h4,
+[data-theme='dark'] h5,
+[data-theme='dark'] .card h3,
+[data-theme='dark'] .card-header h3,
+[data-theme='dark'] .stat-card h3,
+[data-theme='dark'] .info-grid .info-label,
+[data-theme='dark'] .card-title {
+  color: #ffffff !important;
+}
+
+/* Specific Fix for ChamaDetails Section Titles (H1-H5) */
+/* Light Mode Force */
+.chama-details-root h1,
+.chama-details-root h2,
+.chama-details-root h3,
+.chama-details-root h4,
+.chama-details-root h5 {
+  color: #1f2937 !important;
+}
+
+/* Dark Mode Force */
+[data-theme='dark'] .chama-details-root h1,
+[data-theme='dark'] .chama-details-root h2,
+[data-theme='dark'] .chama-details-root h3,
+[data-theme='dark'] .chama-details-root h4,
+[data-theme='dark'] .chama-details-root h5 {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: none !important;
+}
+
+[data-theme='dark'] .text-muted {
+  color: #9ca3af !important;
+}
+
+/* Ensure card context always respects theme */
+[data-theme='dark'] .card,
+[data-theme='dark'] .stat-card,
+[data-theme='dark'] .info-item {
+  border-color: #374151 !important;
 }
