@@ -30,7 +30,7 @@ const generateInvite = async (req, res) => {
 
     // Calculate expiry date
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+    expiresAt.setDate(expiresAt.getDate() + parseInt(expiresInDays));
 
     // Create invite
     const result = await pool.query(
@@ -251,7 +251,7 @@ const deactivateInvite = async (req, res) => {
 
 const { sendInviteEmail } = require('../utils/emailService');
 
-// @desc    Send email invitation
+// @desc    Send email invitation or add existing user directly
 // @route   POST /api/invites/:chamaId/send
 // @access  Private (Officials only)
 const sendInvite = async (req, res) => {
@@ -259,56 +259,125 @@ const sendInvite = async (req, res) => {
 
   try {
     const { chamaId } = req.params;
-    const { email } = req.body;
+    const { email, role = 'MEMBER' } = req.body;
     const inviterName = `${req.user.first_name} ${req.user.last_name}`;
 
     if (!email) {
       return res.status(400).json({ success: false, message: 'Email is required' });
     }
 
-    // Check if user already exists
-    const userCheck = await client.query('SELECT user_id FROM users WHERE email = $1', [email]);
+    await client.query('BEGIN');
+
+    // 1. Get Chama Details
+    const chamaRes = await client.query('SELECT chama_name, is_active FROM chamas WHERE chama_id = $1', [chamaId]);
+    if (chamaRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Chama not found' });
+    }
+    const { chama_name: chamaName, is_active: isActive } = chamaRes.rows[0];
+
+    if (!isActive) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, message: 'Chama is not active' });
+    }
+
+    // 2. Check if user already exists on the platform
+    const userCheck = await client.query('SELECT user_id, first_name FROM users WHERE email = $1', [email]);
+
     if (userCheck.rows.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'This user is already registered on ChamaSmart. Search for them by email to add them directly.',
-        isRegistered: true,
+      const existingUser = userCheck.rows[0];
+      const targetUserId = existingUser.user_id;
+
+      // Check if already a member
+      const memberCheck = await client.query(
+        'SELECT member_id, is_active FROM chama_members WHERE chama_id = $1 AND user_id = $2',
+        [chamaId, targetUserId]
+      );
+
+      if (memberCheck.rows.length > 0) {
+        if (memberCheck.rows[0].is_active) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            success: false,
+            message: `${email} is already an active member of this chama.`,
+          });
+        } else {
+          // Reactivate
+          await client.query(
+            'UPDATE chama_members SET is_active = true, role = $1, joined_at = NOW() WHERE chama_id = $2 AND user_id = $3',
+            [role, chamaId, targetUserId]
+          );
+        }
+      } else {
+        // Add as new member
+        // Get next rotation position
+        const posRes = await client.query(
+          'SELECT COALESCE(MAX(rotation_position), 0) + 1 as next_pos FROM chama_members WHERE chama_id = $1',
+          [chamaId]
+        );
+        const nextPosition = posRes.rows[0].next_pos;
+
+        await client.query(
+          `INSERT INTO chama_members (chama_id, user_id, role, rotation_position)
+           VALUES ($1, $2, $3, $4)`,
+          [chamaId, targetUserId, role, nextPosition]
+        );
+      }
+
+      // Update total members
+      await client.query(
+        'UPDATE chamas SET total_members = total_members + 1 WHERE chama_id = $1',
+        [chamaId]
+      );
+
+      // Send application notification
+      await client.query(
+        `INSERT INTO notifications (user_id, type, title, message, link, related_id)
+         VALUES ($1, 'JOIN_CHAMA', 'Joined ${chamaName}', 'You have been added to ${chamaName} by ${inviterName}', $2, $3)`,
+        [targetUserId, `/chamas/${chamaId}`, chamaId]
+      );
+
+      await client.query('COMMIT');
+
+      return res.json({
+        success: true,
+        message: `${existingUser.first_name} has been added to the chama directly.`,
+        isAdded: true,
       });
     }
 
-    // Generate Invite Code (reuse logic or create new one specific for this email)
-    // For simplicity, we generate a general use one or one-time use
+    // 3. User doesn't exist - Generate Invite Code & Send Email
     const inviteCode = generateInviteCode();
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
+    expiresAt.setDate(expiresAt.getDate() + 7);
 
     await client.query(
       `INSERT INTO chama_invites (chama_id, invite_code, created_by, max_uses, expires_at)
        VALUES ($1, $2, $3, 1, $4)`,
-      [chamaId, inviteCode, req.user.user_id, expiresAt],
+      [chamaId, inviteCode, req.user.user_id, expiresAt]
     );
 
-    // Get Chama Name
-    const chamaRes = await client.query('SELECT chama_name FROM chamas WHERE chama_id = $1', [chamaId]);
-    const chamaName = chamaRes.rows[0].chama_name;
-
-    // Send Email
-    // Construct Link: For local dev, frontend is at localhost:5173
-    // In prod, use env var.
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const inviteLink = `${frontendUrl}/join-chama?code=${inviteCode}`;
 
-    await sendInviteEmail(email, inviteLink, chamaName, inviterName);
+    const emailResult = await sendInviteEmail(email, inviteLink, chamaName, inviterName);
+
+    await client.query('COMMIT');
 
     res.json({
       success: true,
-      message: `Invitation sent to ${email}`,
+      message: emailResult.mode === 'CONSOLE'
+        ? `Invitation simulated for ${email} (Console Mode)`
+        : `Invitation email sent to ${email}`,
+      isAdded: false,
+      deliveryMode: emailResult.mode
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Send invite error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to send invitation',
+      message: 'Failed to process invitation',
       error: error.message,
     });
   } finally {

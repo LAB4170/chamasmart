@@ -116,7 +116,8 @@ const applyLoanSchema = Joi.object({
 const generateInviteSchema = Joi.object({
   maxUses: Joi.number().integer().min(1).max(100)
     .default(1),
-  expiresAt: Joi.date().iso().required(),
+  expiresInDays: Joi.number().integer().min(1).max(30).default(7),
+  expiresAt: Joi.date().iso().optional(),
   role: Joi.string()
     .valid('member', 'treasurer', 'chairperson')
     .default('member'),
