@@ -46,11 +46,11 @@ const InviteManagement = () => {
         setGenerating(true);
 
         try {
-            await inviteAPI.generate(id, {
+            const response = await inviteAPI.generate(id, {
                 maxUses: 1, // Default to single use for management screen
                 expiresInDays: 7
             });
-            setSuccess('New invite code generated successfully!');
+            setSuccess(response.data.message || 'New invite code generated successfully!');
             fetchData();
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to generate invite');

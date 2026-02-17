@@ -93,8 +93,21 @@ const AddMember = () => {
         e.preventDefault();
         setLoading(true);
         try {
-            await inviteAPI.send(id, inviteEmail);
-            toast.success(`Invitation sent to ${inviteEmail}`);
+            const response = await inviteAPI.send(id, inviteEmail);
+            const { isAdded, deliveryMode, message } = response.data;
+
+            if (isAdded) {
+                toast.success(message || `${inviteEmail} has been added to the chama directly!`, {
+                    icon: <CheckCircle2 className="text-success" />
+                });
+            } else if (deliveryMode === 'CONSOLE') {
+                toast.warning(`Email simulated for ${inviteEmail} (Console Mode). Check backend terminal.`, {
+                    icon: <AlertCircle className="text-warning" />,
+                    autoClose: 10000
+                });
+            } else {
+                toast.success(message || `Invitation email sent to ${inviteEmail}`);
+            }
             setInviteEmail("");
         } catch (err) {
             toast.error(err.response?.data?.message || "Failed to send invitation");

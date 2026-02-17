@@ -24,13 +24,13 @@ const sendInviteEmail = async (email, inviteLink, chamaName, inviterName) => {
 
   if (!transporter) {
     console.log('⚠️ SMTP credentials not found (EMAIL_USER/EMAIL_PASS).');
-    console.log('==================================================');
+    console.log('--- CONSOLE MODE: INVITE EMAIL ---');
     console.log(`To: ${email}`);
     console.log(`Subject: You're invited to join ${chamaName} on ChamaSmart`);
     console.log(`Message: Hello! ${inviterName} has invited you to join their investment group '${chamaName}'.`);
     console.log(`Link: ${inviteLink}`);
-    console.log('==================================================');
-    return true; // Simulate success
+    console.log('---------------------------------');
+    return { success: true, mode: 'CONSOLE' };
   }
 
   const mailOptions = {
@@ -54,11 +54,13 @@ const sendInviteEmail = async (email, inviteLink, chamaName, inviterName) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`✅ Email sent successfully to ${email}`);
-    return true;
+    console.log(`✅ Success: Invite email delivered to ${email}`);
+    return { success: true, mode: 'SMTP' };
   } catch (error) {
-    console.error('❌ Failed to send email:', error.message);
-    throw error;
+    console.error(`❌ SMTP Error: Failed to deliver email to ${email}`);
+    console.error(`Reason: ${error.message}`);
+    // We throw the error so the controller can handle it (e.g., ROLLBACK)
+    throw new Error(`Email delivery failed: ${error.message}`);
   }
 };
 
