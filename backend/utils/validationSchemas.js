@@ -134,7 +134,7 @@ const joinWithInviteSchema = Joi.object({
 
 // Join Request Schemas
 const requestToJoinSchema = Joi.object({
-  message: Joi.string().min(10).max(500).required(),
+  message: Joi.string().min(10).max(2000).required(),
 });
 
 const respondToJoinRequestSchema = Joi.object({

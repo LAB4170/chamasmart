@@ -1,5 +1,5 @@
 import { useState, useEffect, memo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { chamaAPI, joinRequestAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import LoadingSkeleton from "../../../components/LoadingSkeleton";
@@ -115,31 +115,17 @@ const BrowseChamas = () => {
         return () => clearTimeout(debounceTimer);
     }, [fetchPublicChamas]);
 
-    const handleRequestToJoin = async (chamaId, chamaName) => {
-        const message = prompt(`Why do you want to join ${chamaName}?`);
-        if (!message) return;
-
-        try {
-            setRequestingId(chamaId);
-
-            // Optimistic update: mark as requested locally
-            setRequestedChamas(prev => new Set(prev).add(chamaId));
-
-            await joinRequestAPI.request(chamaId, message);
-            setSuccess(`Join request sent to ${chamaName}!`);
-            setTimeout(() => setSuccess(""), 3000);
-        } catch (err) {
-            // Rollback optimistic update
-            setRequestedChamas(prev => {
-                const next = new Set(prev);
-                next.delete(chamaId);
-                return next;
-            });
-            setError(err.response?.data?.message || "Failed to send join request");
-            setTimeout(() => setError(""), 3000);
-        } finally {
-            setRequestingId(null);
+    useEffect(() => {
+        if (location.state?.success) {
+            setSuccess(location.state.success);
+            // Clear location state
+            window.history.replaceState({}, document.title);
+            setTimeout(() => setSuccess(""), 4000);
         }
+    }, [location.state]);
+
+    const handleRequestToJoin = (chamaId) => {
+        navigate(`/chamas/${chamaId}/apply`);
     };
 
     const formatCurrency = useCallback((amount) => {

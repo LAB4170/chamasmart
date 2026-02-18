@@ -145,10 +145,50 @@ const JoinRequests = () => {
 
                                         {request.message && (
                                             <div style={{ background: "var(--surface-3)", padding: "1rem", borderRadius: "12px", border: "1px solid var(--border)", marginBottom: "1.5rem" }}>
-                                                <div className="d-flex gap-2 text-muted small mb-1">
-                                                    <MessageSquare size={14} /> Application Message
-                                                </div>
-                                                <p className="mb-0" style={{ fontStyle: "italic", color: "var(--text-primary)" }}>"{request.message}"</p>
+                                                {(() => {
+                                                    try {
+                                                        const parsed = JSON.parse(request.message);
+                                                        if (parsed.type === "STRUCTURED_APPLICATION") {
+                                                            const { introduction, motivation, vows } = parsed.data;
+                                                            return (
+                                                                <div className="structured-application">
+                                                                    <div className="d-flex gap-2 text-primary small mb-2 font-bold uppercase letter-spacing-1">
+                                                                        <CheckCircle2 size={14} /> Professional Application
+                                                                    </div>
+
+                                                                    <div className="mb-3">
+                                                                        <span className="text-muted small uppercase font-bold d-block mb-1">Introduction & Background</span>
+                                                                        <p className="mb-0" style={{ color: "var(--text-primary)" }}>{introduction}</p>
+                                                                    </div>
+
+                                                                    <div className="mb-3">
+                                                                        <span className="text-muted small uppercase font-bold d-block mb-1">Motivation & Goals</span>
+                                                                        <p className="mb-0" style={{ color: "var(--text-primary)" }}>{motivation}</p>
+                                                                    </div>
+
+                                                                    <div className="d-flex gap-3">
+                                                                        <div className={`badge ${vows.financial ? 'badge-success' : 'badge-gray'} small`}>
+                                                                            {vows.financial ? "✓ Financial Commitment" : "✗ No Financial Vow"}
+                                                                        </div>
+                                                                        <div className={`badge ${vows.rules ? 'badge-success' : 'badge-gray'} small`}>
+                                                                            {vows.rules ? "✓ Rule Acceptance" : "✗ No Rule Vow"}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        }
+                                                    } catch (e) {
+                                                        // Not JSON, fall back to plain text
+                                                    }
+                                                    return (
+                                                        <>
+                                                            <div className="d-flex gap-2 text-muted small mb-1">
+                                                                <MessageSquare size={14} /> Application Message
+                                                            </div>
+                                                            <p className="mb-0" style={{ fontStyle: "italic", color: "var(--text-primary)" }}>"{request.message}"</p>
+                                                        </>
+                                                    );
+                                                })()}
                                             </div>
                                         )}
 

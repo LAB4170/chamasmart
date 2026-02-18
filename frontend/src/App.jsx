@@ -38,6 +38,7 @@ const ProcessPayout = lazy(() => import("./pages/chama/core/ProcessPayout"));
 const BrowseChamas = lazy(() => import("./pages/chama/core/BrowseChamas"));
 const JoinRequests = lazy(() => import("./pages/chama/members/JoinRequests"));
 const MyJoinRequests = lazy(() => import("./pages/chama/members/MyJoinRequests"));
+const ApplyChama = lazy(() => import("./pages/chama/members/ApplyChama"));
 
 const MyGuarantees = lazy(() => import("./pages/loans/MyGuarantees"));
 const WelfareDashboard = lazy(() => import("./pages/chama/welfare/WelfareDashboard"));
@@ -517,6 +518,14 @@ function AppContent() {
                                 element={
                                     <ProtectedRoute>
                                         <PageTransition><JoinRequests /></PageTransition>
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/chamas/:id/apply"
+                                element={
+                                    <ProtectedRoute>
+                                        <PageTransition><ApplyChama /></PageTransition>
                                     </ProtectedRoute>
                                 }
                             />
