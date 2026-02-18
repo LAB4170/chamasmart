@@ -10,9 +10,7 @@ const {
 } = require('../controllers/memberController');
 const { protect, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validate');
-const {
-  updateMemberRoleSchema,
-} = require('../utils/validationSchemas');
+
 const { applyRateLimiting } = require('../middleware/rateLimiting');
 
 // ============================================================================
@@ -37,7 +35,6 @@ router.post(
 router.put(
   '/:chamaId/role/:userId',
   authorize('admin', 'chairperson'),
-  validate(updateMemberRoleSchema),
   updateMemberRole,
 );
 

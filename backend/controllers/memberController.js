@@ -357,10 +357,13 @@ const updateMemberRole = async (req, res, next) => {
       data: result.rows[0],
     });
   } catch (error) {
-    await client.query("ROLLBACK");
+    if (client) {
+      await client.query("ROLLBACK").catch(e => logger.error("Rollback failed", e));
+    }
+    logger.error("Member role update failed", { error: error.message, stack: error.stack, chamaId, userId });
     next(error);
   } finally {
-    client.release();
+    if (client) client.release();
   }
 };
 

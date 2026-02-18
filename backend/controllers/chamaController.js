@@ -93,6 +93,7 @@ const getChamaById = async (req, res) => {
       `SELECT c.chama_id, c.chama_name, c.chama_type, c.description, c.contribution_amount, 
               c.contribution_frequency, c.meeting_day, c.meeting_time, c.current_fund, 
               c.total_members, c.visibility, c.created_at, c.constitution_config,
+              c.payment_methods,
               u.first_name || ' ' || u.last_name as creator_name
        FROM chamas c
        LEFT JOIN users u ON c.created_by = u.user_id
@@ -138,6 +139,7 @@ const createChama = async (req, res) => {
       meetingDay,
       meetingTime,
       visibility = 'PRIVATE',
+      paymentMethods = {},
     } = req.body;
 
     // Validation
@@ -191,8 +193,8 @@ const createChama = async (req, res) => {
     const chamaResult = await client.query(
       `INSERT INTO chamas 
        (chama_name, chama_type, description, contribution_amount, contribution_frequency, 
-        meeting_day, meeting_time, created_by, total_members, visibility, invite_code)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, $9, $10)
+        meeting_day, meeting_time, created_by, total_members, visibility, invite_code, payment_methods)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, $9, $10, $11)
        RETURNING *`,
       [
         chamaName,
@@ -205,6 +207,7 @@ const createChama = async (req, res) => {
         req.user.user_id,
         visibility,
         inviteCode,
+        JSON.stringify(paymentMethods),
       ],
     );
 
@@ -255,6 +258,7 @@ const updateChama = async (req, res) => {
       meetingTime,
       visibility,
       constitution_config,
+      paymentMethods,
     } = req.body;
 
     // Build dynamic update query
@@ -311,6 +315,10 @@ const updateChama = async (req, res) => {
     if (constitution_config) {
       updates.push(`constitution_config = $${paramCount++}`);
       values.push(constitution_config); // Pass as JSON object, pg handles it
+    }
+    if (paymentMethods) {
+      updates.push(`payment_methods = $${paramCount++}`);
+      values.push(JSON.stringify(paymentMethods));
     }
 
     if (updates.length === 0) {

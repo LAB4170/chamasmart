@@ -7,6 +7,7 @@ import { useSocket } from "../../../context/SocketContext";
 import LoadingSkeleton from "../../../components/LoadingSkeleton";
 import CreateCycleModal from "../../../components/CreateCycleModal";
 import SwapRequestModal from "../../../components/SwapRequestModal";
+import ConfirmDialog from "../../../components/ConfirmDialog";
 import { roscaAPI } from "../../../services/api";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -283,6 +284,36 @@ const ChamaDetails = () => {
   const [constitutionText, setConstitutionText] = useState("");
   // ASCA equity state
   const [ascaEquity, setAscaEquity] = useState(null);
+
+  // Confirmation Dialog State
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Confirm",
+    cancelText: "Cancel",
+    variant: "info",
+    onConfirm: () => { },
+  });
+
+  const confirmAction = (options) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: options.title || "Confirm Action",
+      message: options.message || "Are you sure?",
+      confirmText: options.confirmLabel || "Confirm",
+      cancelText: options.cancelLabel || "Cancel",
+      variant: options.variant || "info",
+      onConfirm: async () => {
+        if (options.onConfirm) await options.onConfirm();
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+      },
+    });
+  };
+
+  const closeConfirmDialog = () => {
+    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+  };
 
   // Filters
   const [filters, setFilters] = useState({
@@ -596,16 +627,23 @@ const ChamaDetails = () => {
     XLSX.utils.writeFile(wb, `${chama.chama_name}_Report.xlsx`);
   };
 
-  const handleUpdateRole = async (userId, newRole) => {
-    try {
-      if (!confirm(`Are you sure you want to change this member's role to ${newRole}?`)) return;
-      await memberAPI.updateRole(id, userId, { role: newRole });
-      toast.success("Member role updated successfully");
-      fetchChamaData(); // Refresh list
-    } catch (err) {
-      console.error("Failed to update member role:", err);
-      toast.error(err.response?.data?.message || "Failed to update member role");
-    }
+  const handleUpdateRole = (userId, newRole) => {
+    confirmAction({
+      title: "Confirm Role Change",
+      message: `Are you sure you want to change this member's role to ${newRole}? This may grant them additional access to sensitive chama data.`,
+      confirmLabel: "Change Role",
+      cancelLabel: "Cancel",
+      onConfirm: async () => {
+        try {
+          await memberAPI.updateRole(id, userId, { role: newRole });
+          toast.success("Member role updated successfully");
+          fetchChamaData();
+        } catch (err) {
+          console.error("Failed to update member role:", err);
+          toast.error(err.response?.data?.message || "Failed to update member role");
+        }
+      }
+    });
   };
 
   if (loading) {
@@ -1701,6 +1739,16 @@ const ChamaDetails = () => {
           }}
         />
       )}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        variant={confirmDialog.variant}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirmDialog}
+      />
     </div>
   );
 };

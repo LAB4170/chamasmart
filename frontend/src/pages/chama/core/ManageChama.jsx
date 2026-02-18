@@ -13,8 +13,13 @@ const ManageChama = () => {
         type: "",
         contributionAmount: "",
         contributionFrequency: "MONTHLY",
-        mpesaPaybill: "",
-        accountNumber: ""
+        paymentMethods: {
+            type: "PAYBILL", // Default
+            businessNumber: "",
+            accountNumber: "",
+            tillNumber: "",
+            phoneNumber: ""
+        }
     });
 
     useEffect(() => {
@@ -31,8 +36,13 @@ const ManageChama = () => {
                 type: chama.chama_type || "",
                 contributionAmount: chama.contribution_amount || "",
                 contributionFrequency: chama.contribution_frequency || "MONTHLY",
-                mpesaPaybill: chama.mpesa_paybill || "",
-                accountNumber: chama.account_number || ""
+                paymentMethods: {
+                    type: chama.payment_methods?.type || "PAYBILL",
+                    businessNumber: chama.payment_methods?.businessNumber || "",
+                    accountNumber: chama.payment_methods?.accountNumber || "",
+                    tillNumber: chama.payment_methods?.tillNumber || "",
+                    phoneNumber: chama.payment_methods?.phoneNumber || ""
+                }
             });
             setLoading(false);
         } catch (err) {
@@ -44,10 +54,21 @@ const ManageChama = () => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
+        if (name.startsWith("pm_")) {
+            const field = name.replace("pm_", "");
+            setFormData(prev => ({
+                ...prev,
+                paymentMethods: {
+                    ...prev.paymentMethods,
+                    [field]: value
+                }
+            }));
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                [name]: value
+            }));
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -61,8 +82,7 @@ const ManageChama = () => {
                 chamaType: formData.type,
                 contributionAmount: formData.contributionAmount,
                 contributionFrequency: formData.contributionFrequency,
-                mpesaPaybill: formData.mpesaPaybill,
-                accountNumber: formData.accountNumber
+                paymentMethods: formData.paymentMethods
             };
             await chamaAPI.update(id, updateData);
             toast.success("Chama updated successfully");
@@ -175,29 +195,99 @@ const ManageChama = () => {
 
                         <div className="section-divider my-4"></div>
                         <h3>Payment Details</h3>
+                        <p className="text-muted mb-4">How members should contribute funds to the group.</p>
+
+                        <div className="form-group mb-4">
+                            <label className="form-label">Collection Method</label>
+                            <div className="flex gap-4">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="pm_type"
+                                        value="PAYBILL"
+                                        checked={formData.paymentMethods.type === "PAYBILL"}
+                                        onChange={handleChange}
+                                    />
+                                    <span>M-Pesa Paybill</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="pm_type"
+                                        value="TILL"
+                                        checked={formData.paymentMethods.type === "TILL"}
+                                        onChange={handleChange}
+                                    />
+                                    <span>Buy Goods (Till)</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="pm_type"
+                                        value="POCHI"
+                                        checked={formData.paymentMethods.type === "POCHI"}
+                                        onChange={handleChange}
+                                    />
+                                    <span>Pochi la Biashara</span>
+                                </label>
+                            </div>
+                        </div>
 
                         <div className="form-row">
-                            <div className="form-group">
-                                <label className="form-label">M-Pesa Paybill</label>
-                                <input
-                                    type="text"
-                                    name="mpesaPaybill"
-                                    className="form-input"
-                                    value={formData.mpesaPaybill}
-                                    onChange={handleChange}
-                                />
-                            </div>
+                            {formData.paymentMethods.type === "PAYBILL" && (
+                                <>
+                                    <div className="form-group">
+                                        <label className="form-label">Business Number</label>
+                                        <input
+                                            type="text"
+                                            name="pm_businessNumber"
+                                            className="form-input"
+                                            placeholder="e.g. 247247"
+                                            value={formData.paymentMethods.businessNumber}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Account Number</label>
+                                        <input
+                                            type="text"
+                                            name="pm_accountNumber"
+                                            className="form-input"
+                                            placeholder="e.g. Account Name"
+                                            value={formData.paymentMethods.accountNumber}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                </>
+                            )}
 
-                            <div className="form-group">
-                                <label className="form-label">Account Number</label>
-                                <input
-                                    type="text"
-                                    name="accountNumber"
-                                    className="form-input"
-                                    value={formData.accountNumber}
-                                    onChange={handleChange}
-                                />
-                            </div>
+                            {formData.paymentMethods.type === "TILL" && (
+                                <div className="form-group">
+                                    <label className="form-label">Till Number</label>
+                                    <input
+                                        type="text"
+                                        name="pm_tillNumber"
+                                        className="form-input"
+                                        placeholder="e.g. 123456"
+                                        value={formData.paymentMethods.tillNumber}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                            )}
+
+                            {formData.paymentMethods.type === "POCHI" && (
+                                <div className="form-group">
+                                    <label className="form-label">Phone Number</label>
+                                    <input
+                                        type="text"
+                                        name="pm_phoneNumber"
+                                        className="form-input"
+                                        placeholder="e.g. 0712345678"
+                                        value={formData.paymentMethods.phoneNumber}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         <div className="form-actions-modern mt-6">
