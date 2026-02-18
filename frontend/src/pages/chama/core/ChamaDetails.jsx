@@ -1,7 +1,7 @@
 import { useState, useEffect, memo, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { chamaAPI, contributionAPI, ascaAPI } from "../../../services/api";
+import { chamaAPI, contributionAPI, ascaAPI, memberAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import { useSocket } from "../../../context/SocketContext";
 import LoadingSkeleton from "../../../components/LoadingSkeleton";
@@ -160,7 +160,7 @@ const StatsSection = memo(({ stats, isROSCA, chama, members, formatCurrency }) =
 ));
 
 
-const MembersTab = memo(({ members, isOfficial, isROSCA, roster, getMemberStatus, onNavigate, formatCurrency, formatDate, chamaId, activeUsers = [] }) => {
+const MembersTab = memo(({ members, isOfficial, isROSCA, roster, getMemberStatus, onNavigate, formatCurrency, formatDate, chamaId, userRole, onUpdateRole, activeUsers = [] }) => {
   const Row = ({ index, style }) => {
     const member = members[index];
     const status = getMemberStatus(member);
@@ -173,9 +173,23 @@ const MembersTab = memo(({ members, isOfficial, isROSCA, roster, getMemberStatus
           {isOnline && <span className="online-indicator" title="Online"></span>}
         </div>
         <div className="v-td">
-          <span className={`badge badge-${member.role === "CHAIRPERSON" ? "primary" : member.role === "TREASURER" ? "success" : member.role === "SECRETARY" ? "warning" : "secondary"}`}>
-            {member.role}
-          </span>
+          {isOfficial && userRole === "CHAIRPERSON" ? (
+            <select
+              value={member.role}
+              onChange={(e) => onUpdateRole(member.user_id, e.target.value)}
+              className={`role-select badge badge-${member.role === "CHAIRPERSON" ? "primary" : member.role === "TREASURER" ? "success" : member.role === "SECRETARY" ? "warning" : "secondary"}`}
+              style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid var(--border)', cursor: 'pointer' }}
+            >
+              <option value="CHAIRPERSON">CHAIRPERSON</option>
+              <option value="TREASURER">TREASURER</option>
+              <option value="SECRETARY">SECRETARY</option>
+              <option value="MEMBER">MEMBER</option>
+            </select>
+          ) : (
+            <span className={`badge badge-${member.role === "CHAIRPERSON" ? "primary" : member.role === "TREASURER" ? "success" : member.role === "SECRETARY" ? "warning" : "secondary"}`}>
+              {member.role}
+            </span>
+          )}
         </div>
         {isROSCA && (
           <div className="v-td v-td-sm">{roster.findIndex((r) => r.user_id === member.user_id) + 1}</div>
@@ -580,6 +594,18 @@ const ChamaDetails = () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Contributions");
     XLSX.utils.writeFile(wb, `${chama.chama_name}_Report.xlsx`);
+  };
+
+  const handleUpdateRole = async (userId, newRole) => {
+    try {
+      if (!confirm(`Are you sure you want to change this member's role to ${newRole}?`)) return;
+      await memberAPI.updateRole(id, userId, { role: newRole });
+      toast.success("Member role updated successfully");
+      fetchChamaData(); // Refresh list
+    } catch (err) {
+      console.error("Failed to update member role:", err);
+      toast.error(err.response?.data?.message || "Failed to update member role");
+    }
   };
 
   if (loading) {
@@ -998,6 +1024,8 @@ const ChamaDetails = () => {
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}
                 chamaId={id}
+                userRole={userRole}
+                onUpdateRole={handleUpdateRole}
                 activeUsers={activeUsers}
               />
             )}

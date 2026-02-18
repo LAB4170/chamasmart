@@ -31,5 +31,5 @@ export const inviteAPI = {
   join: (inviteCode) => api.post("/invites/join", { inviteCode }),
   getAll: (chamaId) => api.get(`/invites/${chamaId}`),
   deactivate: (inviteId) => api.delete(`/invites/${inviteId}`),
-  send: (chamaId, email) => api.post(`/invites/${chamaId}/send`, { email }),
+  send: (chamaId, email, role = 'MEMBER') => api.post(`/invites/${chamaId}/send`, { email, role }),
 };

@@ -93,7 +93,7 @@ const AddMember = () => {
         e.preventDefault();
         setLoading(true);
         try {
-            const response = await inviteAPI.send(id, inviteEmail);
+            const response = await inviteAPI.send(id, inviteEmail, selectedRole);
             const { isAdded, deliveryMode, message } = response.data;
 
             if (isAdded) {
@@ -133,7 +133,7 @@ const AddMember = () => {
                 const genRes = await inviteAPI.generate(id, {
                     maxUses: 10,
                     expiresInDays: 7,
-                    role: 'member'
+                    role: selectedRole.toLowerCase()
                 });
                 setActiveCode(genRes.data.data);
             }
@@ -374,6 +374,13 @@ const AddMember = () => {
                                         placeholder="friend@example.com"
                                         value={inviteEmail}
                                         onChange={(e) => setInviteEmail(e.target.value)}
+                                    />
+                                </div>
+                                <div style={{ marginBottom: '1.5rem' }}>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text-primary)' }}>Assigned Role</label>
+                                    <select
+                                        value={selectedRole}
+                                        onChange={(e) => setSelectedRole(e.target.value)}
                                         style={{
                                             width: '100%',
                                             padding: '0.8rem',
@@ -382,9 +389,15 @@ const AddMember = () => {
                                             border: '1px solid var(--input-border)',
                                             borderRadius: '8px',
                                             color: 'var(--input-text)',
-                                            outline: 'none'
+                                            outline: 'none',
+                                            cursor: 'pointer'
                                         }}
-                                    />
+                                    >
+                                        <option value="MEMBER">Member</option>
+                                        <option value="TREASURER">Treasurer</option>
+                                        <option value="SECRETARY">Secretary</option>
+                                        <option value="CHAIRMAN">Chairman</option>
+                                    </select>
                                 </div>
                                 <button
                                     type="submit"
@@ -426,6 +439,29 @@ const AddMember = () => {
                                 </div>
                                 <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-primary)', fontSize: '1.1rem' }}>Share Join Code</h3>
                                 <p style={{ color: 'var(--text-secondary)' }}>Anyone with this code can join automatically.</p>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+                                <div style={{ width: '100%', maxWidth: '300px' }}>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Role for this code</label>
+                                    <select
+                                        value={selectedRole}
+                                        onChange={(e) => {
+                                            setSelectedRole(e.target.value);
+                                            // Trigger refresh to update the underlying code if it exists or for next generation
+                                        }}
+                                        style={{
+                                            width: '100%', padding: '0.6rem 1rem', borderRadius: '8px',
+                                            border: '1px solid var(--border)', background: 'var(--input-bg)',
+                                            color: 'var(--input-text)', outline: 'none', cursor: 'pointer'
+                                        }}
+                                    >
+                                        <option value="MEMBER">Member</option>
+                                        <option value="TREASURER">Treasurer</option>
+                                        <option value="SECRETARY">Secretary</option>
+                                        <option value="CHAIRMAN">Chairman</option>
+                                    </select>
+                                </div>
                             </div>
 
                             {codeLoading ? (
