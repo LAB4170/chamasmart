@@ -68,24 +68,6 @@
     }
 }
 
-.btn-create-premium {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    background: var(--primary-color);
-    color: white;
-    padding: 0.8rem 1.5rem;
-    border-radius: 12px;
-    font-weight: 600;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.btn-create-premium:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    background: #4338ca;
-}
 
 /* Stats Grid Premium */
 .stats-grid-premium {
@@ -274,26 +256,6 @@
     border-top: 1px solid rgba(0, 0, 0, 0.03);
 }
 
-.btn-activate-mini {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    background: #fff;
-    border: 1.5px solid var(--primary-color);
-    color: var(--primary-color);
-    padding: 0.6rem;
-    border-radius: 10px;
-    font-weight: 600;
-    font-size: 0.9rem;
-    transition: all 0.2s;
-}
-
-.btn-activate-mini:hover {
-    background: var(--primary-color);
-    color: white;
-}
 
 /* Sidebar Elements */
 .card-premium {
@@ -360,40 +322,6 @@
     gap: 1.5rem;
 }
 
-.form-group-premium {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.form-group-premium label {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.input-premium {
-    width: 100%;
-    padding: 0.8rem 1rem;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    font-size: 1rem;
-    transition: all 0.2s;
-}
-
-.input-premium:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    background: white;
-    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
-}
-
-.form-row-premium {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-}
 
 .input-with-icon {
     position: relative;
@@ -571,11 +499,6 @@
 }
 
 /* Mobile Adjustments for Form */
-@media (max-width: 640px) {
-    .form-row-premium {
-        grid-template-columns: 1fr;
-    }
-}
 
 .empty-illustration {
     width: 120px;

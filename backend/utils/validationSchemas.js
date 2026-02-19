@@ -38,6 +38,7 @@ const updateProfileSchema = Joi.object({
     .messages({
       'string.pattern.base': 'Invalid Kenyan phone number',
     }),
+  nationalId: Joi.string().min(6).max(20).optional().allow(null, ''),
 });
 
 const changePasswordSchema = Joi.object({

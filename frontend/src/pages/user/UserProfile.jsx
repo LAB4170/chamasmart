@@ -11,7 +11,8 @@ const UserProfile = () => {
         first_name: "",
         last_name: "",
         phone_number: "",
-        email: ""
+        email: "",
+        national_id: ""
     });
 
     // Password change state
@@ -36,7 +37,8 @@ const UserProfile = () => {
                 first_name: data.first_name,
                 last_name: data.last_name,
                 phone_number: data.phone_number,
-                email: data.email
+                email: data.email,
+                national_id: data.national_id || ""
             });
             setLoading(false);
         } catch (err) {
@@ -50,7 +52,13 @@ const UserProfile = () => {
         e.preventDefault();
         setUpdating(true);
         try {
-            await userAPI.updateProfile(profile);
+            const updateData = {
+                firstName: profile.first_name,
+                lastName: profile.last_name,
+                phoneNumber: profile.phone_number,
+                nationalId: profile.national_id
+            };
+            await userAPI.updateProfile(updateData);
             toast.success("Profile updated successfully");
         } catch (err) {
             console.error(err);
@@ -117,7 +125,7 @@ const UserProfile = () => {
                                     <input
                                         type="text"
                                         className="form-input"
-                                        value={profile.first_name}
+                                        value={profile.first_name || ""}
                                         onChange={(e) => setProfile({ ...profile, first_name: e.target.value })}
                                         required
                                     />
@@ -127,7 +135,7 @@ const UserProfile = () => {
                                     <input
                                         type="text"
                                         className="form-input"
-                                        value={profile.last_name}
+                                        value={profile.last_name || ""}
                                         onChange={(e) => setProfile({ ...profile, last_name: e.target.value })}
                                         required
                                     />
@@ -140,17 +148,30 @@ const UserProfile = () => {
                                     <input
                                         type="email"
                                         className="form-input"
-                                        value={profile.email}
+                                        value={profile.email || ""}
                                         disabled
                                         title="Email cannot be changed"
                                     />
                                 </div>
                                 <div className="form-group">
+                                    <label>National ID</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        value={profile.national_id || ""}
+                                        onChange={(e) => setProfile({ ...profile, national_id: e.target.value })}
+                                        placeholder="Enter National ID"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
                                     <label>Phone Number</label>
                                     <input
                                         type="tel"
                                         className="form-input"
-                                        value={profile.phone_number}
+                                        value={profile.phone_number || ""}
                                         onChange={(e) => setProfile({ ...profile, phone_number: e.target.value })}
                                         required
                                     />

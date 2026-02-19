@@ -10,7 +10,7 @@ const getProfile = async (req, res) => {
     const userId = req.user.id;
 
     const result = await pool.query(
-      `SELECT user_id, first_name, last_name, email, phone_number, 
+      `SELECT user_id, first_name, last_name, email, phone_number, national_id,
                     role, is_active, email_verified, phone_verified, 
                     created_at, updated_at
              FROM users 
@@ -55,7 +55,7 @@ const getProfile = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { firstName, lastName, phoneNumber } = req.body;
+    const { firstName, lastName, phoneNumber, nationalId } = req.body;
 
     // Validate input
     if (!firstName || !lastName) {
@@ -67,10 +67,10 @@ const updateProfile = async (req, res) => {
 
     const result = await pool.query(
       `UPDATE users 
-             SET first_name = $1, last_name = $2, phone_number = $3, updated_at = NOW()
-             WHERE user_id = $4
-             RETURNING user_id, first_name, last_name, email, phone_number, updated_at`,
-      [firstName, lastName, phoneNumber, userId],
+             SET first_name = $1, last_name = $2, phone_number = $3, national_id = $4, updated_at = NOW()
+             WHERE user_id = $5
+             RETURNING user_id, first_name, last_name, email, phone_number, national_id, updated_at`,
+      [firstName, lastName, phoneNumber, nationalId, userId],
     );
 
     if (result.rows.length === 0) {
