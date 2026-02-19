@@ -770,6 +770,90 @@ const getSwapRequests = async (req, res) => {
 
 
 /**
+ * @desc    Manually activate a ROSCA cycle
+ * @route   PUT /api/rosca/cycles/:cycleId/activate
+ * @access  Private (Admin/Officials)
+ */
+const activateCycle = async (req, res) => {
+  const client = await pool.connect();
+  const { cycleId } = req.params;
+  const userId = req.user.user_id;
+
+  try {
+    await client.query('BEGIN');
+
+    // Verify cycle exists and is PENDING
+    const cycleResult = await client.query(
+      'SELECT * FROM rosca_cycles WHERE cycle_id = $1 FOR UPDATE',
+      [cycleId],
+    );
+
+    if (cycleResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Cycle not found' });
+    }
+
+    const cycle = cycleResult.rows[0];
+
+    if (cycle.status !== 'PENDING') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, message: `Cycle is already ${cycle.status}` });
+    }
+
+    // Check authorization (Officials of the chama)
+    const authCheck = await client.query(
+      `SELECT 1 FROM chama_members 
+             WHERE chama_id = $1 AND user_id = $2 AND role IN ('CHAIRPERSON', 'TREASURER', 'SECRETARY')`,
+      [cycle.chama_id, userId],
+    );
+
+    if (authCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ success: false, message: 'Not authorized to activate this cycle' });
+    }
+
+    // Update status to ACTIVE
+    const now = new Date();
+    const startDate = cycle.start_date < now ? 'NOW()' : 'start_date';
+
+    await client.query(
+      `UPDATE rosca_cycles 
+       SET status = 'ACTIVE', 
+           start_date = ${startDate},
+           updated_at = NOW() 
+       WHERE cycle_id = $1`,
+      [cycleId],
+    );
+
+    await client.query('COMMIT');
+
+    // Clear caches
+    cache.del(`rosca_cycles_${cycle.chama_id}`);
+    cache.del(`rosca_roster_${cycleId}`);
+
+    // Notify members via WebSocket
+    const io = require('../socket').getIo();
+    io.to(`chama_${cycle.chama_id}`).emit('rosca_cycle_activated', {
+      cycle_id: cycleId,
+      chama_id: cycle.chama_id,
+      cycle_name: cycle.cycle_name,
+    });
+
+    res.json({ success: true, message: 'Cycle activated successfully' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    logger.logError(error, {
+      context: 'rosca_activateCycle',
+      cycleId,
+      userId,
+    });
+    res.status(500).json({ success: false, message: 'Error activating cycle' });
+  } finally {
+    client.release();
+  }
+};
+
+/**
  * @desc    Delete a ROSCA cycle
  * @route   DELETE /api/rosca/cycles/:cycleId
  * @access  Private (Admin/Officials)
@@ -841,4 +925,5 @@ module.exports = {
   respondToSwapRequest,
   getSwapRequests,
   deleteCycle,
+  activateCycle,
 };

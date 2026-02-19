@@ -34,19 +34,31 @@ const CreateCycle = () => {
     };
 
     return (
-        <div className="page">
+        <div className="page rosca-create-page">
             <div className="container">
-                <div className="page-header">
-                    <h1>Start New Cycle</h1>
+                <div className="page-header-modern">
+                    <button onClick={() => navigate(-1)} className="back-link-premium">
+                        <ArrowLeft size={16} />
+                        <span>Cancel & Return</span>
+                    </button>
+                    <div className="header-info">
+                        <div className="header-icon-wrapper">
+                            <Plus size={28} />
+                        </div>
+                        <div>
+                            <h1>Start New Round</h1>
+                            <p>Initialize a new rotating savings cycle for your members</p>
+                        </div>
+                    </div>
                 </div>
 
-                <div className="card">
-                    <form onSubmit={handleSubmit}>
-                        <div className="form-group">
+                <div className="card-premium max-w-2xl mx-auto">
+                    <form onSubmit={handleSubmit} className="premium-form">
+                        <div className="form-group-premium">
                             <label>Cycle Name</label>
                             <input
                                 type="text"
-                                className="form-input"
+                                className="input-premium"
                                 value={formData.name}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                 required
@@ -54,22 +66,25 @@ const CreateCycle = () => {
                             />
                         </div>
 
-                        <div className="form-row">
-                            <div className="form-group">
+                        <div className="form-row-premium">
+                            <div className="form-group-premium">
                                 <label>Contribution Amount (per person)</label>
-                                <input
-                                    type="number"
-                                    className="form-input"
-                                    value={formData.amount}
-                                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                                    required
-                                    min="100"
-                                />
+                                <div className="input-with-icon">
+                                    <span className="input-icon">KES</span>
+                                    <input
+                                        type="number"
+                                        className="input-premium with-icon"
+                                        value={formData.amount}
+                                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                                        required
+                                        min="100"
+                                    />
+                                </div>
                             </div>
-                            <div className="form-group">
+                            <div className="form-group-premium">
                                 <label>Frequency</label>
                                 <select
-                                    className="form-select"
+                                    className="input-premium"
                                     value={formData.frequency}
                                     onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
                                 >
@@ -80,23 +95,37 @@ const CreateCycle = () => {
                             </div>
                         </div>
 
-                        <div className="form-group">
+                        <div className="form-group-premium">
                             <label>Start Date</label>
                             <input
                                 type="date"
-                                className="form-input"
+                                className="input-premium"
                                 value={formData.startDate}
                                 onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                                 required
                             />
+                            <p className="form-help-text">
+                                <Clock size={12} /> Rounds will automatically activate on this date.
+                            </p>
                         </div>
 
-                        <div className="form-actions">
-                            <button type="button" className="btn btn-outline" onClick={() => navigate(-1)}>
-                                Cancel
-                            </button>
-                            <button type="submit" className="btn btn-primary" disabled={submitting}>
-                                {submitting ? "Creating..." : "Start Cycle"}
+                        <div className="form-actions-premium mt-4">
+                            <button
+                                type="submit"
+                                className="btn-create-premium w-full justify-center"
+                                disabled={submitting}
+                            >
+                                {submitting ? (
+                                    <>
+                                        <div className="spinner-mini"></div>
+                                        <span>Creating...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span>Initialize Cycle</span>
+                                        <ArrowRight size={18} />
+                                    </>
+                                )}
                             </button>
                         </div>
                     </form>

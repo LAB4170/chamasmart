@@ -13,6 +13,8 @@ export const roscaAPI = {
         api.put(`/rosca/swap-requests/${requestId}/respond`, { action }),
     processPayout: (cycleId, payoutData) =>
         api.post(`/rosca/cycles/${cycleId}/payout`, payoutData),
+    activateCycle: (cycleId) =>
+        api.put(`/rosca/cycles/${cycleId}/activate`),
     deleteCycle: (cycleId) => api.delete(`/rosca/cycles/${cycleId}`),
 };
 

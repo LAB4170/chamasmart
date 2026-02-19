@@ -6111,4 +6111,170 @@ button:focus,
 [data-theme='dark'] .stat-card,
 [data-theme='dark'] .info-item {
   border-color: #374151 !important;
+}/* Global Modal & Selection Card Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 1.5rem;
+    animation: fadeInModal 0.2s ease-out;
+}
+
+.modal-content {
+    background: white;
+    width: 100%;
+    max-width: 550px;
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    position: relative;
+    z-index: 10000;
+    animation: slideUpModal 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.modal-body {
+    padding: 1.5rem;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #64748b;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.close-btn:hover {
+    color: var(--primary-color);
+}
+
+@keyframes fadeInModal {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUpModal {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Premium Selection Cards */
+.selection-grid-premium {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.selection-card-premium {
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.selection-card-premium:hover:not(.disabled) {
+    border-color: var(--primary-color);
+    background: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.selection-card-premium.active {
+    border-color: var(--primary-color);
+    background: #f1f5ff;
+    color: var(--primary-color);
+}
+
+.selection-card-premium.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f1f5f9;
+}
+
+.selection-icon-premium {
+    font-size: 1.5rem;
+}
+
+.selection-name-premium {
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+/* Modal Actions Utility */
+.modal-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.btn-full {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.8rem !important;
+}
+
+/* Theme support for global modals */
+[data-theme='dark'] .modal-content {
+    background: var(--card-bg);
+}
+
+[data-theme='dark'] .selection-card-premium {
+    background: var(--surface-2);
+    border-color: var(--border);
+}
+
+[data-theme='dark'] .selection-card-premium:hover:not(.disabled) {
+    background: var(--surface-3);
+}
+
+[data-theme='dark'] .selection-card-premium.active {
+    background: rgba(79, 70, 229, 0.1);
 }

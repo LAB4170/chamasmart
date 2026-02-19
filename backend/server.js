@@ -245,6 +245,10 @@ server.listen(PORT, async () => {
       console.error("Health check error:", error);
     }
   }
+
+  // Initialize Background Scheduler
+  const { initScheduler } = require('./utils/scheduler');
+  initScheduler();
 });
 
 // Initialize Socket.io (if configured) except during unit tests to avoid

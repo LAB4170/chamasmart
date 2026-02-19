@@ -11,6 +11,7 @@ const {
   respondToSwapRequest,
   getSwapRequests,
   deleteCycle,
+  activateCycle,
 } = require('../controllers/roscaController');
 const validate = require('../middleware/validate');
 const {
@@ -53,6 +54,13 @@ router.post(
 
 // Delete cycle (admin only)
 router.delete('/cycles/:cycleId', authorize('admin', 'treasurer'), deleteCycle);
+
+// Activate cycle (officials only)
+router.put(
+  '/cycles/:cycleId/activate',
+  authorize('admin', 'treasurer', 'chairperson'),
+  activateCycle,
+);
 
 // Get cycle roster (payout order)
 router.get(
