@@ -17,7 +17,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import {
   BarChart3, Calendar, Mail, Building2, Heart, RefreshCw, TrendingUp,
   Settings, CreditCard, Users, DollarSign, Handshake, FileText, Download,
-  Target, Bell, Trash2, Filter, RotateCcw
+  Target, Bell, Trash2, Filter, RotateCcw, CheckCircle2
 } from 'lucide-react';
 
 // --- Memoized Sub-components ---
@@ -734,96 +734,200 @@ const ChamaDetails = () => {
 
           <div className="tab-content">
             {activeTab === "overview" && (
-              <div className="card">
-                <h3>Chama Information</h3>
-                <div className="info-grid">
-                  <div className="info-item"><span className="info-label">Type</span><span className="info-value">{getChamaTypeLabel(chama.chama_type)}</span></div>
-                  <div className="info-item"><span className="info-label">Contribution</span><span className="info-value">{formatCurrency(chama.contribution_amount)}</span></div>
-                  <div className="info-item"><span className="info-label">Frequency</span><span className="info-value">{chama.contribution_frequency}</span></div>
-                  <div className="info-item"><span className="info-label">Created</span><span className="info-value">{formatDate(chama.created_at)}</span></div>
-                  <div className="info-item">
-                    <span className="info-label">Invite Code</span>
-                    <span className="info-value">
-                      <span className="badge badge-primary" style={{ fontSize: '1rem', letterSpacing: '1px' }}>
-                        {chama.invite_code || "N/A"}
+              <>
+                {/* Getting Started Widget (Chairperson Only) */}
+                {officialStatus && (
+                  <div className="card-premium mb-6 bg-gradient-to-r from-indigo-50 to-blue-50 border-indigo-100">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-lg font-bold text-indigo-900 flex items-center gap-2">
+                          <Target size={20} className="text-indigo-600" />
+                          Getting Started
+                        </h3>
+                        <p className="text-sm text-indigo-700">Complete these steps to launch your Chama</p>
+                      </div>
+                      <span className="bg-white px-3 py-1 rounded-full text-sm font-bold text-indigo-600 shadow-sm">
+                        {(!chama.payment_methods ? 0 : 1) + (members.length < 2 ? 0 : 1) + (cycles.length === 0 ? 0 : 1)}/3
                       </span>
-                    </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {/* Step 1: Payment Methods */}
+                      <div className={`flex items-center gap-3 p-3 rounded-xl transition-all ${chama.payment_methods ? 'bg-white/60 opacity-50' : 'bg-white shadow-sm border border-indigo-100'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${chama.payment_methods ? 'bg-green-100 text-green-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                          {chama.payment_methods ? <CheckCircle2 size={18} /> : <span>1</span>}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className={`font-semibold ${chama.payment_methods ? 'text-gray-600 line-through' : 'text-gray-900'}`}>Set Payment Details</h4>
+                          {!chama.payment_methods && <p className="text-xs text-gray-500">Add Paybill or Till number for members</p>}
+                        </div>
+                        {!chama.payment_methods && (
+                          <button onClick={() => navigate(`/chamas/${id}/manage`)} className="btn-xs btn-primary bg-indigo-600 hover:bg-indigo-700 border-none">
+                            Setup
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Step 2: Invite Members */}
+                      <div className={`flex items-center gap-3 p-3 rounded-xl transition-all ${members.length > 1 ? 'bg-white/60 opacity-50' : 'bg-white shadow-sm border border-indigo-100'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${members.length > 1 ? 'bg-green-100 text-green-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                          {members.length > 1 ? <CheckCircle2 size={18} /> : <span>2</span>}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className={`font-semibold ${members.length > 1 ? 'text-gray-600 line-through' : 'text-gray-900'}`}>Invite Members</h4>
+                          {members.length <= 1 && <p className="text-xs text-gray-500">You need at least 2 members to start</p>}
+                        </div>
+                        {members.length <= 1 && (
+                          <button onClick={() => navigate(`/chamas/${id}/invites`)} className="btn-xs btn-primary bg-indigo-600 hover:bg-indigo-700 border-none">
+                            Invite
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Step 3: Start Cycle */}
+                      {isROSCA && (
+                        <div className={`flex items-center gap-3 p-3 rounded-xl transition-all ${cycles.length > 0 ? 'bg-white/60 opacity-50' : 'bg-white shadow-sm border border-indigo-100'}`}>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${cycles.length > 0 ? 'bg-green-100 text-green-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                            {cycles.length > 0 ? <CheckCircle2 size={18} /> : <span>3</span>}
+                          </div>
+                          <div className="flex-1">
+                            <h4 className={`font-semibold ${cycles.length > 0 ? 'text-gray-600 line-through' : 'text-gray-900'}`}>Start First Cycle</h4>
+                            {cycles.length === 0 && <p className="text-xs text-gray-500">Create the first merry-go-round rotation</p>}
+                          </div>
+                          {cycles.length === 0 && (
+                            <button onClick={() => navigate(`/chamas/${id}/rosca/create`)} className="btn-xs btn-primary bg-indigo-600 hover:bg-indigo-700 border-none">
+                              Start
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="info-item"><span className="info-label">Visibility</span><span className="info-value">{chama.visibility}</span></div>
+                )}
+
+                {/* Member Wall Widget */}
+                <div className="card-premium mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="card-title-premium mb-0 flex items-center gap-2">
+                      <Users size={18} className="text-gray-500" />
+                      Who's Here <span className="text-gray-400 text-sm font-normal">({members.length})</span>
+                    </h3>
+                    <button onClick={() => setActiveTab('members')} className="text-sm text-indigo-600 font-medium hover:underline">View All</button>
+                  </div>
+
+                  <div className="flex -space-x-3 overflow-hidden py-2 px-1">
+                    {members.slice(0, 8).map((m) => (
+                      <div
+                        key={m.user_id}
+                        className="relative w-10 h-10 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-xs font-bold text-white transition-transform hover:scale-110 hover:z-10 cursor-default"
+                        style={{ backgroundColor: `hsl(${(m.user_id * 137) % 360}, 70%, 50%)` }}
+                        title={`${m.first_name} ${m.last_name}`}
+                      >
+                        {m.first_name[0]}{m.last_name[0]}
+                        {(activeUsers.includes(m.user_id.toString()) || activeUsers.includes(m.user_id)) && (
+                          <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
+                        )}
+                      </div>
+                    ))}
+                    {members.length > 8 && (
+                      <div className="w-10 h-10 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
+                        +{members.length - 8}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                {chama.description && (
-                  <div className="mt-3">
-                    <h4>Description</h4>
-                    <p className="text-muted">{chama.description}</p>
-                  </div>
-                )}
 
-                {isROSCA && (
-                  <div className="mt-3">
-                    <h4>How ROSCA Works</h4>
-                    <div className="rosca-explanation">
-                      <div className="explanation-item">
-                        <div className="explanation-icon"><RefreshCw size={24} /></div>
-                        <div>
-                          <h5>Cycle Rotation</h5>
-                          <p>
-                            Each member takes turns receiving the full pot amount
-                            while others contribute.
-                          </p>
+                <div className="card">
+                  <h3>Chama Information</h3>
+                  <div className="info-grid">
+                    <div className="info-item"><span className="info-label">Type</span><span className="info-value">{getChamaTypeLabel(chama.chama_type)}</span></div>
+                    <div className="info-item"><span className="info-label">Contribution</span><span className="info-value">{formatCurrency(chama.contribution_amount)}</span></div>
+                    <div className="info-item"><span className="info-label">Frequency</span><span className="info-value">{chama.contribution_frequency}</span></div>
+                    <div className="info-item"><span className="info-label">Created</span><span className="info-value">{formatDate(chama.created_at)}</span></div>
+                    <div className="info-item">
+                      <span className="info-label">Invite Code</span>
+                      <span className="info-value">
+                        <span className="badge badge-primary" style={{ fontSize: '1rem', letterSpacing: '1px' }}>
+                          {chama.invite_code || "N/A"}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="info-item"><span className="info-label">Visibility</span><span className="info-value">{chama.visibility}</span></div>
+                  </div>
+                  {chama.description && (
+                    <div className="mt-3">
+                      <h4>Description</h4>
+                      <p className="text-muted">{chama.description}</p>
+                    </div>
+                  )}
+
+                  {isROSCA && (
+                    <div className="mt-3">
+                      <h4>How ROSCA Works</h4>
+                      <div className="rosca-explanation">
+                        <div className="explanation-item">
+                          <div className="explanation-icon"><RefreshCw size={24} /></div>
+                          <div>
+                            <h5>Cycle Rotation</h5>
+                            <p>
+                              Each member takes turns receiving the full pot amount
+                              while others contribute.
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="explanation-item">
-                        <div className="explanation-icon">⏰</div>
-                        <div>
-                          <h5>Regular Contributions</h5>
-                          <p>
-                            Members contribute{" "}
-                            {formatCurrency(chama.contribution_amount)}{" "}
-                            {chama.contribution_frequency?.toLowerCase()}.
-                          </p>
+                        <div className="explanation-item">
+                          <div className="explanation-icon">⏰</div>
+                          <div>
+                            <h5>Regular Contributions</h5>
+                            <p>
+                              Members contribute{" "}
+                              {formatCurrency(chama.contribution_amount)}{" "}
+                              {chama.contribution_frequency?.toLowerCase()}.
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="explanation-item">
-                        <div className="explanation-icon"><Target size={24} /></div>
-                        <div>
-                          <h5>Guaranteed Returns</h5>
-                          <p>
-                            Each member receives{" "}
-                            {formatCurrency(
-                              chama.contribution_amount * members.length
-                            )}{" "}
-                            when their turn comes.
-                          </p>
+                        <div className="explanation-item">
+                          <div className="explanation-icon"><Target size={24} /></div>
+                          <div>
+                            <h5>Guaranteed Returns</h5>
+                            <p>
+                              Each member receives{" "}
+                              {formatCurrency(
+                                chama.contribution_amount * members.length
+                              )}{" "}
+                              when their turn comes.
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {chama.chama_type === "ASCA" && ascaEquity && (
-                  <div className="mt-3">
-                    <h4>My Equity in This ASCA</h4>
-                    <div className="equity-grid">
-                      <div className="equity-card">
-                        <div className="equity-label">Total Contributions</div>
-                        <div className="equity-value">{formatCurrency(ascaEquity.totalAmount)}</div>
-                      </div>
-                      <div className="equity-card">
-                        <div className="equity-label">Total Shares</div>
-                        <div className="equity-value">{ascaEquity.totalShares.toFixed(2)}</div>
-                      </div>
-                      <div className="equity-card">
-                        <div className="equity-label">Current Share Value</div>
-                        <div className="equity-value">{formatCurrency(ascaEquity.currentSharePrice || 0)}</div>
-                      </div>
-                      <div className="equity-card">
-                        <div className="equity-label">Estimated Value</div>
-                        <div className="equity-value highlight">{formatCurrency(ascaEquity.estimatedValue || 0)}</div>
+                  {chama.chama_type === "ASCA" && ascaEquity && (
+                    <div className="mt-3">
+                      <h4>My Equity in This ASCA</h4>
+                      <div className="equity-grid">
+                        <div className="equity-card">
+                          <div className="equity-label">Total Contributions</div>
+                          <div className="equity-value">{formatCurrency(ascaEquity.totalAmount)}</div>
+                        </div>
+                        <div className="equity-card">
+                          <div className="equity-label">Total Shares</div>
+                          <div className="equity-value">{ascaEquity.totalShares.toFixed(2)}</div>
+                        </div>
+                        <div className="equity-card">
+                          <div className="equity-label">Current Share Value</div>
+                          <div className="equity-value">{formatCurrency(ascaEquity.currentSharePrice || 0)}</div>
+                        </div>
+                        <div className="equity-card">
+                          <div className="equity-label">Estimated Value</div>
+                          <div className="equity-value highlight">{formatCurrency(ascaEquity.estimatedValue || 0)}</div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              </>
             )}
 
             {isROSCA && activeTab === "cycle" && (

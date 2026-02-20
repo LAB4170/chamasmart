@@ -7,6 +7,7 @@ const {
   createChama,
   updateChama,
   deleteChama,
+  cancelDeleteChama,
   getMyChamas,
   getChamaMembers,
   getChamaStats,
@@ -82,7 +83,10 @@ router.put(
   updateChama,
 );
 
-// Delete chama (admin only for safety)
-router.delete('/:chamaId', protect, authorize('admin'), deleteChama);
+// Deactivate chama (officials only with handshake)
+router.delete('/:chamaId', protect, authorize('admin', 'chairperson', 'treasurer'), deleteChama);
+
+// Cancel pending deactivation
+router.post('/:chamaId/cancel-delete', protect, authorize('admin', 'chairperson', 'treasurer'), cancelDeleteChama);
 
 module.exports = router;

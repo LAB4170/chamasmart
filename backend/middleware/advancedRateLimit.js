@@ -118,7 +118,7 @@ const perUserLimiter = createRateLimiter({
   message: 'You are making requests too quickly, please slow down.',
   prefix: 'rl:user:',
   keyGenerator: req =>
-  // Use user ID if authenticated, otherwise fall back to IP
+    // Use user ID if authenticated, otherwise fall back to IP
     req.user?.user_id?.toString() || req.ip
   ,
 });

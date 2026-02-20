@@ -6507,3 +6507,46 @@ button:focus,
   background: var(--primary-color);
   color: white;
 }
+
+/* Governance & Danger Zone Styles */
+.section-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 2rem 0;
+}
+
+[data-theme='dark'] .section-divider {
+  background: #334155;
+}
+
+.danger-zone {
+  background: #fff5f5;
+  border: 2px solid #feb2b2;
+  transition: all 0.3s ease;
+}
+
+[data-theme='dark'] .danger-zone {
+  background: rgba(220, 38, 38, 0.05);
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+.danger-zone h3 {
+  color: #c53030;
+  font-weight: 700;
+}
+
+.bg-red-50\/30 {
+  background-color: rgba(254, 242, 242, 0.3);
+}
+
+.border-red-100 {
+  border-color: #fee2e2;
+}
+
+.text-red-700 {
+  color: #b91c1c;
+}
+
+.text-red-600 {
+  color: #dc2626;
+}

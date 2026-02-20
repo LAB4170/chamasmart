@@ -309,6 +309,20 @@ const updateChama = async (req, res) => {
           message: 'Visibility must be PUBLIC or PRIVATE',
         });
       }
+
+      // Chairperson-only enforcement for visibility
+      const userRoleResult = await pool.query(
+        'SELECT role FROM chama_members WHERE chama_id = $1 AND user_id = $2',
+        [chamaId, req.user.user_id],
+      );
+
+      if (userRoleResult.rows.length === 0 || userRoleResult.rows[0].role !== 'CHAIRPERSON') {
+        return res.status(403).json({
+          success: false,
+          message: 'Only the Chairperson can change Chama visibility',
+        });
+      }
+
       updates.push(`visibility = $${paramCount++}`);
       values.push(visibility);
     }
@@ -353,15 +367,58 @@ const updateChama = async (req, res) => {
   }
 };
 
-// @desc    Delete (deactivate) chama
+// @desc    Delete (deactivate) chama with dual-official approval
 // @route   DELETE /api/chamas/:chamaId
 // @access  Private (Officials only)
 const deleteChama = async (req, res) => {
   try {
     const { chamaId } = req.params;
+    const userId = req.user.user_id;
 
+    // Check if a deletion is already pending
+    const chamaResult = await pool.query(
+      'SELECT chama_name, deletion_requested_by, is_active FROM chamas WHERE chama_id = $1',
+      [chamaId],
+    );
+
+    if (chamaResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Chama not found' });
+    }
+
+    const chama = chamaResult.rows[0];
+
+    if (!chama.is_active) {
+      return res.status(400).json({ success: false, message: 'Chama is already deactivated' });
+    }
+
+    if (!chama.deletion_requested_by) {
+      // First official initiates
+      await pool.query(
+        'UPDATE chamas SET deletion_requested_by = $1, deletion_requested_at = NOW() WHERE chama_id = $2',
+        [userId, chamaId],
+      );
+
+      // Clear cache
+      clearChamaCache(chamaId);
+
+      return res.json({
+        success: true,
+        pending: true,
+        message: 'Deletion request initiated. A different official must confirm this action to proceed.',
+      });
+    }
+
+    // Second official confirms
+    if (chama.deletion_requested_by === userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'A different official must confirm the deletion request.',
+      });
+    }
+
+    // Deactivate
     await pool.query(
-      'UPDATE chamas SET is_active = false WHERE chama_id = $1',
+      'UPDATE chamas SET is_active = false, updated_at = NOW() WHERE chama_id = $1',
       [chamaId],
     );
 
@@ -370,13 +427,40 @@ const deleteChama = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Chama deactivated successfully',
+      message: `Chama "${chama.chama_name}" has been successfully deactivated.`,
     });
   } catch (error) {
     console.error('Delete chama error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error deleting chama',
+      message: 'Error processing deletion request',
+    });
+  }
+};
+
+// @desc    Cancel a pending deletion request
+// @route   POST /api/chamas/:chamaId/cancel-delete
+// @access  Private (Officials only)
+const cancelDeleteChama = async (req, res) => {
+  try {
+    const { chamaId } = req.params;
+
+    await pool.query(
+      'UPDATE chamas SET deletion_requested_by = NULL, deletion_requested_at = NULL WHERE chama_id = $1',
+      [chamaId],
+    );
+
+    clearChamaCache(chamaId);
+
+    res.json({
+      success: true,
+      message: 'Deletion request cancelled successfully',
+    });
+  } catch (error) {
+    console.error('Cancel delete chama error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error cancelling deletion request',
     });
   }
 };
@@ -618,4 +702,5 @@ module.exports = {
   getChamaMembers,
   getChamaStats,
   getPublicChamas,
+  cancelDeleteChama,
 };

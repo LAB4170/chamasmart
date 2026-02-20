@@ -11,6 +11,7 @@ export const chamaAPI = {
   getMembers: (id) => api.get(`/chamas/${id}/members`),
   getStats: (id) => api.get(`/chamas/${id}/stats`),
   getPublicChamas: (params) => api.get("/chamas/public", { params }),
+  cancelDelete: (id) => api.post(`/chamas/${id}/cancel-delete`),
 };
 
 // Member API calls
