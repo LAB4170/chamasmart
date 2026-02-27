@@ -40,7 +40,7 @@ describe('Contribution Management Endpoints', () => {
 
     // Add user as member to the chama
     await pool.query(
-      'INSERT INTO memberships (chama_id, user_id, role, status) VALUES ($1, $2, $3, $4)',
+      'INSERT INTO chama_members (chama_id, user_id, role, status) VALUES ($1, $2, $3, $4)',
       [testChamaId, testUserId, 'MEMBER', 'ACTIVE'],
     );
   });
@@ -48,7 +48,7 @@ describe('Contribution Management Endpoints', () => {
   afterAll(async () => {
     // Clean up test data
     await pool.query('DELETE FROM contributions WHERE user_id = $1', [testUserId]);
-    await pool.query('DELETE FROM memberships WHERE user_id = $1', [testUserId]);
+    await pool.query('DELETE FROM chama_members WHERE user_id = $1', [testUserId]);
     await pool.query('DELETE FROM chamas WHERE created_by = $1', [testUserId]);
     await pool.query('DELETE FROM users WHERE user_id = $1', [testUserId]);
     await pool.end();

@@ -18,108 +18,71 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import {
   BarChart3, Calendar, Mail, Building2, Heart, RefreshCw, TrendingUp,
   Settings, CreditCard, Users, DollarSign, Handshake, FileText, Download,
-  Target, Bell, Trash2, Filter, RotateCcw, CheckCircle2
+  Target, Bell, Trash2, Filter, RotateCcw, CheckCircle2, Clock, MapPin,
+  Shield, Landmark
 } from 'lucide-react';
 
 // --- Memoized Sub-components ---
 
 const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavigate, onTabChange, isOfficial }) => (
-  <div className="chama-header">
-    <div className="header-content">
-      <div className="chama-title-section">
-        <h1 className="chama-title">{chama.chama_name}</h1>
-        <div className="chama-meta">
-          <span className="chama-type-badge">
-            <span className="badge-icon">
-              {isROSCA
-                ? <RefreshCw size={16} />
-                : chama.chama_type === "TABLE_BANKING"
-                  ? <DollarSign size={16} />
-                  : chama.chama_type === "ASCA"
-                    ? <TrendingUp size={16} />
-                    : <Handshake size={16} />}
-            </span>
+  <div style={{
+    background: 'var(--card-bg)',
+    borderRadius: '1rem',
+    border: '1px solid var(--border)',
+    padding: '1.25rem 1.75rem',
+    marginBottom: '1rem',
+    boxShadow: 'var(--shadow)',
+  }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+      {/* Left: Title + Badges */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: 0 }}>
+        <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {chama.chama_name}
+        </h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {/* Chama type badge — uses theme primary color */}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'var(--bg-primary-light)', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 600 }}>
+            {isROSCA ? <RefreshCw size={13} /> : chama.chama_type === 'TABLE_BANKING' ? <DollarSign size={13} /> : chama.chama_type === 'ASCA' ? <TrendingUp size={13} /> : <Handshake size={13} />}
             {getChamaTypeLabel(chama.chama_type)}
           </span>
-          <div className="user-role-display">
-            <span className="role-label">Your Role:</span>
-            <span className={`role-badge role-${userRole.toLowerCase()}`}>
-              {userRole}
-            </span>
-          </div>
+          {/* Role badge — high-contrast for both modes */}
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+            padding: '0.25rem 0.75rem', borderRadius: '9999px',
+            fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.02em',
+            border: '1.5px solid',
+            ...(userRole === 'CHAIRPERSON'
+              ? { color: '#a78bfa', borderColor: '#a78bfa', background: 'rgba(167,139,250,0.12)' }
+              : userRole === 'TREASURER'
+              ? { color: 'var(--secondary)', borderColor: 'var(--secondary)', background: 'rgba(16,185,129,0.1)' }
+              : userRole === 'SECRETARY'
+              ? { color: 'var(--warning)', borderColor: 'var(--warning)', background: 'rgba(245,158,11,0.1)' }
+              : { color: 'var(--text-secondary)', borderColor: 'var(--border)', background: 'var(--surface-3)' })
+          }}>
+            <Shield size={11} /> {userRole}
+          </span>
         </div>
       </div>
-      <div className="header-actions">
-        <button className="btn btn-modern btn-reports" onClick={() => onTabChange("reports")} aria-label="View reports">
-          <BarChart3 size={18} className="btn-icon" aria-hidden="true" /> Reports
-        </button>
-        <button className="btn btn-modern btn-secondary" onClick={() => onNavigate(`/chamas/${chama.chama_id}/meetings`)} aria-label="View meetings">
-          <Calendar size={18} className="btn-icon" aria-hidden="true" /> Meetings
-        </button>
-        {isOfficial && (
+
+      {/* Right: Action buttons */}
+      {isOfficial && (
+        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexShrink: 0 }}>
           <button
-            className="btn btn-modern btn-secondary"
-            onClick={() => onNavigate(`/chamas/${chama.chama_id}/invites`)}
-            aria-label="Manage invites"
+            onClick={() => onNavigate(`/chamas/${chama.chama_id}/record-contribution`)}
+            aria-label="Record payment for member"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1.15rem', background: 'var(--primary)', color: '#ffffff', border: 'none', borderRadius: '0.75rem', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', boxShadow: '0 2px 8px rgba(37,99,235,0.3)', transition: 'all 0.2s' }}
           >
-            <Mail size={18} className="btn-icon" aria-hidden="true" /> Invites
+            <CreditCard size={15} /> Record Payment
           </button>
-        )}
-        {chama.chama_type === "TABLE_BANKING" && (
           <button
-            className="btn btn-modern btn-secondary"
-            onClick={() => onNavigate(`/chamas/${chama.chama_id}/loans`)}
-            aria-label="View loans"
+            onClick={() => onNavigate(`/chamas/${chama.chama_id}/manage`)}
+            aria-label="Manage chama settings"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1.15rem', background: 'transparent', color: 'var(--primary)', border: '1.5px solid var(--primary)', borderRadius: '0.75rem', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', transition: 'all 0.2s' }}
           >
-            <Building2 size={18} className="btn-icon" aria-hidden="true" /> Loans
+            <Settings size={15} /> Manage
           </button>
-        )}
-        {chama.chama_type === "WELFARE" && (
-          <button
-            className="btn btn-modern btn-secondary"
-            onClick={() => onNavigate(`/chamas/${chama.chama_id}/welfare`)}
-            aria-label="View welfare"
-          >
-            <Heart size={18} className="btn-icon" aria-hidden="true" /> Welfare
-          </button>
-        )}
-        {chama.chama_type === "ROSCA" && (
-          <button
-            className="btn btn-modern btn-secondary"
-            onClick={() => onNavigate(`/chamas/${chama.chama_id}/rosca`)}
-            aria-label="View merry-go-round"
-          >
-            <RefreshCw size={18} className="btn-icon" aria-hidden="true" /> Merry-Go-Round
-          </button>
-        )}
-        {chama.chama_type === "ASCA" && (
-          <button
-            className="btn btn-modern btn-secondary"
-            onClick={() => onNavigate(`/chamas/${chama.chama_id}/asca`)}
-            aria-label="View investments"
-          >
-            <TrendingUp size={18} className="btn-icon" aria-hidden="true" /> Investments
-          </button>
-        )}
-        {isOfficial && (
-          <>
-            <button
-              className="btn btn-modern btn-manage"
-              onClick={() => onNavigate(`/chamas/${chama.chama_id}/manage`)}
-              aria-label="Manage chama settings"
-            >
-              <Settings size={18} className="btn-icon" aria-hidden="true" /> Manage
-            </button>
-            <button
-              className="btn btn-modern btn-primary"
-              onClick={() => onNavigate(`/chamas/${chama.chama_id}/record-contribution`)}
-              aria-label="Record payment for member"
-            >
-              <CreditCard size={18} className="btn-icon" aria-hidden="true" /> Record Payment
-            </button>
-          </>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   </div>
 ));
@@ -289,6 +252,11 @@ const ChamaDetails = () => {
   const [ascaEquity, setAscaEquity] = useState(null);
 
   // Confirmation Dialog State
+  const [meetings, setMeetings] = useState([]);
+  const [loans, setLoans] = useState([]);
+  const [welfareFund, setWelfareFund] = useState(null);
+  const [welfareClaims, setWelfareClaims] = useState([]);
+
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     title: "",
@@ -353,7 +321,48 @@ const ChamaDetails = () => {
     }
   }, [id, socket]);
 
-  // Check for refresh signal from navigation
+  // Fetch meetings, loans, or welfare when tab changes
+  useEffect(() => {
+    if (activeTab === "meetings") {
+      fetchMeetings();
+    } else if (activeTab === "loans" && chama?.chama_type === "TABLE_BANKING") {
+      fetchLoans();
+    } else if (activeTab === "welfare" && chama?.chama_type === "WELFARE") {
+      fetchWelfare();
+    }
+  }, [activeTab, id, chama?.chama_type]);
+
+  const fetchMeetings = async () => {
+    try {
+      const res = await meetingAPI.getAll(id);
+      setMeetings(res.data.data || res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch meetings:", err);
+    }
+  };
+
+  const fetchLoans = async () => {
+    try {
+      const res = await loanAPI.getChamaLoans(id);
+      setLoans(res.data.data || res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch loans:", err);
+    }
+  };
+
+  const fetchWelfare = async () => {
+    try {
+      const [fundRes, claimsRes] = await Promise.all([
+        welfareAPI.getFund(id),
+        welfareAPI.getChamaClaims(id)
+      ]);
+      setWelfareFund(fundRes.data.data);
+      setWelfareClaims(claimsRes.data.data || []);
+    } catch (err) {
+      console.error("Failed to fetch welfare:", err);
+    }
+  };
+
   useEffect(() => {
     if (location.state?.refresh) {
       fetchChamaData();
@@ -389,8 +398,8 @@ const ChamaDetails = () => {
       const chamaData = chamaRes.data.data;
       const membersData = membersRes.data.data;
 
-      setChama(chamaData);
-      setMembers(membersData);
+      setChama(Array.isArray(chamaData) ? chamaData[0] : chamaData);
+      setMembers(Array.isArray(membersData) ? membersData : (membersData?.data || []));
       setStats(statsRes.data.data);
 
       // Load ASCA equity if this is an ASCA chama
@@ -416,22 +425,26 @@ const ChamaDetails = () => {
       if (chamaData.chama_type === "ROSCA") {
         try {
           const cyclesRes = await roscaAPI.getCycles(id);
-          setCycles(cyclesRes.data.data);
+          const cyclesData = cyclesRes.data.data;
+          setCycles(Array.isArray(cyclesData) ? cyclesData : (cyclesData?.data || []));
 
           // Find active or latest cycle
-          const active = cyclesRes.data.data.find(c => c.status === 'ACTIVE' || c.status === 'PENDING');
+          const active = (Array.isArray(cyclesData) ? cyclesData : (cyclesData?.data || [])).find(c => c.status === 'ACTIVE' || c.status === 'PENDING');
           if (active) {
             setActiveCycle(active);
             const rosterRes = await roscaAPI.getRoster(active.cycle_id);
-            setRoster(rosterRes.data.data);
+            const rosterData = rosterRes.data.data;
+            setRoster(Array.isArray(rosterData) ? rosterData : (rosterData?.data || []));
 
             // Calculate progress
-            const paidCount = rosterRes.data.data.filter(r => r.status === 'PAID').length;
+            const rosterArray = Array.isArray(rosterData) ? rosterData : (rosterData?.data || []);
+            const paidCount = rosterArray.filter(r => r.status === 'PAID').length;
             setCurrentCyclePosition(paidCount);
 
             // Fetch swap requests
             const swapRes = await roscaAPI.getSwapRequests();
-            setSwapRequests(swapRes.data.data);
+            const swapData = swapRes.data.data;
+            setSwapRequests(Array.isArray(swapData) ? { incoming: swapData, outgoing: [] } : (swapData || { incoming: [], outgoing: [] }));
           }
         } catch (cycleErr) {
           console.error("Failed to load cycles:", cycleErr);
@@ -463,7 +476,8 @@ const ChamaDetails = () => {
       );
 
       const response = await contributionAPI.getAll(id, cleanFilters);
-      setContributions(response.data.data);
+      const contribData = response.data.data;
+      setContributions(Array.isArray(contribData) ? contribData : (contribData?.data || []));
     } catch (err) {
       console.error("Failed to fetch contributions:", err);
       toast.error("Failed to load contribution history");
@@ -536,7 +550,10 @@ const ChamaDetails = () => {
   }, []);
 
   const userRole = useMemo(() => {
-    const member = members.find((m) => m.user_id === user?.id);
+    if (!Array.isArray(members)) return "MEMBER";
+    // Fix: Handle both 'id' and 'user_id' from auth context
+    const currentUserId = user?.user_id || user?.id;
+    const member = members.find((m) => m.user_id === currentUserId);
     return member?.role || "MEMBER";
   }, [members, user]);
 
@@ -547,18 +564,18 @@ const ChamaDetails = () => {
   const isROSCA = useMemo(() => chama?.chama_type === "ROSCA", [chama]);
 
   const getCurrentRecipient = useCallback(() => {
-    if (!isROSCA || !roster.length) return null;
+    if (!isROSCA || !Array.isArray(roster) || roster.length === 0) return null;
     return roster[currentCyclePosition % roster.length];
   }, [isROSCA, roster, currentCyclePosition]);
 
   const getCycleProgress = useCallback(() => {
-    if (!isROSCA || !activeCycle || !roster.length) return 0;
+    if (!isROSCA || !activeCycle || !Array.isArray(roster) || roster.length === 0) return 0;
     const paidCount = roster.filter(r => r.status === 'PAID').length;
     return (paidCount / roster.length) * 100;
   }, [isROSCA, activeCycle, roster]);
 
   const getMemberStatus = useCallback((member) => {
-    if (!isROSCA) return "MEMBER";
+    if (!isROSCA || !Array.isArray(roster)) return "MEMBER";
     const position = roster.findIndex((r) => r.user_id === member.user_id);
     if (position === -1) return "MEMBER";
     const currentPos = currentCyclePosition % roster.length;
@@ -601,6 +618,17 @@ const ChamaDetails = () => {
     } catch (err) {
       console.error(err);
       alert("Failed to update constitution");
+    }
+  };
+
+  const handleActivateCycle = async (cycleId) => {
+    try {
+      await roscaAPI.activateCycle(cycleId);
+      toast.success("Cycle activated successfully!");
+      fetchChamaData();
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || "Failed to activate cycle");
     }
   };
 
@@ -677,136 +705,195 @@ const ChamaDetails = () => {
       <div className="page">
         <div className="container">
           <ChamaHeader
-            chama={chama}
-            userRole={userRole}
-            isROSCA={isROSCA}
-            getChamaTypeLabel={getChamaTypeLabel}
-            onNavigate={navigate}
-            onTabChange={setActiveTab}
-            isOfficial={officialStatus}
-          />
+        chama={chama}
+        userRole={userRole}
+        isROSCA={isROSCA}
+        getChamaTypeLabel={getChamaTypeLabel}
+        onNavigate={navigate}
+        onTabChange={setActiveTab}
+        isOfficial={officialStatus}
+      />
 
-          {stats && (
-            <StatsSection
-              stats={stats}
-              isROSCA={isROSCA}
-              chama={chama}
-              members={members}
-              formatCurrency={formatCurrency}
-            />
-          )}
+      <div className="chama-container">
+        <StatsSection
+          stats={stats}
+          isROSCA={isROSCA}
+          chama={chama}
+          members={members}
+          formatCurrency={formatCurrency}
+        />
 
-          <div className="tabs-modern">
-            <button className={`tab-modern ${activeTab === "overview" ? "active" : ""}`} onClick={() => setActiveTab("overview")}>
-              <FileText size={18} className="tab-icon" aria-hidden="true" /> Overview
-            </button>
-            {isROSCA && (
-              <button
-                className={`tab-modern ${activeTab === "cycle" ? "active" : ""}`}
-                onClick={() => setActiveTab("cycle")}
-              >
-                <RefreshCw size={18} className="tab-icon" aria-hidden="true" /> Cycle info
-              </button>
-            )}
-            <button className={`tab-modern ${activeTab === "members" ? "active" : ""}`} onClick={() => setActiveTab("members")}>
-              <Users size={18} className="tab-icon" aria-hidden="true" /> Members ({members.length})
+        <div className="tab-container-premium">
+          <div className="tabs-modern scroll-fade">
+            <button
+              className={`tab-modern ${activeTab === "overview" ? "active" : ""}`}
+              onClick={() => setActiveTab("overview")}
+            >
+              <BarChart3 size={18} className="tab-icon" aria-hidden="true" /> Overview
             </button>
             <button
-              className={`tab-modern ${activeTab === "contributions" ? "active" : ""
-                }`}
+              className={`tab-modern ${activeTab === "members" ? "active" : ""}`}
+              onClick={() => setActiveTab("members")}
+            >
+              <Users size={18} className="tab-icon" aria-hidden="true" /> Members
+            </button>
+            <button
+              className={`tab-modern ${activeTab === "contributions" ? "active" : ""}`}
               onClick={() => setActiveTab("contributions")}
             >
-              <DollarSign size={18} className="tab-icon" aria-hidden="true" /> Contributions
+              <DollarSign size={18} className="tab-icon" aria-hidden="true" /> Payments
             </button>
+            <button
+              className={`tab-modern ${activeTab === "meetings" ? "active" : ""}`}
+              onClick={() => setActiveTab("meetings")}
+            >
+              <Calendar size={18} className="tab-icon" aria-hidden="true" /> Meetings
+            </button>
+
+            {chama.chama_type === "TABLE_BANKING" && (
+              <button
+                className={`tab-modern ${activeTab === "loans" ? "active" : ""}`}
+                onClick={() => setActiveTab("loans")}
+              >
+                <Landmark size={18} className="tab-icon" aria-hidden="true" /> Loans
+              </button>
+            )}
+
+            {chama.chama_type === "WELFARE" && (
+              <button
+                className={`tab-modern ${activeTab === "welfare" ? "active" : ""}`}
+                onClick={() => setActiveTab("welfare")}
+              >
+                <Heart size={18} className="tab-icon" aria-hidden="true" /> Welfare
+              </button>
+            )}
+
             <button
               className={`tab-modern ${activeTab === "reports" ? "active" : ""}`}
               onClick={() => setActiveTab("reports")}
-              aria-label="View reports tab"
             >
               <BarChart3 size={18} className="tab-icon" aria-hidden="true" /> Reports
             </button>
+
             {officialStatus && (
-              <button
-                className={`tab-modern ${activeTab === "constitution" ? "active" : ""}`}
-                onClick={() => setActiveTab("constitution")}
-              >
-                <span className="tab-icon">📜</span> Constitution
-              </button>
+              <>
+                <button
+                  className={`tab-modern ${activeTab === "management" ? "active" : ""}`}
+                  onClick={() => setActiveTab("management")}
+                >
+                  <Shield size={18} className="tab-icon" aria-hidden="true" /> Management
+                </button>
+                <button
+                  className={`tab-modern ${activeTab === "constitution" ? "active" : ""}`}
+                  onClick={() => setActiveTab("constitution")}
+                >
+                  <FileText size={18} className="tab-icon" aria-hidden="true" /> Constitution
+                </button>
+              </>
             )}
           </div>
 
-          <div className="tab-content">
+          <div className="tab-content-area">
             {activeTab === "overview" && (
               <>
-                {/* Getting Started Widget (Chairperson Only) */}
-                {officialStatus && (
-                  <div className="card-premium mb-6 bg-gradient-to-r from-indigo-50 to-blue-50 border-indigo-100">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="text-lg font-bold text-indigo-900 flex items-center gap-2">
-                          <Target size={20} className="text-indigo-600" />
-                          Getting Started
-                        </h3>
-                        <p className="text-sm text-indigo-700">Complete these steps to launch your Chama</p>
-                      </div>
-                      <span className="bg-white px-3 py-1 rounded-full text-sm font-bold text-indigo-600 shadow-sm">
-                        {(!chama.payment_methods ? 0 : 1) + (members.length < 2 ? 0 : 1) + (cycles.length === 0 ? 0 : 1)}/3
-                      </span>
-                    </div>
+                {/* ── Chama Launchpad (Officials Only) ── */}
+                {officialStatus && (() => {
+                  const step1Done = !!chama.payment_methods;
+                  const step2Done = members.length > 1;
+                  const step3Done = cycles.length > 0;
+                  const completedCount = [step1Done, step2Done, isROSCA ? step3Done : true].filter(Boolean).length;
+                  const totalSteps = isROSCA ? 3 : 2;
+                  const allDone = completedCount >= totalSteps;
 
-                    <div className="space-y-3">
-                      {/* Step 1: Payment Methods */}
-                      <div className={`flex items-center gap-3 p-3 rounded-xl transition-all ${chama.payment_methods ? 'bg-white/60 opacity-50' : 'bg-white shadow-sm border border-indigo-100'}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${chama.payment_methods ? 'bg-green-100 text-green-600' : 'bg-indigo-100 text-indigo-600'}`}>
-                          {chama.payment_methods ? <CheckCircle2 size={18} /> : <span>1</span>}
+                  return (
+                    <div className="launchpad-card" style={{ marginBottom: '1.5rem' }}>
+                      <div className="launchpad-header">
+                        <div className="launchpad-title-area">
+                          <h3>
+                            <Target size={22} style={{ color: '#4f46e5' }} />
+                            {allDone ? '🚀 Chama is Live!' : 'Chama Launchpad'}
+                          </h3>
+                          <p>{allDone ? 'All setup steps are complete. Your group is operational.' : 'Complete the steps below to go live.'}</p>
                         </div>
-                        <div className="flex-1">
-                          <h4 className={`font-semibold ${chama.payment_methods ? 'text-gray-600 line-through' : 'text-gray-900'}`}>Set Payment Details</h4>
-                          {!chama.payment_methods && <p className="text-xs text-gray-500">Add Paybill or Till number for members</p>}
-                        </div>
-                        {!chama.payment_methods && (
-                          <button onClick={() => navigate(`/chamas/${id}/manage`)} className="btn-xs btn-primary bg-indigo-600 hover:bg-indigo-700 border-none">
-                            Setup
-                          </button>
-                        )}
+                        <span className="launchpad-progress-badge">
+                          {completedCount} / {totalSteps} Done
+                        </span>
                       </div>
 
-                      {/* Step 2: Invite Members */}
-                      <div className={`flex items-center gap-3 p-3 rounded-xl transition-all ${members.length > 1 ? 'bg-white/60 opacity-50' : 'bg-white shadow-sm border border-indigo-100'}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${members.length > 1 ? 'bg-green-100 text-green-600' : 'bg-indigo-100 text-indigo-600'}`}>
-                          {members.length > 1 ? <CheckCircle2 size={18} /> : <span>2</span>}
-                        </div>
-                        <div className="flex-1">
-                          <h4 className={`font-semibold ${members.length > 1 ? 'text-gray-600 line-through' : 'text-gray-900'}`}>Invite Members</h4>
-                          {members.length <= 1 && <p className="text-xs text-gray-500">You need at least 2 members to start</p>}
-                        </div>
-                        {members.length <= 1 && (
-                          <button onClick={() => navigate(`/chamas/${id}/invites`)} className="btn-xs btn-primary bg-indigo-600 hover:bg-indigo-700 border-none">
-                            Invite
-                          </button>
-                        )}
-                      </div>
+                      <div className="launchpad-steps" style={{ gridTemplateColumns: isROSCA ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)' }}>
 
-                      {/* Step 3: Start Cycle */}
-                      {isROSCA && (
-                        <div className={`flex items-center gap-3 p-3 rounded-xl transition-all ${cycles.length > 0 ? 'bg-white/60 opacity-50' : 'bg-white shadow-sm border border-indigo-100'}`}>
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${cycles.length > 0 ? 'bg-green-100 text-green-600' : 'bg-indigo-100 text-indigo-600'}`}>
-                            {cycles.length > 0 ? <CheckCircle2 size={18} /> : <span>3</span>}
+                        {/* Step 1: Payment */}
+                        <div className={`launchpad-step ${step1Done ? 'completed' : 'active'}`}>
+                          <div className="step-icon-wrapper">
+                            {step1Done ? <CheckCircle2 size={20} /> : <CreditCard size={20} />}
                           </div>
-                          <div className="flex-1">
-                            <h4 className={`font-semibold ${cycles.length > 0 ? 'text-gray-600 line-through' : 'text-gray-900'}`}>Start First Cycle</h4>
-                            {cycles.length === 0 && <p className="text-xs text-gray-500">Create the first merry-go-round rotation</p>}
+                          <div className="step-content">
+                            <h4>Set Payment Details</h4>
+                            {!step1Done && <p>Add M-PESA Paybill, Till or Pochi for members to pay.</p>}
+                            {step1Done && <p style={{ color: '#16a34a', fontSize: '0.78rem' }}>Payment method configured.</p>}
                           </div>
-                          {cycles.length === 0 && (
-                            <button onClick={() => navigate(`/chamas/${id}/rosca/create`)} className="btn-xs btn-primary bg-indigo-600 hover:bg-indigo-700 border-none">
-                              Start
-                            </button>
+                          {!step1Done && (
+                            <div className="step-action">
+                              <button
+                                onClick={() => navigate(`/chamas/${id}/manage`)}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 1rem', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '0.6rem', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', transition: 'all 0.2s' }}
+                              >
+                                <Settings size={14} /> Setup
+                              </button>
+                            </div>
                           )}
                         </div>
-                      )}
+
+                        {/* Step 2: Members */}
+                        <div className={`launchpad-step ${step2Done ? 'completed' : step1Done ? 'active' : ''}`}>
+                          <div className="step-icon-wrapper">
+                            {step2Done ? <CheckCircle2 size={20} /> : <Users size={20} />}
+                          </div>
+                          <div className="step-content">
+                            <h4>Invite Members</h4>
+                            {!step2Done && <p>At least 2 members needed. Currently: {members.length}.</p>}
+                            {step2Done && <p style={{ color: '#16a34a', fontSize: '0.78rem' }}>{members.length} members joined.</p>}
+                          </div>
+                          {!step2Done && (
+                            <div className="step-action">
+                              <button
+                                onClick={() => navigate(`/chamas/${id}/invites`)}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 1rem', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '0.6rem', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', transition: 'all 0.2s' }}
+                              >
+                                <Mail size={14} /> Invite
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Step 3: Start Cycle (ROSCA only) */}
+                        {isROSCA && (
+                          <div className={`launchpad-step ${step3Done ? 'completed' : step2Done ? 'active' : ''}`}>
+                            <div className="step-icon-wrapper">
+                              {step3Done ? <CheckCircle2 size={20} /> : <RefreshCw size={20} />}
+                            </div>
+                            <div className="step-content">
+                              <h4>Start First Cycle</h4>
+                              {!step3Done && <p>Launch the merry-go-round rotation for members.</p>}
+                              {step3Done && <p style={{ color: '#16a34a', fontSize: '0.78rem' }}>Cycle is running.</p>}
+                            </div>
+                            {!step3Done && (
+                              <div className="step-action">
+                                <button
+                                  onClick={() => setShowCreateCycleModal(true)}
+                                  disabled={!step2Done}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 1rem', background: step2Done ? '#4f46e5' : '#a5b4fc', color: '#fff', border: 'none', borderRadius: '0.6rem', fontWeight: 700, fontSize: '0.82rem', cursor: step2Done ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}
+                                >
+                                  <RefreshCw size={14} /> Start
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Member Wall Widget */}
                 <div className="card-premium mb-6">
@@ -815,7 +902,12 @@ const ChamaDetails = () => {
                       <Users size={18} className="text-gray-500" />
                       Who's Here <span className="text-gray-400 text-sm font-normal">({members.length})</span>
                     </h3>
-                    <button onClick={() => setActiveTab('members')} className="text-sm text-indigo-600 font-medium hover:underline">View All</button>
+                    <button
+                      onClick={() => setActiveTab('members')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.3rem 0.9rem', border: '1px solid rgba(79,70,229,0.3)', borderRadius: '0.6rem', color: '#4f46e5', background: 'rgba(79,70,229,0.04)', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                    >
+                      <Users size={13} /> View All
+                    </button>
                   </div>
 
                   <div className="flex -space-x-3 overflow-hidden py-2 px-1">
@@ -937,14 +1029,31 @@ const ChamaDetails = () => {
               <div className="card">
                 <div className="card-header flex-between">
                   <h3>ROSCA Cycle Progress</h3>
-                  {officialStatus && !activeCycle && (
-                    <div className="cycle-actions">
-                      <button
-                        className="btn btn-sm btn-success"
-                        onClick={() => setShowCreateCycleModal(true)}
-                      >
-                        Start New Cycle
-                      </button>
+                  {officialStatus && (
+                    <div className="cycle-actions flex gap-2">
+                      {activeCycle?.status === 'PENDING' && (
+                        <button
+                          className="btn btn-sm btn-success flex items-center gap-1"
+                          onClick={() => {
+                            confirmAction({
+                              title: "Activate Cycle",
+                              message: "Are you sure you want to start this cycle? This will lock the roster and allow members to start contributing and receiving payouts.",
+                              confirmLabel: "Activate Now",
+                              onConfirm: () => handleActivateCycle(activeCycle.cycle_id)
+                            });
+                          }}
+                        >
+                          <CheckCircle2 size={16} /> Activate Cycle
+                        </button>
+                      )}
+                      {!activeCycle && (
+                        <button
+                          className="btn btn-sm btn-primary"
+                          onClick={() => setShowCreateCycleModal(true)}
+                        >
+                          Start New Cycle
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1770,17 +1879,240 @@ const ChamaDetails = () => {
               </div>
             )}
 
+            {activeTab === "meetings" && (
+              <div className="card">
+                <div className="card-header flex-between mb-4">
+                  <h3 className="card-title-premium flex items-center gap-2">
+                    <Calendar size={20} className="text-gray-500" />
+                    Chama Meetings
+                  </h3>
+                  {officialStatus && (
+                    <button
+                      className="btn btn-sm btn-primary"
+                      onClick={() => navigate(`/chamas/${id}/meetings/create`)}
+                    >
+                      Schedule Meeting
+                    </button>
+                  )}
+                </div>
+                {meetings.length === 0 ? (
+                  <div className="p-8 text-center bg-gray-50 rounded-xl border border-dashed">
+                    <Calendar size={48} className="mx-auto text-gray-300 mb-3" />
+                    <p className="text-gray-500">No meetings scheduled yet.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {meetings.map(m => (
+                      <div key={m.meeting_id} className="p-4 border border-gray-100 rounded-xl bg-white shadow-sm hover:shadow-md transition-all flex-between">
+                        <div>
+                          <p className="font-bold text-gray-900">{m.title}</p>
+                          <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                            <Clock size={12} />
+                            {new Date(m.scheduled_at || m.date).toLocaleDateString()} at {new Date(m.scheduled_at || m.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          {m.location && (
+                            <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                              <MapPin size={10} /> {m.location}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          className="btn btn-xs btn-outline border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                          onClick={() => navigate(`/chamas/${id}/meetings`)}
+                        >
+                          Manager
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "loans" && (
+              <div className="card">
+                <div className="card-header flex-between mb-4">
+                  <h3 className="card-title-premium flex items-center gap-2">
+                    <Building2 size={20} className="text-gray-500" />
+                    Loan Dashboard
+                  </h3>
+                  <button
+                    className="btn btn-sm btn-primary"
+                    onClick={() => navigate(`/chamas/${id}/loans/apply`)}
+                  >
+                    Apply for Loan
+                  </button>
+                </div>
+                {loans.length === 0 ? (
+                  <div className="p-8 text-center bg-gray-50 rounded-xl border border-dashed">
+                    <Building2 size={48} className="mx-auto text-gray-300 mb-3" />
+                    <p className="text-gray-500">No active loans in this group.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="table-premium w-full text-left">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="pb-3 pt-1">Member</th>
+                          <th className="pb-3 pt-1">Amount</th>
+                          <th className="pb-3 pt-1">Status</th>
+                          <th className="pb-3 pt-1">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {loans.map(l => (
+                          <tr key={l.loan_id} className="hover:bg-gray-50/50">
+                            <td className="py-3 font-medium">{l.borrower_name}</td>
+                            <td className="py-3 text-indigo-600 font-bold">{formatCurrency(l.amount)}</td>
+                            <td className="py-3">
+                              <span className={`px-2 py-1 rounded-full text-xs font-bold ${l.status === 'APPROVED' ? 'bg-green-100 text-green-700' : l.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                                {l.status}
+                              </span>
+                            </td>
+                            <td className="py-3 text-sm text-gray-500">{formatDate(l.created_at)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "welfare" && (
+              <div className="card">
+                <div className="card-header flex-between mb-4">
+                  <h3 className="card-title-premium flex items-center gap-2">
+                    <Heart size={20} className="text-pink-500" />
+                    Welfare Fund
+                  </h3>
+                  <button
+                    className="btn btn-sm btn-primary"
+                    onClick={() => navigate(`/chamas/${id}/welfare/claim`)}
+                  >
+                    New Claim
+                  </button>
+                </div>
+                {welfareFund && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                    <div className="p-4 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-xl border border-indigo-100">
+                      <p className="text-xs text-indigo-600 font-bold uppercase tracking-wider mb-1">Total Fund Value</p>
+                      <p className="text-2xl font-bold text-indigo-900">{formatCurrency(welfareFund.balance)}</p>
+                    </div>
+                    <div className="p-4 bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl border border-pink-100">
+                      <p className="text-xs text-pink-600 font-bold uppercase tracking-wider mb-1">Active Claims</p>
+                      <p className="text-2xl font-bold text-pink-900">{welfareClaims.filter(c => c.status === 'PENDING').length}</p>
+                    </div>
+                  </div>
+                )}
+                <h4 className="text-sm font-bold text-gray-500 uppercase mb-3 px-1">Recent Activity</h4>
+                {welfareClaims.length === 0 ? (
+                  <div className="p-6 text-center bg-gray-50 rounded-xl border border-dashed">
+                    <p className="text-gray-400">No recent claims submitted.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {welfareClaims.slice(0, 5).map(c => (
+                      <div key={c.claim_id} className="p-3 bg-white border border-gray-100 rounded-xl flex-between shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center font-bold">
+                            {c.claim_type[0]}
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-800">{c.claim_type}</p>
+                            <p className="text-xs text-gray-400">{formatDate(c.created_at)}</p>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${c.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                          {c.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+
+            {activeTab === "management" && officialStatus && (
+              <div className="management-tab-pane">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="card-premium hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/manage`)}>
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                        <Settings size={24} />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-gray-900">General Settings</h4>
+                        <p className="text-xs text-gray-500">Update chama name, visibility, and payments</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="card-premium hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/invites`)}>
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                        <Mail size={24} />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-gray-900">Member Invites</h4>
+                        <p className="text-xs text-gray-500">Generate codes and send email invitations</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="card-premium hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/add-member`)}>
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center">
+                        <Users size={24} />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-gray-900">Add Member Direct</h4>
+                        <p className="text-xs text-gray-500">Add a known user directly to the chama</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="card-premium hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/join-requests`)}>
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center">
+                        <Bell size={24} />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-gray-900">Join Requests</h4>
+                        <p className="text-xs text-gray-500">Approve or reject pending member requests</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="card-premium hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/audit-logs`)}>
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-gray-100 text-gray-600 flex items-center justify-center">
+                        <FileText size={24} />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-gray-900">Audit Logs</h4>
+                        <p className="text-xs text-gray-500">View history of all actions in the chama</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {activeTab === "constitution" && officialStatus && (
-              <div className="card">
-                <div className="card-header">
-                  <h3>Chama Constitution & Rules</h3>
-                  <p className="text-muted">Define the automated rules and penalties for your group.</p>
-                </div>
-                <form onSubmit={handleUpdateConstitution} className="p-4">
+              <div className="card-premium bg-white p-6 shadow-md rounded-lg">
+                <form
+                  onSubmit={handleUpdateConstitution}
+                  className="space-y-6"
+                >
+                  <div className="section-header border-b pb-4 mb-4">
+                    <h3 className="text-2xl font-bold text-gray-800">Chama Constitution</h3>
+                    <p className="text-muted text-sm">Define your group's rules, bylaws, and penalties.</p>
+                  </div>
 
                   <div className="form-group mb-4">
-                    <label className="form-label">Full Constitution / Group Description</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Rules & Bylaws</label>
                     <textarea
                       className="form-input"
                       rows="10"
@@ -1847,6 +2179,8 @@ const ChamaDetails = () => {
           </div>
         </div>
       </div>
+    </div>
+  </div>
 
       {showCreateCycleModal && (
         <CreateCycleModal

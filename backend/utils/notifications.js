@@ -116,7 +116,7 @@ const sendChamaNotification = async (chamaId, notificationOptions, excludeRoles 
 
     const result = await pool.query(
       `SELECT m.user_id, u.first_name, u.last_name, u.email
-       FROM memberships m
+       FROM chama_members m
        JOIN users u ON m.user_id = u.user_id
        ${whereClause}`,
       params,
@@ -155,7 +155,7 @@ const sendOfficialNotification = async (chamaId, notificationOptions, roles = ['
 
     const result = await pool.query(
       `SELECT m.user_id, u.first_name, u.last_name, u.email, m.role
-       FROM memberships m
+       FROM chama_members m
        JOIN users u ON m.user_id = u.user_id
        WHERE m.chama_id = $1 AND m.status = 'active' AND m.role = ANY($2)`,
       [chamaId, roles],

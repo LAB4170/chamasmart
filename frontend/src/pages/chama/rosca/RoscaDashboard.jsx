@@ -14,6 +14,9 @@ const RoscaDashboard = () => {
     const { id } = useParams();
     const { user } = useAuth();
     const [chama, setChama] = useState(null);
+    const [cycles, setCycles] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [userRole, setUserRole] = useState('MEMBER');
     const [showPayModal, setShowPayModal] = useState(false);
     const [selectedCycle, setSelectedCycle] = useState(null);
 

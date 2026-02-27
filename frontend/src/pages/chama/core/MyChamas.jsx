@@ -93,7 +93,8 @@ const MyChamas = () => {
     try {
       setLoading(true);
       const response = await chamaAPI.getMyChamas();
-      setChamas(response.data.data);
+      const chamasData = response.data?.data;
+      setChamas(Array.isArray(chamasData) ? chamasData : []);
     } catch (err) {
       setError("Failed to load your chamas");
       console.error(err);

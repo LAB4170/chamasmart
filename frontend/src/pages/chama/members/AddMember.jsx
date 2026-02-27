@@ -314,7 +314,7 @@ const AddMember = () => {
                                             <option value="MEMBER">Member</option>
                                             <option value="TREASURER">Treasurer</option>
                                             <option value="SECRETARY">Secretary</option>
-                                            <option value="CHAIRMAN">Chairman</option>
+                                            <option value="CHAIRPERSON">Chairperson</option>
                                         </select>
                                         <button
                                             onClick={handleAddMember}
@@ -396,7 +396,7 @@ const AddMember = () => {
                                         <option value="MEMBER">Member</option>
                                         <option value="TREASURER">Treasurer</option>
                                         <option value="SECRETARY">Secretary</option>
-                                        <option value="CHAIRMAN">Chairman</option>
+                                        <option value="CHAIRPERSON">Chairperson</option>
                                     </select>
                                 </div>
                                 <button
@@ -459,7 +459,7 @@ const AddMember = () => {
                                         <option value="MEMBER">Member</option>
                                         <option value="TREASURER">Treasurer</option>
                                         <option value="SECRETARY">Secretary</option>
-                                        <option value="CHAIRMAN">Chairman</option>
+                                        <option value="CHAIRPERSON">Chairperson</option>
                                     </select>
                                 </div>
                             </div>

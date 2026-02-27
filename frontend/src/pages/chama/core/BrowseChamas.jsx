@@ -88,7 +88,8 @@ const BrowseChamas = () => {
             }
             const response = await chamaAPI.getPublicChamas({ search, chamaType });
             if (isMounted) {
-                setChamas(response.data.data);
+                const publicData = response.data?.data;
+                setChamas(Array.isArray(publicData) ? publicData : []);
             }
         } catch (err) {
             if (isMounted) {

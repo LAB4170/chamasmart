@@ -52,7 +52,8 @@ const ManageChama = () => {
             // Find current user's role
             if (userStr) {
                 const user = JSON.parse(userStr);
-                const member = membersRes.data.data.find(m => m.user_id === user.user_id);
+                const currentUserId = user.user_id || user.id;
+                const member = membersRes.data.data.find(m => m.user_id === currentUserId);
                 if (member) setUserRole(member.role);
             }
 

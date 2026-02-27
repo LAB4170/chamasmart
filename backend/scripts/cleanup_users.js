@@ -47,7 +47,7 @@ const DELETION_ORDER = [
   { name: 'audit_logs', description: 'Audit logs' },
   { name: 'notifications', description: 'Notifications' },
 
-  // Memberships
+  // Chama members
   { name: 'join_requests', description: 'Join requests' },
   { name: 'chama_invites', description: 'Chama invites' },
   { name: 'chama_members', description: 'Chama members' },

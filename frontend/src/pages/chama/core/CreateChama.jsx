@@ -205,8 +205,6 @@ const CreateChama = () => {
                       </div>
                     </div>
 
-                  </div>
-              </div>
 
               <div className="section-divider my-4"></div>
               <div className="section-header-modern mb-4">

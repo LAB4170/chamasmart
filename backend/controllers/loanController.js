@@ -851,7 +851,7 @@ const getChamaLoans = async (req, res) => {
         m.role as borrower_role
        FROM loans l
        JOIN users u ON l.borrower_id = u.user_id
-       JOIN memberships m ON l.borrower_id = m.user_id AND m.chama_id = l.chama_id
+       JOIN chama_members m ON l.borrower_id = m.user_id AND m.chama_id = l.chama_id
        ${whereClause}
        ORDER BY l.created_at DESC
        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
@@ -907,7 +907,7 @@ const getLoanById = async (req, res) => {
         m.role as borrower_role
        FROM loans l
        JOIN users u ON l.borrower_id = u.user_id
-       JOIN memberships m ON l.borrower_id = m.user_id AND m.chama_id = l.chama_id
+       JOIN chama_members m ON l.borrower_id = m.user_id AND m.chama_id = l.chama_id
        WHERE l.loan_id = $1 AND l.chama_id = $2`,
       [loanId, chamaId],
     );
@@ -1004,7 +1004,7 @@ const approveLoan = async (req, res) => {
 
     // Check if user is authorized
     const memberCheck = await client.query(
-      'SELECT role FROM memberships WHERE user_id = $1 AND chama_id = $2',
+      'SELECT role FROM chama_members WHERE user_id = $1 AND chama_id = $2',
       [userId, chamaId],
     );
 
@@ -1137,7 +1137,7 @@ const rejectLoan = async (req, res) => {
 
     // Check if user is authorized
     const memberCheck = await pool.query(
-      'SELECT role FROM memberships WHERE user_id = $1 AND chama_id = $2',
+      'SELECT role FROM chama_members WHERE user_id = $1 AND chama_id = $2',
       [userId, chamaId],
     );
 
