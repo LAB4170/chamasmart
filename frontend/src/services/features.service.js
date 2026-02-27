@@ -15,6 +15,8 @@ export const roscaAPI = {
         api.post(`/rosca/cycles/${cycleId}/payout`, payoutData),
     activateCycle: (cycleId) =>
         api.put(`/rosca/cycles/${cycleId}/activate`),
+    cancelCycle: (cycleId) =>
+        api.put(`/rosca/cycles/${cycleId}/cancel`),
     deleteCycle: (cycleId) => api.delete(`/rosca/cycles/${cycleId}`),
 };
 

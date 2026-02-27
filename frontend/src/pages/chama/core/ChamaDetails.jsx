@@ -7,6 +7,7 @@ import { useSocket } from "../../../context/SocketContext";
 import LoadingSkeleton from "../../../components/LoadingSkeleton";
 import CreateCycleModal from "../../../components/CreateCycleModal";
 import SwapRequestModal from "../../../components/SwapRequestModal";
+import PayoutConfirmationModal from "../../../components/PayoutConfirmationModal";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import { roscaAPI } from "../../../services/api";
 import jsPDF from 'jspdf';
@@ -277,6 +278,8 @@ const ChamaDetails = () => {
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [swapTarget, setSwapTarget] = useState(null);
   const [swapRequests, setSwapRequests] = useState({ incoming: [], outgoing: [] });
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [payoutRecipient, setPayoutRecipient] = useState(null);
   // Constitution State
   const [constitutionForm, setConstitutionForm] = useState({
     late_payment: { enabled: false, amount: 0, grace_period_days: 1 }
@@ -1050,21 +1053,39 @@ const ChamaDetails = () => {
                               <button
                                 className="btn btn-success"
                                 onClick={() => {
-                                  if (window.confirm(`Confirm payout of ${formatCurrency(activeCycle.contribution_amount * members.length)} to ${getCurrentRecipient().first_name}?`)) {
-                                    roscaAPI.processPayout(activeCycle.cycle_id, {
-                                      position: roster.find(r => r.user_id === getCurrentRecipient().user_id).position,
-                                      payment_proof: "MANUAL_DISBURSEMENT"
-                                    }).then(() => {
-                                      toast.success("Payout processed successfully!");
-                                      fetchChamaData();
-                                    }).catch(err => {
-                                      toast.error(err.response?.data?.message || "Payout failed");
-                                    });
-                                  }
+                                  setPayoutRecipient({
+                                    ...getCurrentRecipient(),
+                                    position: roster.find(r => r.user_id === getCurrentRecipient().user_id).position
+                                  });
+                                  setShowPayoutModal(true);
                                 }}
                               >
                                 Disburse Funds
                               </button>
+
+                              <button
+                                className="btn btn-warning btn-outline ml-2"
+                                onClick={() => {
+                                  confirmAction({
+                                    title: "Cancel ROSCA Cycle",
+                                    message: "Are you sure you want to cancel this cycle? This will stop future payouts but keep existing history.",
+                                    variant: "warning",
+                                    confirmLabel: "Yes, Cancel Cycle",
+                                    onConfirm: async () => {
+                                      try {
+                                        await roscaAPI.cancelCycle(activeCycle.cycle_id);
+                                        toast.success("Cycle cancelled successfully");
+                                        fetchChamaData();
+                                      } catch (err) {
+                                        toast.error(err.response?.data?.message || "Failed to cancel cycle");
+                                      }
+                                    }
+                                  });
+                                }}
+                              >
+                                <RefreshCw size={16} /> Cancel Cycle
+                              </button>
+
                               <button
                                 className="btn btn-danger btn-outline ml-2"
                                 onClick={() => {
@@ -1148,6 +1169,13 @@ const ChamaDetails = () => {
                         })}
                       </div>
                     </div>
+
+                    <ContributionMatrix
+                      roster={roster}
+                      members={members}
+                      contributions={contributions}
+                      formatCurrency={formatCurrency}
+                    />
                   </div>
                 )}
               </div>
@@ -1843,6 +1871,19 @@ const ChamaDetails = () => {
           }}
         />
       )}
+      {showPayoutModal && payoutRecipient && (
+        <PayoutConfirmationModal
+          cycle={activeCycle}
+          recipient={payoutRecipient}
+          onClose={() => {
+            setShowPayoutModal(false);
+            setPayoutRecipient(null);
+          }}
+          onSuccess={fetchChamaData}
+          formatCurrency={formatCurrency}
+        />
+      )}
+
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         title={confirmDialog.title}

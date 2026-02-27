@@ -72,7 +72,10 @@ const Dashboard = () => {
       try {
         if (isMounted) setLoading(true);
         const response = await chamaAPI.getMyChamas();
-        if (isMounted) setChamas(response.data.data);
+        if (isMounted) {
+          const chamasData = response.data?.data;
+          setChamas(Array.isArray(chamasData) ? chamasData : []);
+        }
       } catch (err) {
         if (isMounted) {
           setError("Failed to load your chamas");
@@ -176,7 +179,7 @@ const Dashboard = () => {
             <div className="stats-row">
               <StatCard
                 icon={PieChart}
-                value={chamas.length}
+                value={Array.isArray(chamas) ? chamas.length : 0}
                 label="Active Chamas"
                 color="blue"
               />
@@ -184,7 +187,7 @@ const Dashboard = () => {
               <StatCard
                 icon={TrendingUp}
                 value={formatCurrency(
-                  chamas.reduce(
+                  (Array.isArray(chamas) ? chamas : []).reduce(
                     (sum, chama) =>
                       sum + parseFloat(chama.total_contributions || 0),
                     0
@@ -196,7 +199,7 @@ const Dashboard = () => {
 
               <StatCard
                 icon={Users}
-                value={chamas.reduce(
+                value={(Array.isArray(chamas) ? chamas : []).reduce(
                   (sum, chama) => sum + parseInt(chama.total_members || 0),
                   0
                 )}
@@ -215,7 +218,7 @@ const Dashboard = () => {
                 </div>
                 <ResponsiveContainer width="100%" height={250}>
                   <AreaChart
-                    data={chamas.map((c) => ({
+                    data={(Array.isArray(chamas) ? chamas : []).map((c) => ({
                       name: c.chama_name.substring(0, 10),
                       total: parseFloat(c.total_contributions || 0)
                     }))}
@@ -254,7 +257,7 @@ const Dashboard = () => {
                 </div>
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart
-                    data={chamas.slice(0, 6).map((chama) => ({
+                    data={(Array.isArray(chamas) ? chamas : []).slice(0, 6).map((chama) => ({
                       name: chama.chama_name.length > 10
                         ? chama.chama_name.substring(0, 10) + "..."
                         : chama.chama_name,
@@ -300,7 +303,7 @@ const Dashboard = () => {
 
             <h3 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', fontWeight: 600 }}>Your Chamas</h3>
             <div className="rosca-grid">
-              {chamas.map((chama) => (
+              {(Array.isArray(chamas) ? chamas : []).map((chama) => (
                 <DashboardChamaCard
                   key={chama.chama_id}
                   chama={chama}

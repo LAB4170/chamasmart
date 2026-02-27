@@ -12,6 +12,7 @@ const {
   getSwapRequests,
   deleteCycle,
   activateCycle,
+  cancelCycle,
 } = require('../controllers/roscaController');
 const validate = require('../middleware/validate');
 const {
@@ -60,6 +61,13 @@ router.put(
   '/cycles/:cycleId/activate',
   authorize('admin', 'treasurer', 'chairperson'),
   activateCycle,
+);
+
+// Cancel cycle (officials only)
+router.put(
+  '/cycles/:cycleId/cancel',
+  authorize('admin', 'treasurer', 'chairperson'),
+  cancelCycle,
 );
 
 // Get cycle roster (payout order)
