@@ -1,4 +1,6 @@
 const pool = require('../config/db');
+const { createNotification } = require('../utils/notificationService');
+const { getIo } = require('../socket');
 
 // @desc    Request to join a public chama
 // @route   POST /api/join-requests/:chamaId/request
@@ -10,6 +12,9 @@ const requestToJoin = async (req, res) => {
     const { chamaId } = req.params;
     const { message } = req.body;
     const userId = req.user.user_id;
+
+    console.log('--- START requestToJoin ---');
+    console.log(`User: ${userId}, Chama: ${chamaId}, Message: ${message}`);
 
     await client.query('BEGIN');
 
@@ -83,25 +88,54 @@ const requestToJoin = async (req, res) => {
     );
 
     // Create notifications for all officials
-    const { createNotification } = require('../utils/notifications');
     const userResult = await client.query(
-      'SELECT first_name, last_name FROM users WHERE user_id = $1',
+      'SELECT first_name, last_name, email FROM users WHERE user_id = $1',
       [userId],
     );
     const requester = userResult.rows[0];
 
+    // Security: Check if user is already an official (redundant but good)
+    const officialCheck = await client.query(
+      'SELECT role FROM chama_members WHERE chama_id = $1 AND user_id = $2 AND role IN (\'CHAIRPERSON\', \'SECRETARY\', \'TREASURER\')',
+      [chamaId, userId]
+    );
+    if (officialCheck.rows.length > 0) {
+       await client.query('ROLLBACK');
+       return res.status(400).json({ success: false, message: 'Officials cannot request to join their own chama' });
+    }
+
+    console.log(`Creating notifications for ${officialsResult.rows.length} officials`);
     for (const official of officialsResult.rows) {
-      await createNotification({
+      await createNotification(client, {
         userId: official.user_id,
         type: 'JOIN_REQUEST',
         title: 'New Join Request',
         message: `${requester.first_name} ${requester.last_name} wants to join ${chama.chama_name}`,
         link: `/chamas/${chamaId}/join-requests`,
-        relatedId: joinRequest.request_id,
+        entityType: 'JOIN_REQUEST',
+        entityId: joinRequest.request_id,
       });
     }
 
+    // Emit to chama room for real-time UI updates (e.g. badge count)
+    try {
+      const io = getIo();
+      io.to(`chama_${chamaId}`).emit('join_request_created', {
+        chamaId,
+        requestId: joinRequest.request_id,
+        requester: {
+          first_name: requester.first_name,
+          last_name: requester.last_name,
+          email: requester.email
+        }
+      });
+      console.log(`Socket emitted join_request_created to chama_${chamaId}`);
+    } catch (socketErr) {
+      console.error('Socket emit error in requestToJoin:', socketErr.message);
+    }
+
     await client.query('COMMIT');
+    console.log('--- COMMIT SUCCESSFUL ---');
 
     res.status(201).json({
       success: true,
@@ -126,10 +160,29 @@ const requestToJoin = async (req, res) => {
 const getJoinRequests = async (req, res) => {
   try {
     const { chamaId } = req.params;
+    const userId = req.user.user_id;
+
+    // Authorization: Check if user is an official
+    const officialCheck = await pool.query(
+      `SELECT role FROM chama_members 
+       WHERE chama_id = $1 AND user_id = $2 
+       AND role IN ('CHAIRPERSON', 'SECRETARY', 'TREASURER')
+       AND is_active = true`,
+      [chamaId, userId]
+    );
+
+    if (officialCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: true, // Return success but empty data for cleaner UI or 403?
+        message: 'You are not authorized to view join requests for this chama',
+        data: [] 
+      });
+    }
 
     const result = await pool.query(
-      `SELECT jr.*, u.first_name, u.last_name, u.email, u.phone_number,
-              r.first_name as reviewer_first_name, r.last_name as reviewer_last_name
+      `SELECT jr.*, u.first_name, u.last_name, u.email, u.phone_number, u.trust_score, u.created_at as user_joined_at,
+              r.first_name as reviewer_first_name, r.last_name as reviewer_last_name,
+              (SELECT COUNT(*) FROM chama_members WHERE user_id = u.user_id AND is_active = true) as membership_count
        FROM join_requests jr
        JOIN users u ON jr.user_id = u.user_id
        LEFT JOIN users r ON jr.reviewed_by = r.user_id
@@ -259,12 +312,11 @@ const respondToRequest = async (req, res) => {
     const chamaName = chamaResult.rows[0].chama_name;
 
     // Notify the requester
-    const { createNotification } = require('../utils/notifications');
     const notificationMessage = status === 'APPROVED'
       ? `Your request to join ${chamaName} has been approved!`
       : `Your request to join ${chamaName} has been declined.`;
 
-    await createNotification({
+    await createNotification(client, {
       userId: joinRequest.user_id,
       type: status === 'APPROVED' ? 'JOIN_APPROVED' : 'JOIN_REJECTED',
       title:
@@ -276,8 +328,23 @@ const respondToRequest = async (req, res) => {
         status === 'APPROVED'
           ? `/chamas/${joinRequest.chama_id}`
           : '/my-join-requests',
-      relatedId: requestId,
+      entityType: 'JOIN_REQUEST',
+      entityId: requestId,
     });
+
+    // Real-time update for requester
+    try {
+      const { getIo } = require('../socket');
+      const io = getIo();
+      io.to(`user_${joinRequest.user_id}`).emit('join_request_responded', {
+        requestId,
+        chamaId: joinRequest.chama_id,
+        status,
+        message: notificationMessage
+      });
+    } catch (socketErr) {
+      console.error('Socket emit error in respondToRequest:', socketErr.message);
+    }
 
     await client.query('COMMIT');
 

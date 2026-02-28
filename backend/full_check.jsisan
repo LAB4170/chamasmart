@@ -1,0 +1,9 @@
+const { Pool } = require('pg');
+const pool = new Pool({ host: 'localhost', port: 5432, user: 'postgres', password: '1234', database: 'chamasmart' });
+async function run() {
+  try {
+    const res = await pool.query("SELECT * FROM notifications LIMIT 0;");
+    console.log('COLUMNS:', Object.keys(res.fields.reduce((acc, f) => { acc[f.name] = true; return acc; }, {})));
+  } catch(e) { console.error(e.message); } finally { await pool.end(); }
+}
+run();

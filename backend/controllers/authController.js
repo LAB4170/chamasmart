@@ -47,7 +47,7 @@ const SECURITY_CONFIG = {
   },
 
   JWT: {
-    ACCESS_TOKEN_EXPIRY: '15m',
+    ACCESS_TOKEN_EXPIRY: '1h',
     REFRESH_TOKEN_EXPIRY: '7d',
     ISSUER: 'chamasmart',
     AUDIENCE: 'chamasmart-api',
@@ -887,9 +887,9 @@ const register = async (req, res) => {
 
       // === CREATE USER ===
       const userResult = await client.query(
-        `INSERT INTO users (email, password_hash, first_name, last_name, phone_number)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING user_id, email, first_name, last_name, phone_number, created_at`,
+        `INSERT INTO users (email, password_hash, first_name, last_name, phone_number, is_active)
+         VALUES ($1, $2, $3, $4, $5, true)
+         RETURNING user_id, email, first_name, last_name, phone_number, created_at, is_active`,
         [
           email.toLowerCase(),
           hashedPassword,
@@ -1526,9 +1526,10 @@ const firebaseSync_unused = async (req, res) => {
             last_name, 
             phone_number,
             email_verified,
+            is_active,
             created_at,
             updated_at
-          ) VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())
+          ) VALUES ($1, $2, $3, $4, $5, true, true, NOW(), NOW())
           RETURNING *`,
           [email, uid, userFirstName, userLastName, phoneNumber || null]
         );
@@ -1545,8 +1546,8 @@ const firebaseSync_unused = async (req, res) => {
       }
 
       // Generate JWT tokens
-      const accessToken = TokenService.generateAccessToken(user.user_id, user.email);
-      const refreshToken = TokenService.generateRefreshToken(user.user_id);
+      const accessToken = TokenService.generateAccessToken(user);
+      const refreshToken = TokenService.generateRefreshToken(user);
 
       // Store refresh token
       await client.query(

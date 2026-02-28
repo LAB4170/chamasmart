@@ -58,7 +58,7 @@ const ChamaCard = memo(({ chama, onDetails, onRequest, requestingId, formatCurre
                     disabled={requestingId === chama.chama_id || isRequested}
                     style={{ flex: 1 }}
                 >
-                    {requestingId === chama.chama_id ? "Sending..." : isRequested ? "Request Sent ✓" : "Request to Join"}
+                    {requestingId === chama.chama_id ? "Sending..." : isRequested ? "Pending Approval" : "Request to Join"}
                 </button>
             </div>
         </div>
@@ -86,10 +86,26 @@ const BrowseChamas = () => {
             if (isMounted) {
                 setLoading(true);
             }
-            const response = await chamaAPI.getPublicChamas({ search, chamaType });
+
+            // Fetch chamas and user's requests in parallel
+            const [chamasRes, requestsRes] = await Promise.all([
+                chamaAPI.getPublicChamas({ search, chamaType }),
+                user ? joinRequestAPI.getMyRequests() : Promise.resolve({ data: { data: [] } })
+            ]);
+
             if (isMounted) {
-                const publicData = response.data?.data;
+                const publicData = chamasRes.data?.data;
                 setChamas(Array.isArray(publicData) ? publicData : []);
+
+                // Populate requested chamas set for quick lookup
+                if (requestsRes.data?.data) {
+                    const pendingIds = new Set(
+                        requestsRes.data.data
+                            .filter(r => r.status === 'PENDING')
+                            .map(r => String(r.chama_id))
+                    );
+                    setRequestedChamas(pendingIds);
+                }
             }
         } catch (err) {
             if (isMounted) {
@@ -105,7 +121,7 @@ const BrowseChamas = () => {
         return () => {
             isMounted = false;
         };
-    }, [search, chamaType]);
+    }, [search, chamaType, user]);
 
     // Debounced search effect
     useEffect(() => {
@@ -214,7 +230,7 @@ const BrowseChamas = () => {
                                 requestingId={requestingId}
                                 formatCurrency={formatCurrency}
                                 getChamaTypeColor={getChamaTypeColor}
-                                isRequested={requestedChamas.has(chama.chama_id)}
+                                isRequested={requestedChamas.has(String(chama.chama_id))}
                             />
                         ))}
                     </div>

@@ -3,15 +3,19 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
     Users, UserCheck, UserX, MessageSquare,
     Calendar, ArrowLeft, AlertCircle,
-    CheckCircle2, Loader, Inbox, History
+    CheckCircle2, Loader, Inbox, History,
+    Shield, Briefcase, Clock, ExternalLink
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { joinRequestAPI, chamaAPI } from "../../../services/api";
+import { useSocket } from "../../../context/SocketContext";
+import ConfirmDialog from "../../../components/ConfirmDialog";
 import "./MemberManagement.css";
 
 const JoinRequests = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const socket = useSocket();
 
     const [chama, setChama] = useState(null);
     const [requests, setRequests] = useState([]);
@@ -19,6 +23,18 @@ const JoinRequests = () => {
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [processingId, setProcessingId] = useState(null);
+    
+    // Dialog State
+    const [dialogConfig, setDialogConfig] = useState({
+        isOpen: false,
+        requestId: null,
+        status: null,
+        requesterName: "",
+        title: "",
+        message: "",
+        variant: "info",
+        confirmText: ""
+    });
 
     const fetchData = async () => {
         try {
@@ -41,29 +57,80 @@ const JoinRequests = () => {
         fetchData();
     }, [id]);
 
-    const handleRespond = async (requestId, status, requesterName) => {
-        const actionLabel = status === "APPROVED" ? "approve" : "reject";
-        if (!confirm(`Are you sure you want to ${actionLabel} ${requesterName}'s request?`)) return;
+    useEffect(() => {
+        if (socket && id) {
+            socket.emit("join_chama", id);
 
+            const handleNewRequest = (data) => {
+                if (data.chamaId === id || data.chamaId == id) {
+                    fetchData();
+                }
+            };
+
+            socket.on("join_request_created", handleNewRequest);
+
+            return () => {
+                socket.emit("leave_chama", id);
+                socket.off("join_request_created", handleNewRequest);
+            };
+        }
+    }, [socket, id]);
+
+    const openConfirmDialog = (requestId, status, requesterName) => {
+        const isApprove = status === "APPROVED";
+        setDialogConfig({
+            isOpen: true,
+            requestId,
+            status,
+            requesterName,
+            title: isApprove ? "Approve Member" : "Reject Request",
+            message: `Are you sure you want to ${isApprove ? 'approve' : 'reject'} ${requesterName}'s application to join ${chama?.chama_name}?`,
+            variant: isApprove ? "success" : "danger",
+            confirmText: isApprove ? "Confirm Approval" : "Confirm Rejection"
+        });
+    };
+
+    const handleConfirmResponse = async () => {
+        const { requestId, status, requesterName } = dialogConfig;
+        
         try {
+            setDialogConfig(prev => ({ ...prev, loading: true }));
             setProcessingId(requestId);
+            
             await joinRequestAPI.respond(requestId, status);
+            
             setSuccess(`${requesterName} has been ${status.toLowerCase()}!`);
+            setDialogConfig(prev => ({ ...prev, isOpen: false }));
             fetchData();
-            setTimeout(() => setSuccess(""), 4000);
+            setTimeout(() => setSuccess(""), 5000);
         } catch (err) {
-            setError(err.response?.data?.message || `Failed to ${actionLabel} request`);
-            setTimeout(() => setError(""), 4000);
+            setError(err.response?.data?.message || "Failed to process request");
+            setTimeout(() => setError(""), 5000);
         } finally {
             setProcessingId(null);
+            setDialogConfig(prev => ({ ...prev, loading: false }));
         }
     };
 
     const formatDate = (dateString) => {
+        if (!dateString) return "-";
         return new Date(dateString).toLocaleDateString("en-KE", {
             month: "short", day: "numeric", year: "numeric",
             hour: "2-digit", minute: "2-digit"
         });
+    };
+
+    const formatShortDate = (dateString) => {
+        if (!dateString) return "-";
+        return new Date(dateString).toLocaleDateString("en-KE", {
+            month: "short", year: "numeric"
+        });
+    };
+
+    const getTrustColor = (score) => {
+        if (score >= 80) return "#22c55e"; // Success
+        if (score >= 50) return "#f59e0b"; // Warning
+        return "#ef4444"; // Danger
     };
 
     const pendingRequests = requests.filter((r) => r.status === "PENDING");
@@ -110,102 +177,146 @@ const JoinRequests = () => {
 
             {/* Pending Requests Section */}
             <div className="mb-5">
-                <div className="d-flex align-center gap-2 mb-3">
-                    <Inbox size={20} style={{ color: "var(--warning)" }} />
-                    <h3 className="mb-0">Pending Review ({pendingRequests.length})</h3>
+                <div className="d-flex align-center gap-2 mb-4">
+                    <Inbox size={22} style={{ color: "var(--warning)" }} />
+                    <h2 className="mb-0" style={{ fontSize: "1.4rem" }}>Pending Review ({pendingRequests.length})</h2>
                 </div>
 
                 {pendingRequests.length === 0 ? (
-                    <div className="card text-center py-5 shadow-sm" style={{ opacity: 0.6 }}>
-                        <UserCheck size={48} className="mb-3 mx-auto" opacity={0.3} />
-                        <p>No pending applications at the moment.</p>
+                    <div className="card text-center py-5 shadow-sm" style={{ opacity: 0.6, backgroundColor: "var(--surface-1)" }}>
+                        <UserCheck size={40} className="mb-3 mx-auto" opacity={0.3} />
+                        <p className="font-medium">No pending applications at the moment.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-1 gap-3">
+                    <div className="grid grid-1 gap-4">
                         <AnimatePresence>
                             {pendingRequests.map((request) => (
                                 <motion.div
                                     key={request.request_id}
                                     initial={{ opacity: 0, scale: 0.98 }}
                                     animate={{ opacity: 1, scale: 1 }}
-                                    className="user-result-card shadow-sm"
-                                    style={{ borderLeft: "4px solid var(--warning)" }}
+                                    className="join-request-card"
                                 >
-                                    <div className="user-avatar-large" style={{ background: "var(--warning-light)", color: "var(--warning-dark)" }}>
-                                        {request.first_name[0]}{request.last_name[0]}
-                                    </div>
-                                    <div className="user-details">
-                                        <div className="d-flex justify-between align-start">
-                                            <div>
-                                                <h3>{request.first_name} {request.last_name}</h3>
-                                                <p className="text-muted small mb-3">{request.email} • {request.phone_number}</p>
+                                    <div className="jr-card-content">
+                                        {/* Profile Section */}
+                                        <div className="jr-profile-row">
+                                            <div className="user-avatar-large" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>
+                                                {request.first_name[0]}{request.last_name[0]}
                                             </div>
-                                            <span className="small text-muted">{formatDate(request.created_at)}</span>
+                                            <div className="jr-user-main">
+                                                <div className="d-flex justify-between align-start">
+                                                    <div>
+                                                        <h3 className="jr-name">{request.first_name} {request.last_name}</h3>
+                                                        <p className="jr-contact">{request.email} • {request.phone_number}</p>
+                                                    </div>
+                                                    <div className="jr-time-tag">
+                                                        <Clock size={12} /> {formatDate(request.created_at)}
+                                                    </div>
+                                                </div>
+
+                                                <div className="jr-metrics-grid mt-3">
+                                                    <div className="jr-metric">
+                                                        <Shield size={16} style={{ color: getTrustColor(request.trust_score || 50) }} />
+                                                        <div>
+                                                            <span className="jr-metric-label">Trust Score</span>
+                                                            <span className="jr-metric-value" style={{ color: getTrustColor(request.trust_score || 50) }}>
+                                                                {request.trust_score || 50}%
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="jr-metric">
+                                                        <Briefcase size={16} />
+                                                        <div>
+                                                            <span className="jr-metric-label">Other Chamas</span>
+                                                            <span className="jr-metric-value">{request.membership_count || 0} Joined</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="jr-metric">
+                                                        <Calendar size={16} />
+                                                        <div>
+                                                            <span className="jr-metric-label">Member Since</span>
+                                                            <span className="jr-metric-value">{formatShortDate(request.user_joined_at)}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
 
-                                        {request.message && (
-                                            <div style={{ background: "var(--surface-3)", padding: "1rem", borderRadius: "12px", border: "1px solid var(--border)", marginBottom: "1.5rem" }}>
-                                                {(() => {
-                                                    try {
-                                                        const parsed = JSON.parse(request.message);
-                                                        if (parsed.type === "STRUCTURED_APPLICATION") {
-                                                            const { introduction, motivation, vows } = parsed.data;
-                                                            return (
-                                                                <div className="structured-application">
-                                                                    <div className="d-flex gap-2 text-primary small mb-2 font-bold uppercase letter-spacing-1">
-                                                                        <CheckCircle2 size={14} /> Professional Application
-                                                                    </div>
-
-                                                                    <div className="mb-3">
-                                                                        <span className="text-muted small uppercase font-bold d-block mb-1">Introduction & Background</span>
-                                                                        <p className="mb-0" style={{ color: "var(--text-primary)" }}>{introduction}</p>
-                                                                    </div>
-
-                                                                    <div className="mb-3">
-                                                                        <span className="text-muted small uppercase font-bold d-block mb-1">Motivation & Goals</span>
-                                                                        <p className="mb-0" style={{ color: "var(--text-primary)" }}>{motivation}</p>
-                                                                    </div>
-
-                                                                    <div className="d-flex gap-3">
-                                                                        <div className={`badge ${vows.financial ? 'badge-success' : 'badge-gray'} small`}>
-                                                                            {vows.financial ? "✓ Financial Commitment" : "✗ No Financial Vow"}
+                                        {/* Application Content */}
+                                        <div className="jr-application-body">
+                                            {(() => {
+                                                try {
+                                                    const parsed = JSON.parse(request.message);
+                                                    
+                                                    // New Multi-Section Application Support
+                                                    if (parsed.type === "STRUCTURED_APPLICATION" || (parsed.introduction && parsed.motivation)) {
+                                                        const data = parsed.data || parsed;
+                                                        return (
+                                                            <div className="structured-application">
+                                                                {data.introduction && (
+                                                                    <div className="mb-4">
+                                                                        <div className="jr-section-title">
+                                                                            <Users size={14} /> Introduction
                                                                         </div>
-                                                                        <div className={`badge ${vows.rules ? 'badge-success' : 'badge-gray'} small`}>
-                                                                            {vows.rules ? "✓ Rule Acceptance" : "✗ No Rule Vow"}
+                                                                        <p className="jr-message-text">{data.introduction}</p>
+                                                                    </div>
+                                                                )}
+                                                                
+                                                                {data.motivation && (
+                                                                    <div className="mb-4">
+                                                                        <div className="jr-section-title">
+                                                                            <Briefcase size={14} /> Motivation & Background
+                                                                        </div>
+                                                                        <p className="jr-message-text">{data.motivation}</p>
+                                                                    </div>
+                                                                )}
+
+                                                                {data.vows && (
+                                                                    <div className="d-flex flex-wrap gap-2 mt-2">
+                                                                        <div className={`vow-tag ${data.vows.financial ? 'active' : ''}`}>
+                                                                            {data.vows.financial ? "✓ Commits to Financial Contributions" : "✗ No Financial Vow"}
+                                                                        </div>
+                                                                        <div className={`vow-tag ${data.vows.rules ? 'active' : ''}`}>
+                                                                            {data.vows.rules ? "✓ Agrees to Chama Rules" : "✗ Rule Vow Mandatory"}
                                                                         </div>
                                                                     </div>
-                                                                </div>
-                                                            );
-                                                        }
-                                                    } catch (e) {
-                                                        // Not JSON, fall back to plain text
-                                                    }
-                                                    return (
-                                                        <>
-                                                            <div className="d-flex gap-2 text-muted small mb-1">
-                                                                <MessageSquare size={14} /> Application Message
+                                                                )}
                                                             </div>
-                                                            <p className="mb-0" style={{ fontStyle: "italic", color: "var(--text-primary)" }}>"{request.message}"</p>
-                                                        </>
-                                                    );
-                                                })()}
-                                            </div>
-                                        )}
+                                                        );
+                                                    }
+                                                } catch (e) {
+                                                    // fallback to plain text if JSON parsing fails
+                                                }
 
-                                        <div className="d-flex gap-3 justify-end mt-2">
+                                                // Clean display for plain text or fallback
+                                                return (
+                                                    <div className="plain-application">
+                                                        <div className="jr-section-title">
+                                                            <MessageSquare size={14} /> Application Statement
+                                                        </div>
+                                                        <div className="jr-message-text" style={{ borderLeft: '3px solid var(--primary-soft)' }}>
+                                                            {request.message || "No message provided."}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+                                        </div>
+
+                                        {/* Action Bar */}
+                                        <div className="jr-actions">
                                             <button
-                                                className="btn btn-outline btn-sm text-danger"
-                                                onClick={() => handleRespond(request.request_id, "REJECTED", `${request.first_name} ${request.last_name}`)}
+                                                className="jr-btn jr-btn-reject"
+                                                onClick={() => openConfirmDialog(request.request_id, "REJECTED", `${request.first_name} ${request.last_name}`)}
                                                 disabled={processingId === request.request_id}
                                             >
-                                                <UserX size={16} className="mr-1" /> Reject
+                                                <UserX size={18} /> Reject
                                             </button>
                                             <button
-                                                className="btn btn-primary btn-sm"
-                                                onClick={() => handleRespond(request.request_id, "APPROVED", `${request.first_name} ${request.last_name}`)}
+                                                className="jr-btn jr-btn-approve"
+                                                onClick={() => openConfirmDialog(request.request_id, "APPROVED", `${request.first_name} ${request.last_name}`)}
                                                 disabled={processingId === request.request_id}
                                             >
-                                                {processingId === request.request_id ? <Loader size={16} className="spinner-sm" /> : <UserCheck size={16} className="mr-1" />}
+                                                {processingId === request.request_id ? <Loader size={18} className="spinner-sm" /> : <UserCheck size={18} />}
                                                 Approve Member
                                             </button>
                                         </div>
@@ -219,10 +330,13 @@ const JoinRequests = () => {
 
             {/* History Section */}
             {reviewedRequests.length > 0 && (
-                <div className="management-card shadow-sm">
-                    <div className="m-card-title d-flex align-center gap-2">
-                        <History size={18} className="text-muted" />
-                        <h3>Recent Decisions</h3>
+                <div className="management-card shadow-sm mt-5">
+                    <div className="m-card-title d-flex justify-between align-center">
+                        <div className="d-flex align-center gap-2">
+                            <History size={18} className="text-muted" />
+                            <h3 className="mb-0">Decision History</h3>
+                        </div>
+                        <span className="small text-muted">{reviewedRequests.length} records</span>
                     </div>
                     <div className="table-responsive">
                         <table className="m-table">
@@ -248,7 +362,11 @@ const JoinRequests = () => {
                                         </td>
                                         <td className="small text-muted">{formatDate(request.updated_at || request.created_at)}</td>
                                         <td className="small">
-                                            {request.reviewer_first_name ? `${request.reviewer_first_name} ${request.reviewer_last_name}` : "-"}
+                                            <div className="d-flex align-center gap-1">
+                                                {request.reviewer_first_name ? (
+                                                    <><Shield size={12} className="text-primary" /> {request.reviewer_first_name} {request.reviewer_last_name}</>
+                                                ) : "-"}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -257,6 +375,18 @@ const JoinRequests = () => {
                     </div>
                 </div>
             )}
+
+            {/* Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={dialogConfig.isOpen}
+                title={dialogConfig.title}
+                message={dialogConfig.message}
+                confirmText={dialogConfig.confirmText}
+                variant={dialogConfig.variant}
+                onConfirm={handleConfirmResponse}
+                onCancel={() => setDialogConfig(prev => ({ ...prev, isOpen: false }))}
+                loading={dialogConfig.loading}
+            />
         </div>
     );
 };

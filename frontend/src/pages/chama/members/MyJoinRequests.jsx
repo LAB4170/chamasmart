@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { joinRequestAPI } from "../../../services/api";
+import { useSocket } from "../../../context/SocketContext";
 import { Clock, CheckCircle, XCircle, FileText } from 'lucide-react';
 
 const MyJoinRequests = () => {
     const navigate = useNavigate();
+    const socket = useSocket();
 
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -13,6 +15,17 @@ const MyJoinRequests = () => {
     useEffect(() => {
         fetchMyRequests();
     }, []);
+
+    useEffect(() => {
+        if (socket) {
+            const handleUpdate = (data) => {
+                console.log("Join request status update received:", data);
+                fetchMyRequests();
+            };
+            socket.on("join_request_responded", handleUpdate);
+            return () => socket.off("join_request_responded", handleUpdate);
+        }
+    }, [socket]);
 
     const fetchMyRequests = async () => {
         try {

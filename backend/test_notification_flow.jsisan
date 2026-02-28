@@ -1,0 +1,24 @@
+const { createNotification } = require('./utils/notificationService');
+const { Pool } = require('pg');
+
+async function run() {
+  console.log('START_TEST');
+  const pool = new Pool({ host: 'localhost', port: 5432, user: 'postgres', password: '1234', database: 'chamasmart' });
+  try {
+    const res = await createNotification(null, {
+      userId: 2,
+      type: 'TEST',
+      title: 'Simple Test',
+      message: 'Hello'
+    });
+    console.log('RESULT:', res ? 'SUCCESS' : 'FAILURE');
+    if (res) console.log('DATA:', JSON.stringify(res));
+  } catch (e) {
+    console.error('ERROR:', e.message);
+  } finally {
+    await pool.end();
+    console.log('END_TEST');
+  }
+}
+
+run().catch(e => console.error('GLOBAL_ERROR:', e));

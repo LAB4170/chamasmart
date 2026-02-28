@@ -205,6 +205,7 @@ const createChama = async (req, res) => {
         meetingDay,
         meetingTime,
         req.user.user_id,
+        1, // total_members
         visibility,
         inviteCode,
         JSON.stringify(paymentMethods),

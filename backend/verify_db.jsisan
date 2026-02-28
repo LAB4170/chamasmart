@@ -1,0 +1,27 @@
+const { Pool } = require('pg');
+const pool = new Pool({ host: 'localhost', port: 5432, user: 'postgres', password: '1234', database: 'chamasmart' });
+
+async function check() {
+  try {
+    const cols = await pool.query("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'notifications'");
+    console.log('NOTIFICATION COLUMNS:', cols.rows);
+    
+    const users = await pool.query('SELECT user_id, email, is_active FROM users');
+    console.log('USERS:', users.rows);
+    
+    const members = await pool.query('SELECT * FROM chama_members');
+    console.log('MEMBERS:', members.rows);
+    
+    const jrs = await pool.query('SELECT * FROM join_requests');
+    console.log('JOIN REQUESTS:', jrs.rows);
+    
+    const ns = await pool.query('SELECT * FROM notifications');
+    console.log('NOTIFICATIONS:', ns.rows);
+    
+  } catch (e) {
+    console.error(e);
+  } finally {
+    await pool.end();
+  }
+}
+check();

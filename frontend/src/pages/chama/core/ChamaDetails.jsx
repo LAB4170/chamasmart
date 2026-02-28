@@ -391,19 +391,47 @@ const ChamaDetails = () => {
       }
 
       const [chamaRes, membersRes, statsRes] = await Promise.all([
-        chamaAPI.getById(id),
-        chamaAPI.getMembers(id),
-        chamaAPI.getStats(id)
+        chamaAPI.getById(id).catch(err => { throw err; }), // Main chama data is required
+        chamaAPI.getMembers(id).catch(err => {
+          console.warn("Members fetch restricted:", err.response?.status);
+          return { data: { data: [] } };
+        }),
+        chamaAPI.getStats(id).catch(err => {
+          console.warn("Stats fetch restricted:", err.response?.status);
+          return { data: { data: null } };
+        })
       ]);
-
-      await fetchContributions();
 
       const chamaData = chamaRes.data.data;
       const membersData = membersRes.data.data;
-
+      
+      const membersArray = Array.isArray(membersData) ? membersData : (membersData?.data || []);
+      setMembers(membersArray);
       setChama(Array.isArray(chamaData) ? chamaData[0] : chamaData);
-      setMembers(Array.isArray(membersData) ? membersData : (membersData?.data || []));
-      setStats(statsRes.data.data);
+      
+      // Basic stats if detailed stats are restricted
+      if (statsRes.data.data) {
+        setStats(statsRes.data.data);
+      } else {
+        const fullChama = Array.isArray(chamaData) ? chamaData[0] : chamaData;
+        setStats({
+          total_members: fullChama.total_members || membersArray.length,
+          total_contributions: 0,
+          current_fund: fullChama.current_fund || 0,
+          contribution_amount: fullChama.contribution_amount,
+          chama_type: fullChama.chama_type
+        });
+      }
+
+      // Check membership
+      const currentUserId = user?.user_id || user?.id;
+      const isMember = membersArray.some(m => m.user_id === currentUserId);
+
+      if (isMember) {
+        await fetchContributions();
+      } else {
+        setContributions([]);
+      }
 
       // Load ASCA equity if this is an ASCA chama
       if (chamaData.chama_type === "ASCA") {

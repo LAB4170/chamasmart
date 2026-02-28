@@ -146,7 +146,7 @@ const requestToJoinSchema = Joi.object({
 });
 
 const respondToJoinRequestSchema = Joi.object({
-  status: Joi.string().valid('approved', 'rejected').required(),
+  status: Joi.string().valid('APPROVED', 'REJECTED', 'approved', 'rejected').required(),
   message: Joi.string().max(500).optional(),
 });
 

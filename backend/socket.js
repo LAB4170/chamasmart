@@ -68,7 +68,7 @@ module.exports = {
 
       try {
         const decoded = jwt.verify(token.replace('Bearer ', ''), process.env.JWT_SECRET);
-        socket.userId = decoded.user_id;
+        socket.userId = decoded.sub || decoded.user_id || decoded.id;
         socket.userEmail = decoded.email;
 
         logger.debug('Socket authenticated', {
@@ -90,9 +90,14 @@ module.exports = {
 
     logger.info('WebSocket initialized with JWT security and CORS protection');
 
+    io.on('connection_error', (err) => {
+      logger.error('Socket connection error:', err);
+    });
+
     const activeUsers = new Set();
 
     io.on('connection', socket => {
+      logger.info('Client attempting to connect...', { socketId: socket.id });
       const { userId } = socket;
 
       // Update metrics

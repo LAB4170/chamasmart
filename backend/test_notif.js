@@ -1,0 +1,51 @@
+const { createNotification } = require('./utils/notificationService');
+const { Pool } = require('pg');
+
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT_EXCEPTION:', err.message);
+  console.error(err.stack);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UNHANDLED_REJECTION:', reason);
+  process.exit(1);
+});
+
+const pool = new Pool({ host: 'localhost', port: 5432, user: 'postgres', password: '1234', database: 'chamasmart' });
+
+async function test() {
+  console.log('--- STARTING NOTIFICATION TEST ---');
+  const client = await pool.connect();
+  try {
+    console.log('Beginning transaction...');
+    await client.query('BEGIN');
+    
+    console.log('Calling createNotification...');
+    const res = await createNotification(client, { 
+      userId: 2, 
+      type: 'TEST', 
+      title: 'Manual Test Notif', 
+      message: 'This is a test notification' 
+    });
+    
+    if (!res) {
+      console.error('FAILED: createNotification returned null');
+    } else {
+      console.log('SUCCESS: Notification created:', JSON.stringify(res));
+    }
+    
+    await client.query('COMMIT');
+    console.log('Transaction COMMITTED');
+  } catch (e) {
+    console.error('OUTER_TEST_FAIL:', e.message);
+    console.error(e.stack);
+    await client.query('ROLLBACK');
+    console.log('Transaction ROLLED BACK');
+  } finally {
+    client.release();
+    await pool.end();
+    console.log('--- TEST FINISHED ---');
+  }
+}
+test();

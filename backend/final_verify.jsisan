@@ -1,0 +1,34 @@
+const { createNotification } = require('./utils/notificationService');
+const { Pool } = require('pg');
+const pool = new Pool({ host: 'localhost', port: 5432, user: 'postgres', password: '1234', database: 'chamasmart' });
+
+async function verify() {
+  try {
+    console.log('--- START FINAL VERIFICATION ---');
+    // User 2 is the Chairperson of Chama 1
+    const res = await createNotification(null, {
+      userId: 2,
+      type: 'JOIN_REQUEST',
+      title: 'Final Test Notification',
+      message: 'This confirms the notification system is 100% fixed.',
+      link: '/chamas/1/join-requests',
+      entityType: 'JOIN_REQUEST',
+      entityId: 999
+    });
+    
+    if (res) {
+      console.log('SUCCESS: Notification created with ID:', res.notification_id);
+      console.log('DATA:', JSON.stringify(res, null, 2));
+    } else {
+      console.log('FAILURE: createNotification returned null');
+    }
+  } catch (e) {
+    console.error('VERIFY_ERROR:', e.message);
+    console.error(e.stack);
+  } finally {
+    await pool.end();
+    console.log('--- END FINAL VERIFICATION ---');
+  }
+}
+
+verify();

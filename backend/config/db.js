@@ -1,4 +1,6 @@
 const { Pool } = require("pg");
+const logger = require("../utils/logger");
+const { metrics } = require("../middleware/metrics");
 require("dotenv").config();
 
 // Database configuration with enhanced security

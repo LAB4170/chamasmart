@@ -25,7 +25,7 @@ const getExecutor = client => (client && typeof client.query === 'function' ? cl
 const createNotification = async (
   client,
   {
-    userId, type, title, message, link, relatedId, emitSocket = true,
+    userId, type, title, message, link, entityType, entityId, emitSocket = true,
   },
 ) => {
   if (!userId || !type || !title) {
@@ -42,10 +42,10 @@ const createNotification = async (
 
   try {
     const result = await executor.query(
-      `INSERT INTO notifications (user_id, type, title, message, link, related_id)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO notifications (user_id, type, title, message, link, entity_type, entity_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [userId, type, title, message || null, link || null, relatedId || null],
+      [userId, type, title, message || null, link || null, entityType || null, entityId || null],
     );
 
     notification = result.rows[0];
@@ -56,15 +56,11 @@ const createNotification = async (
         const io = getIo();
         // Emit to the specific user's socket room
         io.to(`user_${userId}`).emit('new_notification', notification);
-        logger.debug('Socket notification emitted', {
-          userId,
-          notificationId: notification.id,
-        });
       } catch (socketErr) {
         logger.error('Socket notification emit error', {
           error: socketErr.message,
           userId,
-          notificationId: notification?.id,
+          notificationId: notification?.notification_id,
         });
       }
     }

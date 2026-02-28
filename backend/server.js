@@ -232,7 +232,7 @@ server.on("error", (err) => {
   }
 });
 
-server.listen(PORT, async () => {
+server.listen(PORT, "0.0.0.0", async () => {
   console.log(`STABILIZED: Server running on port ${PORT}`);
   logger.info(`Server running on port ${PORT}`);
 

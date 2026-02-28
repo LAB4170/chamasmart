@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const pool = require('../config/db');
+const { createNotification } = require('../utils/notificationService');
 
 // Generate unique invite code
 const generateInviteCode = () => crypto.randomBytes(4).toString('hex').toUpperCase() // e.g., "A3F2B9C1"
@@ -331,11 +332,14 @@ const sendInvite = async (req, res) => {
       );
 
       // Send application notification
-      await client.query(
-        `INSERT INTO notifications (user_id, type, title, message, entity_type, entity_id)
-         VALUES ($1, 'MEMBER_ADDED', 'Joined ${chamaName}', 'You have been added to ${chamaName} by ${inviterName}', 'CHAMA', $2)`,
-        [targetUserId, chamaId]
-      );
+      await createNotification(client, {
+        userId: targetUserId,
+        type: 'MEMBER_ADDED',
+        title: `Joined ${chamaName}`,
+        message: `You have been added to ${chamaName} by ${inviterName}`,
+        entityType: 'CHAMA',
+        entityId: chamaId,
+      });
 
       await client.query('COMMIT');
 
