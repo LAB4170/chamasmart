@@ -101,24 +101,45 @@ const ManageChama = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Security: Only CHAIRPERSON can change visibility
+        if (formData.visibility !== chamaData?.visibility && userRole !== 'CHAIRPERSON') {
+            toast.error('Only the Chairperson can change Chama visibility.');
+            return;
+        }
+
         try {
             setLoading(true);
-            // Map form data to API expected format (snake_case)
-            const updateData = {
-                chamaName: formData.name,
-                description: formData.description,
-                chamaType: formData.type,
-                contributionAmount: formData.contributionAmount,
-                contributionFrequency: formData.contributionFrequency,
-                visibility: formData.visibility,
-                paymentMethods: formData.paymentMethods
-            };
+
+            // Build payload with only fields the backend accepts (exclude chamaType — immutable after creation)
+            const updateData = {};
+
+            if (formData.name) updateData.chamaName = formData.name;
+            if (formData.description !== undefined) updateData.description = formData.description;
+            if (formData.contributionAmount) updateData.contributionAmount = Number(formData.contributionAmount);
+            if (formData.contributionFrequency) updateData.contributionFrequency = formData.contributionFrequency;
+            if (formData.visibility) updateData.visibility = formData.visibility;
+
+            // Only include payment methods if at least one field has a value
+            const pm = formData.paymentMethods;
+            const hasPaymentData = pm.businessNumber || pm.tillNumber || pm.phoneNumber;
+            if (hasPaymentData) {
+                updateData.paymentMethods = {
+                    type: pm.type,
+                    ...(pm.businessNumber && { businessNumber: pm.businessNumber }),
+                    ...(pm.accountNumber && { accountNumber: pm.accountNumber }),
+                    ...(pm.tillNumber && { tillNumber: pm.tillNumber }),
+                    ...(pm.phoneNumber && { phoneNumber: pm.phoneNumber }),
+                };
+            }
+
             await chamaAPI.update(id, updateData);
-            toast.success("Chama updated successfully");
+            toast.success('Chama updated successfully');
             navigate(`/chamas/${id}`);
         } catch (err) {
             console.error(err);
-            toast.error(err.response?.data?.message || "Failed to update chama");
+            const msg = err.response?.data?.message || 'Failed to update chama';
+            toast.error(msg);
             setLoading(false);
         }
     };

@@ -5,6 +5,8 @@ const validate = (schema, property = 'body') => (req, res, next) => {
     const { error } = schema.validate(req[property], { abortEarly: false });
 
     if (error) {
+      console.log(`[Validation Error] [${property}]:`, error.details.map(d => d.message));
+      console.log(`[Request Body]:`, req.body);
       return res.status(400).json({
         success: false,
         message: error.details[0].message,

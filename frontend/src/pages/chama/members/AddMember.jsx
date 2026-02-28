@@ -367,30 +367,52 @@ const AddMember = () => {
 
                             <form onSubmit={handleSendInvite} style={{ maxWidth: '400px', margin: '0 auto' }}>
                                 <div style={{ marginBottom: '1.5rem' }}>
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text-primary)' }}>Email Address</label>
-                                    <input
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', letterSpacing: '0.01em' }}>
+                                      Email Address
+                                    </label>
+                                    <div style={{ position: 'relative' }}>
+                                      <span style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
+                                        <Mail size={17} />
+                                      </span>
+                                      <input
                                         type="email"
                                         required
                                         placeholder="friend@example.com"
                                         value={inviteEmail}
                                         onChange={(e) => setInviteEmail(e.target.value)}
-                                    />
+                                        style={{
+                                          width: '100%',
+                                          padding: '0.8rem 1rem 0.8rem 2.75rem',
+                                          fontSize: '0.95rem',
+                                          background: 'var(--input-bg)',
+                                          border: '1.5px solid var(--input-border)',
+                                          borderRadius: '0.75rem',
+                                          color: 'var(--input-text)',
+                                          outline: 'none',
+                                          transition: 'border-color 0.2s, box-shadow 0.2s',
+                                          boxSizing: 'border-box',
+                                        }}
+                                        onFocus={e => { e.target.style.borderColor = 'var(--primary)'; e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'; }}
+                                        onBlur={e => { e.target.style.borderColor = 'var(--input-border)'; e.target.style.boxShadow = 'none'; }}
+                                      />
+                                    </div>
                                 </div>
                                 <div style={{ marginBottom: '1.5rem' }}>
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text-primary)' }}>Assigned Role</label>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', letterSpacing: '0.01em' }}>Assigned Role</label>
                                     <select
                                         value={selectedRole}
                                         onChange={(e) => setSelectedRole(e.target.value)}
                                         style={{
                                             width: '100%',
-                                            padding: '0.8rem',
-                                            fontSize: '1rem',
+                                            padding: '0.8rem 1rem',
+                                            fontSize: '0.95rem',
                                             background: 'var(--input-bg)',
-                                            border: '1px solid var(--input-border)',
-                                            borderRadius: '8px',
+                                            border: '1.5px solid var(--input-border)',
+                                            borderRadius: '0.75rem',
                                             color: 'var(--input-text)',
                                             outline: 'none',
-                                            cursor: 'pointer'
+                                            cursor: 'pointer',
+                                            boxSizing: 'border-box',
                                         }}
                                     >
                                         <option value="MEMBER">Member</option>

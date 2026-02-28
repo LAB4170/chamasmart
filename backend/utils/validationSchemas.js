@@ -81,6 +81,13 @@ const updateChamaSchema = Joi.object({
   meetingTime: Joi.string().optional().allow(null, ''),
   visibility: Joi.string().valid('PUBLIC', 'PRIVATE').optional(),
   constitution_config: Joi.object().optional(),
+  paymentMethods: Joi.object({
+    type: Joi.string().valid('PAYBILL', 'TILL', 'POCHI').optional(),
+    businessNumber: Joi.string().optional().allow('', null),
+    accountNumber: Joi.string().optional().allow('', null),
+    tillNumber: Joi.string().optional().allow('', null),
+    phoneNumber: Joi.string().optional().allow('', null),
+  }).optional(),
 });
 
 // Contribution Schemas
