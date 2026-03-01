@@ -1,0 +1,106 @@
+{
+  "mpesa_transactions": [
+    {
+      "column_name": "id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "checkout_request_id",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "chama_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "user_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "cycle_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "amount",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "phone_number",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "mpesa_receipt_number",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "status",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "result_code",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "result_description",
+      "data_type": "text"
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone"
+    }
+  ],
+  "loan_repayments": [
+    {
+      "column_name": "repayment_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "loan_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "payer_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "amount",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "payment_method",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "payment_date",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "column_name": "notes",
+      "data_type": "text"
+    },
+    {
+      "column_name": "installment_number",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "principal_component",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "interest_component",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "penalty_component",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "source",
+      "data_type": "character varying"
+    }
+  ]
+}

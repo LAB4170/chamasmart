@@ -22,7 +22,7 @@ import {
   BarChart3, Calendar, Mail, Building2, Heart, RefreshCw, TrendingUp,
   Settings, CreditCard, Users, DollarSign, Handshake, FileText, Download,
   Target, Bell, Trash2, Filter, RotateCcw, CheckCircle2, Clock, MapPin,
-  Shield, Landmark
+  Shield, Landmark, ArrowRight
 } from 'lucide-react';
 
 // --- Memoized Sub-components ---
@@ -37,33 +37,57 @@ const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavig
     boxShadow: 'var(--shadow)',
   }}>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-      {/* Left: Title + Badges */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: 0 }}>
-        <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {chama.chama_name}
-        </h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          {/* Chama type badge — uses theme primary color */}
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'var(--bg-primary-light)', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 600 }}>
-            {isROSCA ? <RefreshCw size={13} /> : chama.chama_type === 'TABLE_BANKING' ? <DollarSign size={13} /> : chama.chama_type === 'ASCA' ? <TrendingUp size={13} /> : <Handshake size={13} />}
-            {getChamaTypeLabel(chama.chama_type)}
-          </span>
-          {/* Role badge — high-contrast for both modes */}
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-            padding: '0.25rem 0.75rem', borderRadius: '9999px',
-            fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.02em',
-            border: '1.5px solid',
-            ...(userRole === 'CHAIRPERSON'
-              ? { color: '#a78bfa', borderColor: '#a78bfa', background: 'rgba(167,139,250,0.12)' }
-              : userRole === 'TREASURER'
-              ? { color: 'var(--secondary)', borderColor: 'var(--secondary)', background: 'rgba(16,185,129,0.1)' }
-              : userRole === 'SECRETARY'
-              ? { color: 'var(--warning)', borderColor: 'var(--warning)', background: 'rgba(245,158,11,0.1)' }
-              : { color: 'var(--text-secondary)', borderColor: 'var(--border)', background: 'var(--surface-3)' })
-          }}>
-            <Shield size={11} /> {userRole}
-          </span>
+      {/* Left: Title + Back Button + Badges */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <button
+          onClick={() => onNavigate('/dashboard')}
+          aria-label="Back to Dashboard"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '2.5rem',
+            height: '2.5rem',
+            borderRadius: '0.75rem',
+            background: 'var(--surface-2)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+            transition: 'var(--transition)'
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.background = 'var(--surface-3)'; e.currentTarget.style.color = 'var(--primary)'; }}
+          onMouseOut={(e) => { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+        >
+          <ArrowRight size={20} style={{ transform: 'rotate(180deg)' }} />
+        </button>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: 0 }}>
+          <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {chama.chama_name}
+          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {/* Chama type badge — uses theme primary color */}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'var(--bg-primary-light)', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 600 }}>
+              {isROSCA ? <RefreshCw size={13} /> : chama.chama_type === 'TABLE_BANKING' ? <DollarSign size={13} /> : chama.chama_type === 'ASCA' ? <TrendingUp size={13} /> : <Handshake size={13} />}
+              {getChamaTypeLabel(chama.chama_type)}
+            </span>
+            {/* Role badge — high-contrast for both modes */}
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+              padding: '0.25rem 0.75rem', borderRadius: '9999px',
+              fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.02em',
+              border: '1.5px solid',
+              ...(userRole === 'CHAIRPERSON'
+                ? { color: '#a78bfa', borderColor: '#a78bfa', background: 'rgba(167,139,250,0.12)' }
+                : userRole === 'TREASURER'
+                ? { color: 'var(--secondary)', borderColor: 'var(--secondary)', background: 'rgba(16,185,129,0.1)' }
+                : userRole === 'SECRETARY'
+                ? { color: 'var(--warning)', borderColor: 'var(--warning)', background: 'rgba(245,158,11,0.1)' }
+                : { color: 'var(--text-secondary)', borderColor: 'var(--border)', background: 'var(--surface-3)' })
+            }}>
+              <Shield size={11} /> {userRole}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -171,6 +195,33 @@ const MembersTab = memo(({ members, isOfficial, isROSCA, roster, getMemberStatus
         )}
         <div className="v-td v-td-lg">{member.phone_number}</div>
         <div className="v-td text-success">{formatCurrency(member.total_contributions || 0)}</div>
+        <div className="v-td">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center justify-between gap-2">
+              <span style={{ 
+                fontSize: '0.7rem', 
+                fontWeight: 600,
+                color: member.trust_score >= 70 ? 'var(--secondary)' : member.trust_score >= 40 ? 'var(--warning)' : 'var(--danger)'
+              }}>
+                {member.trust_score || 0}%
+              </span>
+            </div>
+            <div style={{ 
+              height: '4px', 
+              width: '100%', 
+              background: 'var(--border)', 
+              borderRadius: '2px',
+              overflow: 'hidden' 
+            }}>
+              <div style={{ 
+                height: '100%', 
+                width: `${member.trust_score || 0}%`, 
+                background: member.trust_score >= 70 ? 'var(--secondary)' : member.trust_score >= 40 ? 'var(--warning)' : 'var(--danger)',
+                transition: 'width 0.5s ease'
+              }} />
+            </div>
+          </div>
+        </div>
         <div className="v-td text-muted">{formatDate(member.join_date)}</div>
       </div>
     );
@@ -201,6 +252,7 @@ const MembersTab = memo(({ members, isOfficial, isROSCA, roster, getMemberStatus
             {isROSCA && <div className="v-th">Status</div>}
             <div className="v-th v-td-lg">Phone</div>
             <div className="v-th">Total</div>
+            <div className="v-th">Trust Score</div>
             <div className="v-th">Joined</div>
           </div>
           <div style={{ flex: 1 }}>
@@ -1675,7 +1727,7 @@ const ChamaDetails = () => {
                               </div>
                               <div className="v-td">
                                 <span className="badge badge-success flex items-center gap-1">
-                                  <CheckCircle size={10} /> Verified
+                                  <CheckCircle2 size={10} /> Verified
                                 </span>
                               </div>
                             </div>

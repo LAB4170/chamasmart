@@ -2,12 +2,17 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { chamaAPI } from "../../../services/api";
 import { toast } from "react-toastify";
-import { CreditCard, Store, Smartphone, Check } from "lucide-react";
+import { 
+    CreditCard, Store, Smartphone, Check, Settings, 
+    Shield, ArrowLeft, RefreshCw, BarChart3, AlertCircle,
+    Info, Trash2, ShieldAlert
+} from "lucide-react";
 
 const ManageChama = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
+    const [analyzing, setAnalyzing] = useState(false);
     const [formData, setFormData] = useState({
         name: "",
         description: "",
@@ -34,7 +39,6 @@ const ManageChama = () => {
 
     const fetchChamaDetails = async () => {
         try {
-            // Get user info from localStorage
             const userStr = localStorage.getItem("user");
             if (userStr) {
                 const user = JSON.parse(userStr);
@@ -49,7 +53,6 @@ const ManageChama = () => {
             const chama = chamaRes.data.data;
             setChamaData(chama);
 
-            // Find current user's role
             if (userStr) {
                 const user = JSON.parse(userStr);
                 const currentUserId = user.user_id || user.id;
@@ -99,10 +102,32 @@ const ManageChama = () => {
         }
     };
 
+    const handlePaymentTypeChange = (type) => {
+        setFormData(prev => ({
+            ...prev,
+            paymentMethods: {
+                ...prev.paymentMethods,
+                type
+            }
+        }));
+    };
+
+    const handleAnalyzeReliability = async () => {
+        try {
+            setAnalyzing(true);
+            const res = await chamaAPI.analyzeReliability(id);
+            toast.success(res.data.message || "Reliability tokens recalculated across the group.");
+            fetchChamaDetails(); // Refresh to see any score updates in potential future visuals
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Analysis failed");
+        } finally {
+            setAnalyzing(false);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Security: Only CHAIRPERSON can change visibility
         if (formData.visibility !== chamaData?.visibility && userRole !== 'CHAIRPERSON') {
             toast.error('Only the Chairperson can change Chama visibility.');
             return;
@@ -110,8 +135,6 @@ const ManageChama = () => {
 
         try {
             setLoading(true);
-
-            // Build payload with only fields the backend accepts (exclude chamaType — immutable after creation)
             const updateData = {};
 
             if (formData.name) updateData.chamaName = formData.name;
@@ -120,26 +143,21 @@ const ManageChama = () => {
             if (formData.contributionFrequency) updateData.contributionFrequency = formData.contributionFrequency;
             if (formData.visibility) updateData.visibility = formData.visibility;
 
-            // Only include payment methods if at least one field has a value
             const pm = formData.paymentMethods;
-            const hasPaymentData = pm.businessNumber || pm.tillNumber || pm.phoneNumber;
-            if (hasPaymentData) {
-                updateData.paymentMethods = {
-                    type: pm.type,
-                    ...(pm.businessNumber && { businessNumber: pm.businessNumber }),
-                    ...(pm.accountNumber && { accountNumber: pm.accountNumber }),
-                    ...(pm.tillNumber && { tillNumber: pm.tillNumber }),
-                    ...(pm.phoneNumber && { phoneNumber: pm.phoneNumber }),
-                };
-            }
+            updateData.paymentMethods = {
+                type: pm.type,
+                ...(pm.businessNumber && { businessNumber: pm.businessNumber }),
+                ...(pm.accountNumber && { accountNumber: pm.accountNumber }),
+                ...(pm.tillNumber && { tillNumber: pm.tillNumber }),
+                ...(pm.phoneNumber && { phoneNumber: pm.phoneNumber }),
+            };
 
             await chamaAPI.update(id, updateData);
-            toast.success('Chama updated successfully');
+            toast.success('Chama configurations updated');
             navigate(`/chamas/${id}`);
         } catch (err) {
             console.error(err);
-            const msg = err.response?.data?.message || 'Failed to update chama';
-            toast.error(msg);
+            toast.error(err.response?.data?.message || 'Update failed');
             setLoading(false);
         }
     };
@@ -148,8 +166,8 @@ const ManageChama = () => {
         const isInitiator = chamaData?.deletion_requested_by === currentUserId;
         const isHandshake = chamaData?.deletion_requested_by && !isInitiator;
 
-        let confirmMsg = "Are you sure you want to initiate a deletion request? Another official will need to confirm this.";
-        if (isHandshake) confirmMsg = "You are confirming a deletion request initiated by another official. This will PERMANENTLY deactivate the Chama. Proceed?";
+        let confirmMsg = "Initiate deactivation request? Another official must confirm.";
+        if (isHandshake) confirmMsg = "Confirming deactivation will PERMANENTLY retire this group. Proceed?";
 
         if (window.confirm(confirmMsg)) {
             try {
@@ -163,44 +181,81 @@ const ManageChama = () => {
                     navigate("/chamas");
                 }
             } catch (err) {
-                console.error(err);
-                toast.error(err.response?.data?.message || "Failed to process deletion");
+                toast.error(err.response?.data?.message || "Handshake failed");
                 setLoading(false);
             }
         }
     };
 
     const handleCancelDelete = async () => {
-        if (window.confirm("Are you sure you want to cancel the pending deletion request?")) {
+        if (window.confirm("Cancel pending deactivation request?")) {
             try {
                 setLoading(true);
                 await chamaAPI.cancelDelete(id);
-                toast.success("Deletion request cancelled");
+                toast.success("Deactivation cancelled");
                 fetchChamaDetails();
             } catch (err) {
-                console.error(err);
-                toast.error("Failed to cancel deletion request");
+                toast.error("Failed to cancel deactivation");
                 setLoading(false);
             }
         }
     };
 
-    if (loading) return <div className="loading-spinner">Loading...</div>;
+    if (loading) return (
+        <div className="flex items-center justify-center min-h-screen">
+            <RefreshCw className="animate-spin text-primary" size={40} />
+        </div>
+    );
 
     return (
-        <div className="page">
-            <div className="container">
-                <div className="page-header">
-                    <div>
-                        <h1>Manage Chama</h1>
-                        <p className="subtitle">Update settings for {formData.name}</p>
+        <div className="page" style={{ background: 'var(--surface-3)', minHeight: '100vh' }}>
+            <div className="container" style={{ maxWidth: '900px' }}>
+                
+                {/* --- HEADER --- */}
+                <div className="flex flex-between align-center mb-8">
+                    <button 
+                        onClick={() => navigate(`/chamas/${id}`)}
+                        className="btn btn-outline btn-sm gap-2"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                    >
+                        <ArrowLeft size={16} /> Back to Dashboard
+                    </button>
+                    
+                    <div className="flex gap-3">
+                        <button 
+                            onClick={handleAnalyzeReliability}
+                            disabled={analyzing}
+                            className="btn btn-secondary btn-sm gap-2"
+                            style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', border: 'none' }}
+                        >
+                            {analyzing ? <RefreshCw className="animate-spin" size={16} /> : <BarChart3 size={16} />}
+                            {analyzing ? "Analyzing..." : "Analyze Reliability"}
+                        </button>
                     </div>
                 </div>
 
-                <div className="card max-w-2xl mx-auto">
-                    <form onSubmit={handleSubmit}>
+                <div className="page-header" style={{ marginBottom: '2rem' }}>
+                    <div className="flex align-center gap-4">
+                        <div className="p-4 rounded-2xl bg-white shadow-sm border border-gray-100">
+                            <Settings className="text-primary" size={32} />
+                        </div>
+                        <div>
+                            <h1 style={{ marginBottom: '0.25rem', fontSize: '1.8rem' }}>Group Strategy & Settings</h1>
+                            <p className="subtitle">Configure operations and logistics for <strong>{formData.name}</strong></p>
+                        </div>
+                    </div>
+                </div>
+
+                <form onSubmit={handleSubmit}>
+                    
+                    {/* --- CORE SETTINGS CARD --- */}
+                    <div className="card" style={{ borderRadius: '24px', padding: '2rem', border: 'none', background: 'rgba(255, 255, 255, 0.7)', backdropFilter: 'blur(10px)', boxShadow: '0 10px 40px rgba(0,0,0,0.04)' }}>
+                        <h3 className="flex align-center gap-2 mb-6" style={{ fontSize: '1.2rem' }}>
+                            <Shield className="text-primary" size={20} /> General Configuration
+                        </h3>
+                        
                         <div className="form-group">
-                            <label className="form-label">Chama Name</label>
+                            <label className="form-label">Official Chama Name</label>
                             <input
                                 type="text"
                                 name="name"
@@ -208,36 +263,39 @@ const ManageChama = () => {
                                 value={formData.name}
                                 onChange={handleChange}
                                 required
+                                style={{ background: 'var(--white)', borderRadius: '12px', border: '1.5px solid var(--border)' }}
                             />
                         </div>
 
                         <div className="form-group">
-                            <label className="form-label">Description</label>
+                            <label className="form-label">Objective & Description</label>
                             <textarea
                                 name="description"
                                 className="form-textarea"
                                 value={formData.description}
                                 onChange={handleChange}
                                 rows="3"
+                                style={{ background: 'var(--white)', borderRadius: '12px', border: '1.5px solid var(--border)' }}
                             ></textarea>
                         </div>
 
                         <div className="form-row">
                             <div className="form-group">
-                                <label className="form-label">Type</label>
+                                <label className="form-label">Group Type</label>
                                 <select
                                     name="type"
                                     className="form-select"
                                     value={formData.type}
                                     onChange={handleChange}
                                     disabled
+                                    style={{ background: 'var(--surface-3)', borderRadius: '12px' }}
                                 >
                                     <option value="REGISTERED">Registered Group</option>
                                     <option value="INFORMAL">Informal Group</option>
                                     <option value="MERRY_GO_ROUND">Merry-Go-Round</option>
                                     <option value="TABLE_BANKING">Table Banking</option>
+                                    <option value="ASCA">ASCA (Accumulating Savings)</option>
                                 </select>
-                                <small className="text-muted">Type cannot be changed once created</small>
                             </div>
 
                             <div className="form-group">
@@ -247,11 +305,30 @@ const ManageChama = () => {
                                     className="form-select"
                                     value={formData.contributionFrequency}
                                     onChange={handleChange}
+                                    style={{ background: 'var(--white)', borderRadius: '12px' }}
                                 >
                                     <option value="WEEKLY">Weekly</option>
+                                    <option value="BIWEEKLY">Bi-Weekly</option>
                                     <option value="MONTHLY">Monthly</option>
                                     <option value="QUARTERLY">Quarterly</option>
                                 </select>
+                            </div>
+                        </div>
+
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label className="form-label">Contribution Amount (KES)</label>
+                                <div className="input-with-icon">
+                                    <span className="input-prefix" style={{ background: 'var(--surface-3)', borderRight: '1px solid var(--border)' }}>KES</span>
+                                    <input
+                                        type="number"
+                                        name="contributionAmount"
+                                        className="form-input"
+                                        style={{ paddingLeft: '4.5rem', borderRadius: '12px' }}
+                                        value={formData.contributionAmount}
+                                        onChange={handleChange}
+                                    />
+                                </div>
                             </div>
 
                             <div className="form-group">
@@ -262,288 +339,193 @@ const ManageChama = () => {
                                     value={formData.visibility}
                                     onChange={handleChange}
                                     disabled={userRole !== 'CHAIRPERSON'}
+                                    style={{ background: userRole === 'CHAIRPERSON' ? 'var(--white)' : 'var(--surface-3)', borderRadius: '12px' }}
                                 >
                                     <option value="PRIVATE">Private (Invite Only)</option>
                                     <option value="PUBLIC">Public (Visible to All)</option>
                                 </select>
-                                {userRole !== 'CHAIRPERSON' && (
-                                    <small className="text-muted">Only the Chairperson can change visibility</small>
-                                )}
                             </div>
                         </div>
+                    </div>
 
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label className="form-label">Contribution Amount (KES)</label>
-                                <input
-                                    type="number"
-                                    name="contributionAmount"
-                                    className="form-input"
-                                    value={formData.contributionAmount}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="section-divider my-10 border-t border-gray-100"></div>
-
-                        <div className="mb-8">
-                            <h3 className="text-xl font-bold text-gray-800 mb-2 flex items-center gap-2">
-                                <span className="w-8 h-8 rounded-lg bg-emerald-100/50 flex items-center justify-center text-emerald-600">
-                                    <CreditCard size={18} />
-                                </span>
-                                Payment Details
+                    {/* --- PAYMENT LOGISTICS --- */}
+                    <div className="card mt-6" style={{ borderRadius: '24px', padding: '2rem', border: 'none', background: 'rgba(255, 255, 255, 0.7)', backdropFilter: 'blur(10px)', boxShadow: '0 10px 40px rgba(0,0,0,0.04)' }}>
+                        <div className="flex flex-between align-center mb-6">
+                            <h3 className="flex align-center gap-2 m-0" style={{ fontSize: '1.2rem' }}>
+                                <CreditCard className="text-primary" size={20} /> Contribution Logistics
                             </h3>
-                            <p className="text-gray-500 text-sm ml-10">Configure how members contribute. This info will be visible on their dashboard.</p>
-                        </div>
-
-                        <div className="form-group mb-8">
-                            <label className="form-label text-gray-700 font-semibold mb-4 block">Collection Method</label>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                                {/* Paybill Card */}
-                                <div
-                                    onClick={() => handleChange({ target: { name: 'pm_type', value: 'PAYBILL' } })}
-                                    className={`group relative p-5 rounded-2xl cursor-pointer transition-all duration-300 border-2 flex flex-col items-center text-center gap-3 overflow-hidden
-                                        ${formData.paymentMethods.type === "PAYBILL"
-                                            ? "border-emerald-600 bg-emerald-600 text-white shadow-xl shadow-emerald-200 scale-105 z-10"
-                                            : "border-gray-100 bg-white text-gray-500 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1"
-                                        }`}
-                                >
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-sm
-                                        ${formData.paymentMethods.type === "PAYBILL"
-                                            ? "bg-white text-emerald-600 shadow-inner"
-                                            : "bg-gray-50 text-gray-400 group-hover:bg-emerald-50 group-hover:text-emerald-500"}`}>
-                                        <CreditCard size={28} strokeWidth={formData.paymentMethods.type === "PAYBILL" ? 2 : 1.5} />
-                                    </div>
-                                    <div className="relative z-10">
-                                        <h4 className={`font-bold text-lg mb-1 transition-colors ${formData.paymentMethods.type === "PAYBILL" ? "text-white" : "text-gray-700 group-hover:text-gray-900"}`}>
-                                            M-Pesa Paybill
-                                        </h4>
-                                        <p className={`text-xs transition-colors ${formData.paymentMethods.type === "PAYBILL" ? "text-emerald-100" : "text-gray-400"}`}>For Business Numbers</p>
-                                    </div>
-
-                                    {/* Selection Ring Indicator */}
-                                    {formData.paymentMethods.type === "PAYBILL" && (
-                                        <div className="absolute top-3 right-3 text-emerald-600 animate-scaleIn bg-white rounded-full p-1 shadow-md">
-                                            <Check size={16} strokeWidth={4} />
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Till Number Card */}
-                                <div
-                                    onClick={() => handleChange({ target: { name: 'pm_type', value: 'TILL' } })}
-                                    className={`group relative p-5 rounded-2xl cursor-pointer transition-all duration-300 border-2 flex flex-col items-center text-center gap-3 overflow-hidden
-                                        ${formData.paymentMethods.type === "TILL"
-                                            ? "border-emerald-600 bg-emerald-600 text-white shadow-xl shadow-emerald-200 scale-105 z-10"
-                                            : "border-gray-100 bg-white text-gray-500 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1"
-                                        }`}
-                                >
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-sm
-                                        ${formData.paymentMethods.type === "TILL"
-                                            ? "bg-white text-emerald-600 shadow-inner"
-                                            : "bg-gray-50 text-gray-400 group-hover:bg-emerald-50 group-hover:text-emerald-500"}`}>
-                                        <Store size={28} strokeWidth={formData.paymentMethods.type === "TILL" ? 2 : 1.5} />
-                                    </div>
-                                    <div className="relative z-10">
-                                        <h4 className={`font-bold text-lg mb-1 transition-colors ${formData.paymentMethods.type === "TILL" ? "text-white" : "text-gray-700 group-hover:text-gray-900"}`}>
-                                            Buy Goods
-                                        </h4>
-                                        <p className={`text-xs transition-colors ${formData.paymentMethods.type === "TILL" ? "text-emerald-100" : "text-gray-400"}`}>Till Number</p>
-                                    </div>
-
-                                    {formData.paymentMethods.type === "TILL" && (
-                                        <div className="absolute top-3 right-3 text-emerald-600 animate-scaleIn bg-white rounded-full p-1 shadow-md">
-                                            <Check size={16} strokeWidth={4} />
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Pochi Card */}
-                                <div
-                                    onClick={() => handleChange({ target: { name: 'pm_type', value: 'POCHI' } })}
-                                    className={`group relative p-5 rounded-2xl cursor-pointer transition-all duration-300 border-2 flex flex-col items-center text-center gap-3 overflow-hidden
-                                        ${formData.paymentMethods.type === "POCHI"
-                                            ? "border-emerald-600 bg-emerald-600 text-white shadow-xl shadow-emerald-200 scale-105 z-10"
-                                            : "border-gray-100 bg-white text-gray-500 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1"
-                                        }`}
-                                >
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-sm
-                                        ${formData.paymentMethods.type === "POCHI"
-                                            ? "bg-white text-emerald-600 shadow-inner"
-                                            : "bg-gray-50 text-gray-400 group-hover:bg-emerald-50 group-hover:text-emerald-500"}`}>
-                                        <Smartphone size={28} strokeWidth={formData.paymentMethods.type === "POCHI" ? 2 : 1.5} />
-                                    </div>
-                                    <div className="relative z-10">
-                                        <h4 className={`font-bold text-lg mb-1 transition-colors ${formData.paymentMethods.type === "POCHI" ? "text-white" : "text-gray-700 group-hover:text-gray-900"}`}>
-                                            Pochi la Biashara
-                                        </h4>
-                                        <p className={`text-xs transition-colors ${formData.paymentMethods.type === "POCHI" ? "text-emerald-100" : "text-gray-400"}`}>Phone Number</p>
-                                    </div>
-
-                                    {formData.paymentMethods.type === "POCHI" && (
-                                        <div className="absolute top-3 right-3 text-emerald-600 animate-scaleIn bg-white rounded-full p-1 shadow-md">
-                                            <Check size={16} strokeWidth={4} />
-                                        </div>
-                                    )}
-                                </div>
+                            <div className="p-1 px-3 rounded-full bg-blue-50 text-blue-600 text-xs font-bold border border-blue-100 flex items-center gap-1">
+                                <Smartphone size={12} /> Mobile Money Ready
                             </div>
                         </div>
 
-                        {/* Input Fields Section with Animation */}
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-all duration-500">
+                        <div className="grid grid-3 gap-4 mb-8">
+                            {[
+                                { id: 'PAYBILL', label: 'Paybill', icon: <CreditCard size={24} />, desc: 'Business Number' },
+                                { id: 'TILL', label: 'Buy Goods', icon: <Store size={24} />, desc: 'Till Number' },
+                                { id: 'POCHI', label: 'Pochi', icon: <Smartphone size={24} />, desc: 'Social Payments' }
+                            ].map(opt => (
+                                <div 
+                                    key={opt.id}
+                                    onClick={() => handlePaymentTypeChange(opt.id)}
+                                    style={{
+                                        position: 'relative',
+                                        padding: '1.25rem',
+                                        borderRadius: '16px',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        border: '2px solid',
+                                        borderColor: formData.paymentMethods.type === opt.id ? 'var(--primary)' : 'var(--border)',
+                                        background: formData.paymentMethods.type === opt.id ? 'rgba(37, 99, 235, 0.05)' : 'var(--white)',
+                                        transform: formData.paymentMethods.type === opt.id ? 'translateY(-4px)' : 'none',
+                                        boxShadow: formData.paymentMethods.type === opt.id ? '0 8px 20px rgba(37, 99, 235, 0.1)' : 'none'
+                                    }}
+                                >
+                                    <div style={{ color: formData.paymentMethods.type === opt.id ? 'var(--primary)' : 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                                        {opt.icon}
+                                    </div>
+                                    <div className="font-bold text-sm">{opt.label}</div>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{opt.desc}</div>
+                                    
+                                    {formData.paymentMethods.type === opt.id && (
+                                        <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
+                                            <Check className="text-primary" size={16} strokeWidth={3} />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="p-6 rounded-2xl border-2 border-dashed border-gray-100 bg-gray-50/50">
                             {formData.paymentMethods.type === "PAYBILL" && (
-                                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 animate-slideDown">
-                                    <div className="form-group mb-0">
-                                        <label className="form-label text-gray-700 text-xs font-bold uppercase tracking-wider mb-2">Business Number</label>
-                                        <div className="relative group">
-                                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors group-focus-within:text-emerald-500 text-gray-400">
-                                                <span className="text-lg font-mono font-bold">#</span>
-                                            </div>
-                                            <input
-                                                type="text"
-                                                name="pm_businessNumber"
-                                                className="form-input pl-10 py-3 bg-gray-50 border-gray-200 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-lg font-medium transition-all"
-                                                placeholder="e.g. 247247"
-                                                value={formData.paymentMethods.businessNumber}
-                                                onChange={handleChange}
-                                            />
-                                        </div>
+                                <div className="grid grid-2 gap-4">
+                                    <div className="form-group m-0">
+                                        <label className="form-label text-xs uppercase text-gray-400">Paybill Number</label>
+                                        <input
+                                            type="text"
+                                            name="pm_businessNumber"
+                                            className="form-input"
+                                            placeholder="e.g. 247247"
+                                            value={formData.paymentMethods.businessNumber}
+                                            onChange={handleChange}
+                                            style={{ borderRadius: '12px' }}
+                                        />
                                     </div>
-                                    <div className="form-group mb-0">
-                                        <label className="form-label text-gray-700 text-xs font-bold uppercase tracking-wider mb-2">Account Number</label>
-                                        <div className="relative group">
-                                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors group-focus-within:text-emerald-500 text-gray-400">
-                                                <span className="text-lg font-mono font-bold">A</span>
-                                            </div>
-                                            <input
-                                                type="text"
-                                                name="pm_accountNumber"
-                                                className="form-input pl-10 py-3 bg-gray-50 border-gray-200 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-lg font-medium transition-all"
-                                                placeholder="e.g. Chama Name"
-                                                value={formData.paymentMethods.accountNumber}
-                                                onChange={handleChange}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="col-span-full mt-2 p-3 bg-blue-50 text-blue-700 text-sm rounded-lg flex items-center gap-2">
-                                        <i className="fas fa-info-circle"></i>
-                                        <span>Members will be prompted to enter <strong>{formData.paymentMethods.businessNumber || "..."}</strong> as the paybill.</span>
+                                    <div className="form-group m-0">
+                                        <label className="form-label text-xs uppercase text-gray-400">Account Note/ID</label>
+                                        <input
+                                            type="text"
+                                            name="pm_accountNumber"
+                                            className="form-input"
+                                            placeholder="e.g. Chama ID"
+                                            value={formData.paymentMethods.accountNumber}
+                                            onChange={handleChange}
+                                            style={{ borderRadius: '12px' }}
+                                        />
                                     </div>
                                 </div>
                             )}
 
                             {formData.paymentMethods.type === "TILL" && (
-                                <div className="p-6 max-w-xl animate-slideDown">
-                                    <div className="form-group mb-0">
-                                        <label className="form-label text-gray-700 text-xs font-bold uppercase tracking-wider mb-2">Till Number</label>
-                                        <div className="relative group">
-                                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors group-focus-within:text-emerald-500 text-gray-400">
-                                                <Store size={20} />
-                                            </div>
-                                            <input
-                                                type="text"
-                                                name="pm_tillNumber"
-                                                className="form-input pl-12 py-3 bg-gray-50 border-gray-200 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-lg font-medium transition-all text-lg tracking-wide"
-                                                placeholder="e.g. 123456"
-                                                value={formData.paymentMethods.tillNumber}
-                                                onChange={handleChange}
-                                            />
-                                        </div>
-                                        <p className="text-xs text-gray-500 mt-3 flex items-center gap-1">
-                                            <Check size={12} className="text-emerald-500" />
-                                            Buy Goods and Services
-                                        </p>
-                                    </div>
+                                <div className="form-group m-0">
+                                    <label className="form-label text-xs uppercase text-gray-400">Till Number</label>
+                                    <input
+                                        type="text"
+                                        name="pm_tillNumber"
+                                        className="form-input"
+                                        placeholder="e.g. 123456"
+                                        value={formData.paymentMethods.tillNumber}
+                                        onChange={handleChange}
+                                        style={{ borderRadius: '12px', fontSize: '1.2rem', fontWeight: 600 }}
+                                    />
                                 </div>
                             )}
 
                             {formData.paymentMethods.type === "POCHI" && (
-                                <div className="p-6 max-w-xl animate-slideDown">
-                                    <div className="form-group mb-0">
-                                        <label className="form-label text-gray-700 text-xs font-bold uppercase tracking-wider mb-2">Phone Number</label>
-                                        <div className="relative group">
-                                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors group-focus-within:text-emerald-500 text-gray-400">
-                                                <Smartphone size={20} />
-                                            </div>
-                                            <input
-                                                type="text"
-                                                name="pm_phoneNumber"
-                                                className="form-input pl-12 py-3 bg-gray-50 border-gray-200 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-lg font-medium transition-all text-lg tracking-wide"
-                                                placeholder="e.g. 0712345678"
-                                                value={formData.paymentMethods.phoneNumber}
-                                                onChange={handleChange}
-                                            />
-                                        </div>
-                                        <div className="mt-3 p-3 bg-yellow-50 text-yellow-800 text-sm rounded-lg border border-yellow-100 flex items-start gap-2">
-                                            <i className="fas fa-lightbulb mt-0.5"></i>
-                                            <span>Ensure this number is registered for Pochi la Biashara to receive business payments automatically.</span>
-                                        </div>
-                                    </div>
+                                <div className="form-group m-0">
+                                    <label className="form-label text-xs uppercase text-gray-400">Registered Phone Number</label>
+                                    <input
+                                        type="text"
+                                        name="pm_phoneNumber"
+                                        className="form-input"
+                                        placeholder="e.g. 0712 XXX XXX"
+                                        value={formData.paymentMethods.phoneNumber}
+                                        onChange={handleChange}
+                                        style={{ borderRadius: '12px', fontSize: '1.2rem', fontWeight: 600 }}
+                                    />
                                 </div>
                             )}
                         </div>
-
-                        {/* ── Save Button lives at the end of the form, ABOVE the danger zone ── */}
-                        <div className="form-actions-modern mt-8 pt-6 border-t border-gray-100">
-                            <button type="button" onClick={() => navigate(`/chamas/${id}`)} className="btn btn-outline">
-                                Cancel
-                            </button>
-                            <button type="submit" className="btn btn-primary">
-                                {loading ? "Saving..." : "Save Settings"}
-                            </button>
-                        </div>
-
-                    </form>
-                </div>
-
-                {/* ── Danger Zone: completely outside the <form> to prevent accidental submission ── */}
-                <div className="card max-w-2xl mx-auto mt-4 p-6 border-2 border-red-100 bg-red-50/20">
-                    <div className="flex items-center gap-3 mb-1">
-                        <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center text-red-600">
-                            <span className="text-lg">⚠</span>
-                        </div>
-                        <h3 className="text-red-700 font-bold text-lg mb-0">Danger Zone</h3>
                     </div>
-                    <p className="text-sm text-gray-500 ml-11 mb-5">
-                        These actions are irreversible. A dual-official handshake is required for security.
-                    </p>
+
+                    {/* --- ACTIONS --- */}
+                    <div className="flex flex-between align-center mt-10 p-6 rounded-3xl" style={{ background: 'var(--white)', border: '1px solid var(--border)' }}>
+                        <div>
+                             <p className="text-sm m-0 flex align-center gap-2 text-gray-500">
+                                <Info size={16} /> All changes are logged for auditing purposes.
+                             </p>
+                        </div>
+                        <div className="flex gap-3">
+                            <button type="button" onClick={() => navigate(`/chamas/${id}`)} className="btn btn-outline" style={{ border: 'none' }}>
+                                Discard
+                            </button>
+                            <button type="submit" disabled={loading} className="btn btn-primary" style={{ minWidth: '160px', borderRadius: '14px', boxShadow: '0 8px 24px rgba(37, 99, 235, 0.25)' }}>
+                                {loading ? "Updating..." : "Publish Changes"}
+                            </button>
+                        </div>
+                    </div>
+
+                </form>
+
+                {/* --- DANGER ZONE --- */}
+                <div className="mt-12 p-8 rounded-[32px] border-2 border-red-100 bg-red-50/10 relative overflow-hidden">
+                    <div style={{ position: 'absolute', top: '-10px', right: '-10px', opacity: 0.05 }}>
+                        <ShieldAlert size={120} />
+                    </div>
+                    
+                    <div className="flex items-start gap-4 mb-6">
+                        <div className="p-3 rounded-2xl bg-red-100 text-red-600">
+                            <Trash2 size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-red-700 m-0">Security Termination Zone</h3>
+                            <p className="text-red-600/60 text-sm">Critical actions require a dual-official consensus (handshake).</p>
+                        </div>
+                    </div>
 
                     {chamaData?.deletion_requested_by ? (
-                        <div className="p-4 bg-white border border-red-200 rounded-xl shadow-sm">
-                            <div className="flex items-start gap-4">
-                                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 shrink-0">
-                                    <span className="text-xl">🔴</span>
-                                </div>
+                        <div className="bg-white p-6 rounded-2xl shadow-xl border border-red-200">
+                            <div className="flex gap-4">
+                                <AlertCircle className="text-red-500" size={32} />
                                 <div className="flex-1">
-                                    <h4 className="font-bold text-red-700 mb-1">Deletion Pending Approval</h4>
-                                    <p className="text-sm text-gray-600 mb-4">
+                                    <h4 className="font-extrabold text-red-700 mb-1">Retirement Pending Confirmation</h4>
+                                    <p className="text-gray-600 mb-6">
                                         {chamaData.deletion_requested_by === currentUserId
-                                            ? "You initiated this deletion request. Waiting for another official to confirm."
-                                            : "An official has requested to deactivate this Chama. Your confirmation is required."
+                                            ? "Request sent. Waiting for another official to authorize retirement."
+                                            : "Critical: An authorized official has requested to retire this group. Your consent is required."
                                         }
                                     </p>
-                                    <div className="flex flex-wrap gap-3">
+                                    <div className="flex gap-3">
                                         {chamaData.deletion_requested_by !== currentUserId && (
-                                            <button type="button" onClick={handleDelete} className="btn btn-danger">
-                                                Confirm & Deactivate
+                                            <button onClick={handleDelete} className="btn btn-danger gap-2">
+                                                <Check size={18} /> Confirm Retirement
                                             </button>
                                         )}
-                                        <button type="button" onClick={handleCancelDelete} className="btn btn-outline">
-                                            Cancel Request
+                                        <button onClick={handleCancelDelete} className="btn btn-outline">
+                                            Revoke Request
                                         </button>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     ) : (
-                        <div className="flex flex-wrap justify-between items-center gap-4 p-4 bg-white rounded-xl border border-red-100">
+                        <div className="flex flex-between align-center p-6 bg-white rounded-2xl border border-red-100 shadow-sm">
                             <div>
-                                <p className="font-semibold text-gray-900">Deactivate Chama</p>
-                                <p className="text-xs text-gray-500 mt-0.5">Soft-deletes the group and all active data. Requires another official's approval.</p>
+                                <p className="font-bold text-gray-800 m-0">Soft-Retire Group</p>
+                                <p className="text-xs text-gray-500">Archives all records and stops contributions. Requires handshake.</p>
                             </div>
-                            <button type="button" onClick={handleDelete} className="btn btn-outline btn-danger shrink-0">
-                                Request Deletion
+                            <button onClick={handleDelete} className="btn btn-outline btn-danger py-2 rounded-xl text-xs font-bold uppercase tracking-wider">
+                                Initiate Retirement
                             </button>
                         </div>
                     )}

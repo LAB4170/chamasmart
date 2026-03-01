@@ -1,0 +1,26 @@
+const pool = require('./config/db');
+const fs = require('fs');
+
+async function checkSchemas() {
+  const tables = ['loan_installments', 'transactions', 'loans'];
+  const results = {};
+
+  try {
+    for (const table of tables) {
+      const res = await pool.query(`
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = $1
+      `, [table]);
+      results[table] = res.rows;
+    }
+    fs.writeFileSync('full_schema_check.json', JSON.stringify(results, null, 2));
+    console.log("Full schema written to full_schema_check.json");
+  } catch (err) {
+    console.error(err);
+  } finally {
+    pool.end();
+  }
+}
+
+checkSchemas();

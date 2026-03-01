@@ -1,0 +1,134 @@
+[
+  {
+    "column_name": "chama_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "chama_name",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "chama_type",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "description",
+    "data_type": "text"
+  },
+  {
+    "column_name": "contribution_amount",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "contribution_frequency",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "contribution_day",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "meeting_day",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "meeting_time",
+    "data_type": "time without time zone"
+  },
+  {
+    "column_name": "current_fund",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "total_members",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "visibility",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "is_active",
+    "data_type": "boolean"
+  },
+  {
+    "column_name": "created_by",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "constitution_config",
+    "data_type": "jsonb"
+  },
+  {
+    "column_name": "share_price",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "max_members",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "min_members",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "registration_fee",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "late_fee_percentage",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "penalty_rate",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "payment_methods",
+    "data_type": "jsonb"
+  },
+  {
+    "column_name": "deletion_requested_by",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "deletion_requested_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "meeting_pattern",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "meeting_type",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "meeting_link",
+    "data_type": "text"
+  },
+  {
+    "column_name": "meeting_location",
+    "data_type": "text"
+  },
+  {
+    "column_name": "is_deleted",
+    "data_type": "boolean"
+  },
+  {
+    "column_name": "deleted_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "invite_code",
+    "data_type": "character varying"
+  }
+]

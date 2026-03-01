@@ -177,6 +177,9 @@ app.use("/api/asca", require("./routes/asca"));
 app.use("/api/join-requests", require("./routes/joinRequests"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/welfare", require("./routes/welfareRoutes"));
+app.use("/api/dividends", require("./routes/dividendRoutes"));
+app.use("/api/reports", require("./routes/reportRoutes"));
+app.use("/api/audit", require("./routes/auditRoutes"));
 
 // Health/Metrics
 app.get("/health", healthCheckEndpoint);

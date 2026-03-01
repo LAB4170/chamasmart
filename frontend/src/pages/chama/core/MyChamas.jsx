@@ -140,9 +140,14 @@ const MyChamas = () => {
             <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>My Chamas</h1>
             <p className="text-muted" style={{ fontSize: '1.1rem' }}>Manage your memberships and track your growth.</p>
           </div>
-          <Link to="/chamas/create" className="btn btn-primary btn-lg" aria-label="Create new chama">
-            <Sparkles size={18} /> Create New Chama
-          </Link>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <Link to="/join-chama" className="btn btn-outline btn-lg" aria-label="Join with Code">
+              <Users size={18} /> Join via Code
+            </Link>
+            <Link to="/chamas/create" className="btn btn-primary btn-lg" aria-label="Create new chama">
+              <Sparkles size={18} /> Create New Chama
+            </Link>
+          </div>
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
@@ -179,6 +184,9 @@ const MyChamas = () => {
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '2rem' }}>
               <Link to="/chamas/create" className="btn btn-primary">
                 Start a Chama
+              </Link>
+              <Link to="/join-chama" className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Users size={18} /> Join with Code
               </Link>
               <Link to="/browse-chamas" className="btn btn-outline">
                 Browse Groups

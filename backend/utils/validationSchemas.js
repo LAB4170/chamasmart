@@ -133,6 +133,7 @@ const generateInviteSchema = Joi.object({
 
 const sendInviteSchema = Joi.object({
   email: Joi.string().email().required(),
+  role: Joi.string().valid('CHAIRPERSON', 'TREASURER', 'SECRETARY', 'MEMBER', 'chairperson', 'treasurer', 'secretary', 'member').optional(),
   message: Joi.string().max(500).optional(),
 });
 

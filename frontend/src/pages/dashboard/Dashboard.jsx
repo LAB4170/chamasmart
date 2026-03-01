@@ -169,6 +169,9 @@ const Dashboard = () => {
               <Link to="/chamas/create" className="btn-action-primary" style={{ padding: '0.8rem 1.5rem' }}>
                 <Plus size={18} /> Create Your First Chama
               </Link>
+              <Link to="/join-chama" className="btn-action-secondary" style={{ padding: '0.8rem 1.5rem' }}>
+                <Users size={18} /> Join with Code
+              </Link>
               <Link to="/browse-chamas" className="btn-action-secondary" style={{ padding: '0.8rem 1.5rem' }}>
                 <Search size={18} /> Browse Groups
               </Link>

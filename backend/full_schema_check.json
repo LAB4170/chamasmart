@@ -1,0 +1,179 @@
+{
+  "loan_installments": [
+    {
+      "column_name": "id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "loan_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "due_date",
+      "data_type": "date"
+    },
+    {
+      "column_name": "amount",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "principal_amount",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "interest_amount",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "penalty_amount",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "status",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "paid_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone"
+    }
+  ],
+  "transactions": [],
+  "loans": [
+    {
+      "column_name": "loan_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "chama_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "borrower_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "loan_amount",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "approved_amount",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "interest_rate",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "term_months",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "purpose",
+      "data_type": "text"
+    },
+    {
+      "column_name": "status",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "total_repayable",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "amount_paid",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "balance",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "column_name": "approved_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "column_name": "approved_by",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "rejected_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "column_name": "rejected_by",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "rejection_reason",
+      "data_type": "text"
+    },
+    {
+      "column_name": "approval_notes",
+      "data_type": "text"
+    },
+    {
+      "column_name": "last_payment_date",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "column_name": "guarantor_required",
+      "data_type": "boolean"
+    },
+    {
+      "column_name": "collateral_description",
+      "data_type": "text"
+    },
+    {
+      "column_name": "monthly_payment",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "due_date",
+      "data_type": "date"
+    },
+    {
+      "column_name": "interest_type",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "loan_multiplier",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "principal_outstanding",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "interest_outstanding",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "penalty_outstanding",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "guarantor_coverage",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "metadata",
+      "data_type": "jsonb"
+    },
+    {
+      "column_name": "is_deleted",
+      "data_type": "boolean"
+    },
+    {
+      "column_name": "deleted_at",
+      "data_type": "timestamp with time zone"
+    }
+  ]
+}

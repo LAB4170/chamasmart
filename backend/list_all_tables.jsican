@@ -1,0 +1,17 @@
+const pool = require('./config/db');
+const fs = require('fs');
+
+async function check() {
+  try {
+    const tablesRes = await pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
+    const tables = tablesRes.rows.map(r => r.table_name);
+    
+    fs.writeFileSync('all_tables_info.json', JSON.stringify({ tables }, null, 2));
+    console.log("Written to all_tables_info.json");
+  } catch (err) {
+    console.error(err);
+  } finally {
+    pool.end();
+  }
+}
+check();

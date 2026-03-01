@@ -8,6 +8,7 @@ const { AppError } = require("../middleware/errorHandler");
 const logger = require("../utils/logger");
 const { body, param, validationResult } = require("express-validator");
 const { logAuditEvent, EVENT_TYPES, SEVERITY } = require("../utils/auditLog");
+const { createNotification, createBulkNotifications } = require('../utils/notificationService');
 
 // ============================================================================
 // VALIDATION MIDDLEWARE
@@ -84,6 +85,7 @@ const addMember = async (req, res, next) => {
   try {
     const { chamaId } = req.params;
     const { userId, role = "MEMBER" } = req.body;
+    const normalizedRole = role.toUpperCase();
 
     // Check authorization
     await checkChamaOfficial(client, chamaId, req.user.user_id);
@@ -131,12 +133,13 @@ const addMember = async (req, res, next) => {
         // Reactivate inactive member
         await client.query(
           `UPDATE chama_members 
-           SET is_active = true, 
-               role = $1, 
+           SET role = $1, 
+               rotation_position = $2, 
                join_date = NOW(),
+               is_active = true,
                updated_at = NOW()
-           WHERE chama_id = $2 AND user_id = $3`,
-          [role, chamaId, userId],
+           WHERE chama_id = $3 AND user_id = $4`,
+          [normalizedRole, rotationPosition, chamaId, userId],
         );
 
         await client.query(
@@ -166,19 +169,12 @@ const addMember = async (req, res, next) => {
       }
     }
 
-    // Get next rotation position
-    const positionResult = await client.query(
-      "SELECT COALESCE(MAX(rotation_position), 0) + 1 as next_position FROM chama_members WHERE chama_id = $1",
-      [chamaId],
-    );
-    const rotationPosition = positionResult.rows[0].next_position;
-
     // Add new member
     const memberResult = await client.query(
       `INSERT INTO chama_members (chama_id, user_id, role, rotation_position)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [chamaId, userId, role, rotationPosition],
+      [chamaId, userId, normalizedRole, rotationPosition],
     );
 
     // Update chama member count
@@ -188,13 +184,39 @@ const addMember = async (req, res, next) => {
     );
 
     // Create welcome notification
-    await client.query(
-      `INSERT INTO notifications (user_id, type, title, message, entity_type, entity_id)
-       VALUES ($1, 'MEMBER_ADDED', 'Welcome to ${chamaCheck.rows[0].chama_name}', 
-               'You have been added as a ${role} to ${chamaCheck.rows[0].chama_name}', 
-               'CHAMA', $2)`,
-      [userId, chamaId],
-    );
+    await createNotification(client, {
+      userId,
+      type: 'MEMBER_ADDED',
+      title: `Welcome to ${chamaCheck.rows[0].chama_name}`,
+      message: `You have been added as a ${role} to ${chamaCheck.rows[0].chama_name}`,
+      entityType: 'CHAMA',
+      entityId: chamaId
+    });
+
+    // Notify other active members that someone new joined
+    try {
+      const otherMembersRes = await client.query(
+        'SELECT user_id FROM chama_members WHERE chama_id = $1 AND is_active = true AND user_id != $2',
+        [chamaId, userId]
+      );
+      
+      const newMemberName = `${userCheck.rows[0].first_name} ${userCheck.rows[0].last_name}`;
+      
+      const memberNotifications = otherMembersRes.rows.map(member => ({
+        userId: member.user_id,
+        type: 'MEMBER_JOINED',
+        title: 'New Member Joined',
+        message: `${newMemberName} has joined ${chamaCheck.rows[0].chama_name}`,
+        entityType: 'CHAMA',
+        entityId: chamaId
+      }));
+
+      if (memberNotifications.length > 0) {
+        await createBulkNotifications(client, memberNotifications);
+      }
+    } catch (notifErr) {
+       logger.error('Failed to send new member bulk notifications', { error: notifErr.message, chamaId });
+    }
 
     await client.query("COMMIT");
 
@@ -257,6 +279,7 @@ const updateMemberRole = async (req, res, next) => {
   try {
     const { chamaId, userId } = req.params;
     const { role } = req.body;
+    const normalizedRole = role.toUpperCase();
 
     // Check authorization
     const requesterRole = await checkChamaOfficial(
@@ -266,7 +289,7 @@ const updateMemberRole = async (req, res, next) => {
     );
 
     // Only CHAIRPERSON can assign CHAIRPERSON role
-    if (role === "CHAIRPERSON" && requesterRole !== "CHAIRPERSON") {
+    if (normalizedRole === "CHAIRPERSON" && requesterRole !== "CHAIRPERSON") {
       throw new AppError(
         "Only the current chairperson can assign chairperson role",
         403,
@@ -293,7 +316,7 @@ const updateMemberRole = async (req, res, next) => {
     const oldRole = memberCheck.rows[0].role;
 
     // Prevent removing the last chairperson
-    if (oldRole === "CHAIRPERSON" && role !== "CHAIRPERSON") {
+    if (oldRole === "CHAIRPERSON" && normalizedRole !== "CHAIRPERSON") {
       const chairpersonCount = await client.query(
         "SELECT COUNT(*) as count FROM chama_members WHERE chama_id = $1 AND role = $2 AND is_active = true",
         [chamaId, "CHAIRPERSON"],
@@ -314,17 +337,21 @@ const updateMemberRole = async (req, res, next) => {
        SET role = $1, updated_at = NOW()
        WHERE chama_id = $2 AND user_id = $3
        RETURNING *`,
-      [role, chamaId, parseInt(userId)],
+      [normalizedRole, chamaId, parseInt(userId)],
     );
 
+    const chamaDetails = await client.query('SELECT chama_name FROM chamas WHERE chama_id = $1', [chamaId]);
+    const chamaName = chamaDetails.rows[0]?.chama_name || 'your chama';
+
     // Create notification
-    await client.query(
-      `INSERT INTO notifications (user_id, type, title, message, entity_type, entity_id)
-       VALUES ($1, 'ROLE_UPDATED', 'Role Updated', 
-               'Your role has been updated from ${oldRole} to ${role}', 
-               'CHAMA', $2)`,
-      [parseInt(userId), chamaId],
-    );
+    await createNotification(client, {
+       userId: parseInt(userId),
+       type: 'ROLE_UPDATED',
+       title: 'Role Updated',
+       message: `Your role in ${chamaName} has been updated to ${role}`,
+       entityType: 'CHAMA',
+       entityId: chamaId
+    });
 
     await client.query("COMMIT");
 
@@ -641,6 +668,7 @@ const bulkAddMembers = async (req, res, next) => {
     for (const member of members) {
       try {
         const { userId, role = "MEMBER" } = member;
+        const normalizedRole = role.toUpperCase();
 
         // Validate
         if (!userId || !Number.isInteger(userId)) {
@@ -674,7 +702,7 @@ const bulkAddMembers = async (req, res, next) => {
         await client.query(
           `INSERT INTO chama_members (chama_id, user_id, role, rotation_position)
            VALUES ($1, $2, $3, $4)`,
-          [chamaId, userId, role, nextPosition],
+          [chamaId, userId, normalizedRole, nextPosition],
         );
 
         results.added.push({ userId, role, position: nextPosition });

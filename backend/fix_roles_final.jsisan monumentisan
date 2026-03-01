@@ -1,0 +1,37 @@
+const pool = require('./config/db');
+
+const fixRolesAndSchema = async () => {
+  const client = await pool.connect();
+  try {
+    console.log('--- Starting Role & Schema Fix ---');
+    await client.query('BEGIN');
+
+    // 1. Normalize all existing member roles to UPPERCASE
+    console.log('Normalizing roles in chama_members...');
+    await client.query('UPDATE chama_members SET role = UPPER(role)');
+
+    // 2. Ensure chama_invites has the role column
+    console.log('Ensuring chama_invites has role column...');
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='chama_invites' AND column_name='role') THEN
+          ALTER TABLE chama_invites ADD COLUMN role VARCHAR(20) DEFAULT 'MEMBER';
+        END IF;
+      END $$;
+    `);
+
+    // 3. Normalize any existing invite roles
+    await client.query('UPDATE chama_invites SET role = UPPER(role)');
+
+    await client.query('COMMIT');
+    console.log('✅ Role normalization and schema updates complete!');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('❌ Error applying fixes:', err);
+  } finally {
+    client.release();
+    pool.end();
+  }
+};
+
+fixRolesAndSchema();

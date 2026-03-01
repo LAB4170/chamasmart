@@ -79,7 +79,7 @@ const authorize = (...roles) => async (req, res, next) => {
       });
     }
 
-    const userRole = result.rows[0].role; // Roles in DB are uppercase (CHAIRPERSON, etc.)
+    const userRole = result.rows[0].role.toUpperCase(); // Ensure uppercase for comparison
 
     // If roles includes 'MEMBER', any valid member passes
     if (allowedRoles.includes('MEMBER')) {
@@ -134,7 +134,7 @@ const isOfficial = async (req, res, next) => {
       });
     }
 
-    const { role } = result.rows[0];
+    const role = result.rows[0].role.toUpperCase();
     if (!['CHAIRPERSON', 'SECRETARY', 'TREASURER'].includes(role)) {
       return res.status(403).json({
         success: false,

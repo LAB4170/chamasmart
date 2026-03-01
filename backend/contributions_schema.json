@@ -1,0 +1,74 @@
+[
+  {
+    "column_name": "contribution_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "chama_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "user_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "amount",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "contribution_date",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "contribution_type",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "reference",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "status",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "is_deleted",
+    "data_type": "boolean"
+  },
+  {
+    "column_name": "deleted_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "cycle_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "installment_number",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "payment_method",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "receipt_number",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "recorded_by",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "notes",
+    "data_type": "text"
+  },
+  {
+    "column_name": "idempotency_key",
+    "data_type": "character varying"
+  }
+]

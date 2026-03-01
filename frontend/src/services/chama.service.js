@@ -12,6 +12,7 @@ export const chamaAPI = {
   getStats: (id) => api.get(`/chamas/${id}/stats`),
   getPublicChamas: (params) => api.get("/chamas/public", { params }),
   cancelDelete: (id) => api.post(`/chamas/${id}/cancel-delete`),
+  analyzeReliability: (id) => api.post(`/chamas/${id}/analyze-reliability`),
 };
 
 // Member API calls

@@ -6,6 +6,7 @@
 const pool = require('../config/db');
 const logger = require('../utils/logger');
 const { logAuditEvent, EVENT_TYPES, SEVERITY } = require('../utils/auditLog');
+const TrustScoreService = require("../utils/trustScoreService");
 
 // Money Utility (Decimal-aware)
 const toDecimal = (val) => parseFloat(val);
@@ -1251,6 +1252,13 @@ const makeRepayment = async (req, res) => {
     );
 
     await client.query('COMMIT');
+
+    // Trigger Trust Score Update
+    try {
+      await TrustScoreService.updateMemberTrustScore(chamaId, loan.borrower_id);
+    } catch (tsErr) {
+      console.error('Failed to update trust score after repayment:', tsErr);
+    }
 
     await logAuditEvent({
       eventType: EVENT_TYPES.LOAN_REPAYMENT,

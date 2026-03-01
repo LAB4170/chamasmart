@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const pool = require('../config/db');
-const { createNotification } = require('../utils/notificationService');
+const { createNotification, createBulkNotifications } = require('../utils/notificationService');
 
 // Generate unique invite code
 const generateInviteCode = () => crypto.randomBytes(4).toString('hex').toUpperCase() // e.g., "A3F2B9C1"
@@ -12,7 +12,9 @@ const generateInviteCode = () => crypto.randomBytes(4).toString('hex').toUpperCa
 const generateInvite = async (req, res) => {
   try {
     const { chamaId } = req.params;
-    const { maxUses = 1, expiresInDays = 7 } = req.body;
+    const { maxUses = 1, expiresInDays = 7, role = 'MEMBER' } = req.body;
+
+    const normalizedRole = role.toUpperCase();
 
     // Generate unique code
     let inviteCode;
@@ -35,10 +37,10 @@ const generateInvite = async (req, res) => {
 
     // Create invite
     const result = await pool.query(
-      `INSERT INTO chama_invites (chama_id, invite_code, created_by, max_uses, expires_at)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO chama_invites (chama_id, invite_code, created_by, role, max_uses, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [chamaId, inviteCode, req.user.user_id, maxUses, expiresAt],
+      [chamaId, inviteCode, req.user.user_id, normalizedRole, maxUses, expiresAt],
     );
 
     res.status(201).json({
@@ -138,12 +140,15 @@ const joinWithInvite = async (req, res) => {
     );
     const rotationPosition = positionResult.rows[0].next_position;
 
+    // Use the role from the invite code if available, otherwise default to 'MEMBER'
+    const joinRole = (invite.role || role || 'MEMBER').toUpperCase();
+
     // Add user to chama
     const memberResult = await client.query(
       `INSERT INTO chama_members (chama_id, user_id, role, rotation_position)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [invite.chama_id, userId, role, rotationPosition],
+      [invite.chama_id, userId, joinRole, rotationPosition],
     );
 
     // Update chama member count
@@ -171,6 +176,42 @@ const joinWithInvite = async (req, res) => {
       'SELECT * FROM chamas WHERE chama_id = $1',
       [invite.chama_id],
     );
+
+    // Notify other active members that someone new joined via invite code
+    try {
+      const uRes = await client.query('SELECT first_name, last_name FROM users WHERE user_id = $1', [userId]);
+      const newMemberName = `${uRes.rows[0].first_name} ${uRes.rows[0].last_name}`;
+      
+      const otherMembersRes = await client.query(
+        'SELECT user_id FROM chama_members WHERE chama_id = $1 AND is_active = true AND user_id != $2',
+        [invite.chama_id, userId]
+      );
+
+      const memberNotifications = otherMembersRes.rows.map(member => ({
+        userId: member.user_id,
+        type: 'MEMBER_JOINED',
+        title: 'New Member Joined',
+        message: `${newMemberName} has joined ${chamaResult.rows[0].chama_name}`,
+        entityType: 'CHAMA',
+        entityId: invite.chama_id
+      }));
+
+      // Create welcome notification for the new user
+      await createNotification(client, {
+        userId,
+        type: 'MEMBER_ADDED',
+        title: `Welcome to ${chamaResult.rows[0].chama_name}`,
+        message: `You successfully joined ${chamaResult.rows[0].chama_name} via invite code.`,
+        entityType: 'CHAMA',
+        entityId: invite.chama_id
+      });
+
+      if (memberNotifications.length > 0) {
+        await createBulkNotifications(client, memberNotifications);
+      }
+    } catch (notifErr) {
+      console.error('Failed to send invite join notifications', notifErr);
+    }
 
     await client.query('COMMIT');
 

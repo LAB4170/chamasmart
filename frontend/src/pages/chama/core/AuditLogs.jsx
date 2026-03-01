@@ -67,7 +67,7 @@ const AuditLogs = () => {
     if (loading) return <div className="loading-spinner">Loading Audit Logs...</div>;
 
     return (
-        <div className="page">
+        <div className="page audit-logs-page">
             <div className="container">
                 <div className="page-header">
                     <div>
@@ -86,17 +86,17 @@ const AuditLogs = () => {
 
                 {/* Summary Cards */}
                 {summary && (
-                    <div className="grid-4 mb-3">
+                    <div className="stat-grid">
                         <div className="stat-card">
-                            <h3>{summary.total_actions}</h3>
+                            <h3>{summary.total_actions || 0}</h3>
                             <p>Total Actions</p>
                         </div>
                         <div className="stat-card">
-                            <h3>{summary.unique_users}</h3>
+                            <h3>{summary.unique_users || 0}</h3>
                             <p>Active Users</p>
                         </div>
                         <div className="stat-card">
-                            <h3>{summary.today_actions}</h3>
+                            <h3>{summary.today_actions || 0}</h3>
                             <p>Actions Today</p>
                         </div>
                         <div className="stat-card">
@@ -108,7 +108,7 @@ const AuditLogs = () => {
 
                 {/* Filters */}
                 <div className="card mb-3 p-3">
-                    <div className="grid-4">
+                    <div className="filter-grid">
                         <div className="form-group mb-0">
                             <label>Action Type</label>
                             <select
@@ -149,8 +149,8 @@ const AuditLogs = () => {
                 </div>
 
                 {/* Logs Table */}
-                <div className="card">
-                    <table className="table">
+                <div className="table-responsive">
+                    <table className="audit-table">
                         <thead>
                             <tr>
                                 <th>Date & Time</th>
@@ -168,22 +168,22 @@ const AuditLogs = () => {
                                 </tr>
                             ) : (
                                 logs.map(log => (
-                                    <tr key={log.id}>
+                                    <tr key={log.audit_id}>
                                         <td>{new Date(log.created_at).toLocaleString()}</td>
                                         <td>
                                             <div className="user-info">
-                                                <span className="font-bold">{log.user_name}</span>
-                                                <span className="text-muted text-sm">{log.user_email}</span>
+                                                <span className="font-bold">{log.user_name || "System"}</span>
+                                                <span className="text-muted text-sm">{log.user_email || ""}</span>
                                             </div>
                                         </td>
                                         <td>
-                                            <span className={`badge badge-${getActionColor(log.action)}`}>
+                                            <span className={`badge badge-${getActionColor(log.action?.split(':')?.[0]?.toUpperCase() || log.action?.toUpperCase())}`}>
                                                 {log.action}
                                             </span>
                                         </td>
-                                        <td>{log.resource_type}</td>
-                                        <td className="log-details">
-                                            {log.details || "-"}
+                                        <td>{log.entity_type || log.resource}</td>
+                                        <td className="log-details" title={log.details || log.metadata ? JSON.stringify(log.metadata) : ""}>
+                                            {log.details || (log.metadata ? JSON.stringify(log.metadata) : "-")}
                                         </td>
                                         <td className="text-muted text-sm">{log.ip_address}</td>
                                     </tr>

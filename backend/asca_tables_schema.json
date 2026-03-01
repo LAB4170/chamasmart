@@ -1,0 +1,66 @@
+{
+  "asca_members": [
+    {
+      "column_name": "membership_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "cycle_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "user_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "shares_owned",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "total_investment",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "dividends_earned",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "status",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone"
+    }
+  ],
+  "asca_share_contributions": [
+    {
+      "column_name": "id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "chama_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "cycle_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "user_id",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "amount",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "number_of_shares",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "transaction_date",
+      "data_type": "timestamp with time zone"
+    }
+  ]
+}

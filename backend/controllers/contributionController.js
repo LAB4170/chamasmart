@@ -10,6 +10,7 @@ const logger = require("../utils/logger");
 const { getIo } = require("../socket");
 const { AppError } = require("../middleware/errorHandler");
 const { body, validationResult } = require("express-validator");
+const TrustScoreService = require("../utils/trustScoreService");
 
 // ============================================================================
 // MONEY HANDLING (Integer Cents)
@@ -681,6 +682,157 @@ const deleteContribution = async (req, res, next) => {
 };
 
 // ============================================================================
+// SUBMIT CONTRIBUTION (For Members - Self Service)
+// ============================================================================
+
+const submitContribution = async (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+
+  const client = await pool.connect();
+  try {
+    const { chamaId } = req.params;
+    const { amount, paymentMethod, receiptNumber, notes } = req.body;
+    const userId = req.user.user_id;
+
+    // 1. Verify membership
+    const memberCheck = await client.query(
+      'SELECT is_active FROM chama_members WHERE chama_id = $1 AND user_id = $2',
+      [chamaId, userId]
+    );
+
+    if (memberCheck.rows.length === 0 || !memberCheck.rows[0].is_active) {
+      throw new AppError('Active membership required', 403, 'NOT_MEMBER');
+    }
+
+    // 2. Create contribution entry as PENDING
+    const result = await client.query(`
+      INSERT INTO contributions 
+      (chama_id, user_id, amount, payment_method, receipt_number, notes, status, contribution_date)
+      VALUES ($1, $2, $3, $4, $5, $6, 'PENDING_VERIFICATION', NOW())
+      RETURNING *
+    `, [chamaId, userId, amount, paymentMethod || 'MPESA', receiptNumber, notes]);
+
+    const contribution = result.rows[0];
+
+    // 3. Notify officials
+    const officials = await client.query(
+      "SELECT user_id FROM chama_members WHERE chama_id = $1 AND role IN ('CHAIRPERSON', 'TREASURER')",
+      [chamaId]
+    );
+
+    for (const official of officials.rows) {
+      await client.query(`
+        INSERT INTO notifications (user_id, type, title, message, related_id)
+        VALUES ($1, 'CONTRIBUTION_SUBMITTED', 'New Contribution Submission', 
+                'A member has submitted an M-Pesa contribution for verification', $2)
+      `, [official.user_id, contribution.contribution_id]);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Contribution submitted for verification',
+      data: contribution
+    });
+  } catch (error) {
+    next(error);
+  } finally {
+    client.release();
+  }
+};
+
+// ============================================================================
+// VERIFY CONTRIBUTION (For Officials)
+// ============================================================================
+
+const verifyContribution = async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    const { chamaId, id } = req.params;
+    const { status, verificationNotes } = req.body; // 'PAID' or 'REJECTED'
+
+    if (!['PAID', 'REJECTED'].includes(status)) {
+      throw new AppError('Invalid status', 400, 'INVALID_STATUS');
+    }
+
+    // 1. Check authorization
+    await checkChamaAuthorization(client, chamaId, req.user.user_id, ['TREASURER', 'CHAIRPERSON']);
+
+    await client.query('BEGIN');
+
+    // 2. Get and lock contribution
+    const contributionRes = await client.query(
+      'SELECT * FROM contributions WHERE contribution_id = $1 AND chama_id = $2 FOR UPDATE',
+      [id, chamaId]
+    );
+
+    if (contributionRes.rows.length === 0) {
+      throw new AppError('Contribution not found', 404, 'NOT_FOUND');
+    }
+
+    const contribution = contributionRes.rows[0];
+
+    if (contribution.status === 'PAID') {
+      throw new AppError('Contribution already verified', 400, 'ALREADY_PAID');
+    }
+
+    // 3. Update status
+    await client.query(`
+      UPDATE contributions 
+      SET status = $1, 
+          notes = COALESCE(notes, '') || '\nVerification Note: ' || $2,
+          recorded_by = $3
+      WHERE contribution_id = $4
+    `, [status, verificationNotes || 'Verified by Official', req.user.user_id, id]);
+
+    // 4. If PAID, update balances
+    if (status === 'PAID') {
+      const amount = parseFloat(contribution.amount);
+      
+      await client.query(
+        'UPDATE chamas SET current_fund = current_fund + $1 WHERE chama_id = $2',
+        [amount, chamaId]
+      );
+
+      await client.query(
+        'UPDATE chama_members SET total_contributions = total_contributions + $1 WHERE chama_id = $2 AND user_id = $3',
+        [amount, chamaId, contribution.user_id]
+      );
+
+      // Trigger Trust Score Update
+      try {
+        await TrustScoreService.updateMemberTrustScore(chamaId, contribution.user_id);
+      } catch (tsErr) {
+        logger.error('Failed to update trust score after verification', { error: tsErr.message });
+        // Don't fail the whole transaction for trust score
+      }
+    }
+
+    await client.query('COMMIT');
+
+    // 5. Notify member
+    await client.query(`
+      INSERT INTO notifications (user_id, type, title, message, related_id)
+      VALUES ($1, 'CONTRIBUTION_VERIFIED', 'Contribution ${status}', 
+              'Your contribution submission has been ${status.toLowerCase()}', $2)
+    `, [contribution.user_id, id]);
+
+    res.json({
+      success: true,
+      message: `Contribution ${status.toLowerCase()} successfully`
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    next(error);
+  } finally {
+    client.release();
+  }
+};
+
+// ============================================================================
 // EXPORTS
 // ============================================================================
 
@@ -688,6 +840,8 @@ module.exports = {
   recordContribution: [contributionValidation, recordContribution],
   getContributions,
   deleteContribution,
+  submitContribution: [contributionValidation, submitContribution],
+  verifyContribution,
   // Export utilities for testing
   Money,
   IdempotencyService,

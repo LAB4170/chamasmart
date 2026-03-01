@@ -1,0 +1,19 @@
+const pool = require('./config/db');
+const fs = require('fs');
+
+async function check() {
+  try {
+    const res = await pool.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'contributions'
+    `);
+    fs.writeFileSync('contributions_schema.json', JSON.stringify(res.rows, null, 2));
+    console.log("Written to contributions_schema.json");
+  } catch (err) {
+    console.error(err);
+  } finally {
+    pool.end();
+  }
+}
+check();

@@ -433,8 +433,12 @@ async function getUserAuditLogs(userId, options = {}) {
   query += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
   params.push(limit, offset);
 
+  const countQuery = query.replace('SELECT *', 'SELECT COUNT(*)');
+  const countResult = await pool.query(countQuery.split('ORDER BY')[0], params);
+  const total = parseInt(countResult.rows[0]?.count || 0);
+
   const result = await pool.query(query, params);
-  return result.rows;
+  return { logs: result.rows, total };
 }
 
 /**
@@ -443,13 +447,13 @@ async function getUserAuditLogs(userId, options = {}) {
 async function getResourceAuditLogs(resource, resourceId) {
   const result = await pool.query(
     `SELECT * FROM audit_logs
-     WHERE entity_type = $1 AND entity_id = $2
+     WHERE resource_type = $1 AND resource_id = $2
      ORDER BY created_at DESC
      LIMIT 100`,
     [resource, resourceId],
   );
 
-  return result.rows;
+  return { logs: result.rows, total: result.rowCount };
 }
 
 /**
@@ -458,39 +462,61 @@ async function getResourceAuditLogs(resource, resourceId) {
 async function getChamaAuditLogs(chamaId, options = {}) {
   const { limit = 100, offset = 0, severity = null } = options;
 
-  let query = `
-    SELECT * FROM audit_logs
-    WHERE metadata->>'chamaId' = $1
-  `;
-  const params = [chamaId];
+  const params = [chamaId.toString()];
   let paramIndex = 2;
+  let severityClause = '';
 
   if (severity) {
-    query += ` AND severity = $${paramIndex}`;
-    params.push(severity);
+    params.push(severity.toUpperCase());
+    severityClause = ` AND al.severity = $${paramIndex}`;
     paramIndex++;
   }
 
-  query += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
   params.push(limit, offset);
 
+  const query = `
+    SELECT 
+      al.*,
+      COALESCE(u.first_name || ' ' || u.last_name, 'System') AS user_name,
+      u.email AS user_email,
+      COUNT(*) OVER() AS total_count
+    FROM audit_logs al
+    LEFT JOIN users u ON al.user_id = u.user_id
+    WHERE al.metadata->>'chamaId' = $1
+    ${severityClause}
+    ORDER BY al.created_at DESC
+    LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+  `;
+
   const result = await pool.query(query, params);
-  return result.rows;
+  const total = result.rows.length > 0 ? parseInt(result.rows[0].total_count) : 0;
+  return { logs: result.rows, total };
 }
 
 /**
- * Get security events (high/critical severity)
+ * Get critical security events across the system
+ * @param {number} hours - Number of hours to look back (default 24)
+ * @returns {Promise<Array>} Array of critical event logs
  */
-async function getSecurityEvents(hours = 24) {
+async function getSecurityEvents(hours = 24, options = {}) {
+  const { limit = 50, offset = 0 } = options;
   const result = await pool.query(
-    `SELECT * FROM audit_logs
-     WHERE severity IN ('high', 'critical')
-       AND created_at >= NOW() - INTERVAL '${hours} hours'
-     ORDER BY created_at DESC
-     LIMIT 100`,
+    `SELECT 
+       al.*,
+       COALESCE(u.first_name || ' ' || u.last_name, 'System') AS user_name,
+       u.email AS user_email,
+       COUNT(*) OVER() AS total_count
+     FROM audit_logs al
+     LEFT JOIN users u ON al.user_id = u.user_id
+     WHERE al.severity IN ('HIGH', 'CRITICAL')
+       AND al.created_at >= NOW() - INTERVAL '${hours} hours'
+     ORDER BY al.created_at DESC
+     LIMIT $1 OFFSET $2`,
+    [limit, offset],
   );
 
-  return result.rows;
+  const total = result.rows.length > 0 ? parseInt(result.rows[0].total_count) : 0;
+  return { logs: result.rows, total };
 }
 
 // ============================================================================

@@ -89,4 +89,19 @@ router.delete('/:chamaId', protect, authorize('admin', 'chairperson', 'treasurer
 // Cancel pending deactivation
 router.post('/:chamaId/cancel-delete', protect, authorize('admin', 'chairperson', 'treasurer'), cancelDeleteChama);
 
+// NEW: Analyze Reliability
+router.post('/:id/analyze-reliability', protect, authorize('admin', 'chairperson', 'treasurer'), async (req, res, next) => {
+  try {
+    const TrustScoreService = require('../utils/trustScoreService');
+    const results = await TrustScoreService.analyzeChamaReliability(req.params.id);
+    res.json({
+      success: true,
+      message: 'Reliability analysis completed for all members',
+      data: results
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

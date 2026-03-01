@@ -8,10 +8,11 @@ const {
   recordContribution,
   deleteContribution,
   getContributions,
+  submitContribution,
+  verifyContribution,
 } = require('../controllers/contributionController');
 const {
   contributionSchema,
-  updateContributionSchema,
 } = require('../utils/validationSchemas');
 const { applyFinancialRateLimiting } = require('../middleware/rateLimiting');
 
@@ -28,11 +29,25 @@ router.use(protect);
 // Record new contribution (with rate limiting for financial ops)
 router.post(
   '/:chamaId/record',
-  authorize('treasurer', 'admin'),
+  authorize('TREASURER', 'ADMIN'),
   applyFinancialRateLimiting,
   validate(contributionSchema),
-  validate(contributionSchema),
   recordContribution,
+);
+
+// Submit new contribution (Member self-service)
+router.post(
+  '/:chamaId/submit',
+  applyFinancialRateLimiting,
+  validate(contributionSchema),
+  submitContribution,
+);
+
+// Verify contribution (Treasurer/Official only)
+router.post(
+  '/:chamaId/verify/:id',
+  authorize('TREASURER', 'CHAIRPERSON'),
+  verifyContribution,
 );
 
 // Get contributions
@@ -45,7 +60,7 @@ router.get(
 // Delete contribution (admin only for safety)
 router.delete(
   '/:chamaId/:id',
-  authorize('admin', 'treasurer'),
+  authorize('ADMIN', 'TREASURER'),
   deleteContribution,
 );
 

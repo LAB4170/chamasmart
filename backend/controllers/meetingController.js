@@ -6,6 +6,8 @@
 const pool = require("../config/db");
 const { AppError } = require("../middleware/errorHandler");
 const logger = require("../utils/logger");
+const { createNotification, createBulkNotifications } = require('../utils/notificationService');
+const TrustScoreService = require("../utils/trustScoreService");
 const { body, param, validationResult } = require("express-validator");
 const {
   parsePagination,
@@ -93,8 +95,61 @@ const createMeeting = async (req, res, next) => {
       ],
     );
 
+    const meeting = result.rows[0];
+
+    // Notify all active members except the creator
+    try {
+      const membersRes = await pool.query(
+        'SELECT user_id FROM chama_members WHERE chama_id = $1 AND is_active = true AND user_id != $2',
+        [chamaId, req.user.user_id]
+      );
+      
+      const chamaName = chamaCheck.rows[0]?.chama_name || 'your chama';
+      const dateStr = new Date(scheduledAt).toLocaleString();
+      
+      const notifications = membersRes.rows.map(member => ({
+        userId: member.user_id,
+        type: 'MEETING_CREATED',
+        title: `New Meeting: ${title}`,
+        message: `Scheduled for ${dateStr} in ${chamaName}`,
+        entityType: 'MEETING',
+        entityId: meeting.meeting_id
+      }));
+
+      if (notifications.length > 0) {
+        await createBulkNotifications(null, notifications);
+      }
+    } catch (notifErr) {
+      logger.error('Failed to send meeting notifications', { error: notifErr.message, chamaId });
+    }
+    // Notify all active members except the creator
+    try {
+      const membersRes = await pool.query(
+        'SELECT user_id FROM chama_members WHERE chama_id = $1 AND is_active = true AND user_id != $2',
+        [chamaId, req.user.user_id]
+      );
+      
+      const chamaName = chamaCheck.rows[0]?.chama_name || 'your chama';
+      const dateStr = new Date(scheduledAt).toLocaleString();
+      
+      const notifications = membersRes.rows.map(member => ({
+        userId: member.user_id,
+        type: 'MEETING_CREATED',
+        title: `New Meeting: ${title}`,
+        message: `Scheduled for ${dateStr} in ${chamaName}`,
+        entityType: 'MEETING',
+        entityId: meeting.meeting_id
+      }));
+
+      if (notifications.length > 0) {
+        await createBulkNotifications(null, notifications);
+      }
+    } catch (notifErr) {
+      logger.error('Failed to send meeting notifications', { error: notifErr.message, chamaId });
+    }
+
     logger.info('Meeting created', {
-      meetingId: result.rows[0].meeting_id,
+      meetingId: meeting.meeting_id,
       chamaId,
       scheduledAt,
       by: req.user.user_id,
@@ -103,7 +158,7 @@ const createMeeting = async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: 'Meeting created successfully',
-      data: result.rows[0],
+      data: meeting,
     });
   } catch (error) {
     next(error);
@@ -365,6 +420,17 @@ const recordAttendance = async (req, res, next) => {
     }
 
     await client.query('COMMIT');
+
+    // Trigger Trust Score Updates for all members in the chama
+    // (In a real system, this might be backgrounded)
+    try {
+      const membersRes = await pool.query('SELECT user_id FROM chama_members WHERE chama_id = $1 AND is_active = true', [chamaId]);
+      for (const member of membersRes.rows) {
+        await TrustScoreService.updateMemberTrustScore(chamaId, member.user_id);
+      }
+    } catch (tsErr) {
+      logger.error('Failed to update trust scores after attendance', { error: tsErr.message });
+    }
 
     logger.info('Attendance recorded', {
       meetingId: id,

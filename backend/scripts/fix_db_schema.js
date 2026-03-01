@@ -1,4 +1,4 @@
-const pool = require('./config/db');
+const pool = require('../config/db');
 
 const fixSchema = async () => {
   const client = await pool.connect();
@@ -34,6 +34,14 @@ const fixSchema = async () => {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='chama_members' AND column_name='rotation_position') THEN 
           ALTER TABLE chama_members ADD COLUMN rotation_position INTEGER; 
         END IF; 
+
+        -- Add trust_score if missing
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='chama_members' AND column_name='trust_score') THEN 
+          ALTER TABLE chama_members ADD COLUMN trust_score INTEGER DEFAULT 0; 
+        END IF;
+
+        -- Normalize roles to uppercase
+        UPDATE chama_members SET role = UPPER(role);
       END $$;
     `);
 
@@ -44,12 +52,20 @@ const fixSchema = async () => {
           chama_id INTEGER REFERENCES chamas(chama_id) ON DELETE CASCADE,
           invite_code VARCHAR(20) UNIQUE NOT NULL,
           created_by INTEGER REFERENCES users(user_id),
+          role VARCHAR(20) DEFAULT 'MEMBER',
           max_uses INTEGER DEFAULT 1,
           uses_count INTEGER DEFAULT 0,
           expires_at TIMESTAMP,
           is_active BOOLEAN DEFAULT TRUE,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      -- Ensure role column exists if table already existed
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='chama_invites' AND column_name='role') THEN
+          ALTER TABLE chama_invites ADD COLUMN role VARCHAR(20) DEFAULT 'MEMBER';
+        END IF;
+      END $$;
     `);
 
     // 4. Ensure meetings table has recorded_by

@@ -133,7 +133,7 @@ const AddMember = () => {
                 const genRes = await inviteAPI.generate(id, {
                     maxUses: 10,
                     expiresInDays: 7,
-                    role: selectedRole.toLowerCase()
+                    role: selectedRole
                 });
                 setActiveCode(genRes.data.data);
             }

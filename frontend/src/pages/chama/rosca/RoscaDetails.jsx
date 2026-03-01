@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { roscaAPI } from "../../../services/api";
 import { toast } from "react-toastify";
+import { ArrowLeft, Users, Calendar, CircleDot, CheckCircle2 } from "lucide-react";
 import "./Rosca.css";
 
 const RoscaDetails = () => {
