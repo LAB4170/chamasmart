@@ -235,24 +235,26 @@ server.on("error", (err) => {
   }
 });
 
-server.listen(PORT, "0.0.0.0", async () => {
-  console.log(`STABILIZED: Server running on port ${PORT}`);
-  logger.info(`Server running on port ${PORT}`);
+if (require.main === module) {
+  server.listen(PORT, "0.0.0.0", async () => {
+    console.log(`STABILIZED: Server running on port ${PORT}`);
+    logger.info(`Server running on port ${PORT}`);
 
-  // Run health checks
-  if (process.env.NODE_ENV !== "test") {
-    const { performHealthCheck } = require("./utils/healthCheck");
-    try {
-      await performHealthCheck();
-    } catch (error) {
-      console.error("Health check error:", error);
+    // Run health checks
+    if (process.env.NODE_ENV !== "test") {
+      const { performHealthCheck } = require("./utils/healthCheck");
+      try {
+        await performHealthCheck();
+      } catch (error) {
+        console.error("Health check error:", error);
+      }
     }
-  }
 
-  // Initialize Background Scheduler
-  const { initScheduler } = require('./utils/scheduler');
-  initScheduler();
-});
+    // Initialize Background Scheduler
+    const { initScheduler } = require('./utils/scheduler');
+    initScheduler();
+  });
+}
 
 // Initialize Socket.io (if configured) except during unit tests to avoid
 // attempting external Redis connections in CI/test environments.

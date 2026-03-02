@@ -59,14 +59,21 @@ const changePasswordSchema = Joi.object({
 const createChamaSchema = Joi.object({
   chamaName: Joi.string().min(3).max(100).required(),
   chamaType: Joi.string().valid('ROSCA', 'ASCA', 'TABLE_BANKING', 'WELFARE').required(),
-  description: Joi.string().max(500).optional().allow(''),
+  description: Joi.string().max(500).optional().allow('', null),
   contributionAmount: Joi.number().positive().required(),
   contributionFrequency: Joi.string()
-    .valid('WEEKLY', 'MONTHLY', 'BI_WEEKLY')
+    .valid('WEEKLY', 'BIWEEKLY', 'MONTHLY')
     .required(),
   meetingDay: Joi.string().required(),
   meetingTime: Joi.string().optional().allow(null, ''),
   visibility: Joi.string().valid('PUBLIC', 'PRIVATE').default('PRIVATE'),
+  paymentMethods: Joi.object({
+    type: Joi.string().valid('PAYBILL', 'TILL', 'POCHI').optional(),
+    businessNumber: Joi.string().optional().allow('', null),
+    accountNumber: Joi.string().optional().allow('', null),
+    tillNumber: Joi.string().optional().allow('', null),
+    phoneNumber: Joi.string().optional().allow('', null),
+  }).optional().default({}),
 });
 
 const updateChamaSchema = Joi.object({
@@ -95,9 +102,10 @@ const contributionSchema = Joi.object({
   userId: Joi.number().integer().required(),
   amount: Joi.number().positive().required(),
   paymentMethod: Joi.string().valid('CASH', 'MPESA', 'BANK_TRANSFER', 'CHEQUE').optional(),
-  receiptNumber: Joi.string().max(100).optional().allow(''),
-  notes: Joi.string().max(500).optional().allow(''),
-  contributionDate: Joi.date().iso().optional()
+  receiptNumber: Joi.string().max(100).optional().allow('', null),
+  notes: Joi.string().max(500).optional().allow('', null),
+  contributionDate: Joi.date().iso().optional(),
+  status: Joi.string().valid('PENDING', 'COMPLETED', 'FAILED').default('PENDING'),
 });
 
 // Meeting Schemas
@@ -153,26 +161,33 @@ const respondToJoinRequestSchema = Joi.object({
 
 // ROSCA Schemas
 const createCycleSchema = Joi.object({
-  contributionAmount: Joi.number().positive().required(),
-  payoutOrder: Joi.array().items(Joi.number().integer()).required(),
-  startDate: Joi.date().iso().required(),
+  chama_id: Joi.number().integer().required(),
+  cycle_name: Joi.string().min(3).max(100).required(),
+  contribution_amount: Joi.number().positive().required(),
+  frequency: Joi.string().valid('WEEKLY', 'BIWEEKLY', 'MONTHLY').required(),
+  start_date: Joi.date().iso().required(),
+  roster_method: Joi.string().valid('RANDOM', 'TRUST', 'MANUAL').default('RANDOM'),
+  manual_roster: Joi.array().items(Joi.number().integer()).when('roster_method', {
+    is: 'MANUAL',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
 });
 
 const processPayoutSchema = Joi.object({
-  memberId: Joi.number().integer().required(),
-  amount: Joi.number().positive().required(),
-  notes: Joi.string().max(500).optional(),
+  position: Joi.number().integer().positive().required(),
+  payment_proof: Joi.string().max(512).optional().allow('', null),
+  reference_id: Joi.string().max(100).optional().allow('', null),
 });
 
 const requestPositionSwapSchema = Joi.object({
-  currentPosition: Joi.number().integer().required(),
-  requestedPosition: Joi.number().integer().required(),
+  target_position: Joi.number().integer().positive().required(),
   reason: Joi.string().min(5).max(500).required(),
 });
 
 const respondToSwapRequestSchema = Joi.object({
-  status: Joi.string().valid('approved', 'rejected').required(),
-  message: Joi.string().max(500).optional(),
+  action: Joi.string().valid('APPROVED', 'REJECTED').required(),
+  message: Joi.string().max(500).optional().allow('', null),
 });
 
 // ASCA Schemas
