@@ -12,12 +12,12 @@
 ## Phases
 
 ### Phase 1: ROSCA Logic Stabilization
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Fix critical bugs in payout eligibility and trust score querying.
 **Requirements**: REQ-01, REQ-02, REQ-03
 
 ### Phase 2: Schema & Validation Sync
-**Status**: ⬜ Not Started
+**Status**: 🚧 In Progress
 **Objective**: Update all Joi schemas and ensure they match controller logic across the project.
 **Requirements**: REQ-04
 
