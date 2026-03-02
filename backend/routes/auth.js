@@ -11,18 +11,28 @@ const {
 } = require("../controllers/authController");
 const { protect } = require("../middleware/auth");
 const validate = require("../middleware/validate");
-const { registerSchema, loginSchema } = require("../utils/validationSchemas");
+const { applyAuthRateLimiting } = require("../middleware/rateLimiting");
+const { 
+  registerPasswordSchema, 
+  loginPasswordSchema 
+} = require("../utils/validationSchemas");
 
-// Public routes
-router.post("/register", validate(registerSchema), register);
-router.post("/login", validate(loginSchema), login);
-router.post("/refresh", refreshTokens); // NEW: Token refresh endpoint
-router.post("/verify-email", verifyEmail);
-router.post("/firebase-sync", firebaseSync); // NEW: Firebase sync endpoint
+// ============================================================================
+// PUBLIC ROUTES
+// ============================================================================
 
-// Protected routes
+router.post("/register", applyAuthRateLimiting, validate(registerPasswordSchema), register);
+router.post("/login", applyAuthRateLimiting, validate(loginPasswordSchema), login);
+router.post("/refresh", applyAuthRateLimiting, refreshTokens);
+router.post("/firebase-sync", applyAuthRateLimiting, firebaseSync);
+
+// ============================================================================
+// PROTECTED ROUTES
+// ============================================================================
+
 router.get("/me", protect, (req, res) => res.json({ success: true, data: req.user }));
-router.post("/logout", protect, logout); // NEW: Logout endpoint
-router.post("/verify-phone", protect, verifyPhone);
+router.post("/logout", protect, logout);
+router.post("/verify-email", protect, applyAuthRateLimiting, verifyEmail);
+router.post("/verify-phone", protect, applyAuthRateLimiting, verifyPhone);
 
 module.exports = router;

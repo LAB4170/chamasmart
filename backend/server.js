@@ -158,11 +158,9 @@ app.get("/api/ping", (req, res) =>
   res.json({ success: true, message: "pong" }),
 );
 
-// Legacy auth routes (existing)
+// Authentication routes
 app.use("/api/auth", require("./routes/auth"));
-
-// NEW: Multi-option auth routes (Email OTP, Phone OTP, Google OAuth, API Keys)
-app.use("/api/auth/v2", require("./routes/authV2"));
+app.use("/api/auth/v2", require("./routes/auth")); // Backward compatibility alias
 
 app.use("/api/chamas", require("./routes/chamas"));
 app.use("/api/members", require("./routes/members"));
@@ -214,17 +212,27 @@ app.use((req, res, next) => {
 
 // Global error handling
 app.use((err, req, res, next) => {
-  err.statusCode = err.statusCode || 500;
-  console.error("SERVER ERROR:", err.message);
+  const statusCode = err.statusCode || 500;
+  const isDev = process.env.NODE_ENV !== 'production';
+
+  console.error(`[SERVER ERROR] ${req.method} ${req.url}:`, err.message);
+  if (isDev) {
+    console.error(err.stack);
+  }
+
   logger.error({
     message: err.message,
     stack: err.stack,
     method: req.method,
     url: req.url,
+    statusCode: statusCode,
   });
-  res
-    .status(err.statusCode)
-    .json({ success: false, message: "Internal server error" });
+
+  res.status(statusCode).json({
+    success: false,
+    message: (statusCode === 500 && !isDev) ? "Internal server error" : err.message,
+    error: isDev ? err.stack : undefined,
+  });
 });
 
 // Start server
