@@ -6,6 +6,7 @@ const { protect, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const {
   recordContribution,
+  bulkRecordContributions,
   deleteContribution,
   getContributions,
   submitContribution,
@@ -13,6 +14,7 @@ const {
 } = require('../controllers/contributionController');
 const {
   contributionSchema,
+  bulkContributionSchema,
 } = require('../utils/validationSchemas');
 const { applyFinancialRateLimiting } = require('../middleware/rateLimiting');
 
@@ -33,6 +35,15 @@ router.post(
   applyFinancialRateLimiting,
   validate(contributionSchema),
   recordContribution,
+);
+
+// Bulk record contributions (Treasurer/Chairperson/Secretary/Admin)
+router.post(
+  '/:chamaId/bulk-record',
+  authorize('TREASURER', 'CHAIRPERSON', 'SECRETARY', 'ADMIN'),
+  applyFinancialRateLimiting,
+  validate(bulkContributionSchema),
+  bulkRecordContributions,
 );
 
 // Submit new contribution (Member self-service)

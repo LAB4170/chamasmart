@@ -27,8 +27,8 @@ const querySchema = Joi.object({
   status: Joi.string().allow('').max(50),
   type: Joi.string().allow('').max(50),
   chamaType: Joi.string().allow('').max(50),
-  startDate: Joi.date().iso(),
-  endDate: Joi.date().iso(),
+  startDate: Joi.date().iso().allow(''),
+  endDate: Joi.date().iso().allow(''),
 
   // Debugging
   debug: Joi.boolean(),
@@ -55,7 +55,11 @@ const validateQueryParams = (req, res, next) => {
       errors: details,
     });
 
-    return res.validationError(details);
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid query parameters',
+      errors: details
+    });
   }
 
   // Replace query with validated values

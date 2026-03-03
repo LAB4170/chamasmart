@@ -30,19 +30,6 @@ const PORT = process.env.PORT || 5005;
 // Apply security middleware FIRST (before all routes)
 securityMiddleware(app);
 
-// Basic health check (no middleware)
-app.get("/api/ping", (req, res) =>
-  res.json({ success: true, message: "pong" }),
-);
-app.get("/health", (req, res) =>
-  res.json({
-    uptime: process.uptime(),
-    message: "OK",
-    timestamp: Date.now(),
-    port: PORT,
-  }),
-);
-
 // Trust proxy
 app.set("trust proxy", 1);
 
@@ -64,99 +51,15 @@ app.use(responseFormatterMiddleware);
 app.use(metricsMiddleware);
 
 // ============================================================================
-// CRITICAL: Rate Limiting Middleware for Authentication
+// API ROUTES
 // ============================================================================
 
-// Import enhanced rate limiting
-const {
-  checkLoginRateLimit,
-  checkOtpRateLimit,
-  checkPasswordResetRateLimit,
-} = require("./security/enhancedRateLimiting");
-
-// Rate limit: Login attempts (3 per 15 minutes per email)
-app.use("/api/auth/login", async (req, res, next) => {
-  try {
-    // Use email if provided, otherwise IP
-    const identifier = req.body.email || req.ip;
-    const isLimited = await checkLoginRateLimit(identifier, req.ip);
-
-    if (isLimited) {
-      return res.status(429).json({
-        success: false,
-        message: "Too many login attempts. Please try again in 15 minutes.",
-      });
-    }
-    next();
-  } catch (err) {
-    logger.error("Rate limit check failed", {
-      context: "rate_limit_login",
-      error: err.message,
-    });
-    next(); // Continue on error to avoid breaking auth
-  }
-});
-
-// Rate limit: OTP verification (5 per 15 minutes)
-app.use("/api/auth/verify-phone", async (req, res, next) => {
-  try {
-    const isLimited = await checkOtpRateLimit(req.user?.user_id, req.ip);
-
-    if (isLimited) {
-      return res.status(429).json({
-        success: false,
-        message: "Too many OTP attempts. Please try again later.",
-      });
-    }
-    next();
-  } catch (err) {
-    logger.error("Rate limit check failed", {
-      context: "rate_limit_otp",
-      error: err.message,
-    });
-    next();
-  }
-});
-
-// Rate limit: Password reset (2 per hour)
-app.use("/api/auth/password-reset", async (req, res, next) => {
-  try {
-    const identifier = req.body.email || req.ip;
-    const isLimited = await checkPasswordResetRateLimit(identifier, req.ip);
-
-    if (isLimited) {
-      return res.status(429).json({
-        success: false,
-        message: "Too many password reset requests. Please try again later.",
-      });
-    }
-    next();
-  } catch (err) {
-    logger.error("Rate limit check failed", {
-      context: "rate_limit_password",
-      error: err.message,
-    });
-    next();
-  }
-});
-
-logger.info("Rate limiting middleware activated", {
-  context: "server_init",
-  limits: {
-    login: "3 per 15 minutes",
-    otp: "5 per 15 minutes",
-    passwordReset: "2 per hour",
-  },
-});
-
-// ============================================================================
-// End Rate Limiting Section
-// ============================================================================
-
-// API Routes
-app.get("/api/ping", (req, res) =>
-  res.json({ success: true, message: "pong" }),
-);
+// Health & Observability (first, before auth)
+app.get("/api/ping", (req, res) => res.json({ success: true, message: "pong" }));
+app.get("/health", healthCheckEndpoint);
+app.get("/api/health", healthCheckEndpoint);
+app.get("/readiness", readinessCheckEndpoint);
+app.get("/metrics", metricsEndpoint);
 
 // Authentication routes
 app.use("/api/auth", require("./routes/auth"));
@@ -165,6 +68,7 @@ app.use("/api/auth/v2", require("./routes/auth")); // Backward compatibility ali
 app.use("/api/chamas", require("./routes/chamas"));
 app.use("/api/members", require("./routes/members"));
 app.use("/api/contributions", require("./routes/contributions"));
+app.use("/api/payments/mpesa", require("./routes/mpesa"));
 app.use("/api/meetings", require("./routes/meetings"));
 app.use("/api/invites", require("./routes/invites"));
 app.use("/api/loans", require("./routes/loans"));
@@ -179,11 +83,6 @@ app.use("/api/dividends", require("./routes/dividendRoutes"));
 app.use("/api/reports", require("./routes/reportRoutes"));
 app.use("/api/audit", require("./routes/auditRoutes"));
 
-// Health/Metrics
-app.get("/health", healthCheckEndpoint);
-app.get("/metrics", metricsEndpoint);
-app.get("/api/health", healthCheckEndpoint);
-app.get("/readiness", readinessCheckEndpoint);
 
 // Serve static assets
 const distPath = path.join(__dirname, "../frontend/dist");
@@ -237,7 +136,7 @@ app.use((err, req, res, next) => {
 
 // Start server
 server.on("error", (err) => {
-  console.error("SERVER FATAL ERROR:", err.message);
+  logger.error("SERVER FATAL ERROR", { code: err.code, message: err.message });
   if (err.code === "EADDRINUSE") {
     process.exit(1);
   }

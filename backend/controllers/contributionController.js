@@ -62,7 +62,7 @@ const contributionValidation = [
     .toFloat(),
   body("paymentMethod")
     .optional()
-    .isIn(["CASH", "MPESA", "BANK_TRANSFER", "CHEQUE"])
+    .isIn(["CASH", "MPESA", "BANK_TRANSFER", "CHEQUE", "OTHER"])
     .withMessage("Invalid payment method")
     .toUpperCase(),
   body("receiptNumber")
@@ -71,6 +71,11 @@ const contributionValidation = [
     .isLength({ max: 100 })
     .withMessage("Receipt number too long")
     .escape(),
+  body("paymentProof")
+    .optional()
+    .trim()
+    .isLength({ max: 512 })
+    .withMessage("Payment proof URL too long"),
   body("notes")
     .optional()
     .trim()
@@ -82,7 +87,59 @@ const contributionValidation = [
     .isISO8601()
     .withMessage("Invalid date format")
     .toDate(),
+  body("verificationStatus")
+    .optional()
+    .isIn(["PENDING", "VERIFIED", "REJECTED"])
+    .withMessage("Invalid verification status"),
 ];
+
+// ============================================================================
+// ROSCA CYCLE RESOLUTION HELPER
+// ============================================================================
+
+/**
+ * Resolves the active ROSCA cycle for a chama if it is a ROSCA type.
+ * Returns { cycle_id, contribution_amount, cycle_name } or null.
+ */
+async function resolveRoscaCycle(client, chamaId) {
+  // Get chama type first
+  const chamaTypeRes = await client.query(
+    'SELECT chama_type FROM chamas WHERE chama_id = $1',
+    [chamaId]
+  );
+
+  if (chamaTypeRes.rows.length === 0 || chamaTypeRes.rows[0].chama_type !== 'ROSCA') {
+    return null; // Not a ROSCA chama — no cycle needed
+  }
+
+  // Fetch active cycle
+  const cycleRes = await client.query(
+    `SELECT cycle_id, cycle_name, contribution_amount 
+     FROM rosca_cycles 
+     WHERE chama_id = $1 AND status = 'ACTIVE' 
+     ORDER BY created_at DESC 
+     LIMIT 1`,
+    [chamaId]
+  );
+
+  if (cycleRes.rows.length === 0) {
+    // No active cycle — check for PENDING cycles
+    const pendingRes = await client.query(
+      `SELECT cycle_id, cycle_name, contribution_amount 
+       FROM rosca_cycles 
+       WHERE chama_id = $1 AND status = 'PENDING' 
+       ORDER BY created_at DESC 
+       LIMIT 1`,
+      [chamaId]
+    );
+    if (pendingRes.rows.length > 0) {
+      return { ...pendingRes.rows[0], warningNoActive: true };
+    }
+    return null; // No cycles at all
+  }
+
+  return cycleRes.rows[0];
+}
 
 // ============================================================================
 // AUTHORIZATION HELPER
@@ -221,8 +278,10 @@ const recordContribution = async (req, res, next) => {
       amount,
       paymentMethod = "CASH",
       receiptNumber,
+      paymentProof,
       notes,
       contributionDate,
+      verificationStatus = "VERIFIED",
     } = req.body;
 
     // Check authorization
@@ -234,6 +293,7 @@ const recordContribution = async (req, res, next) => {
 
     // Convert to cents
     const amountCents = Money.toCents(amount);
+    
 
     // Duplicate detection
     const isDuplicate = await DuplicateDetector.isDuplicate({
@@ -251,13 +311,16 @@ const recordContribution = async (req, res, next) => {
       );
     }
 
+    // Resolve ROSCA cycle (before transaction lock)
+    const roscaCycle = await resolveRoscaCycle(client, chamaId);
+
     // Begin transaction
     await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
 
     try {
       // Verify chama exists and is active
       const chamaResult = await client.query(
-        "SELECT chama_id, is_active FROM chamas WHERE chama_id = $1 FOR UPDATE",
+        "SELECT chama_id, is_active, chama_type FROM chamas WHERE chama_id = $1 FOR UPDATE",
         [chamaId],
       );
 
@@ -267,6 +330,16 @@ const recordContribution = async (req, res, next) => {
 
       if (!chamaResult.rows[0].is_active) {
         throw new AppError("Chama is not active", 400, "CHAMA_INACTIVE");
+      }
+
+      // For ROSCA chamas, ensure there's an active/pending cycle
+      const chamaType = chamaResult.rows[0].chama_type;
+      if (chamaType === 'ROSCA' && !roscaCycle) {
+        throw new AppError(
+          'No active or pending ROSCA cycle found. Please create a cycle before recording contributions.',
+          400,
+          'NO_ACTIVE_CYCLE'
+        );
       }
 
       // Verify member exists and is active
@@ -290,56 +363,77 @@ const recordContribution = async (req, res, next) => {
         throw new AppError("Member is not active", 400, "MEMBER_INACTIVE");
       }
 
-      // Record contribution
+      // Record contribution — populate cycle_id for ROSCA
+      const technicalStatus = verificationStatus === 'VERIFIED' ? 'COMPLETED' : 'PENDING';
+      const cycleId = roscaCycle?.cycle_id || null;
       const contributionResult = await client.query(
         `INSERT INTO contributions 
-         (chama_id, user_id, amount, payment_method, receipt_number, 
-          recorded_by, notes, contribution_date, idempotency_key)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-         RETURNING contribution_id, chama_id, user_id, amount, 
-                   payment_method, receipt_number, contribution_date, created_at`,
+         (chama_id, user_id, amount, payment_method, receipt_number, payment_proof, 
+          recorded_by, notes, contribution_date, idempotency_key, verification_status, status, cycle_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         RETURNING contribution_id, chama_id, user_id, amount, cycle_id,
+                   payment_method, receipt_number, payment_proof, contribution_date, 
+                   verification_status, status, created_at`,
         [
           chamaId,
           userId,
           amount,
           paymentMethod,
           receiptNumber || null,
+          paymentProof || null,
           req.user.user_id,
           notes || null,
           contributionDate || new Date(),
-          idempotencyKey,
+          idempotencyKey || null,
+          verificationStatus,
+          technicalStatus,
+          cycleId,
         ],
       );
 
       const contribution = contributionResult.rows[0];
 
-      // Update chama fund
-      const updateChamaResult = await client.query(
-        `UPDATE chamas 
-         SET current_fund = COALESCE(current_fund, 0) + $1,
-             updated_at = NOW()
-         WHERE chama_id = $2
-         RETURNING current_fund`,
-        [amount, chamaId],
-      );
+      // Update Balances if VERIFIED instantly (for cash/official records)
+      let newChamaBalance;
+      let newMemberBalance;
 
-      const newChamaBalance = updateChamaResult.rows[0].current_fund;
+      if (verificationStatus === 'VERIFIED') {
+        const updateChamaResult = await client.query(
+          `UPDATE chamas 
+           SET current_fund = COALESCE(current_fund, 0) + $1,
+               updated_at = NOW()
+           WHERE chama_id = $2
+           RETURNING current_fund`,
+          [amount, chamaId],
+        );
+        newChamaBalance = updateChamaResult.rows[0].current_fund;
 
-      // Update member contributions
-      const updateMemberResult = await client.query(
-        `UPDATE chama_members 
-         SET total_contributions = COALESCE(total_contributions, 0) + $1,
-             updated_at = NOW()
-         WHERE chama_id = $2 AND user_id = $3
-         RETURNING total_contributions`,
-        [amount, chamaId, userId],
-      );
-
-      const newMemberBalance =
-        updateMemberResult.rows[0].total_contributions;
+        const updateMemberResult = await client.query(
+          `UPDATE chama_members 
+           SET total_contributions = COALESCE(total_contributions, 0) + $1,
+               last_contribution_date = NOW(),
+               updated_at = NOW()
+           WHERE chama_id = $2 AND user_id = $3
+           RETURNING total_contributions`,
+          [amount, chamaId, userId],
+        );
+        newMemberBalance = updateMemberResult.rows[0].total_contributions;
+      } else {
+        // Just fetch current balances for the response if not updating
+        const chamaBalRes = await client.query("SELECT current_fund FROM chamas WHERE chama_id = $1", [chamaId]);
+        const memberBalRes = await client.query("SELECT total_contributions FROM chama_members WHERE chama_id = $1 AND user_id = $2", [chamaId, userId]);
+        newChamaBalance = chamaBalRes.rows[0]?.current_fund || 0;
+        newMemberBalance = memberBalRes.rows[0]?.total_contributions || 0;
+      }
 
       // Commit transaction
       await client.query("COMMIT");
+
+      if (verificationStatus === 'VERIFIED') {
+        TrustScoreService.updateMemberTrustScore(chamaId, userId).catch(err => {
+          logger.error('Failed to async update trust score', { error: err.message, userId });
+        });
+      }
 
       // Prepare response
       const responseData = {
@@ -359,6 +453,7 @@ const recordContribution = async (req, res, next) => {
           success: true,
           message: "Contribution recorded successfully",
           data: responseData,
+          ...(roscaCycle?.warningNoActive ? { warning: 'No ACTIVE cycle found. Contribution linked to PENDING cycle.' } : {}),
         },
       };
 
@@ -368,14 +463,16 @@ const recordContribution = async (req, res, next) => {
       // Emit real-time event (non-blocking)
       setImmediate(() => {
         try {
-          const io = getIo();
-          io.to(`chama_${chamaId}`).emit("contribution_recorded", {
-            chamaId,
-            contribution: responseData.contribution,
-            balances: responseData.balances,
-          });
+          if (process.env.NODE_ENV !== 'test') {
+            const io = getIo();
+            io.to(`chama_${chamaId}`).emit("contribution_recorded", {
+              chamaId,
+              contribution: responseData.contribution,
+              balances: responseData.balances,
+            });
+          }
         } catch (err) {
-          logger.error("WebSocket emission failed", { error: err.message });
+          logger.warn("WebSocket emission failed", { error: err.message });
         }
       });
 
@@ -426,6 +523,183 @@ const recordContribution = async (req, res, next) => {
 };
 
 // ============================================================================
+// BULK RECORD CONTRIBUTIONS
+// ============================================================================
+
+const bulkRecordContributions = async (req, res, next) => {
+  const client = await pool.connect();
+  let idempotencyKey;
+
+  try {
+    idempotencyKey = IdempotencyService.generateKey(req);
+    const cachedResponse = await IdempotencyService.check(idempotencyKey);
+    if (cachedResponse) {
+      return res.status(cachedResponse.status).json(cachedResponse.body);
+    }
+
+    const { chamaId } = req.params;
+    const { contributions } = req.body;
+
+    // Authorization check
+    await checkChamaAuthorization(client, chamaId, req.user.user_id, [
+      "TREASURER",
+      "CHAIRPERSON",
+      "SECRETARY",
+    ]);
+
+    // Resolve ROSCA cycle before transaction
+    const roscaCycle = await resolveRoscaCycle(client, chamaId);
+
+    await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
+
+    const successes = [];
+    
+    // Verify chama
+    const chamaRes = await client.query(
+      "SELECT chama_id, is_active, current_fund, chama_type FROM chamas WHERE chama_id = $1 FOR UPDATE",
+      [chamaId]
+    );
+
+    if (chamaRes.rows.length === 0) {
+      throw new AppError("Chama not found", 404, "CHAMA_NOT_FOUND");
+    }
+
+    if (!chamaRes.rows[0].is_active) {
+      throw new AppError("Chama is not active", 400, "CHAMA_INACTIVE");
+    }
+
+    // Guard: ROSCA needs a cycle
+    if (chamaRes.rows[0].chama_type === 'ROSCA' && !roscaCycle) {
+      throw new AppError(
+        'No active or pending ROSCA cycle found. Please create a cycle before bulk recording.',
+        400,
+        'NO_ACTIVE_CYCLE'
+      );
+    }
+
+    let currentChamaFund = Money.toCents(chamaRes.rows[0].current_fund || 0);
+
+    for (const entry of contributions) {
+      const {
+        userId,
+        amount,
+        paymentMethod = "CASH",
+        receiptNumber,
+        paymentProof,
+        notes,
+        contributionDate,
+        verificationStatus = "VERIFIED",
+      } = entry;
+
+      const amountCents = Money.toCents(amount);
+
+      // Duplicate detection
+      const isDuplicate = await DuplicateDetector.isDuplicate({
+        chamaId,
+        userId,
+        amount: amountCents,
+        paymentMethod,
+      });
+
+      if (isDuplicate) {
+        throw new AppError(`Duplicate submission detected for user ${userId}`, 409, "DUPLICATE_DETECTED");
+      }
+
+      // Verify member
+      const memberRes = await client.query(
+        "SELECT user_id, is_active FROM chama_members WHERE chama_id = $1 AND user_id = $2 FOR UPDATE",
+        [chamaId, userId]
+      );
+
+      if (memberRes.rows.length === 0) {
+        throw new AppError(`User ${userId} is not a member`, 400, "NOT_MEMBER");
+      }
+
+      if (!memberRes.rows[0].is_active) {
+        throw new AppError(`Member ${userId} is not active`, 400, "MEMBER_INACTIVE");
+      }
+
+      const technicalStatus = verificationStatus === 'VERIFIED' ? 'COMPLETED' : 'PENDING';
+
+      const cycleId = roscaCycle?.cycle_id || null;
+      const contribRes = await client.query(
+        `INSERT INTO contributions 
+         (chama_id, user_id, amount, payment_method, receipt_number, payment_proof, 
+          recorded_by, notes, contribution_date, verification_status, status, cycle_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         RETURNING contribution_id, amount, cycle_id`,
+        [chamaId, userId, amount, paymentMethod, receiptNumber || null, paymentProof || null, 
+         req.user.user_id, notes || null, contributionDate || new Date(), verificationStatus, technicalStatus, cycleId]
+      );
+
+      const contributionId = contribRes.rows[0].contribution_id;
+
+      if (verificationStatus === 'VERIFIED') {
+        await client.query(
+          `UPDATE chama_members SET total_contributions = COALESCE(total_contributions, 0) + $1, 
+           last_contribution_date = NOW(), updated_at = NOW() 
+           WHERE chama_id = $2 AND user_id = $3`,
+          [amount, chamaId, userId]
+        );
+        currentChamaFund += amountCents;
+      }
+
+      successes.push({ contributionId, userId, amount });
+    }
+
+    // Update Chama Fund
+    const updatedChamaFund = Money.fromCents(currentChamaFund);
+    await client.query(
+      "UPDATE chamas SET current_fund = $1, updated_at = NOW() WHERE chama_id = $2",
+      [updatedChamaFund, chamaId]
+    );
+
+    await client.query("COMMIT");
+
+    // Async trust score update for all successful users
+    const verifiedUsers = [...new Set(successes.filter(s => s.status === 'COMPLETED').map(s => s.userId))];
+    verifiedUsers.forEach(verifiedUserId => {
+      TrustScoreService.updateMemberTrustScore(chamaId, verifiedUserId).catch(err => {
+        logger.error('Bulk TrustScore Update Error', { error: err.message, userId: verifiedUserId });
+      });
+    });
+
+    const response = {
+      status: 201,
+      body: {
+        success: true,
+        message: `${successes.length} contributions recorded successfully`,
+        data: {
+          chamaId,
+          count: successes.length,
+          totalAmount: Money.fromCents(contributions.reduce((acc, c) => acc + Money.toCents(c.amount), 0)),
+          chamaBalance: updatedChamaFund,
+          cycleId: roscaCycle?.cycle_id || null,
+          cycleName: roscaCycle?.cycle_name || null,
+        },
+        ...(roscaCycle?.warningNoActive ? { warning: 'No ACTIVE cycle found. Contributions linked to PENDING cycle.' } : {})
+      }
+    };
+
+    await IdempotencyService.store(idempotencyKey, response);
+
+    return res.status(201).json(response.body);
+
+  } catch (err) {
+    if (client) await client.query("ROLLBACK");
+    
+    if (err.code === "40001") {
+      return next(new AppError("Concurrent transaction conflict. Please retry.", 409, "SERIALIZATION_ERROR"));
+    }
+
+    logger.error("Bulk contribution recording failed", { error: err.message, chamaId: req.params.chamaId });
+    next(err);
+  } finally {
+    if (client) client.release();
+  }
+};
+
+// ============================================================================
 // GET CONTRIBUTIONS
 // ============================================================================
 
@@ -471,6 +745,7 @@ const getContributions = async (req, res, next) => {
     let query = `
       SELECT c.contribution_id, c.chama_id, c.user_id, c.amount,
              c.payment_method, c.receipt_number, c.contribution_date, c.created_at,
+             c.verification_status, c.status, c.notes,
              u.first_name || ' ' || u.last_name as contributor_name,
              r.first_name || ' ' || r.last_name as recorded_by_name
       FROM contributions c
@@ -694,7 +969,7 @@ const submitContribution = async (req, res, next) => {
   const client = await pool.connect();
   try {
     const { chamaId } = req.params;
-    const { amount, paymentMethod, receiptNumber, notes } = req.body;
+    const { amount, paymentMethod, receiptNumber, paymentProof, notes } = req.body;
     const userId = req.user.user_id;
 
     // 1. Verify membership
@@ -710,10 +985,10 @@ const submitContribution = async (req, res, next) => {
     // 2. Create contribution entry as PENDING
     const result = await client.query(`
       INSERT INTO contributions 
-      (chama_id, user_id, amount, payment_method, receipt_number, notes, status, contribution_date)
-      VALUES ($1, $2, $3, $4, $5, $6, 'PENDING_VERIFICATION', NOW())
+      (chama_id, user_id, amount, payment_method, receipt_number, payment_proof, notes, verification_status, status, contribution_date)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING', 'PENDING', NOW())
       RETURNING *
-    `, [chamaId, userId, amount, paymentMethod || 'MPESA', receiptNumber, notes]);
+    `, [chamaId, req.user.user_id, amount, paymentMethod || 'MPESA', receiptNumber, paymentProof, notes]);
 
     const contribution = result.rows[0];
 
@@ -725,17 +1000,35 @@ const submitContribution = async (req, res, next) => {
 
     for (const official of officials.rows) {
       await client.query(`
-        INSERT INTO notifications (user_id, type, title, message, related_id)
+        INSERT INTO notifications (user_id, type, title, message, entity_type, entity_id)
         VALUES ($1, 'CONTRIBUTION_SUBMITTED', 'New Contribution Submission', 
-                'A member has submitted an M-Pesa contribution for verification', $2)
+                'A member has submitted an M-Pesa contribution for verification', 'CONTRIBUTION', $2)
       `, [official.user_id, contribution.contribution_id]);
     }
 
-    res.status(201).json({
+    // Response formatting
+    const responseData = {
       success: true,
       message: 'Contribution submitted for verification',
       data: contribution
+    };
+
+    // Emit real-time event
+    setImmediate(() => {
+      try {
+        if (process.env.NODE_ENV !== 'test') {
+          const io = getIo();
+          io.to(`chama_${chamaId}`).emit('contribution_submitted', {
+            chamaId,
+            contribution_id: contribution.contribution_id
+          });
+        }
+      } catch (err) {
+        logger.warn('Socket notification failed', { error: err.message });
+      }
     });
+
+    res.status(201).json(responseData);
   } catch (error) {
     next(error);
   } finally {
@@ -751,10 +1044,10 @@ const verifyContribution = async (req, res, next) => {
   const client = await pool.connect();
   try {
     const { chamaId, id } = req.params;
-    const { status, verificationNotes } = req.body; // 'PAID' or 'REJECTED'
+    const { status, verificationNotes } = req.body; // 'VERIFIED' or 'REJECTED'
 
-    if (!['PAID', 'REJECTED'].includes(status)) {
-      throw new AppError('Invalid status', 400, 'INVALID_STATUS');
+    if (!['VERIFIED', 'REJECTED'].includes(status)) {
+      throw new AppError('Invalid verification status' , 400, 'INVALID_STATUS');
     }
 
     // 1. Check authorization
@@ -774,21 +1067,23 @@ const verifyContribution = async (req, res, next) => {
 
     const contribution = contributionRes.rows[0];
 
-    if (contribution.status === 'PAID') {
-      throw new AppError('Contribution already verified', 400, 'ALREADY_PAID');
+    if (contribution.verification_status === 'VERIFIED') {
+      throw new AppError('Contribution already verified', 400, 'ALREADY_VERIFIED');
     }
 
     // 3. Update status
+    const technicalStatus = status === 'VERIFIED' ? 'COMPLETED' : 'FAILED';
     await client.query(`
       UPDATE contributions 
-      SET status = $1, 
-          notes = COALESCE(notes, '') || '\nVerification Note: ' || $2,
-          recorded_by = $3
-      WHERE contribution_id = $4
-    `, [status, verificationNotes || 'Verified by Official', req.user.user_id, id]);
+      SET verification_status = $1, 
+          status = $2,
+          notes = COALESCE(notes, '') || '\nVerification Note: ' || $3,
+          recorded_by = $4
+      WHERE contribution_id = $5
+    `, [status, technicalStatus, verificationNotes || 'Verified by Official', req.user.user_id, id]);
 
-    // 4. If PAID, update balances
-    if (status === 'PAID') {
+    // 4. If VERIFIED, update balances
+    if (status === 'VERIFIED') {
       const amount = parseFloat(contribution.amount);
       
       await client.query(
@@ -814,14 +1109,30 @@ const verifyContribution = async (req, res, next) => {
 
     // 5. Notify member
     await client.query(`
-      INSERT INTO notifications (user_id, type, title, message, related_id)
+      INSERT INTO notifications (user_id, type, title, message, entity_type, entity_id)
       VALUES ($1, 'CONTRIBUTION_VERIFIED', 'Contribution ${status}', 
-              'Your contribution submission has been ${status.toLowerCase()}', $2)
+              'Your contribution submission has been ${status.toLowerCase()}', 'CONTRIBUTION', $2)
     `, [contribution.user_id, id]);
 
     res.json({
       success: true,
       message: `Contribution ${status.toLowerCase()} successfully`
+    });
+
+    // Emit real-time event
+    setImmediate(() => {
+      try {
+        if (process.env.NODE_ENV !== 'test') {
+          const io = getIo();
+          io.to(`chama_${chamaId}`).emit('contribution_verified', {
+            chamaId,
+            contribution_id: id,
+            status: status
+          });
+        }
+      } catch (err) {
+        logger.warn('Socket notification failed', { error: err.message });
+      }
     });
 
   } catch (error) {
@@ -838,6 +1149,7 @@ const verifyContribution = async (req, res, next) => {
 
 module.exports = {
   recordContribution: [contributionValidation, recordContribution],
+  bulkRecordContributions,
   getContributions,
   deleteContribution,
   submitContribution: [contributionValidation, submitContribution],

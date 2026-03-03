@@ -27,8 +27,9 @@ const getChamaLogs = async (req, res) => {
 
     const chamaIdStr = chamaId.toString();
 
-    // Fetch logs — chamaId is stored inside the metadata JSON by logAuditEvent
-    const result = await pool.query(`
+    const { action, user, startDate, endDate, page = 1, limit = 100 } = req.query;
+
+    let queryStr = `
       SELECT
         al.audit_id,
         al.user_id,
@@ -46,9 +47,41 @@ const getChamaLogs = async (req, res) => {
       FROM audit_logs al
       LEFT JOIN users u ON al.user_id = u.user_id
       WHERE al.metadata->>'chamaId' = $1
-      ORDER BY al.created_at DESC
-      LIMIT 100 OFFSET 0
-    `, [chamaIdStr]);
+    `;
+
+    const params = [chamaIdStr];
+    let paramIndex = 2;
+
+    if (action) {
+      queryStr += ` AND al.action ILIKE $${paramIndex}`;
+      params.push(`%${action}%`);
+      paramIndex++;
+    }
+
+    if (user) {
+      queryStr += ` AND (u.first_name ILIKE $${paramIndex} OR u.last_name ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex})`;
+      params.push(`%${user}%`);
+      paramIndex++;
+    }
+
+    if (startDate) {
+      queryStr += ` AND al.created_at >= $${paramIndex}`;
+      params.push(startDate);
+      paramIndex++;
+    }
+
+    if (endDate) {
+      queryStr += ` AND al.created_at <= $${paramIndex}`;
+      params.push(endDate);
+      paramIndex++;
+    }
+
+    const offset = (Math.max(1, parseInt(page)) - 1) * Math.max(1, parseInt(limit));
+    queryStr += ` ORDER BY al.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(Math.max(1, parseInt(limit)), offset);
+
+    // Fetch logs
+    const result = await pool.query(queryStr, params);
 
     const total = result.rows.length > 0 ? parseInt(result.rows[0].total_count) : 0;
 

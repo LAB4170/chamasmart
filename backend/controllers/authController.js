@@ -714,7 +714,7 @@ async function firebaseSync(req, res) {
 
       // Log success
       await logAuditEvent({
-        eventType: EVENT_TYPES.AUTH_LOGIN_SUCCESS,
+        eventType: EVENT_TYPES.AUTH_LOGIN,
         userId: user.user_id,
         action: `Firebase Sync Login (${providerId})`,
         entityType: 'user',

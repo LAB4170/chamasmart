@@ -1,202 +1,68 @@
 const helmet = require('helmet');
-// const xss = require("xss-clean"); // DISABLED: xss-clean is incompatible with Node.js 18+, using custom input validation instead
 const hpp = require('hpp');
-const rateLimit = require('express-rate-limit');
-const { RateLimiterRedis } = require('rate-limiter-flexible');
-const Redis = require('ioredis');
 const logger = require('../utils/logger');
-
-// Initialize Redis client for distributed rate limiting
-// Fail gracefully if REDIS is not available
-let redisClient;
-try {
-  redisClient = process.env.REDIS_URL
-    ? new Redis(process.env.REDIS_URL, {
-      enableOfflineQueue: false,
-      maxRetriesPerRequest: 1, // Fail fast if Redis is down
-    })
-    : new Redis({
-      host: process.env.REDIS_HOST || '127.0.0.1',
-      port: process.env.REDIS_PORT || 6379,
-      enableOfflineQueue: false,
-      maxRetriesPerRequest: 1,
-      retryStrategy: times => {
-        // If Redis is down, we don't want to block the app forever
-        if (times > 3) {
-          logger.warn(
-            'Redis connection failed multiple times. Disabling distributed rate limiting.',
-          );
-          return null;
-        }
-        return Math.min(times * 50, 2000);
-      },
-    });
-
-  redisClient.on('error', err => {
-    // Suppress connection errors to avoid log spam if Redis is intentionally missing
-    if (err.code === 'ECONNREFUSED') {
-      // logger.debug('Redis connection refused');
-    } else {
-      logger.error('Redis Rate Limiter Error:', err.message);
-    }
-  });
-} catch (error) {
-  logger.warn('Failed to initialize Redis client:', error.message);
-}
-
-// Rate limiting configuration (Memory-based fallback)
-const rateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5000,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: 'Too many requests from this IP, please try again later',
-  skip: req => {
-    const path = req.path || '';
-    return (
-      path === '/health'
-      || path === '/api/ping'
-      || path.startsWith('/static/')
-      || path.endsWith('.js')
-      || path.endsWith('.css')
-    );
-  },
-});
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: 'Too many login attempts, please try again later',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-// Redis-based rate limiter for API endpoints (if Redis is available)
-let apiRateLimiter;
-if (redisClient) {
-  try {
-    apiRateLimiter = new RateLimiterRedis({
-      storeClient: redisClient,
-      keyPrefix: 'api_limit',
-      points: 100, // 100 requests
-      duration: 60, // per 1 minute by IP
-      blockDuration: 60 * 15, // Block for 15 minutes after limit is reached
-    });
-  } catch (err) {
-    logger.warn(
-      'Failed to initialize Redis rate limiter, falling back to memory:',
-      err.message,
-    );
-  }
-}
-
-// Apply rate limiting middleware
-const apiLimiter = (req, res, next) => {
-  const path = req.path || '';
-  if (
-    path.startsWith('/health')
-    || path.startsWith('/metrics')
-    || path === '/api/ping'
-  ) {
-    return next();
-  }
-
-  // CRITICAL FIX: Only use Redis limiter if both client AND limiter exist and Redis is ready
-  const isRedisReady = redisClient && redisClient.status === 'ready';
-
-  if (apiRateLimiter && isRedisReady) {
-    apiRateLimiter
-      .consume(req.ip)
-      .then(() => next())
-      .catch(err => {
-        // Only return 429 if it's actually a rate limit exceed (not a connection error)
-        if (err && err.msBeforeNext) {
-          res.status(429).json({
-            success: false,
-            message: 'Too many requests, please try again later',
-          });
-        } else {
-          // If it's a Redis error, fall back to next (memory limiter will handle it)
-          next();
-        }
-      });
-  } else {
-    // Redis not ready - rely on the global memory-based rateLimiter
-    next();
-  }
-};
+const { 
+  apiLimiter, 
+  loginLimiter,
+  checkLoginRateLimit,
+  checkOtpRateLimit,
+  checkPasswordResetRateLimit
+} = require('../security/enhancedRateLimiting');
 
 /**
- * Advanced Security Middleware
- * Implements multiple layers of security protection
- */
-
-/**
- * Helmet - Security headers
- * Protects against common web vulnerabilities
+ * Helmet Configuration
+ * Optimized for Firebase, Google Fonts, and WebSockets
  */
 const helmetConfig = helmet({
   contentSecurityPolicy: {
     directives: {
-      defaultSrc: ['\'self\''],
-      styleSrc: ['\'self\'', '\'unsafe-inline\'', 'https://fonts.googleapis.com'],
-      fontSrc: ['\'self\'', 'https://fonts.gstatic.com'],
-      imgSrc: ['\'self\'', 'data:', 'https:'],
-      scriptSrc: ['\'self\''],
-      connectSrc: ['\'self\'', 'ws:', 'wss:'],
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      connectSrc: [
+        "'self'",
+        'https://*.googleapis.com',
+        'https://*.firebaseio.com',
+        'https://*.firebase.com',
+        'wss://*.firebaseio.com',
+        'ws://localhost:*',
+        'wss://localhost:*',
+      ],
+      frameSrc: ["'self'", 'https://*.firebaseapp.com'],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      manifestSrc: ["'self'"],
     },
   },
+  crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
   hsts: {
-    maxAge: 31536000, // 1 year
+    maxAge: 31536000,
     includeSubDomains: true,
     preload: true,
   },
-  frameguard: {
-    action: 'deny', // Prevent clickjacking
-  },
-  noSniff: true, // Prevent MIME type sniffing
-  xssFilter: true, // Enable XSS filter
-  referrerPolicy: {
-    policy: 'strict-origin-when-cross-origin',
-  },
 });
 
 /**
- * XSS Protection
- * Sanitizes user input to prevent cross-site scripting attacks
- * DISABLED: Using custom input validation middleware instead (inputValidation)
- */
-// const xssProtection = xss();
-
-/**
- * HTTP Parameter Pollution Protection
- * Prevents parameter pollution attacks
- */
-const hppProtection = hpp({
-  whitelist: ['sort', 'filter', 'page', 'limit'], // Allow these params to be duplicated
-});
-
-/**
- * Input Validation Middleware
- * Validates and sanitizes all user inputs
+ * Enhanced Input Validation Middleware
+ * Sanitizes and checks for suspicious patterns (XSS/SQLi)
  */
 const inputValidation = (req, res, next) => {
-  // Check for suspicious patterns
   const suspiciousPatterns = [
-    /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, // Script tags
-    /javascript:/gi, // JavaScript protocol
-    /on\w+\s*=/gi, // Event handlers
-    /eval\(/gi, // Eval function
-    /expression\(/gi, // CSS expressions
+    /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+    /javascript:/gi,
+    /on\w+\s*=/gi,
+    /eval\(/gi,
+    /expression\(/gi,
+    /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|SCRIPT)\b)/gi,
   ];
 
   const checkValue = value => {
     if (typeof value === 'string') {
-      for (const pattern of suspiciousPatterns) {
-        if (pattern.test(value)) {
-          return true;
-        }
-      }
+      return suspiciousPatterns.some(pattern => pattern.test(value));
     }
     return false;
   };
@@ -212,22 +78,16 @@ const inputValidation = (req, res, next) => {
     return false;
   };
 
-  // Check body, query, and params
-  if (
-    checkObject(req.body)
-    || checkObject(req.query)
-    || checkObject(req.params)
-  ) {
-    logger.warn('Suspicious input detected', {
+  if (checkObject(req.body) || checkObject(req.query) || checkObject(req.params)) {
+    logger.warn('Suspicious input blocked', {
       ip: req.ip,
       path: req.path,
-      method: req.method,
       userId: req.user?.user_id,
     });
 
     return res.status(400).json({
       success: false,
-      message: 'Invalid input detected',
+      message: 'Invalid request content detected',
     });
   }
 
@@ -235,138 +95,100 @@ const inputValidation = (req, res, next) => {
 };
 
 /**
- * Security Headers Middleware
- * Adds custom security headers (redundant with Helmet but explicit for critical ones)
+ * Custom Security Headers
  */
 const securityHeaders = (req, res, next) => {
-  // Remove powered by header
   res.removeHeader('X-Powered-By');
-
-  // Add custom security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader(
-    'Strict-Transport-Security',
-    'max-age=31536000; includeSubDomains',
-  );
-  res.setHeader(
-    'Permissions-Policy',
-    'geolocation=(), microphone=(), camera=()',
-  );
-  // Explicit headers expected by tests
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('X-DNS-Prefetch-Control', 'off');
   res.setHeader('X-Download-Options', 'noopen');
-
   next();
 };
 
 /**
- * Request Size Limiter
- * Prevents large payload attacks
+ * Request size limiting (10MB)
  */
 const requestSizeLimiter = (req, res, next) => {
-  const maxSize = 10 * 1024 * 1024; // 10MB
-
-  if (
-    req.headers['content-length']
-    && parseInt(req.headers['content-length']) > maxSize
-  ) {
-    logger.warn('Request size exceeded limit', {
-      ip: req.ip,
-      path: req.path,
-      size: req.headers['content-length'],
-    });
-
-    return res.status(413).json({
-      success: false,
-      message: 'Request entity too large',
-    });
+  const maxSize = 10 * 1024 * 1024;
+  if (req.headers['content-length'] && parseInt(req.headers['content-length']) > maxSize) {
+    return res.status(413).json({ success: false, message: 'Payload too large' });
   }
-
   next();
 };
 
 /**
- * IP Whitelist/Blacklist Middleware
- * Allows/blocks specific IP addresses
+ * Account-based Login Rate Limiter (Email + IP)
  */
-const ipFilter = (options = {}) => {
-  const { whitelist = [], blacklist = [] } = options;
-
-  return (req, res, next) => {
-    const clientIp = req.ip || req.connection.remoteAddress;
-
-    // Check blacklist
-    if (blacklist.length > 0 && blacklist.includes(clientIp)) {
-      logger.warn('Blocked IP attempted access', {
-        ip: clientIp,
-        path: req.path,
-      });
-
-      return res.status(403).json({
+const accountLoginLimiter = async (req, res, next) => {
+  if (process.env.NODE_ENV === "test") return next();
+  try {
+    const identifier = req.body.email || req.ip;
+    const isLimited = await checkLoginRateLimit(identifier, req.ip);
+    if (isLimited) {
+      return res.status(429).json({
         success: false,
-        message: 'Access denied',
+        message: "Too many login attempts. Please try again in 15 minutes.",
       });
     }
-
-    // Check whitelist (if configured)
-    if (whitelist.length > 0 && !whitelist.includes(clientIp)) {
-      logger.warn('Non-whitelisted IP attempted access', {
-        ip: clientIp,
-        path: req.path,
-      });
-
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied',
-      });
-    }
-
     next();
-  };
+  } catch (err) {
+    logger.error("Account rate limit check failed", { error: err.message });
+    next();
+  }
 };
 
-// Security middleware wrapper
+/**
+ * OTP Rate Limiter
+ */
+const otpLimiter = async (req, res, next) => {
+  if (process.env.NODE_ENV === "test") return next();
+  try {
+    const isLimited = await checkOtpRateLimit(req.user?.user_id, req.ip);
+    if (isLimited) {
+      return res.status(429).json({
+        success: false,
+        message: "Too many OTP attempts. Please try again later.",
+      });
+    }
+    next();
+  } catch (err) {
+    next();
+  }
+};
+
+/**
+ * Comprehensive Security Middleware Wrapper
+ * Standardizes security for all routes
+ */
 const securityMiddleware = app => {
-  // Apply security headers
+  // Trust proxy for correct IP detection behind load balancers/Heroku
+  app.set("trust proxy", 1);
+
+  // Apply critical headers
   app.use(helmetConfig);
-
-  // Apply rate limiting
-  app.use(rateLimiter);
-
-  // Apply stricter rate limiting to auth endpoints
-  app.use(
-    ['/api/auth/login', '/api/auth/register', '/api/auth/forgot-password'],
-    authLimiter,
-  );
-
-  // Apply Redis-based rate limiting to API routes
-  app.use('/api', apiLimiter);
-
-  // Apply other security middleware
-  // app.use(noSqlInjectionProtection); // Removed: Not using MongoDB
-  // app.use(xssProtection); // DISABLED: Using custom input validation instead
-  app.use(inputValidation); // Custom XSS/injection protection
-  app.use(hpp());
-
-  // Add security headers
   app.use(securityHeaders);
 
-  // Request size limiting
+  // Apply input protections
+  app.use(inputValidation);
+  app.use(hpp());
   app.use(requestSizeLimiter);
+
+  // Apply global rate limiting (100 req / 15 min)
+  app.use('/api', apiLimiter);
+
+  // Apply stricter auth rate limiting
+  app.use(['/api/auth/login', '/api/auth/register'], loginLimiter);
+  app.use('/api/auth/login', accountLoginLimiter);
+  app.use(['/api/auth/verify-phone', '/api/auth/verify-email'], otpLimiter);
 };
 
 module.exports = {
-  helmetConfig,
-  // noSqlInjectionProtection,
-  // xssProtection, // DISABLED: Using custom inputValidation instead
   securityMiddleware,
-  rateLimiter,
-  authLimiter,
-  hppProtection,
+  helmetConfig,
   inputValidation,
   securityHeaders,
   requestSizeLimiter,
-  ipFilter,
 };

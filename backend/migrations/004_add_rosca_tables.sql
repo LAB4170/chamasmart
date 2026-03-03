@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS rosca_swap_requests (
     reason TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT valid_swap_request CHECK (requester_id != target_position)
+    CONSTRAINT valid_target_position CHECK (target_position > 0)
 );
 
 -- Create indexes for better performance

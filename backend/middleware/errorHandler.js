@@ -249,6 +249,7 @@ const attachErrorHelpers = (req, res, next) => {
 
 module.exports = {
   APIError,
+  AppError: APIError, // Alias for backward compatibility with controllers
   ValidationError,
   AuthenticationError,
   AuthorizationError,

@@ -50,18 +50,7 @@ const createCycle = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized to create cycles for this chama' });
     }
 
-    // Create the cycle
-    const cycleResult = await client.query(
-      `INSERT INTO rosca_cycles 
-             (chama_id, cycle_name, contribution_amount, frequency, start_date, status)
-             VALUES ($1, $2, $3, $4, $5, 'PENDING')
-             RETURNING *`,
-      [chama_id, cycle_name, parsedContributionAmount, frequency, new Date(start_date)],
-    );
-
-    const cycle = cycleResult.rows[0];
-
-    // Get active members
+    // Get active members FIRST to calculate the cycle end_date
     const members = await client.query(
       `SELECT user_id FROM chama_members 
              WHERE chama_id = $1 AND is_active = true`,
@@ -77,6 +66,32 @@ const createCycle = async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(400).json({ success: false, message: 'At least two active members are required for a ROSCA cycle' });
     }
+
+    // Calculate end_date based on frequency and member count
+    const startDateObj = new Date(start_date);
+    let endDateObj = new Date(start_date);
+    const memberCount = members.rows.length;
+
+    if (frequency === 'DAILY') {
+      endDateObj.setDate(startDateObj.getDate() + memberCount);
+    } else if (frequency === 'WEEKLY') {
+      endDateObj.setDate(startDateObj.getDate() + (memberCount * 7));
+    } else if (frequency === 'BIWEEKLY') {
+      endDateObj.setDate(startDateObj.getDate() + (memberCount * 14));
+    } else if (frequency === 'MONTHLY') {
+      endDateObj.setMonth(startDateObj.getMonth() + memberCount);
+    }
+
+    // Create the cycle including end_date and total_members
+    const cycleResult = await client.query(
+      `INSERT INTO rosca_cycles 
+             (chama_id, cycle_name, contribution_amount, frequency, start_date, end_date, total_members, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVE')
+             RETURNING *`,
+      [chama_id, cycle_name, parsedContributionAmount, frequency, startDateObj, endDateObj, memberCount],
+    );
+
+    const cycle = cycleResult.rows[0];
 
     // Generate Roster based on method
     let rosterMembers = [];
@@ -98,10 +113,10 @@ const createCycle = async (req, res) => {
     } else if (roster_method === 'TRUST') {
       // Fetch members with trust scores
       const membersWithScores = await client.query(
-        `SELECT user_id, COALESCE(trust_score, 50) as trust_score 
-                 FROM users 
-                 WHERE user_id = ANY($1)`,
-        [members.rows.map(m => m.user_id)],
+        `SELECT cm.user_id, COALESCE(cm.trust_score, 50) as trust_score 
+                 FROM chama_members cm
+                 WHERE cm.chama_id = $1 AND cm.user_id = ANY($2)`,
+        [chama_id, members.rows.map(m => m.user_id)],
       );
 
       const scoredMembers = membersWithScores.rows;
@@ -130,15 +145,14 @@ const createCycle = async (req, res) => {
     const rosterParams = [];
 
     rosterMembers.forEach((member, index) => {
-      const payoutAmount = parsedContributionAmount * (members.rows.length - 1);
-      // (cycle_id, user_id, position, payout_amount)
+      // (cycle_id, user_id, position)
       const baseIndex = rosterParams.length + 1;
-      rosterValues.push(`($${baseIndex}, $${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3})`);
-      rosterParams.push(cycle.cycle_id, member.user_id, index + 1, payoutAmount);
+      rosterValues.push(`($${baseIndex}, $${baseIndex + 1}, $${baseIndex + 2})`);
+      rosterParams.push(cycle.cycle_id, member.user_id, index + 1);
     });
 
     await client.query(
-      `INSERT INTO rosca_roster (cycle_id, user_id, position, payout_amount)
+      `INSERT INTO rosca_roster (cycle_id, user_id, position)
              VALUES ${rosterValues.join(',')}`,
       rosterParams,
     );
@@ -333,8 +347,10 @@ const processPayout = async (req, res) => {
 
     // Get the roster entry to pay out
     const rosterResult = await client.query(
-      `SELECT * FROM rosca_roster 
-             WHERE cycle_id = $1 AND position = $2 AND status = 'PENDING'
+      `SELECT rr.*, u.first_name, u.last_name
+             FROM rosca_roster rr
+             JOIN users u ON rr.user_id = u.user_id
+             WHERE rr.cycle_id = $1 AND rr.position = $2 AND rr.status = 'PENDING'
              FOR UPDATE`,
       [cycleId, payoutPosition],
     );
@@ -349,22 +365,32 @@ const processPayout = async (req, res) => {
 
     const rosterEntry = rosterResult.rows[0];
 
+    // Count total active roster members for this cycle
+    const rosterCountRes = await client.query(
+      `SELECT COUNT(*) FROM rosca_roster WHERE cycle_id = $1`,
+      [cycleId],
+    );
+    const totalMembers = parseInt(rosterCountRes.rows[0].count, 10);
+
+    // Payout amount = each member contributes × number of OTHER members
+    // (the recipient collects everyone else's contribution)
+    const payoutAmount = parseFloat(cycle.contribution_amount) * (totalMembers - 1);
+
     // Verify all members (except the recipient) have paid enough times for this position
-    // E.g. If Payout Position is 3, everyone else should have made at least 3 contributions to this cycle
     const unpaidCount = await client.query(
       `SELECT COUNT(*) FROM rosca_roster rr
              WHERE rr.cycle_id = $1 
-             AND rr.user_id != $2 -- Exclude the person being paid
+             AND rr.user_id != $2
              AND (
-                 SELECT COUNT(*) FROM contributions c 
+                 SELECT COALESCE(SUM(amount), 0) FROM contributions c 
                  WHERE c.cycle_id = rr.cycle_id 
                  AND c.user_id = rr.user_id
-                 AND c.amount >= $3
-             ) < $4`,
+                 AND c.status = 'COMPLETED'
+             ) < ($3 * $4)`,
       [cycleId, rosterEntry.user_id, cycle.contribution_amount, payoutPosition],
     );
 
-    if (parseInt(unpaidCount.rows[0].count) > 0) {
+    if (parseInt(unpaidCount.rows[0].count, 10) > 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
@@ -372,25 +398,33 @@ const processPayout = async (req, res) => {
       });
     }
 
-    // Update roster entry
+    // Update roster entry — only real columns: status, payout_date
     await client.query(
       `UPDATE rosca_roster 
-             SET status = 'PAID', 
-                 payout_date = NOW(),
-                 payment_proof = $1,
-                 updated_at = NOW()
-             WHERE roster_id = $2`,
-      [payment_proof, rosterEntry.roster_id],
+             SET status = 'PAID',
+                 payout_date = NOW()
+             WHERE roster_id = $1`,
+      [rosterEntry.roster_id],
     );
 
-    // Record the payout in chama transactions
+    // Record the payout as a contribution entry with type ROSCA_PAYOUT
+    // (the 'transactions' table doesn't exist — we use contributions as the ledger)
     await client.query(
-      `INSERT INTO transactions 
-             (chama_id, user_id, amount, transaction_type, description, reference_id)
-             VALUES ($1, $2, $3, 'ROSCA_PAYOUT', 
-                    'ROSCA payout for ' || (SELECT cycle_name FROM rosca_cycles WHERE cycle_id = $4),
-                    $5)`,
-      [cycle.chama_id, rosterEntry.user_id, rosterEntry.payout_amount, cycleId, req.body.reference_id || `ROSCA-${cycleId}-${rosterEntry.user_id}-${Date.now()}`],
+      `INSERT INTO contributions
+             (chama_id, user_id, amount, contribution_type, notes, contribution_date,
+              recorded_by, verification_status, status, cycle_id)
+             VALUES ($1, $2, $3, 'ROSCA_PAYOUT',
+                    'ROSCA payout — cycle: ' || $4 || ', position ' || $5,
+                    NOW(), $6, 'VERIFIED', 'COMPLETED', $7)`,
+      [
+        cycle.chama_id,
+        rosterEntry.user_id,
+        payoutAmount,
+        cycle.cycle_name,
+        payoutPosition,
+        userId,
+        cycleId,
+      ],
     );
 
     // Check if cycle is complete
@@ -417,21 +451,30 @@ const processPayout = async (req, res) => {
     cache.del(`rosca_cycles_${cycle.chama_id}`);
 
     // Notify members via WebSocket
-    const io = getIo();
-    io.to(`chama_${cycle.chama_id}`).emit('rosca_payout_processed', {
-      cycle_id: cycleId,
-      user_id: rosterEntry.user_id,
-      amount: rosterEntry.payout_amount,
-      position,
-    });
+    try {
+      if (process.env.NODE_ENV !== 'test') {
+        const io = getIo();
+        io.to(`chama_${cycle.chama_id}`).emit('rosca_payout_processed', {
+          cycle_id: cycleId,
+          user_id: rosterEntry.user_id,
+          recipient_name: `${rosterEntry.first_name} ${rosterEntry.last_name}`,
+          amount: payoutAmount,
+          position,
+        });
+      }
+    } catch (ioErr) {
+      logger.warn('WebSocket emit failed for rosca_payout_processed', { error: ioErr.message });
+    }
 
     res.json({
       success: true,
       message: 'Payout processed successfully',
       data: {
         user_id: rosterEntry.user_id,
-        amount: rosterEntry.payout_amount,
+        recipient_name: `${rosterEntry.first_name} ${rosterEntry.last_name}`,
+        amount: payoutAmount,
         position: payoutPosition,
+        cycle_name: cycle.cycle_name,
       },
     });
   } catch (error) {

@@ -18,6 +18,8 @@ jest.mock('../security/enhancedRateLimiting', () => ({
   checkOtpRateLimit: jest.fn().mockResolvedValue(false),
   checkPasswordResetRateLimit: jest.fn().mockResolvedValue(false),
   createRedisStore: jest.fn(),
+  apiLimiter: (req, res, next) => next(),
+  loginLimiter: (req, res, next) => next(),
 }));
 
 const app = require('../server');

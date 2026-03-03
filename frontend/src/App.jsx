@@ -25,6 +25,8 @@ const Dashboard = lazy(() => import("./pages/dashboard/Dashboard"));
 const CreateChama = lazy(() => import("./pages/chama/core/CreateChama"));
 const ChamaDetails = lazy(() => import("./pages/chama/core/ChamaDetails"));
 const RecordContribution = lazy(() => import("./pages/chama/core/RecordContribution"));
+const SubmitContribution = lazy(() => import("./pages/chama/core/SubmitContribution"));
+const BulkRecordContribution = lazy(() => import("./pages/chama/core/BulkRecordContribution"));
 const ManageChama = lazy(() => import("./pages/chama/core/ManageChama"));
 const AddMember = lazy(() => import("./pages/chama/members/AddMember"));
 const MyChamas = lazy(() => import("./pages/chama/core/MyChamas"));
@@ -482,10 +484,26 @@ function AppContent() {
                                 }
                             />
                             <Route
+                                path="/chamas/:id/submit-contribution"
+                                element={
+                                    <ProtectedRoute>
+                                        <PageTransition><SubmitContribution /></PageTransition>
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
                                 path="/chamas/:id/record-contribution"
                                 element={
                                     <ProtectedRoute>
                                         <PageTransition><RecordContribution /></PageTransition>
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/chamas/:id/bulk-record"
+                                element={
+                                    <ProtectedRoute>
+                                        <PageTransition><BulkRecordContribution /></PageTransition>
                                     </ProtectedRoute>
                                 }
                             />

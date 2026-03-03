@@ -1,54 +1,42 @@
-const rateLimit = require('express-rate-limit');
-const RedisStore = require('rate-limit-redis').default || require('rate-limit-redis');
-const { redis } = require('../config/redis');
+const { 
+  loginLimiter, 
+  apiLimiter, 
+  registerLimiter 
+} = require("../security/enhancedRateLimiting");
 
 /**
  * Apply authentication-specific rate limiting
+ * Re-purposed to use registerLimiter/loginLimiter logic
  */
 const applyAuthRateLimiting = (req, res, next) => {
-  if (process.env.NODE_ENV === 'test') {
+  if (process.env.NODE_ENV === "test") {
     return next();
   }
-  return rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10, // Limit each IP to 10 auth requests per windowMs
-    message: {
-      success: false,
-      message: 'Too many authentication attempts, please try again later.',
-    },
-    standardHeaders: true,
-    legacyHeaders: false,
-  })(req, res, next);
+  // Use loginLimiter as the standard auth IP limiter
+  return loginLimiter(req, res, next);
 };
-
 
 /**
  * General rate limiting for non-auth endpoints
  */
-const applyRateLimiting = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: {
-    success: false,
-    message: 'Too many requests, please try again later.',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+const applyRateLimiting = (req, res, next) => {
+  if (process.env.NODE_ENV === "test") {
+    return next();
+  }
+  return apiLimiter(req, res, next);
+};
 
 /**
  * Financial operations rate limiting (more strict)
+ * Falls back to apiLimiter if specialized not defined, but keeping interface
  */
-const applyFinancialRateLimiting = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 20, // Limit each IP to 20 financial requests per hour
-  message: {
-    success: false,
-    message: 'Too many financial operations, please try again later.',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+const applyFinancialRateLimiting = (req, res, next) => {
+  if (process.env.NODE_ENV === "test") {
+    return next();
+  }
+  // We can add a specialized financialLimiter to enhancedRateLimiting later if needed
+  return apiLimiter(req, res, next);
+};
 
 module.exports = {
   applyAuthRateLimiting,

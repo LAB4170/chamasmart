@@ -1,4 +1,5 @@
 const Joi = require('joi');
+const { body } = require("express-validator");
 
 // Auth Schemas
 const registerPasswordSchema = Joi.object({
@@ -21,6 +22,16 @@ const registerPasswordSchema = Joi.object({
       'string.pattern.base': 'Invalid Kenyan phone number',
     }),
   nationalId: Joi.string().optional(),
+});
+
+const mpesaPaymentSchema = Joi.object({
+  chamaId: Joi.number().integer().required(),
+  amount: Joi.number().positive().required(),
+  phoneNumber: Joi.string().pattern(/^(?:254|\+254|0)?([71][0-9]{8})$/).required()
+    .messages({
+      'string.pattern.base': 'Please provide a valid Kenyan phone number (e.g., 0712345678 or 254712345678)'
+    }),
+  notes: Joi.string().max(200).allow('', null)
 });
 
 const loginPasswordSchema = Joi.object({
@@ -101,11 +112,17 @@ const updateChamaSchema = Joi.object({
 const contributionSchema = Joi.object({
   userId: Joi.number().integer().required(),
   amount: Joi.number().positive().required(),
-  paymentMethod: Joi.string().valid('CASH', 'MPESA', 'BANK_TRANSFER', 'CHEQUE').optional(),
+  paymentMethod: Joi.string().valid('CASH', 'MPESA', 'BANK_TRANSFER', 'CHEQUE', 'OTHER').default('CASH'),
   receiptNumber: Joi.string().max(100).optional().allow('', null),
+  paymentProof: Joi.string().max(512).optional().allow('', null),
   notes: Joi.string().max(500).optional().allow('', null),
   contributionDate: Joi.date().iso().optional(),
   status: Joi.string().valid('PENDING', 'COMPLETED', 'FAILED').default('PENDING'),
+  verificationStatus: Joi.string().valid('PENDING', 'VERIFIED', 'REJECTED').default('PENDING'),
+});
+
+const bulkContributionSchema = Joi.object({
+  contributions: Joi.array().items(contributionSchema).min(1).required(),
 });
 
 // Meeting Schemas
@@ -127,6 +144,21 @@ const applyLoanSchema = Joi.object({
     .required(),
   guarantors: Joi.array().items(Joi.number().integer()).min(1).required(),
 });
+
+// Verification Schema
+const verifyContributionSchema = [
+  body("checkoutRequestId")
+    .optional()
+    .isString()
+    .withMessage("Invalid checkout Request ID format"),
+  body("status")
+    .isIn(["COMPLETED", "FAILED"])
+    .withMessage("Status must be COMPLETED or FAILED"),
+  body("failureReason")
+    .optional()
+    .isString()
+    .withMessage("Invalid failure reason format"),
+];
 
 // Invite Schemas
 const generateInviteSchema = Joi.object({
@@ -219,7 +251,7 @@ const createAssetSchema = Joi.object({
 });
 
 module.exports = {
-  // Auth
+  // Authentication
   registerPasswordSchema,
   loginPasswordSchema,
 
@@ -233,7 +265,10 @@ module.exports = {
 
   // Contributions
   contributionSchema,
-
+  bulkContributionSchema,
+  verifyContributionSchema,
+  mpesaPaymentSchema,
+  
   // Meetings
   createMeetingSchema,
 

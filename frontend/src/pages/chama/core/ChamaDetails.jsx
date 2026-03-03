@@ -22,7 +22,7 @@ import {
   BarChart3, Calendar, Mail, Building2, Heart, RefreshCw, TrendingUp,
   Settings, CreditCard, Users, DollarSign, Handshake, FileText, Download,
   Target, Bell, Trash2, Filter, RotateCcw, CheckCircle2, Clock, MapPin,
-  Shield, Landmark, ArrowRight
+  Shield, Landmark, ArrowRight, TrendingDown, Wallet, Smartphone
 } from 'lucide-react';
 
 // --- Memoized Sub-components ---
@@ -99,7 +99,14 @@ const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavig
             aria-label="Record payment for member"
             style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1.15rem', background: 'var(--primary)', color: '#ffffff', border: 'none', borderRadius: '0.75rem', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', boxShadow: '0 2px 8px rgba(37,99,235,0.3)', transition: 'all 0.2s' }}
           >
-            <CreditCard size={15} /> Record Payment
+            <CreditCard size={15} /> Record
+          </button>
+          <button
+            onClick={() => onNavigate(`/chamas/${chama.chama_id}/bulk-record`)}
+            aria-label="Bulk record contributions"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1.15rem', background: 'var(--surface-2)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: '0.75rem', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', transition: 'all 0.2s' }}
+          >
+            <Users size={15} /> Bulk Record
           </button>
           <button
             onClick={() => onNavigate(`/chamas/${chama.chama_id}/manage`)}
@@ -232,12 +239,20 @@ const MembersTab = memo(({ members, isOfficial, isROSCA, roster, getMemberStatus
       <div className="card-header flex-between" style={{ flexShrink: 0 }}>
         <h3>Members ({members.length})</h3>
         {isOfficial && (
-          <button
-            className="btn btn-sm btn-primary"
-            onClick={() => onNavigate(`/chamas/${chamaId}/add-member`)}
-          >
-            + Add Member
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              className="btn btn-sm btn-outline"
+              onClick={() => onNavigate(`/chamas/${chamaId}/bulk-record`)}
+            >
+              Bulk Record
+            </button>
+            <button
+              className="btn btn-sm btn-primary"
+              onClick={() => onNavigate(`/chamas/${chamaId}/add-member`)}
+            >
+              + Add Member
+            </button>
+          </div>
         )}
       </div>
 
@@ -1402,6 +1417,12 @@ const ChamaDetails = () => {
                         + Record Contribution
                       </button>
                     )}
+                    <button 
+                      className="btn btn-sm btn-success flex items-center gap-1" 
+                      onClick={() => navigate(`/chamas/${id}/submit-contribution`)}
+                    >
+                      <Smartphone size={16} /> Pay via M-Pesa
+                    </button>
                   </div>
                 </div>
 
@@ -1689,6 +1710,7 @@ const ChamaDetails = () => {
                       <div className="v-th">Amount</div>
                       <div className="v-th">Method</div>
                       <div className="v-th">Status</div>
+                      <div className="v-th">Notes</div>
                     </div>
                     <div style={{ flex: 1 }}>
                       <List
@@ -1701,6 +1723,9 @@ const ChamaDetails = () => {
                           const c = contributions[index];
                           const member = members.find(m => m.user_id === c.user_id);
                           const initials = c.contributor_name ? c.contributor_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '??';
+                          const verStatus = c.verification_status || c.status || 'PENDING';
+                          const statusColor = verStatus === 'VERIFIED' || verStatus === 'COMPLETED' ? 'success' : verStatus === 'REJECTED' ? 'danger' : 'warning';
+                          const statusIcon = verStatus === 'VERIFIED' || verStatus === 'COMPLETED' ? <CheckCircle2 size={10} /> : <Clock size={10} />;
 
                           return (
                             <div className="v-tr" style={style}>
@@ -1716,6 +1741,7 @@ const ChamaDetails = () => {
                                   <div>
                                     <strong>{c.contributor_name}</strong>
                                     {member?.role && <div className="text-xs text-muted">{member.role}</div>}
+                                    {c.recorded_by_name && <div className="text-xs text-muted">Rec: {c.recorded_by_name}</div>}
                                   </div>
                                 </div>
                               </div>
@@ -1726,9 +1752,12 @@ const ChamaDetails = () => {
                                 </span>
                               </div>
                               <div className="v-td">
-                                <span className="badge badge-success flex items-center gap-1">
-                                  <CheckCircle2 size={10} /> Verified
+                                <span className={`badge badge-${statusColor} flex items-center gap-1`}>
+                                  {statusIcon} {verStatus === 'COMPLETED' ? 'VERIFIED' : verStatus}
                                 </span>
+                              </div>
+                              <div className="v-td text-xs text-muted" style={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.notes || ''}>
+                                {c.notes || '—'}
                               </div>
                             </div>
                           );

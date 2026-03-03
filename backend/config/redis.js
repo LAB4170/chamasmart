@@ -125,21 +125,30 @@ class MockRedis {
     return "OK";
   }
 
-  incr(key) {
+  async incr(key) {
     const value = this.store.get(key) || 0;
     this.store.set(key, value + 1);
     return value + 1;
   }
 
-  incrby(key, value) {
+  async incrby(key, value) {
     const currentValue = this.store.get(key) || 0;
     const newValue = parseInt(value) + currentValue;
     this.store.set(key, newValue);
     return newValue;
   }
 
-  call(command, ...args) {
-    if (command === "eval" || command === "evalsha") return [0, 0];
+  async call(command, ...args) {
+    const lowercaseCommand = command.toLowerCase();
+    
+    if (lowercaseCommand === 'script' && args[0]?.toLowerCase() === 'load') {
+      return "mock_script_sha";
+    }
+    
+    if (lowercaseCommand === "eval" || lowercaseCommand === "evalsha") {
+      // Simulate rate limiter script response [hits, ttl_in_ms]
+      return [1, 15 * 60 * 1000]; 
+    }
     return null;
   }
 }

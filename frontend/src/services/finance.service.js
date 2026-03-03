@@ -4,6 +4,10 @@ import api from "./axios";
 export const contributionAPI = {
     record: (chamaId, contributionData) =>
         api.post(`/contributions/${chamaId}/record`, contributionData),
+    bulkRecord: (chamaId, bulkData) =>
+        api.post(`/contributions/${chamaId}/bulk-record`, bulkData),
+    initiateMpesaPayment: (paymentData) =>
+        api.post('/payments/mpesa/stk-push', paymentData),
     delete: (chamaId, id) => api.delete(`/contributions/${chamaId}/${id}`),
     getAll: (chamaId, params) => api.get(`/contributions/${chamaId}`, { params }),
 };
