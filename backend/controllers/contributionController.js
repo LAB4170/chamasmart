@@ -430,9 +430,11 @@ const recordContribution = async (req, res, next) => {
       await client.query("COMMIT");
 
       if (verificationStatus === 'VERIFIED') {
-        TrustScoreService.updateMemberTrustScore(chamaId, userId).catch(err => {
-          logger.error('Failed to async update trust score', { error: err.message, userId });
-        });
+        try {
+          await TrustScoreService.updateMemberTrustScore(chamaId, userId);
+        } catch (err) {
+          logger.error('Failed to update trust score', { error: err.message, userId });
+        }
       }
 
       // Prepare response
@@ -656,12 +658,28 @@ const bulkRecordContributions = async (req, res, next) => {
 
     await client.query("COMMIT");
 
-    // Async trust score update for all successful users
-    const verifiedUsers = [...new Set(successes.filter(s => s.status === 'COMPLETED').map(s => s.userId))];
-    verifiedUsers.forEach(verifiedUserId => {
-      TrustScoreService.updateMemberTrustScore(chamaId, verifiedUserId).catch(err => {
+    // Sync trust score update for all successful users
+    for (const verifiedUserId of verifiedUsers) {
+      try {
+        await TrustScoreService.updateMemberTrustScore(chamaId, verifiedUserId);
+      } catch (err) {
         logger.error('Bulk TrustScore Update Error', { error: err.message, userId: verifiedUserId });
-      });
+      }
+    }
+
+    // Emit real-time bulk event
+    setImmediate(() => {
+      try {
+        const io = getIo();
+        io.to(`chama_${chamaId}`).emit("contribution_recorded", {
+          chamaId,
+          bulk: true,
+          count: successes.length,
+          totalAmount: Money.fromCents(contributions.reduce((acc, c) => acc + Money.toCents(c.amount), 0))
+        });
+      } catch (err) {
+        logger.warn("Bulk WebSocket emission failed", { error: err.message });
+      }
     });
 
     const response = {

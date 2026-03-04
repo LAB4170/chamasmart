@@ -128,6 +128,7 @@ const getChamaById = async (req, res) => {
 // @access  Private
 const createChama = async (req, res) => {
   const client = await pool.connect();
+  let transactionActive = false;
 
   try {
     const {
@@ -140,15 +141,13 @@ const createChama = async (req, res) => {
       meetingTime,
       visibility = 'PRIVATE',
       paymentMethods = {},
+      sharePrice,
     } = req.body;
+    const userId = req.user.user_id;
 
-    // Validation
-    if (
-      !chamaName
-      || !chamaType
-      || !contributionAmount
-      || !contributionFrequency
-    ) {
+    // Validation checks
+    if (!chamaName || !chamaType || !contributionAmount || !contributionFrequency) {
+      client.release();
       return res.status(400).json({
         success: false,
         message: 'Please provide all required fields',
@@ -156,6 +155,7 @@ const createChama = async (req, res) => {
     }
 
     if (!isValidChamaType(chamaType)) {
+      client.release();
       return res.status(400).json({
         success: false,
         message: 'Invalid chama type',
@@ -163,6 +163,7 @@ const createChama = async (req, res) => {
     }
 
     if (!isValidFrequency(contributionFrequency)) {
+      client.release();
       return res.status(400).json({
         success: false,
         message: 'Invalid contribution frequency',
@@ -170,19 +171,40 @@ const createChama = async (req, res) => {
     }
 
     if (!isValidAmount(contributionAmount)) {
+      client.release();
       return res.status(400).json({
         success: false,
         message: 'Contribution amount must be a positive number',
       });
     }
 
-    await client.query('BEGIN');
+    // Default share price for ASCA if not provided
+    const finalSharePrice = chamaType === 'ASCA' && !sharePrice ? contributionAmount : sharePrice;
 
-    // Validate visibility
-    if (!['PUBLIC', 'PRIVATE'].includes(visibility)) {
+    if (finalSharePrice && !isValidAmount(finalSharePrice)) {
+      client.release();
       return res.status(400).json({
         success: false,
-        message: 'Visibility must be PUBLIC or PRIVATE',
+        message: 'Share price must be a positive number',
+      });
+    }
+
+    await client.query('BEGIN');
+    transactionActive = true;
+
+    // Check if user already owns too many chamas (optional limit)
+    const countResult = await client.query(
+      'SELECT COUNT(*) FROM chama_members WHERE user_id = $1 AND role = \'CHAIRPERSON\'',
+      [userId],
+    );
+
+    if (parseInt(countResult.rows[0].count) >= 10) {
+      await client.query('ROLLBACK');
+      transactionActive = false;
+      client.release();
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot create more than 10 chamas',
       });
     }
 
@@ -193,8 +215,8 @@ const createChama = async (req, res) => {
     const chamaResult = await client.query(
       `INSERT INTO chamas 
        (chama_name, chama_type, description, contribution_amount, contribution_frequency, 
-        meeting_day, meeting_time, created_by, total_members, visibility, invite_code, payment_methods)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, $9, $10, $11)
+        meeting_day, meeting_time, created_by, total_members, visibility, invite_code, payment_methods, share_price)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, $9, $10, $11, $12)
        RETURNING *`,
       [
         chamaName,
@@ -203,12 +225,12 @@ const createChama = async (req, res) => {
         contributionAmount,
         contributionFrequency,
         meetingDay,
-        meetingTime,
-        req.user.user_id,
-        1, // total_members
-        visibility,
+        meetingTime || null,
+        userId,
+        visibility || 'PRIVATE',
         inviteCode,
-        JSON.stringify(paymentMethods),
+        JSON.stringify(paymentMethods || {}),
+        finalSharePrice,
       ],
     );
 
@@ -218,10 +240,12 @@ const createChama = async (req, res) => {
     await client.query(
       `INSERT INTO chama_members (chama_id, user_id, role, rotation_position)
        VALUES ($1, $2, 'CHAIRPERSON', 1)`,
-      [chama.chama_id, req.user.user_id],
+      [chama.chama_id, userId],
     );
 
     await client.query('COMMIT');
+    transactionActive = false;
+    client.release();
 
     // Clear relevant caches
     clearChamaCache();
@@ -232,15 +256,17 @@ const createChama = async (req, res) => {
       data: chama,
     });
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (transactionActive) {
+      try { await client.query('ROLLBACK'); } catch (rollbackErr) { console.error('Rollback failed:', rollbackErr); }
+    }
+    if (client) client.release();
+    
     console.error('Create chama error:', error);
     res.status(500).json({
       success: false,
       message: 'Error creating chama',
       error: error.message,
     });
-  } finally {
-    client.release();
   }
 };
 
@@ -539,7 +565,7 @@ const getChamaMembers = async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT cm.user_id, cm.role, cm.join_date, cm.total_contributions, cm.is_active,
+      `SELECT cm.user_id, cm.role, cm.join_date, cm.total_contributions, cm.is_active, cm.trust_score,
               u.first_name, u.last_name, u.email, u.phone_number
        FROM chama_members cm
        INNER JOIN users u ON cm.user_id = u.user_id

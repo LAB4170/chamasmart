@@ -78,6 +78,7 @@ const createChamaSchema = Joi.object({
   meetingDay: Joi.string().required(),
   meetingTime: Joi.string().optional().allow(null, ''),
   visibility: Joi.string().valid('PUBLIC', 'PRIVATE').default('PRIVATE'),
+  sharePrice: Joi.number().min(0).optional(),
   paymentMethods: Joi.object({
     type: Joi.string().valid('PAYBILL', 'TILL', 'POCHI').optional(),
     businessNumber: Joi.string().optional().allow('', null),
@@ -250,6 +251,14 @@ const createAssetSchema = Joi.object({
   description: Joi.string().max(1000).optional(),
 });
 
+const createAscaCycleSchema = Joi.object({
+  cycle_name: Joi.string().min(3).max(100).required(),
+  start_date: Joi.date().iso().required(),
+  end_date: Joi.date().iso().greater(Joi.ref('start_date')).required(),
+  share_price: Joi.number().positive().required(),
+  total_shares: Joi.number().integer().positive().optional(),
+});
+
 module.exports = {
   // Authentication
   registerPasswordSchema,
@@ -295,4 +304,5 @@ module.exports = {
   createProposalSchema,
   castVoteSchema,
   createAssetSchema,
+  createAscaCycleSchema,
 };

@@ -59,18 +59,28 @@ const buyShares = async (req, res, next) => {
 
     const chama = await getAscaChama(chamaId);
 
-    // Determine base share price: prefer explicit share_price, fallback to contribution_amount
-    const priceResult = await pool.query(
-      'SELECT contribution_amount, share_price FROM chamas WHERE chama_id = $1',
+    // 0) Find active cycle
+    const cycleRes = await client.query(
+      'SELECT cycle_id, share_price FROM asca_cycles WHERE chama_id = $1 AND status = \'ACTIVE\'',
       [chamaId],
     );
-    const row = priceResult.rows[0];
-    const basePrice = parseFloat(row.share_price || row.contribution_amount || 0);
 
-    if (!basePrice || basePrice <= 0) {
+    if (cycleRes.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: 'Share price is not configured for this ASCA chama',
+        message: 'No active ASCA cycle found. Ask an official to start a new cycle.',
+      });
+    }
+
+    const { cycle_id: cycleId, share_price: cycleSharePrice } = cycleRes.rows[0];
+    const basePrice = parseFloat(cycleSharePrice || chama.share_price || 0);
+
+    if (!basePrice || basePrice <= 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: 'Share price is not configured for this cycle',
       });
     }
 
@@ -95,8 +105,8 @@ const buyShares = async (req, res, next) => {
     // 1) Record a normal contribution for compatibility with existing stats
     const contributionInsert = await client.query(
       `INSERT INTO contributions 
-       (chama_id, user_id, amount, payment_method, recorded_by, contribution_date)
-       VALUES ($1, $2, $3, $4, $5, $6)
+       (chama_id, user_id, amount, payment_method, recorded_by, contribution_date, cycle_id, contribution_type, status, verification_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'ASCA_SHARE', 'COMPLETED', 'VERIFIED')
        RETURNING contribution_id, amount, payment_method, contribution_date`,
       [
         chamaId,
@@ -105,6 +115,7 @@ const buyShares = async (req, res, next) => {
         resolvedPaymentMethod,
         userId,
         new Date(),
+        cycleId,
       ],
     );
 
@@ -121,10 +132,21 @@ const buyShares = async (req, res, next) => {
 
     // 3) Record share purchase in ASCA ledger
     const shareInsert = await client.query(
-      `INSERT INTO asca_share_contributions (user_id, chama_id, amount, number_of_shares)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO asca_share_contributions (user_id, chama_id, cycle_id, amount, number_of_shares)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING id, amount, number_of_shares, transaction_date`,
-      [userId, chamaId, amount, sharesBought],
+      [userId, chamaId, cycleId, amount, sharesBought],
+    );
+
+    // 4) Upsert into asca_members for dividend tracking
+    await client.query(
+      `INSERT INTO asca_members (user_id, cycle_id, shares_owned, total_investment, status)
+       VALUES ($1, $2, $3, $4, 'ACTIVE')
+       ON CONFLICT (user_id, cycle_id) 
+       DO UPDATE SET 
+         shares_owned = asca_members.shares_owned + EXCLUDED.shares_owned,
+         total_investment = asca_members.total_investment + EXCLUDED.total_investment`,
+      [userId, cycleId, sharesBought, amount],
     );
 
     await client.query('COMMIT');
@@ -238,7 +260,69 @@ const getMyEquity = async (req, res, next) => {
   }
 };
 
+// POST /api/asca/:chamaId/cycles
+// Body: { cycle_name, start_date, end_date, share_price, total_shares? }
+const createAscaCycle = async (req, res, next) => {
+  let chamaId;
+  let userId;
+
+  try {
+    ({ chamaId } = req.params);
+    const { cycle_name, start_date, end_date, share_price, total_shares } = req.body;
+    userId = req.user.user_id;
+
+    // Check if user is official
+    const officialCheck = await pool.query(
+      'SELECT role FROM chama_members WHERE chama_id = $1 AND user_id = $2 AND role IN (\'CHAIRPERSON\', \'TREASURER\', \'SECRETARY\') AND is_active = true',
+      [chamaId, userId],
+    );
+
+    if (officialCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only officials can create cycles',
+      });
+    }
+
+    // Check for existing active cycle
+    const activeCycle = await pool.query(
+      'SELECT cycle_id FROM asca_cycles WHERE chama_id = $1 AND status = \'ACTIVE\'',
+      [chamaId],
+    );
+
+    if (activeCycle.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'An active cycle already exists for this chama. Close it before starting a new one.',
+      });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO asca_cycles (chama_id, cycle_name, start_date, end_date, share_price, total_shares, available_shares, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVE')
+       RETURNING *`,
+      [chamaId, cycle_name, start_date, end_date, share_price, total_shares || 0, total_shares || 0],
+    );
+
+    // Update chama share_price for consistency
+    await pool.query(
+      'UPDATE chamas SET share_price = $1 WHERE chama_id = $2',
+      [share_price, chamaId],
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'ASCA Cycle created successfully',
+      data: result.rows[0],
+    });
+  } catch (err) {
+    logger.logError(err, { context: 'asca_createCycle', chamaId, userId });
+    return next(err);
+  }
+};
+
 module.exports = {
   buyShares,
   getMyEquity,
+  createAscaCycle,
 };

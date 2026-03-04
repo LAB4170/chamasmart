@@ -41,6 +41,15 @@ const initiatePayment = async (req, res, next) => {
         [chamaId]
       );
       if (cycleRes.rows.length > 0) cycleId = cycleRes.rows[0].cycle_id;
+    } else if (chamaType === 'ASCA') {
+      const cycleRes = await pool.query(
+        `SELECT cycle_id FROM asca_cycles 
+         WHERE chama_id = $1 AND status IN ('ACTIVE', 'PENDING') 
+         ORDER BY CASE WHEN status = 'ACTIVE' THEN 0 ELSE 1 END, created_at DESC 
+         LIMIT 1`,
+        [chamaId]
+      );
+      if (cycleRes.rows.length > 0) cycleId = cycleRes.rows[0].cycle_id;
     }
 
     // 2. Initiate STK Push via Daraja
@@ -133,39 +142,78 @@ const handleCallback = async (req, res) => {
     const amount = amountItem ? amountItem.Value : transaction.amount;
     const receipt = receiptItem ? receiptItem.Value : null;
 
-    // 4. Resolve ROSCA cycle (use pre-stored cycle_id from transaction, or re-resolve)
+    // 4. Resolve Chama Context & Cycle
+    const chamaRes = await client.query('SELECT chama_type, share_price FROM chamas WHERE chama_id = $1', [transaction.chama_id]);
+    const chamaType = chamaRes.rows[0]?.chama_type;
+    const chamaSharePrice = parseFloat(chamaRes.rows[0]?.share_price || 0);
+
     let cycleId = transaction.cycle_id || null;
+    let cycleSharePrice = 0;
+
     if (!cycleId) {
-      const chamaRes = await client.query('SELECT chama_type FROM chamas WHERE chama_id = $1', [transaction.chama_id]);
-      if (chamaRes.rows[0]?.chama_type === 'ROSCA') {
+      if (chamaType === 'ROSCA' || chamaType === 'ASCA') {
         const cycleRes = await client.query(
-          `SELECT cycle_id FROM rosca_cycles 
+          `SELECT cycle_id, share_price FROM asca_cycles 
            WHERE chama_id = $1 AND status IN ('ACTIVE', 'PENDING') 
            ORDER BY CASE WHEN status = 'ACTIVE' THEN 0 ELSE 1 END, created_at DESC LIMIT 1`,
           [transaction.chama_id]
         );
-        if (cycleRes.rows.length > 0) cycleId = cycleRes.rows[0].cycle_id;
+        if (cycleRes.rows.length > 0) {
+          cycleId = cycleRes.rows[0].cycle_id;
+          cycleSharePrice = parseFloat(cycleRes.rows[0].share_price || 0);
+        }
       }
+    } else {
+      // If cycleId was pre-stored, fetch its share price
+      const cycleInfo = await client.query('SELECT share_price FROM asca_cycles WHERE cycle_id = $1', [cycleId]);
+      cycleSharePrice = parseFloat(cycleInfo.rows[0]?.share_price || 0);
     }
 
-    // 5. Create Contribution Record
+    // 5. Create Contribution Record (Generic Ledger)
     const contribRes = await client.query(
       `INSERT INTO contributions 
-      (chama_id, user_id, amount, payment_method, receipt_number, verification_status, status, contribution_date, notes, cycle_id)
-      VALUES ($1, $2, $3, 'MPESA', $4, 'VERIFIED', 'COMPLETED', CURRENT_DATE, 'Automated M-Pesa Payment', $5)
+      (chama_id, user_id, amount, payment_method, receipt_number, verification_status, status, contribution_date, notes, cycle_id, contribution_type)
+      VALUES ($1, $2, $3, 'MPESA', $4, 'VERIFIED', 'COMPLETED', CURRENT_DATE, 'Automated M-Pesa Payment', $5, $6)
       RETURNING contribution_id`,
       [
         transaction.chama_id,
         transaction.user_id,
         parseFloat(amount),
         receipt,
-        cycleId
+        cycleId,
+        chamaType === 'ASCA' ? 'ASCA_SHARE' : 'CONTRIBUTION'
       ]
     );
 
-    const contributionId = contribRes.rows[0].contribution_id;
+    // 6. ASCA Specific Logic: Record Shares & Update Equity
+    if (chamaType === 'ASCA' && cycleId) {
+      const basePrice = cycleSharePrice || chamaSharePrice;
+      if (basePrice > 0) {
+        const sharesBought = parseFloat(amount) / basePrice;
+        
+        // Record in ASCA share ledger
+        await client.query(
+          `INSERT INTO asca_share_contributions (user_id, chama_id, cycle_id, amount, number_of_shares)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [transaction.user_id, transaction.chama_id, cycleId, amount, sharesBought]
+        );
 
-    // 5. Update Transaction status
+        // Update asca_members membership
+        await client.query(
+          `INSERT INTO asca_members (user_id, cycle_id, shares_owned, total_investment, status)
+           VALUES ($1, $2, $3, $4, 'ACTIVE')
+           ON CONFLICT (user_id, cycle_id) 
+           DO UPDATE SET 
+             shares_owned = asca_members.shares_owned + EXCLUDED.shares_owned,
+             total_investment = asca_members.total_investment + EXCLUDED.total_investment`,
+          [transaction.user_id, cycleId, sharesBought, amount]
+        );
+      } else {
+        logger.warn("ASCA payment received but no share price found", { chamaId: transaction.chama_id });
+      }
+    }
+
+    // 7. Update Transaction status
     await client.query(
       `UPDATE mpesa_transactions 
       SET status = 'COMPLETED', result_code = 0, mpesa_receipt_number = $1
@@ -173,24 +221,25 @@ const handleCallback = async (req, res) => {
       [receipt, CheckoutRequestID]
     );
 
-    // 6. Update Chama Fund
+    // 8. Update Chama Fund & Member Stats
     await client.query(
        "UPDATE chamas SET current_fund = current_fund + $1 WHERE chama_id = $2",
        [parseFloat(amount), transaction.chama_id]
     );
 
-    // 7. Update member balance + trigger Trust Score
     await client.query(
       'UPDATE chama_members SET total_contributions = total_contributions + $1, last_contribution_date = NOW(), updated_at = NOW() WHERE chama_id = $2 AND user_id = $3',
       [amount, transaction.chama_id, transaction.user_id]
     );
 
-    // Async trust score update (non-blocking)
-    TrustScoreService.updateMemberTrustScore(transaction.chama_id, transaction.user_id).catch(err =>
-      logger.error('Trust score update failed', { error: err.message })
-    );
-
     await client.query("COMMIT");
+
+    // Update trust score after successful commit to reflect the new contribution
+    try {
+      await TrustScoreService.updateMemberTrustScore(transaction.chama_id, transaction.user_id);
+    } catch (err) {
+      logger.error('Trust score update failed', { error: err.message });
+    }
 
     // 8. Notify user via socket
     getIo().to(`chama_${transaction.chama_id}`).emit("contribution_recorded", {

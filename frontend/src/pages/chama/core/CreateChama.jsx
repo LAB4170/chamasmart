@@ -16,6 +16,7 @@ const CreateChama = () => {
     description: "",
     contributionAmount: "",
     contributionFrequency: "MONTHLY",
+    sharePrice: "",
     meetingDay: "",
     meetingTime: "",
     visibility: "PRIVATE",
@@ -62,7 +63,7 @@ const CreateChama = () => {
     { id: "LAST_SATURDAY", name: "Last Saturday" },
     { id: "FIRST_SUNDAY", name: "1st Sunday" },
     { id: "EVERY_SUNDAY", name: "Every Sunday" },
-    { id: "BI_WEEKLY", name: "Every 2 Weeks" },
+    { id: "BIWEEKLY", name: "Every 2 Weeks" },
     { id: "CUSTOM", name: "Custom" },
   ];
 
@@ -200,10 +201,27 @@ const CreateChama = () => {
                         <label className="form-label">Frequency</label>
                         <select name="contributionFrequency" className="form-select" value={formData.contributionFrequency} onChange={handleChange}>
                           <option value="WEEKLY">Weekly</option>
+                          <option value="BIWEEKLY">Bi-Weekly</option>
                           <option value="MONTHLY">Monthly</option>
                         </select>
                       </div>
                     </div>
+
+                    {formData.chamaType === 'ASCA' && (
+                      <div className="form-group mt-4">
+                        <label className="form-label">Share Price (KES)</label>
+                        <input 
+                          type="number" 
+                          name="sharePrice" 
+                          className="form-input" 
+                          placeholder="e.g., 500" 
+                          value={formData.sharePrice} 
+                          onChange={handleChange} 
+                          required 
+                        />
+                        <p className="text-muted small mt-1">For ASCA, members buy shares instead of fixed contributions.</p>
+                      </div>
+                    )}
 
 
               <div className="section-divider my-4"></div>

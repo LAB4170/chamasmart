@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { chamaAPI, contributionAPI } from "../../../services/api";
 import LoadingSkeleton from "../../../components/LoadingSkeleton";
-
+import { useSocket } from "../../../context/SocketContext";
 
 const SubmitContribution = () => {
   const { id } = useParams();
@@ -18,6 +18,9 @@ const SubmitContribution = () => {
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  const socket = useSocket();
+  const [paymentStage, setPaymentStage] = useState("idle"); // idle, initiating, waiting, confirmed, failed
 
   useEffect(() => {
     let isMounted = true;
@@ -58,29 +61,65 @@ const SubmitContribution = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleSuccess = (data) => {
+      // Check if it's our payment (approximate check since we don't have txId in the event yet)
+      // Ideally we'd match the checkoutRequestId
+      setPaymentStage("confirmed");
+      setSuccess(`Payment of KES ${data.amount} received successfully!`);
+      
+      setTimeout(() => {
+        navigate(`/chamas/${id}`, { state: { refresh: true, tab: 'contributions' } });
+      }, 3000);
+    };
+
+    const handleFailure = (data) => {
+      setPaymentStage("failed");
+      setError(`Payment failed: ${data.message}`);
+      setLoading(false);
+    };
+
+    socket.on("contribution_recorded", handleSuccess);
+    socket.on("payment_failed", handleFailure);
+
+    return () => {
+      socket.off("contribution_recorded", handleSuccess);
+      socket.off("payment_failed", handleFailure);
+    };
+  }, [socket, id, navigate]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
     setLoading(true);
+    setPaymentStage("initiating");
 
     try {
-      await contributionAPI.initiateMpesaPayment({
+      const res = await contributionAPI.initiateMpesaPayment({
         chamaId: parseInt(id),
         amount: parseFloat(formData.amount),
         phoneNumber: formData.phoneNumber,
         notes: formData.notes
       });
       
-      setSuccess("STK Push initiated successfully. Please check your phone and enter your M-Pesa PIN.");
+      setPaymentStage("waiting");
+      setSuccess("STK Push initiated. Please enter your PIN on your phone.");
 
-      // After 5 seconds, navigate back to chama details so they can see the payment once recorded.
+      // Set a safety timeout for 60 seconds
       setTimeout(() => {
-        navigate(`/chamas/${id}`, { state: { refresh: true, tab: 'contributions' } });
-      }, 5000);
+        if (paymentStage === "waiting") {
+          setPaymentStage("idle");
+          setLoading(false);
+          setError("Payment confirmation timed out. Please check your transaction history in a few moments.");
+        }
+      }, 60000);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to initiate M-Pesa payment");
       setLoading(false);
+      setPaymentStage("failed");
     }
   };
 
@@ -168,13 +207,23 @@ const SubmitContribution = () => {
               </button>
               <button
                 type="submit"
-                className="btn btn-success"
-                disabled={loading}
+                className={`btn ${paymentStage === 'confirmed' ? 'btn-success' : 'btn-primary'}`}
+                disabled={loading || paymentStage === 'waiting' || paymentStage === 'confirmed'}
               >
-                {loading ? "Initiating..." : "Initiate Payment"}
+                {paymentStage === 'initiating' ? "Initiating..." : 
+                 paymentStage === 'waiting' ? "Waiting for PIN..." : 
+                 paymentStage === 'confirmed' ? "Payment Confirmed!" :
+                 "Initiate Payment"}
               </button>
             </div>
           </form>
+          {paymentStage === 'waiting' && (
+            <div className="card-footer bg-light text-center py-4">
+              <div className="spinner-border text-primary mb-3" role="status"></div>
+              <p className="mb-0">Waiting for M-Pesa confirmation...</p>
+              <p className="text-muted small">Please do not refresh this page.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

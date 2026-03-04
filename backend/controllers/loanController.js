@@ -1251,6 +1251,19 @@ const makeRepayment = async (req, res) => {
       [loanId, userId, repaymentAmount, paymentMethod, notes],
     );
 
+    // If ASCA, repayment amount returns to the group fund (principal + interest)
+    const chamaTypeResult = await client.query(
+      'SELECT chama_type FROM chamas WHERE chama_id = $1',
+      [chamaId],
+    );
+    
+    if (chamaTypeResult.rows.length > 0 && chamaTypeResult.rows[0].chama_type === 'ASCA') {
+      await client.query(
+        'UPDATE chamas SET current_fund = current_fund + $1 WHERE chama_id = $2',
+        [repaymentAmount, chamaId],
+      );
+    }
+
     await client.query('COMMIT');
 
     // Trigger Trust Score Update

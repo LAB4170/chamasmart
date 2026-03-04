@@ -2,7 +2,7 @@ const express = require('express');
 
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
-const { buyShares, getMyEquity } = require('../controllers/ascaController');
+const { buyShares, getMyEquity, createAscaCycle } = require('../controllers/ascaController');
 const {
   createProposal,
   listProposals,
@@ -15,6 +15,7 @@ const {
   createProposalSchema,
   castVoteSchema,
   createAssetSchema,
+  createAscaCycleSchema,
 } = require('../utils/validationSchemas');
 const { applyFinancialRateLimiting } = require('../middleware/rateLimiting');
 
@@ -39,6 +40,14 @@ router.get(
   '/:chamaId/equity',
   authorize('member', 'admin', 'treasurer'),
   getMyEquity,
+);
+
+// Create ASCA cycle (officials only)
+router.post(
+  '/:chamaId/cycles',
+  authorize('admin', 'treasurer', 'chairperson'),
+  validate(createAscaCycleSchema),
+  createAscaCycle,
 );
 
 // ============================================================================
