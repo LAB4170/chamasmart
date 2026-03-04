@@ -2,7 +2,7 @@ const express = require('express');
 
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
-const { buyShares, getMyEquity, createAscaCycle } = require('../controllers/ascaController');
+const { buyShares, getMyEquity, createAscaCycle, closeAscaCycle, executeShareOutPayout, getAscaReportsSummary, getMemberEquityStatement } = require('../controllers/ascaController');
 const {
   createProposal,
   listProposals,
@@ -50,6 +50,20 @@ router.post(
   createAscaCycle,
 );
 
+// Close ASCA cycle (officials only)
+router.post(
+  '/:chamaId/cycles/:cycleId/close',
+  authorize('admin', 'treasurer', 'chairperson'),
+  closeAscaCycle,
+);
+
+// Execute actual share-out payouts (Deducts total liability from chama fund)
+router.post(
+  '/:chamaId/cycles/:cycleId/payout',
+  authorize('ADMIN'),
+  executeShareOutPayout
+);
+
 // ============================================================================
 // PROPOSALS & VOTING
 // ============================================================================
@@ -94,6 +108,24 @@ router.post(
   authorize('admin', 'treasurer', 'chairperson'),
   validate(createAssetSchema),
   createAsset,
+);
+
+// ============================================================================
+// REPORTING & ANALYTICS
+// ============================================================================
+
+// Get ASCA reports summary
+router.get(
+  '/:chamaId/reports/summary',
+  authorize('member', 'admin', 'treasurer', 'chairperson'),
+  getAscaReportsSummary,
+);
+
+// Get member equity statement
+router.get(
+  '/:chamaId/reports/member-statement',
+  authorize('member', 'admin', 'treasurer', 'chairperson'),
+  getMemberEquityStatement,
 );
 
 module.exports = router;

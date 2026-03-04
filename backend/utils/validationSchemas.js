@@ -143,7 +143,7 @@ const applyLoanSchema = Joi.object({
   purpose: Joi.string().min(5).max(500).required(),
   repaymentPeriod: Joi.number().integer().min(1).max(60)
     .required(),
-  guarantors: Joi.array().items(Joi.number().integer()).min(1).required(),
+  guarantors: Joi.array().items(Joi.number().integer()).min(0).default([]),
 });
 
 // Verification Schema
@@ -225,9 +225,8 @@ const respondToSwapRequestSchema = Joi.object({
 
 // ASCA Schemas
 const buySharesSchema = Joi.object({
-  numberOfShares: Joi.number().integer().min(1).max(100)
-    .required(),
-  purchaseAmount: Joi.number().positive().required(),
+  amount: Joi.number().positive().required(),
+  paymentMethod: Joi.string().valid('CASH', 'MPESA', 'BANK_TRANSFER', 'CHEQUE', 'OTHER').default('CASH'),
 });
 
 const createProposalSchema = Joi.object({

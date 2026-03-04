@@ -11,6 +11,7 @@ const { getIo } = require("../socket");
 const { AppError } = require("../middleware/errorHandler");
 const { body, validationResult } = require("express-validator");
 const TrustScoreService = require("../utils/trustScoreService");
+const { clearChamaCache } = require("../utils/cache");
 
 // ============================================================================
 // MONEY HANDLING (Integer Cents)
@@ -428,6 +429,9 @@ const recordContribution = async (req, res, next) => {
 
       // Commit transaction
       await client.query("COMMIT");
+
+      // Invalidate stats cache
+      clearChamaCache(chamaId);
 
       if (verificationStatus === 'VERIFIED') {
         try {

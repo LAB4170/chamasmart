@@ -12,6 +12,7 @@ const {
   getUserLoans,
   getMyGuarantees,
   respondToGuaranteeRequest,
+  approveLoanByOfficial,
 } = require('../controllers/loanController');
 const validate = require('../middleware/validate');
 const { applyLoanSchema } = require('../utils/validationSchemas');
@@ -82,6 +83,13 @@ router.put(
   '/:chamaId/:loanId/reject',
   authorize('admin', 'treasurer', 'chairperson'),
   rejectLoan,
+);
+
+// Multi-official approval endpoint (requires 2 officials to approve)
+router.post(
+  '/:loanId/official-approve',
+  authorize('admin', 'treasurer', 'chairperson', 'secretary'),
+  approveLoanByOfficial,
 );
 
 // ============================================================================

@@ -326,6 +326,8 @@ const ChamaDetails = () => {
   const [loans, setLoans] = useState([]);
   const [welfareFund, setWelfareFund] = useState(null);
   const [welfareClaims, setWelfareClaims] = useState([]);
+  const [ascaReports, setAscaReports] = useState(null);
+  const [ascaStatement, setAscaStatement] = useState([]);
 
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -399,6 +401,8 @@ const ChamaDetails = () => {
       fetchLoans();
     } else if (activeTab === "welfare" && chama?.chama_type === "WELFARE") {
       fetchWelfare();
+    } else if (activeTab === "reports" && chama?.chama_type === "ASCA") {
+      fetchAscaReports();
     }
   }, [activeTab, id, chama?.chama_type]);
 
@@ -430,6 +434,19 @@ const ChamaDetails = () => {
       setWelfareClaims(claimsRes.data.data || []);
     } catch (err) {
       console.error("Failed to fetch welfare:", err);
+    }
+  };
+
+  const fetchAscaReports = async () => {
+    try {
+      const [summaryRes, statementRes] = await Promise.all([
+        ascaAPI.getReportsSummary(id),
+        ascaAPI.getMemberStatement(id)
+      ]);
+      setAscaReports(summaryRes.data.data);
+      setAscaStatement(statementRes.data.data);
+    } catch (err) {
+      console.error("Failed to fetch ASCA reports:", err);
     }
   };
 
@@ -688,6 +705,26 @@ const ChamaDetails = () => {
     doc.setFontSize(10);
     doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 22);
 
+    let currentY = 30;
+
+    if (chama.chama_type === "ASCA" && ascaReports) {
+      doc.setFontSize(12);
+      doc.text("ASCA Financial Summary", 14, currentY);
+      const summaryData = [
+        ["Total Savings", formatCurrency(ascaReports.stats.totalSavings)],
+        ["Interest Collected", formatCurrency(ascaReports.stats.interestCollected)],
+        ["Dividends Distributed", formatCurrency(ascaReports.stats.totalDividends)],
+        ["Outstanding Loans", formatCurrency(ascaReports.stats.outstandingBalance)],
+        ["Liquid Cash", formatCurrency(ascaReports.readiness.liquidCash)]
+      ];
+      doc.autoTable({
+        startY: currentY + 5,
+        body: summaryData,
+        theme: 'grid'
+      });
+      currentY = doc.lastAutoTable.finalY + 15;
+    }
+
     const tableData = contributions.map(c => [
       formatDate(c.contribution_date),
       c.contributor_name,
@@ -695,8 +732,10 @@ const ChamaDetails = () => {
       c.payment_method
     ]);
 
+    doc.setFontSize(12);
+    doc.text("Recent Contributions", 14, currentY);
     doc.autoTable({
-      startY: 30,
+      startY: currentY + 5,
       head: [['Date', 'Member', 'Amount', 'Method']],
       body: tableData,
     });
@@ -742,17 +781,32 @@ const ChamaDetails = () => {
   };
 
   const handleExportExcel = () => {
-    const data = contributions.map(c => ({
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Contributions
+    const contribData = contributions.map(c => ({
       Date: formatDate(c.contribution_date),
       Member: c.contributor_name,
       Amount: c.amount,
       Method: c.payment_method,
       Notes: c.notes || ''
     }));
+    const wsContrib = XLSX.utils.json_to_sheet(contribData);
+    XLSX.utils.book_append_sheet(wb, wsContrib, "Contributions");
 
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Contributions");
+    // Sheet 2: ASCA Summary (If applicable)
+    if (chama.chama_type === "ASCA" && ascaReports) {
+      const summaryData = [
+        { Metric: "Total Savings", Value: ascaReports.stats.totalSavings },
+        { Metric: "Interest Collected", Value: ascaReports.stats.interestCollected },
+        { Metric: "Dividends Distributed", Value: ascaReports.stats.totalDividends },
+        { Metric: "Outstanding Loans", Value: ascaReports.stats.outstandingBalance },
+        { Metric: "Liquid Cash", Value: ascaReports.readiness.liquidCash }
+      ];
+      const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(wb, wsSummary, "ASCA Summary");
+    }
+
     XLSX.utils.writeFile(wb, `${chama.chama_name}_Report.xlsx`);
   };
 
@@ -1841,6 +1895,127 @@ const ChamaDetails = () => {
                 </div>
 
                 <div className="reports-grid">
+                  {/* ASCA Specific Reports */}
+                  {chama.chama_type === "ASCA" && ascaReports && (
+                    <>
+                      <div className="report-card" style={{ gridColumn: '1 / -1' }}>
+                        <div className="report-header">
+                          <div className="report-icon"><Target size={20} className="text-primary" /></div>
+                          <h4>Share-Out Readiness</h4>
+                        </div>
+                        <div className="report-content">
+                          <div className="readiness-gauge mt-2">
+                            <div style={{ width: '100%', height: '12px', background: 'var(--surface-3)', borderRadius: '6px', overflow: 'hidden' }}>
+                              <div 
+                                style={{ 
+                                  width: `${Math.min(100, (ascaReports.readiness.liquidCash / Math.max(1, ascaReports.readiness.totalEquity)) * 100)}%`, 
+                                  height: '100%', 
+                                  background: 'linear-gradient(90deg, #4f46e5, #10b981)',
+                                  transition: 'width 1s ease-in-out'
+                                }}
+                              ></div>
+                            </div>
+                            <div className="flex-between mt-2" style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                              <span style={{ color: 'var(--text-secondary)' }}>Liquid Cash: <span style={{ color: 'var(--primary)' }}>{formatCurrency(ascaReports.readiness.liquidCash)}</span></span>
+                              <span style={{ color: 'var(--text-secondary)' }}>Total Equity: <span style={{ color: 'var(--secondary)' }}>{formatCurrency(ascaReports.readiness.totalEquity)}</span></span>
+                            </div>
+                            <div style={{ padding: '0.75rem', background: 'rgba(79, 70, 229, 0.05)', borderRadius: '0.5rem', marginTop: '1rem', border: '1px dashed rgba(79, 70, 229, 0.2)' }}>
+                              <p className="text-xs text-muted leading-tight">
+                                {ascaReports.readiness.liquidCash >= ascaReports.readiness.totalEquity 
+                                  ? "🟢 Funds are ready for share-out payout. Liquid cash covers 100% of member equity." 
+                                  : `🟡 Additional ${formatCurrency(ascaReports.readiness.totalEquity - ascaReports.readiness.liquidCash)} must be recovered from outstanding loans before a full share-out payout can be processed.`}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="report-card">
+                        <div className="report-header">
+                          <div className="report-icon"><Landmark size={20} className="text-indigo-500" /></div>
+                          <h4>ASCA Financial Summary</h4>
+                        </div>
+                        <div className="report-content">
+                          <div className="report-stat">
+                            <span className="stat-label">Total Investment</span>
+                            <span className="stat-value">{formatCurrency(ascaReports.stats.totalSavings)}</span>
+                          </div>
+                          <div className="report-stat">
+                            <span className="stat-label">Interest Earned</span>
+                            <span className="stat-value text-success">{formatCurrency(ascaReports.stats.interestCollected)}</span>
+                          </div>
+                          <div className="report-stat">
+                            <span className="stat-label">Outstanding Debt</span>
+                            <span className="stat-value text-warning">{formatCurrency(ascaReports.stats.outstandingBalance)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="report-card">
+                        <div className="report-header">
+                          <div className="report-icon"><TrendingUp size={20} className="text-emerald-500" /></div>
+                          <h4>Cycle Growth</h4>
+                        </div>
+                        <div className="report-content">
+                          <ResponsiveContainer width="100%" height={150}>
+                            <LineChart data={ascaReports.trends}>
+                              <Line type="monotone" dataKey="amount" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981' }} />
+                              <XAxis dataKey="month" hide />
+                              <YAxis hide />
+                              <Tooltip formatter={(val) => formatCurrency(val)} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                          <p className="text-center text-xs text-muted mt-2">Cumulative fund growth this cycle</p>
+                        </div>
+                      </div>
+
+                      <div className="report-card" style={{ gridColumn: '1 / -1' }}>
+                        <div className="report-header">
+                          <div className="report-icon"><FileText size={20} className="text-blue-500" /></div>
+                          <h4>Personal Equity Statement</h4>
+                        </div>
+                        <div className="report-content">
+                          <div style={{ overflowX: 'auto' }}>
+                            <table className="v-table-minimal" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                                  <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Date</th>
+                                  <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Action</th>
+                                  <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Detail</th>
+                                  <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Amount</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {ascaStatement.length === 0 ? (
+                                  <tr><td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No equity transactions found.</td></tr>
+                                ) : (
+                                  ascaStatement.map((s, idx) => (
+                                    <tr key={idx} style={{ borderBottom: '1px solid var(--surface-2)' }}>
+                                      <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem' }}>{formatDate(s.date)}</td>
+                                      <td style={{ padding: '0.75rem 0.5rem' }}>
+                                        <span style={{ 
+                                          padding: '0.2rem 0.5rem', 
+                                          borderRadius: '4px', 
+                                          fontSize: '0.7rem', 
+                                          fontWeight: 700,
+                                          background: s.type === 'SHARE_PURCHASE' ? 'rgba(79, 70, 229, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                                          color: s.type === 'SHARE_PURCHASE' ? '#4f46e5' : '#10b981'
+                                        }}>
+                                          {s.type.replace('_', ' ')}
+                                        </span>
+                                      </td>
+                                      <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem' }}>{s.type === 'SHARE_PURCHASE' ? `${s.detail} Shares` : 'Dividend'}</td>
+                                      <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', fontWeight: 600 }}>{formatCurrency(s.amount)}</td>
+                                    </tr>
+                                  ))
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                   {/* Financial Summary */}
                   <div className="report-card">
                     <div className="report-header">

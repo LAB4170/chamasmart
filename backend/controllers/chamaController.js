@@ -1,4 +1,3 @@
-const NodeCache = require('node-cache');
 const pool = require('../config/db');
 const {
   isValidChamaType,
@@ -11,20 +10,7 @@ const {
   getTotal,
 } = require('../utils/pagination');
 
-// Initialize cache with 5 minutes (300 seconds) standard TTL
-const cache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
-
-// Helper to clear chama-related cache
-const clearChamaCache = chamaId => {
-  if (chamaId) {
-    cache.del(`chama_${chamaId}`);
-    cache.del(`chama_stats_${chamaId}`);
-    cache.del(`chama_members_${chamaId}`);
-  }
-  // Also clear general lists
-  cache.del('all_chamas');
-  cache.del('public_chamas');
-};
+const { cache, clearChamaCache } = require('../utils/cache');
 
 // @desc    Get all chamas
 // @route   GET /api/chamas
@@ -610,24 +596,36 @@ const getChamaStats = async (req, res) => {
     }
 
     // Get basic stats and recent activity in one query if possible, or parallel
-    const [statsResult, activityResult] = await Promise.all([
+    const [statsResult] = await Promise.all([
       pool.query(
-        `SELECT 
-           (SELECT COUNT(*) FROM chama_members cm WHERE cm.chama_id = ch.chama_id AND cm.is_active = true) as total_members,
-           (SELECT COALESCE(SUM(c.amount), 0) FROM contributions c WHERE c.chama_id = ch.chama_id AND c.is_deleted = false AND c.status = 'COMPLETED') as total_contributions,
+        `WITH member_stats AS (
+           SELECT chama_id, COUNT(*) as member_count
+           FROM chama_members
+           WHERE chama_id = $1 AND is_active = true
+           GROUP BY chama_id
+         ),
+         contribution_stats AS (
+           SELECT 
+             chama_id, 
+             SUM(amount) as total_amount,
+             COUNT(*) FILTER (WHERE contribution_date >= CURRENT_DATE - INTERVAL '30 days') as recent_count
+           FROM contributions
+           WHERE chama_id = $1 AND is_deleted = false AND status = 'COMPLETED'
+           GROUP BY chama_id
+         )
+         SELECT 
+           COALESCE(ms.member_count, 0) as total_members,
+           COALESCE(cs.total_amount, 0) as total_contributions,
+           COALESCE(cs.recent_count, 0) as recent_contributions,
            ch.current_fund,
            ch.contribution_amount,
            ch.chama_type
          FROM chamas ch
+         LEFT JOIN member_stats ms ON ch.chama_id = ms.chama_id
+         LEFT JOIN contribution_stats cs ON ch.chama_id = cs.chama_id
          WHERE ch.chama_id = $1`,
         [id],
-      ),
-      pool.query(
-        `SELECT COUNT(*) as recent_contributions
-         FROM contributions
-         WHERE chama_id = $1 AND is_deleted = false AND status = 'COMPLETED' AND contribution_date >= CURRENT_DATE - INTERVAL '30 days'`,
-        [id],
-      ),
+      )
     ]);
 
     if (statsResult.rows.length === 0) {
@@ -639,9 +637,9 @@ const getChamaStats = async (req, res) => {
 
     const data = {
       ...statsResult.rows[0],
-      recent_contributions: parseInt(
-        activityResult.rows[0].recent_contributions,
-      ),
+      total_members: parseInt(statsResult.rows[0].total_members),
+      total_contributions: parseFloat(statsResult.rows[0].total_contributions),
+      recent_contributions: parseInt(statsResult.rows[0].recent_contributions)
     };
 
     cache.set(cacheKey, data);

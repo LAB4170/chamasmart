@@ -7,6 +7,7 @@ const pool = require('../config/db');
 const logger = require('../utils/logger');
 const { logAuditEvent, EVENT_TYPES, SEVERITY } = require('../utils/auditLog');
 const TrustScoreService = require("../utils/trustScoreService");
+const { clearChamaCache } = require("../utils/cache");
 
 // Money Utility (Decimal-aware)
 const toDecimal = (val) => parseFloat(val);
@@ -533,8 +534,9 @@ const applyForLoan = async (req, res) => {
   try {
     const { chamaId } = req.params;
     const {
-      amount, purpose, termMonths, guarantors,
+      amount, purpose, termMonths: rawTermMonths, repaymentPeriod, guarantors,
     } = req.body;
+    const termMonths = repaymentPeriod || rawTermMonths;
     const userId = req.user.user_id;
 
     // === VALIDATION ===
@@ -575,11 +577,11 @@ const applyForLoan = async (req, res) => {
 
     const chama = chamaRes.rows[0];
 
-    if (chama.chama_type !== 'TABLE_BANKING') {
+    if (!['TABLE_BANKING', 'ASCA'].includes(chama.chama_type)) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: 'This chama is not configured for Table Banking',
+        message: 'This chama is not configured for loans',
       });
     }
 
@@ -592,22 +594,45 @@ const applyForLoan = async (req, res) => {
     };
 
     // === CHECK ELIGIBILITY ===
-    const memberRes = await client.query(
-      `SELECT total_contributions 
-       FROM chama_members 
-       WHERE chama_id = $1 AND user_id = $2 AND is_active = true`,
-      [chamaId, userId],
-    );
+    let savings = 0;
 
-    if (memberRes.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(403).json({
-        success: false,
-        message: 'You are not an active member',
-      });
+    if (chama.chama_type === 'ASCA') {
+      const cycleRes = await client.query(
+        "SELECT cycle_id FROM asca_cycles WHERE chama_id = $1 AND status = 'ACTIVE'",
+        [chamaId]
+      );
+      if (cycleRes.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, message: 'No active ASCA cycle found.' });
+      }
+      
+      const ascaMember = await client.query(
+        'SELECT total_investment FROM asca_members WHERE cycle_id = $1 AND user_id = $2',
+        [cycleRes.rows[0].cycle_id, userId]
+      );
+      if (ascaMember.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ success: false, message: 'You are not an active ASCA member.' });
+      }
+      savings = parseFloat(ascaMember.rows[0].total_investment || 0);
+    } else {
+      const memberRes = await client.query(
+        `SELECT total_contributions 
+         FROM chama_members 
+         WHERE chama_id = $1 AND user_id = $2 AND is_active = true`,
+        [chamaId, userId],
+      );
+
+      if (memberRes.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          success: false,
+          message: 'You are not an active member',
+        });
+      }
+
+      savings = parseFloat(memberRes.rows[0].total_contributions || 0);
     }
-
-    const savings = parseFloat(memberRes.rows[0].total_contributions || 0);
 
     // Check for defaults
     const defaultCheck = await client.query(
@@ -626,7 +651,7 @@ const applyForLoan = async (req, res) => {
     }
 
     // === CALCULATE LOAN ELIGIBILITY ===
-    const maxLoan = savings * loanConfig.loan_multiplier;
+    const maxLoan = chama.chama_type === 'ASCA' ? savings * 3 : savings * loanConfig.loan_multiplier;
 
     // Check outstanding loans
     const outstandingRes = await client.query(
@@ -651,7 +676,7 @@ const applyForLoan = async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: 'Requested amount exceeds your loan limit',
+        message: chama.chama_type === 'ASCA' ? 'ASCA Loan Limit Exceeded.' : 'Requested amount exceeds your loan limit',
         data: {
           requestedAmount: fromDecimal(amountValue),
           availableCredit: fromDecimal(availableCredit),
@@ -666,11 +691,14 @@ const applyForLoan = async (req, res) => {
     const requiredGuarantee = Math.max(0, amountValue - savings);
     let guarantorArray = Array.isArray(guarantors) ? guarantors : [];
 
-    // Map guarantor amounts
-    guarantorArray = guarantorArray.map(g => ({
-      userId: g.userId,
-      amount: parseFloat(g.amount),
-    }));
+    // Map guarantor amounts - handle both integer arrays and object arrays
+    guarantorArray = guarantorArray.map(g => {
+      if (typeof g === 'object' && g !== null && g.userId) {
+        return { userId: g.userId, amount: parseFloat(g.amount) };
+      }
+      // Simple integer user ID
+      return { userId: parseInt(g, 10), amount: amountValue };
+    });
 
     if (requiredGuarantee > 0) {
       const validation = await GuarantorService.validate(
@@ -709,27 +737,22 @@ const applyForLoan = async (req, res) => {
     const loanResult = await client.query(
       `INSERT INTO loans (
         chama_id, borrower_id, loan_amount, 
-        interest_rate, interest_type, loan_multiplier,
-        total_repayable, principal_outstanding, interest_outstanding,
+        interest_rate, total_repayable,
         term_months, status, purpose,
-        config_snapshot, created_at
+        monthly_payment
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9
       ) RETURNING *`,
       [
         chamaId,
         userId,
         amountValue,
         loanConfig.interest_rate,
-        loanConfig.interest_type,
-        loanConfig.loan_multiplier,
         schedule.totalRepayable,
-        schedule.principal,
-        schedule.totalInterest,
         term,
-        requiredGuarantee > 0 ? 'PENDING_GUARANTOR' : 'PENDING_APPROVAL',
+        requiredGuarantee > 0 ? 'PENDING' : 'PENDING',
         purpose,
-        loanConfig, // Freeze config for this loan
+        schedule.monthlyPayment,
       ],
     );
 
@@ -778,11 +801,14 @@ const applyForLoan = async (req, res) => {
 
     await client.query('COMMIT');
 
+    // Invalidate stats cache
+    clearChamaCache(chamaId);
+
     logger.logSecurityEvent('Loan application created', {
       loanId: loan.loan_id,
       chamaId,
       borrowerId: userId,
-      amount: fromCents(amountCents),
+      amount: fromDecimal(amountValue),
     });
 
     return res.status(201).json({
@@ -796,10 +822,10 @@ const applyForLoan = async (req, res) => {
         },
         schedule: {
           ...schedule,
-          principal: fromCents(schedule.principal),
-          totalInterest: fromCents(schedule.totalInterest),
-          totalRepayable: fromCents(schedule.totalRepayable),
-          monthlyPayment: fromCents(schedule.monthlyPayment),
+          principal: fromDecimal(schedule.principal),
+          totalInterest: fromDecimal(schedule.totalInterest),
+          totalRepayable: fromDecimal(schedule.totalRepayable),
+          monthlyPayment: fromDecimal(schedule.monthlyPayment),
           installments: schedule.installments.map(inst => ({
             ...inst,
             principalAmount: fromDecimal(inst.principalAmount),
@@ -1502,6 +1528,106 @@ const respondToGuaranteeRequest = async (req, res) => {
   }
 };
 
+const APPROVAL_THRESHOLD = 2; // Minimum official approvals needed
+
+const approveLoanByOfficial = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { loanId } = req.params;
+    const userId = req.user.user_id;
+    const { action, notes } = req.body; // action: 'APPROVED' | 'REJECTED'
+
+    if (!['APPROVED', 'REJECTED'].includes(action)) {
+      return res.status(400).json({ success: false, message: "Action must be APPROVED or REJECTED" });
+    }
+
+    // 1. Find the loan and get its chama
+    const loanRes = await client.query(
+      'SELECT loan_id, chama_id, borrower_id, status FROM loans WHERE loan_id = $1',
+      [loanId]
+    );
+    if (loanRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Loan not found.' });
+    }
+    const loan = loanRes.rows[0];
+
+    // 2. Block borrower from approving own loan
+    if (loan.borrower_id === userId) {
+      return res.status(403).json({ success: false, message: 'You cannot approve your own loan.' });
+    }
+
+    // 3. Verify that requester is a chama official
+    const officialCheck = await client.query(
+      "SELECT role FROM chama_members WHERE chama_id = $1 AND user_id = $2 AND is_active = true AND role IN ('CHAIRPERSON', 'TREASURER', 'SECRETARY')",
+      [loan.chama_id, userId]
+    );
+    if (officialCheck.rows.length === 0) {
+      return res.status(403).json({ success: false, message: 'Only Chama officials may approve loans.' });
+    }
+
+    // 4. Loan must be in PENDING status
+    if (!['PENDING', 'PENDING_APPROVAL'].includes(loan.status)) {
+      return res.status(400).json({ success: false, message: `Loan is not awaiting approval. Current status: ${loan.status}` });
+    }
+
+    await client.query('BEGIN');
+
+    // 5. Insert vote (unique constraint prevents double-voting)
+    await client.query(
+      'INSERT INTO loan_approvals (loan_id, official_user_id, status, notes) VALUES ($1, $2, $3, $4)',
+      [loanId, userId, action, notes || null]
+    );
+
+    // 6. Count total approvals
+    const countRes = await client.query(
+      "SELECT COUNT(*) as count FROM loan_approvals WHERE loan_id = $1 AND status = 'APPROVED'",
+      [loanId]
+    );
+    const approvalCount = parseInt(countRes.rows[0].count, 10);
+
+    let newStatus = loan.status;
+    let message = `Vote recorded. ${approvalCount}/${APPROVAL_THRESHOLD} approvals.`;
+
+    if (action === 'REJECTED') {
+      // Any official can reject immediately
+      newStatus = 'REJECTED';
+      message = 'Loan rejected.';
+    } else if (approvalCount >= APPROVAL_THRESHOLD) {
+      // Threshold met — approve the loan
+      newStatus = 'APPROVED';
+      message = `Loan approved. ${approvalCount} officials approved — funds authorized.`;
+    }
+
+    if (newStatus !== loan.status) {
+      await client.query(
+        'UPDATE loans SET status = $1, approved_at = NOW(), approved_by = $2 WHERE loan_id = $3',
+        [newStatus, userId, loanId]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    // Invalidate stats cache
+    clearChamaCache(loan.chama_id);
+
+    return res.status(200).json({
+      success: true,
+      message,
+      data: { loanId, action, approvalCount, threshold: APPROVAL_THRESHOLD, newStatus }
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    logger.logError(error, { context: 'approveLoanByOfficial' });
+    if (error.code === '23505') {
+      return res.status(409).json({ success: false, message: 'You have already voted on this loan.' });
+    }
+    return res.status(500).json({ success: false, message: 'Error processing loan approval.' });
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   applyForLoan,
   getChamaLoans,
@@ -1512,6 +1638,7 @@ module.exports = {
   getUserLoans,
   getMyGuarantees,
   respondToGuaranteeRequest,
+  approveLoanByOfficial,
   // Export services
   LoanCalculator,
   GuarantorService,

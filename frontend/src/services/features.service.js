@@ -33,6 +33,10 @@ export const ascaAPI = {
     getAssets: (chamaId) => api.get(`/asca/${chamaId}/assets`),
     createAsset: (chamaId, payload) =>
         api.post(`/asca/${chamaId}/assets`, payload),
+    getReportsSummary: (chamaId, cycleId) => 
+        api.get(`/asca/${chamaId}/reports/summary`, { params: { cycleId } }),
+    getMemberStatement: (chamaId, cycleId) => 
+        api.get(`/asca/${chamaId}/reports/member-statement`, { params: { cycleId } }),
 };
 
 // Welfare API calls

@@ -9,6 +9,7 @@ const logger = require("../utils/logger");
 const { body, param, validationResult } = require("express-validator");
 const { logAuditEvent, EVENT_TYPES, SEVERITY } = require("../utils/auditLog");
 const { createNotification, createBulkNotifications } = require('../utils/notificationService');
+const { clearChamaCache } = require('../utils/cache');
 
 // ============================================================================
 // VALIDATION MIDDLEWARE
@@ -148,6 +149,9 @@ const addMember = async (req, res, next) => {
         );
 
         await client.query("COMMIT");
+        
+        // Invalidate cache
+        clearChamaCache(chamaId);
 
         logger.info("Member reactivated", {
           chamaId,
@@ -219,6 +223,9 @@ const addMember = async (req, res, next) => {
     }
 
     await client.query("COMMIT");
+
+    // Invalidate cache
+    clearChamaCache(chamaId);
 
     // Log audit event
     await logAuditEvent({
@@ -355,6 +362,9 @@ const updateMemberRole = async (req, res, next) => {
 
     await client.query("COMMIT");
 
+    // Invalidate cache
+    clearChamaCache(chamaId);
+
     // Log audit event
     await logAuditEvent({
       eventType: EVENT_TYPES.MEMBER_ROLE_UPDATED,
@@ -483,6 +493,9 @@ const removeMember = async (req, res, next) => {
     );
 
     await client.query("COMMIT");
+
+    // Invalidate cache
+    clearChamaCache(chamaId);
 
     // Log audit event
     await logAuditEvent({
@@ -724,6 +737,9 @@ const bulkAddMembers = async (req, res, next) => {
     }
 
     await client.query("COMMIT");
+
+    // Invalidate cache
+    clearChamaCache(chamaId);
 
     logger.info("Bulk add members completed", {
       chamaId,
