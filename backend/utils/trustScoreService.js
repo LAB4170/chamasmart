@@ -18,18 +18,18 @@ class TrustScoreService {
 
       // 0. Fetch Chama & Member Details for baseline
       const metaRes = await client.query(`
-        SELECT c.contribution_frequency, c.contribution_amount, cm.joined_at, cm.role
+        SELECT c.contribution_frequency, c.contribution_amount, cm.join_date, cm.role
         FROM chamas c
         JOIN chama_members cm ON c.chama_id = cm.chama_id
         WHERE c.chama_id = $1 AND cm.user_id = $2
       `, [chamaId, userId]);
 
       if (metaRes.rowCount === 0) throw new Error('Member not found');
-      const { contribution_frequency, joined_at } = metaRes.rows[0];
+      const { contribution_frequency, join_date } = metaRes.rows[0];
 
       // 1. Contribution Reliability (50%)
       // logic: [Actual Verified] / [Expected since joining]
-      const joinedDate = new Date(joined_at);
+      const joinedDate = new Date(join_date);
       const now = new Date();
       const monthsDiff = (now.getFullYear() - joinedDate.getFullYear()) * 12 + (now.getMonth() - joinedDate.getMonth());
       const weeksDiff = Math.floor((now - joinedDate) / (7 * 24 * 60 * 60 * 1000));
@@ -43,7 +43,7 @@ class TrustScoreService {
       const contributionRes = await client.query(`
         SELECT COUNT(*) as count
         FROM contributions 
-        WHERE chama_id = $1 AND user_id = $2 AND status = 'VERIFIED'
+        WHERE chama_id = $1 AND user_id = $2 AND is_deleted = false AND verification_status = 'VERIFIED'
       `, [chamaId, userId]);
 
       const actualCount = parseInt(contributionRes.rows[0].count) || 0;
@@ -52,7 +52,7 @@ class TrustScoreService {
       // 2. Attendance Presence (20%)
       // logic: Last 5 meetings only (recency bias)
       const attendanceRes = await client.query(`
-        SELECT status
+        SELECT attended
         FROM meeting_attendance ma
         JOIN meetings m ON ma.meeting_id = m.meeting_id
         WHERE m.chama_id = $1 AND ma.user_id = $2
@@ -62,7 +62,7 @@ class TrustScoreService {
 
       let attendanceScore = 100;
       if (attendanceRes.rows.length > 0) {
-        const presentCount = attendanceRes.rows.filter(r => r.status === 'PRESENT').length;
+        const presentCount = attendanceRes.rows.filter(r => r.attended === true).length;
         attendanceScore = (presentCount / attendanceRes.rows.length) * 100;
       }
 
@@ -71,7 +71,7 @@ class TrustScoreService {
         SELECT status, due_date, 
                (SELECT MAX(payment_date) FROM loan_repayments lr WHERE lr.loan_id = l.loan_id) as last_payment
         FROM loans l
-        WHERE chama_id = $1 AND user_id = $2 AND status IN ('ACTIVE', 'REPAID', 'DEFAULTED')
+        WHERE chama_id = $1 AND borrower_id = $2 AND status IN ('ACTIVE', 'REPAID', 'DEFAULTED')
       `, [chamaId, userId]);
 
       let loanScore = 100;

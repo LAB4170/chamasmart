@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { chamaAPI, contributionAPI, roscaAPI } from "../../../services/api";
 import LoadingSkeleton from "../../../components/LoadingSkeleton";
-import { Save, X, Calendar, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
+import { Save, X, Calendar, AlertCircle, CheckCircle2, RefreshCw, ArrowLeft } from "lucide-react";
 
 const BulkRecordContribution = () => {
   const { id } = useParams();
@@ -197,13 +197,36 @@ const BulkRecordContribution = () => {
   return (
     <div className="page">
       <div className="container">
-        <div className="page-header">
-          <div>
-            <h1>Bulk Record Contributions</h1>
-            <p className="text-muted">
-              {chama?.chama_name} •{" "}
-              <span>{isROSCA ? "Merry-Go-Round" : chama?.chama_type}</span>
-            </p>
+        <div className="page-header" style={{ alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <button
+              onClick={() => navigate(`/chamas/${id}`)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '2.5rem',
+                height: '2.5rem',
+                borderRadius: '0.75rem',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                transition: 'var(--transition)'
+              }}
+              aria-label="Back to Chama Details"
+              onMouseOver={(e) => { e.currentTarget.style.background = 'var(--surface-3)'; e.currentTarget.style.color = 'var(--primary)'; }}
+              onMouseOut={(e) => { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div>
+              <h1 style={{ margin: 0 }}>Bulk Record Contributions</h1>
+              <p className="text-muted" style={{ margin: 0 }}>
+                {chama?.chama_name} •{" "}
+                <span>{isROSCA ? "Merry-Go-Round" : chama?.chama_type}</span>
+              </p>
+            </div>
           </div>
           <button className="btn btn-outline btn-sm" onClick={() => navigate(`/chamas/${id}`)}>
             <X size={16} className="mr-1" /> Cancel

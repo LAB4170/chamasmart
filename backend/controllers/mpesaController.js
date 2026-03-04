@@ -17,37 +17,51 @@ class Money {
  * Initiate STK Push
  */
 const initiatePayment = async (req, res, next) => {
-  const { chamaId } = req.body;
-  const { amount, phoneNumber, notes } = req.body;
+  const { chamaId, amount, phoneNumber, notes } = req.body;
   const userId = req.user.user_id;
 
   try {
-    // 1. Initiate STK Push via Service
+    // 1. Look up chama type + resolve active ROSCA cycle if applicable
+    const chamaRes = await pool.query(
+      'SELECT chama_type FROM chamas WHERE chama_id = $1',
+      [chamaId]
+    );
+    if (chamaRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Chama not found' });
+    }
+    const chamaType = chamaRes.rows[0].chama_type;
+
+    let cycleId = null;
+    if (chamaType === 'ROSCA') {
+      const cycleRes = await pool.query(
+        `SELECT cycle_id FROM rosca_cycles 
+         WHERE chama_id = $1 AND status IN ('ACTIVE', 'PENDING') 
+         ORDER BY CASE WHEN status = 'ACTIVE' THEN 0 ELSE 1 END, created_at DESC 
+         LIMIT 1`,
+        [chamaId]
+      );
+      if (cycleRes.rows.length > 0) cycleId = cycleRes.rows[0].cycle_id;
+    }
+
+    // 2. Initiate STK Push via Daraja
     const mpesaRes = await mpesaService.initiateStkPush(
       phoneNumber,
       amount,
       `CHAMA${chamaId}`,
-      "Contribution"
+      'Contribution'
     );
 
-    // 2. Log request in mpesa_transactions
+    // 3. Log request in mpesa_transactions (with cycle_id for ROSCA)
     await pool.query(
       `INSERT INTO mpesa_transactions 
-      (checkout_request_id, merchant_request_id, user_id, chama_id, amount, phone_number, status)
-      VALUES ($1, $2, $3, $4, $5, $6, 'PENDING')`,
-      [
-        mpesaRes.CheckoutRequestID,
-        mpesaRes.MerchantRequestID,
-        userId,
-        chamaId,
-        amount,
-        phoneNumber
-      ]
+      (checkout_request_id, user_id, chama_id, amount, phone_number, status, cycle_id)
+      VALUES ($1, $2, $3, $4, $5, 'PENDING', $6)`,
+      [mpesaRes.CheckoutRequestID, userId, chamaId, amount, phoneNumber, cycleId]
     );
 
     res.status(200).json({
       success: true,
-      message: "STK Push initiated. Please check your phone.",
+      message: 'STK Push initiated. Please check your phone.',
       checkoutRequestId: mpesaRes.CheckoutRequestID
     });
   } catch (error) {
@@ -97,7 +111,7 @@ const handleCallback = async (req, res) => {
     // 2. Handle failure
     if (ResultCode !== 0) {
       await client.query(
-        "UPDATE mpesa_transactions SET status = 'FAILED', result_code = $1, result_desc = $2 WHERE checkout_request_id = $3",
+        "UPDATE mpesa_transactions SET status = 'FAILED', result_code = $1, result_description = $2 WHERE checkout_request_id = $3",
         [ResultCode, ResultDesc, CheckoutRequestID]
       );
       await client.query("COMMIT");
@@ -119,20 +133,33 @@ const handleCallback = async (req, res) => {
     const amount = amountItem ? amountItem.Value : transaction.amount;
     const receipt = receiptItem ? receiptItem.Value : null;
 
-    // 4. Create Contribution Record
+    // 4. Resolve ROSCA cycle (use pre-stored cycle_id from transaction, or re-resolve)
+    let cycleId = transaction.cycle_id || null;
+    if (!cycleId) {
+      const chamaRes = await client.query('SELECT chama_type FROM chamas WHERE chama_id = $1', [transaction.chama_id]);
+      if (chamaRes.rows[0]?.chama_type === 'ROSCA') {
+        const cycleRes = await client.query(
+          `SELECT cycle_id FROM rosca_cycles 
+           WHERE chama_id = $1 AND status IN ('ACTIVE', 'PENDING') 
+           ORDER BY CASE WHEN status = 'ACTIVE' THEN 0 ELSE 1 END, created_at DESC LIMIT 1`,
+          [transaction.chama_id]
+        );
+        if (cycleRes.rows.length > 0) cycleId = cycleRes.rows[0].cycle_id;
+      }
+    }
+
+    // 5. Create Contribution Record
     const contribRes = await client.query(
       `INSERT INTO contributions 
-      (chama_id, user_id, amount, payment_method, receipt_number, verification_status, contribution_date, notes)
-      VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE, $7)
+      (chama_id, user_id, amount, payment_method, receipt_number, verification_status, status, contribution_date, notes, cycle_id)
+      VALUES ($1, $2, $3, 'MPESA', $4, 'VERIFIED', 'COMPLETED', CURRENT_DATE, 'Automated M-Pesa Payment', $5)
       RETURNING contribution_id`,
       [
         transaction.chama_id,
         transaction.user_id,
-        Money.toCents(amount),
-        'MPESA',
+        parseFloat(amount),
         receipt,
-        'VERIFIED',
-        'Automated M-Pesa Payment'
+        cycleId
       ]
     );
 
@@ -141,19 +168,27 @@ const handleCallback = async (req, res) => {
     // 5. Update Transaction status
     await client.query(
       `UPDATE mpesa_transactions 
-      SET status = 'COMPLETED', result_code = 0, mpesa_receipt = $1, contribution_id = $2
-      WHERE checkout_request_id = $3`,
-      [receipt, contributionId, CheckoutRequestID]
+      SET status = 'COMPLETED', result_code = 0, mpesa_receipt_number = $1
+      WHERE checkout_request_id = $2`,
+      [receipt, CheckoutRequestID]
     );
 
     // 6. Update Chama Fund
     await client.query(
        "UPDATE chamas SET current_fund = current_fund + $1 WHERE chama_id = $2",
-       [Money.toCents(amount), transaction.chama_id]
+       [parseFloat(amount), transaction.chama_id]
     );
 
-    // 7. Update Member trust score
-    await TrustScoreService.updateScore(transaction.user_id, 'payment_verified');
+    // 7. Update member balance + trigger Trust Score
+    await client.query(
+      'UPDATE chama_members SET total_contributions = total_contributions + $1, last_contribution_date = NOW(), updated_at = NOW() WHERE chama_id = $2 AND user_id = $3',
+      [amount, transaction.chama_id, transaction.user_id]
+    );
+
+    // Async trust score update (non-blocking)
+    TrustScoreService.updateMemberTrustScore(transaction.chama_id, transaction.user_id).catch(err =>
+      logger.error('Trust score update failed', { error: err.message })
+    );
 
     await client.query("COMMIT");
 

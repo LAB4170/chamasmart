@@ -935,9 +935,47 @@ const deleteCycle = async (req, res) => {
     }
 
     // Delete related data (CASCADE usually handles this, but explicit for safety)
-    await client.query('DELETE FROM rosca_swap_requests WHERE cycle_id = $1', [cycleId]);
-    await client.query('DELETE FROM rosca_roster WHERE cycle_id = $1', [cycleId]);
-    await client.query('DELETE FROM rosca_cycles WHERE cycle_id = $1', [cycleId]);
+    const cycleIdInt = parseInt(cycleId);
+    
+    // 1. Soft-delete contributions associated with this cycle
+    await client.query(
+      'UPDATE contributions SET is_deleted = true, deleted_at = NOW() WHERE cycle_id = $1',
+      [cycleIdInt]
+    );
+
+    // 2. Delete ROSCA specific metadata
+    await client.query('DELETE FROM rosca_swap_requests WHERE cycle_id = $1', [cycleIdInt]);
+    await client.query('DELETE FROM rosca_roster WHERE cycle_id = $1', [cycleIdInt]);
+    await client.query('DELETE FROM rosca_cycles WHERE cycle_id = $1', [cycleIdInt]);
+
+    // 3. Recalculate chama current_fund
+    await client.query(`
+      UPDATE chamas
+      SET current_fund = COALESCE((
+        SELECT SUM(amount)
+        FROM contributions
+        WHERE chama_id = $1
+          AND is_deleted = false
+          AND status = 'COMPLETED'
+      ), 0),
+      updated_at = NOW()
+      WHERE chama_id = $1
+    `, [cycle.chama_id]);
+
+    // 4. Recalculate member total_contributions for ALL members in this chama
+    await client.query(`
+      UPDATE chama_members cm
+      SET total_contributions = COALESCE((
+        SELECT SUM(amount)
+        FROM contributions
+        WHERE chama_id = $1
+          AND user_id = cm.user_id
+          AND is_deleted = false
+          AND status = 'COMPLETED'
+      ), 0),
+      updated_at = NOW()
+      WHERE cm.chama_id = $1
+    `, [cycle.chama_id]);
 
     await client.query('COMMIT');
 

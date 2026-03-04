@@ -5,11 +5,11 @@ class MpesaService {
   constructor() {
     this.consumerKey = process.env.MPESA_CONSUMER_KEY;
     this.consumerSecret = process.env.MPESA_CONSUMER_SECRET;
-    this.shortCode = process.env.MPESA_PAYBILL_OR_SHORTCODE;
+    this.shortCode = process.env.MPESA_SHORTCODE || process.env.MPESA_PAYBILL_OR_SHORTCODE;
     this.passkey = process.env.MPESA_PASSKEY;
     this.callbackUrl = process.env.MPESA_CALLBACK_URL;
-    this.baseUrl = process.env.MPESA_ENVIRONMENT === 'production' 
-      ? 'https://api.safaricom.co.ke' 
+    this.baseUrl = (process.env.MPESA_ENVIRONMENT || process.env.MPESA_ENV) === 'production'
+      ? 'https://api.safaricom.co.ke'
       : 'https://sandbox.safaricom.co.ke';
   }
 
@@ -59,7 +59,7 @@ class MpesaService {
         TransactionDesc: transactionDesc.substring(0, 20),
       };
 
-      const response = await axios.post(`${this.baseUrl}/mpesa/stkpush/v1/query`, payload, {
+      const response = await axios.post(`${this.baseUrl}/mpesa/stkpush/v1/processrequest`, payload, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

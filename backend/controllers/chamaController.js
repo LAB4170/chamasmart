@@ -588,7 +588,7 @@ const getChamaStats = async (req, res) => {
       pool.query(
         `SELECT 
            (SELECT COUNT(*) FROM chama_members cm WHERE cm.chama_id = ch.chama_id AND cm.is_active = true) as total_members,
-           (SELECT COALESCE(SUM(c.amount), 0) FROM contributions c WHERE c.chama_id = ch.chama_id) as total_contributions,
+           (SELECT COALESCE(SUM(c.amount), 0) FROM contributions c WHERE c.chama_id = ch.chama_id AND c.is_deleted = false AND c.status = 'COMPLETED') as total_contributions,
            ch.current_fund,
            ch.contribution_amount,
            ch.chama_type
@@ -599,7 +599,7 @@ const getChamaStats = async (req, res) => {
       pool.query(
         `SELECT COUNT(*) as recent_contributions
          FROM contributions
-         WHERE chama_id = $1 AND contribution_date >= CURRENT_DATE - INTERVAL '30 days'`,
+         WHERE chama_id = $1 AND is_deleted = false AND status = 'COMPLETED' AND contribution_date >= CURRENT_DATE - INTERVAL '30 days'`,
         [id],
       ),
     ]);
