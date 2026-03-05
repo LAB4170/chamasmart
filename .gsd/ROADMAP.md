@@ -30,3 +30,12 @@
 **Status**: ✅ Complete
 **Objective**: Perform empirical validation of the full ROSCA cycle and ensure concurrency stability.
 **Requirements**: REQ-06, REQ-07
+
+### Phase 14: Visual Loan Analytics Dashboard & Functional Exports
+**Status**: ?? In Progress
+**Objective**: Implement a visually appealing, role-gated loan analytics dashboard leveraging existing backend APIs, and ensure robust report export capabilities (PDF/Excel).
+**Requirements**: REQ-08
+
+### Phase 15: Treasury Liquidity Security Protocols
+**Status**:  In Progress
+**Objective**: Patch backend controllers to universally restrict loan disbursements that mathematically exceed the Chama's physical wallet balances.

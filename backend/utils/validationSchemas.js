@@ -78,7 +78,7 @@ const createChamaSchema = Joi.object({
   meetingDay: Joi.string().required(),
   meetingTime: Joi.string().optional().allow(null, ''),
   visibility: Joi.string().valid('PUBLIC', 'PRIVATE').default('PRIVATE'),
-  sharePrice: Joi.number().min(0).optional(),
+  sharePrice: Joi.number().min(0).optional().allow(null, ""),
   paymentMethods: Joi.object({
     type: Joi.string().valid('PAYBILL', 'TILL', 'POCHI').optional(),
     businessNumber: Joi.string().optional().allow('', null),

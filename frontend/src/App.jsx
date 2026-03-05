@@ -33,7 +33,7 @@ const MyChamas = lazy(() => import("./pages/chama/core/MyChamas"));
 const InviteManagement = lazy(() => import("./pages/chama/members/InviteManagement"));
 const JoinChama = lazy(() => import("./pages/chama/members/JoinChama"));
 const LoanManagement = lazy(() => import("./pages/chama/loans/LoanManagement"));
-const ApplyLoan = lazy(() => import("./pages/chama/loans/ApplyLoan"));
+const ApplyLoan = lazy(() => import("./pages/chama/loans/LoanApplicationWizard"));
 const RepayLoan = lazy(() => import("./pages/chama/loans/RepayLoan"));
 const PayoutManagement = lazy(() => import("./pages/chama/core/PayoutManagement"));
 const ProcessPayout = lazy(() => import("./pages/chama/core/ProcessPayout"));

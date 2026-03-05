@@ -757,7 +757,6 @@ async function firebaseSync(req, res) {
   }
 }
 
-// REFACTORED REGISTRATION ENDPOINT
 // ============================================================================
 
 const register = async (req, res) => {

@@ -559,6 +559,7 @@ const bulkRecordContributions = async (req, res, next) => {
     await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
 
     const successes = [];
+    const verifiedUsers = [];
     
     // Verify chama
     const chamaRes = await client.query(
@@ -651,6 +652,9 @@ const bulkRecordContributions = async (req, res, next) => {
       }
 
       successes.push({ contributionId, userId, amount });
+      if (verificationStatus === 'VERIFIED') {
+        verifiedUsers.push(userId);
+      }
     }
 
     // Update Chama Fund

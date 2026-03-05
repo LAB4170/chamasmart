@@ -31,3 +31,10 @@ To transform ChamaSmart into a production-ready, highly reliable financial manag
 - [ ] All API endpoints have synchronized Joi validation schemas.
 - [ ] Critical technical debt items (e.g., `authController.backup.js`) are resolved.
 - [ ] Automated tests or empirical evidence confirm correct financial flow for a full ROSCA cycle.
+
+## Phase 14 Goals
+- **Visual Loan Analytics**: Build a dedicated, visually impactful dashboard rendering API analytics (Recharts for trends).
+- **Functional Exports**: Execute functional PDF and Excel downloads for loan data.
+
+## Phase 15 Goals
+- **Treasury Liquidity Guards**: Ensure loans cannot be applied for or approved if the requested amount exceeds the Chama's actual unallocated cash pool (Total Contributions - Active Disbursed Loans).

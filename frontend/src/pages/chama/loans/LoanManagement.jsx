@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { loanAPI, chamaAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import ConfirmDialog from "../../../components/ConfirmDialog";
+import LoanAnalyticsDashboard from "./LoanAnalyticsDashboard";
 import {
     ArrowLeft, Plus, BarChart2, Clock, CheckCircle2, Wallet,
     AlertCircle, FileText, X, Check, DollarSign, Calendar
@@ -19,6 +20,7 @@ const LoanManagement = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [filter, setFilter] = useState("ALL");
+    const [activeTab, setActiveTab] = useState("LOANS");
     const [actionLoading, setActionLoading] = useState(null);
     const [detailsLoading, setDetailsLoading] = useState(false);
     const [selectedLoan, setSelectedLoan] = useState(null);
@@ -43,7 +45,8 @@ const LoanManagement = () => {
 
                 if (isMounted) {
                     setChama(chamaRes.data.data || chamaRes.data);
-                    setLoans(loansRes.data.data || loansRes.data);
+                    const loansData = loansRes.data.data;
+                    setLoans(Array.isArray(loansData) ? loansData : (loansData?.loans || []));
                     setMembers(membersRes.data.data || membersRes.data);
                 }
             } catch (err) {
@@ -69,7 +72,8 @@ const LoanManagement = () => {
             await loanAPI.approve(id, loanId);
             // Refresh data
             const loansRes = await loanAPI.getChamaLoans(id);
-            setLoans(loansRes.data.data || loansRes.data);
+            const loansData = loansRes.data.data;
+            setLoans(Array.isArray(loansData) ? loansData : (loansData?.loans || []));
             setActionLoading(null);
         } catch (err) {
             setError(err.response?.data?.message || "Failed to approve loan");
@@ -92,7 +96,8 @@ const LoanManagement = () => {
             await loanAPI.reject(id, loanToReject, rejectReason);
             // Refresh data
             const loansRes = await loanAPI.getChamaLoans(id);
-            setLoans(loansRes.data.data || loansRes.data);
+            const loansData2 = loansRes.data.data;
+            setLoans(Array.isArray(loansData2) ? loansData2 : (loansData2?.loans || []));
             setActionLoading(null);
             setLoanToReject(null);
         } catch (err) {
@@ -219,10 +224,29 @@ const LoanManagement = () => {
                     </div>
                 </div>
 
-                {error && <div className="alert alert-error"><AlertCircle size={16} /> {error}</div>}
+                {isOfficial() && (
+                    <div className="lm-tabs">
+                        <button 
+                            className={`lm-tab-btn ${activeTab === 'LOANS' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('LOANS')}
+                        >
+                            Active Loans
+                        </button>
+                        <button 
+                            className={`lm-tab-btn ${activeTab === 'DASHBOARD' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('DASHBOARD')}
+                        >
+                            Loan Analytics
+                        </button>
+                    </div>
+                )}
 
-                {/* Stats */}
-                <div className="stats-row">
+                {activeTab === 'DASHBOARD' && isOfficial() ? (
+                    <LoanAnalyticsDashboard chamaId={id} />
+                ) : (
+                    <>
+                        {/* Stats - Only visible in Loans tab */}
+                        <div className="stats-row">
                     <div className="mini-stat-card">
                         <div className="mini-stat-icon blue">
                             <BarChart2 size={20} />
@@ -260,6 +284,8 @@ const LoanManagement = () => {
                         </div>
                     </div>
                 </div>
+                </>
+                )}
 
                 {/* Filter */}
                 <div className="filter-bar">
@@ -391,7 +417,6 @@ const LoanManagement = () => {
                         </div>
                     )}
                 </div>
-            </div>
 
             {/* Loan Details Modal */}
             {selectedLoan && loanDetails && (
@@ -525,6 +550,7 @@ const LoanManagement = () => {
                 onInputChange={setRejectReason}
                 loading={actionLoading === loanToReject}
             />
+        </div>
         </div>
     );
 };

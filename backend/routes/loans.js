@@ -13,6 +13,7 @@ const {
   getMyGuarantees,
   respondToGuaranteeRequest,
   approveLoanByOfficial,
+  getChamaLoanAnalytics,
 } = require('../controllers/loanController');
 const validate = require('../middleware/validate');
 const { applyLoanSchema } = require('../utils/validationSchemas');
@@ -101,6 +102,13 @@ router.post(
   '/:chamaId/:loanId/repay',
   applyFinancialRateLimiting,
   makeRepayment,
+);
+
+// Get advanced loan analytics (Officials only)
+router.get(
+  '/:chamaId/reports/analytics',
+  authorize('admin', 'treasurer', 'chairperson', 'secretary'),
+  getChamaLoanAnalytics,
 );
 
 module.exports = router;

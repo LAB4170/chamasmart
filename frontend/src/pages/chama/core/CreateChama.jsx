@@ -81,9 +81,15 @@ const CreateChama = () => {
 
     const submissionData = {
       ...formData,
+      sharePrice: formData.sharePrice === "" ? null : parseFloat(formData.sharePrice),
       meetingDay: meetingPattern === "CUSTOM" ? formData.meetingDay : finalMeetingDay,
       meetingTime: formData.meetingTime || null
     };
+
+    // Only include sharePrice for ASCA to keep payload clean
+    if (formData.chamaType !== 'ASCA') {
+      delete submissionData.sharePrice;
+    }
 
     try {
       const response = await chamaAPI.create(submissionData);

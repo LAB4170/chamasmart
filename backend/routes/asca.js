@@ -2,7 +2,7 @@ const express = require('express');
 
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
-const { buyShares, getMyEquity, createAscaCycle, closeAscaCycle, executeShareOutPayout, getAscaReportsSummary, getMemberEquityStatement } = require('../controllers/ascaController');
+const { buyShares, getMyEquity, createAscaCycle, closeAscaCycle, executeShareOutPayout, getAscaReportsSummary, getMemberEquityStatement, getMemberStanding } = require('../controllers/ascaController');
 const {
   createProposal,
   listProposals,
@@ -126,6 +126,13 @@ router.get(
   '/:chamaId/reports/member-statement',
   authorize('member', 'admin', 'treasurer', 'chairperson'),
   getMemberEquityStatement,
+);
+
+// Get member standing (Equity, Loan Limit, etc)
+router.get(
+  '/:chamaId/reports/standing',
+  authorize('member', 'admin', 'treasurer', 'chairperson'),
+  getMemberStanding,
 );
 
 module.exports = router;

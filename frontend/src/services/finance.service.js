@@ -27,6 +27,10 @@ export const loanAPI = {
     getMyGuarantees: (params) => api.get("/loans/my-guarantees", { params }),
     respondGuarantor: (loanId, decision) =>
         api.post(`/loans/${loanId}/guarantee/respond`, { decision }),
+    getChamaAnalytics: (chamaId) => 
+        api.get(`/loans/${chamaId}/reports/analytics`),
+    getAnalytics: (chamaId) => 
+        api.get(`/loans/${chamaId}/reports/analytics`),
 };
 
 // Payout API calls

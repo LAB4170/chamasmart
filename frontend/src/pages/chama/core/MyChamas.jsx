@@ -2,7 +2,7 @@ import { useState, useEffect, memo, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { chamaAPI } from "../../../services/api";
 import LoadingSkeleton from "../../../components/LoadingSkeleton";
-import { Building, RefreshCw, TrendingUp, Building2, Handshake, Sparkles, MapPin } from 'lucide-react';
+import { Building, RefreshCw, TrendingUp, Building2, Handshake, Sparkles, MapPin, Users } from 'lucide-react';
 
 const MyChamaCard = memo(({ chama, getChamaTypeLabel, formatCurrency }) => {
   const handleAuxClick = (e) => {

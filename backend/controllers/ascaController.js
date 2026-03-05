@@ -712,6 +712,118 @@ const getMemberEquityStatement = async (req, res, next) => {
     }
   };
 
+  /**
+   * Get overall member standing for ASCA (Equity, Loan Limit, Outstanding Debt)
+   */
+  const getMemberStanding = async (req, res, next) => {
+    let client;
+    const { chamaId } = req.params;
+    const userId = req.user.user_id;
+
+    try {
+      client = await pool.connect();
+
+      // 1. Get active cycle
+      const cycleRes = await client.query(
+        "SELECT cycle_id, share_price FROM asca_cycles WHERE chama_id = $1 AND status = 'ACTIVE'",
+        [chamaId],
+      );
+
+      if (cycleRes.rows.length === 0) {
+        return res.status(200).json({
+          success: true,
+          data: {
+            hasActiveCycle: false,
+            totalShares: 0,
+            equityValue: 0,
+            loanLimit: 0,
+            outstandingDebt: 0,
+            availableCredit: 0
+          }
+        });
+      }
+
+      const { cycle_id: cycleId, share_price: sharePrice } = cycleRes.rows[0];
+
+      // 2. Get member equity and outstanding debt
+      const standingRes = await client.query(
+        `SELECT 
+           COALESCE(am.total_investment, 0) as total_equity,
+           COALESCE(am.number_of_shares, 0) as total_shares,
+           (
+             SELECT COALESCE(SUM(balance), 0) 
+             FROM loans 
+             WHERE chama_id = $1 AND borrower_id = $2 AND status IN ('ACTIVE', 'DEFAULTED')
+           ) as total_debt,
+           (
+             SELECT COALESCE(SUM(guarantee_amount), 0) 
+             FROM loan_guarantors lg
+             JOIN loans l ON lg.loan_id = l.loan_id
+             WHERE lg.guarantor_user_id = $2 AND lg.status = 'APPROVED' AND l.status = 'ACTIVE'
+           ) as total_guaranteed
+         FROM asca_members am
+         WHERE am.cycle_id = $3 AND am.user_id = $2`,
+        [chamaId, userId, cycleId],
+      );
+
+      if (standingRes.rows.length === 0) {
+        return res.status(200).json({
+          success: true,
+          data: {
+            hasActiveCycle: true,
+            totalShares: 0,
+            equityValue: 0,
+            loanLimit: 0,
+            outstandingDebt: 0,
+            availableCredit: 0
+          }
+        });
+      }
+
+      const standing = standingRes.rows[0];
+      const equityValue = parseFloat(standing.total_equity);
+      const loanLimit = equityValue * 3;
+      const outstandingDebt = parseFloat(standing.total_debt);
+      const guaranteedAmount = parseFloat(standing.total_guaranteed);
+
+      // 3. Get upcoming repayments for this user (Next 30 days)
+      const upcomingRepayments = await client.query(
+        `SELECT 
+           ls.total_amount as amount_due,
+           ls.due_date as next_repayment_date
+         FROM loan_schedules ls
+         JOIN loans l ON ls.loan_id = l.loan_id
+         WHERE l.user_id = $1 AND l.chama_id = $2
+           AND ls.status = 'PENDING' 
+           AND ls.due_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days')
+         ORDER BY ls.due_date ASC
+         LIMIT 3`,
+        [userId, chamaId],
+      );
+
+      res.status(200).json({
+        success: true,
+        data: {
+          hasActiveCycle: true,
+          totalShares: parseFloat(standing.total_shares),
+          equityValue,
+          loanLimit,
+          outstandingDebt,
+          guaranteedAmount,
+          availableCredit: Math.max(0, loanLimit - outstandingDebt),
+          sharePrice: parseFloat(sharePrice),
+          upcomingRepayments: upcomingRepayments.rows
+        }
+      });
+
+    } catch (err) {
+      logger.logError(err, { context: 'getMemberStanding', chamaId, userId });
+      return next(err);
+    } finally {
+      if (client) client.release();
+    }
+  };
+
 module.exports = {
   buyShares,
   getMyEquity,
@@ -719,5 +831,6 @@ module.exports = {
   closeAscaCycle,
   executeShareOutPayout,
   getAscaReportsSummary,
-  getMemberEquityStatement
+  getMemberEquityStatement,
+  getMemberStanding
 };

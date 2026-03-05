@@ -286,6 +286,42 @@ const MembersTab = memo(({ members, isOfficial, isROSCA, roster, getMemberStatus
   );
 });
 
+const DeadlineAlerts = memo(({ repayments, formatDate, formatCurrency, isOfficial }) => {
+  if (!repayments || repayments.length === 0) return null;
+
+  const urgent = repayments.filter(r => {
+    const due = new Date(r.next_repayment_date);
+    const now = new Date();
+    const diff = (due - now) / (1000 * 60 * 60 * 24);
+    return diff <= 7; // Within 7 days
+  });
+
+  if (urgent.length === 0) return null;
+
+  return (
+    <div className="deadline-alerts-container mb-6">
+      <h4 className="flex items-center gap-2 text-amber-600 mb-3 font-bold text-sm">
+        <Bell size={16} className="animate-bounce" /> Attention: Upcoming Deadlines
+      </h4>
+      <div className="grid grid-1 md:grid-2 gap-3">
+        {urgent.map((r, idx) => (
+          <div key={idx} className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex justify-between items-center shadow-sm">
+            <div>
+              <div className="text-xs uppercase font-black text-amber-700 opacity-60">Repayment Due</div>
+              <div className="font-bold text-slate-800">{isOfficial ? r.borrower_name : 'Your Loan'}</div>
+              <div className="text-xs text-amber-600 font-semibold">{formatDate(r.next_repayment_date)}</div>
+            </div>
+            <div className="text-right">
+              <div className="font-black text-slate-800">{formatCurrency(r.amount_due)}</div>
+              <button className="btn btn-xs btn-amber mt-1">Pay Now</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+
 // --- Main Component ---
 
 const ChamaDetails = () => {
@@ -328,6 +364,8 @@ const ChamaDetails = () => {
   const [welfareClaims, setWelfareClaims] = useState([]);
   const [ascaReports, setAscaReports] = useState(null);
   const [ascaStatement, setAscaStatement] = useState([]);
+  const [memberStanding, setMemberStanding] = useState(null);
+  const [loanAnalytics, setLoanAnalytics] = useState(null);
 
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -401,7 +439,7 @@ const ChamaDetails = () => {
       fetchLoans();
     } else if (activeTab === "welfare" && chama?.chama_type === "WELFARE") {
       fetchWelfare();
-    } else if (activeTab === "reports" && chama?.chama_type === "ASCA") {
+    } else if (activeTab === "reports" && (chama?.chama_type === "ASCA" || chama?.chama_type === "TABLE_BANKING")) {
       fetchAscaReports();
     }
   }, [activeTab, id, chama?.chama_type]);
@@ -439,12 +477,19 @@ const ChamaDetails = () => {
 
   const fetchAscaReports = async () => {
     try {
-      const [summaryRes, statementRes] = await Promise.all([
+      const [summaryRes, statementRes, standingRes] = await Promise.all([
         ascaAPI.getReportsSummary(id),
-        ascaAPI.getMemberStatement(id)
+        ascaAPI.getMemberStatement(id),
+        ascaAPI.getMemberStanding(id).catch(() => ({ data: { data: null } }))
       ]);
       setAscaReports(summaryRes.data.data);
       setAscaStatement(statementRes.data.data);
+      setMemberStanding(standingRes.data.data);
+
+      if (officialStatus) {
+        const analyticsRes = await loanAPI.getChamaAnalytics(id).catch(() => ({ data: { data: null } }));
+        setLoanAnalytics(analyticsRes.data.data);
+      }
     } catch (err) {
       console.error("Failed to fetch ASCA reports:", err);
     }
@@ -518,9 +563,10 @@ const ChamaDetails = () => {
       }
 
       // Load ASCA equity if this is an ASCA chama
-      if (chamaData.chama_type === "ASCA") {
+      if (chamaData.chama_type === "ASCA" || chamaData.chama_type === "TABLE_BANKING") {
         try {
-          const equityRes = await ascaAPI.getEquity(id);
+          // Table banking might fail the ASCA equity check currently, but we attempt it to load standing
+          const equityRes = await ascaAPI.getEquity(id).catch(() => ({ data: { data: null } }));
           setAscaEquity(equityRes.data.data);
         } catch (equityErr) {
           console.error("Failed to load ASCA equity:", equityErr);
@@ -707,22 +753,27 @@ const ChamaDetails = () => {
 
     let currentY = 30;
 
-    if (chama.chama_type === "ASCA" && ascaReports) {
+    if ((chama.chama_type === "ASCA" || chama.chama_type === "TABLE_BANKING") && ascaReports) {
       doc.setFontSize(12);
-      doc.text("ASCA Financial Summary", 14, currentY);
+      doc.text("Financial Summary", 14, currentY);
       const summaryData = [
-        ["Total Savings", formatCurrency(ascaReports.stats.totalSavings)],
-        ["Interest Collected", formatCurrency(ascaReports.stats.interestCollected)],
-        ["Dividends Distributed", formatCurrency(ascaReports.stats.totalDividends)],
-        ["Outstanding Loans", formatCurrency(ascaReports.stats.outstandingBalance)],
-        ["Liquid Cash", formatCurrency(ascaReports.readiness.liquidCash)]
+        ["Total Savings", formatCurrency(ascaReports.stats?.totalSavings || 0)],
+        ["Interest Collected", formatCurrency(ascaReports.stats?.interestCollected || 0)],
+        ["Dividends Distributed", formatCurrency(ascaReports.stats?.totalDividends || 0)],
+        ["Outstanding Loans", formatCurrency(ascaReports.stats?.outstandingBalance || 0)],
+        ["Liquid Cash", formatCurrency(ascaReports.readiness?.liquidCash || 0)]
       ];
-      doc.autoTable({
-        startY: currentY + 5,
-        body: summaryData,
-        theme: 'grid'
-      });
-      currentY = doc.lastAutoTable.finalY + 15;
+      if (typeof doc.autoTable === 'function') {
+        doc.autoTable({
+          startY: currentY + 5,
+          body: summaryData,
+          theme: 'grid'
+        });
+        currentY = doc.lastAutoTable.finalY + 15;
+      } else {
+        console.error("jsPDF-AutoTable not initialized correctly");
+        currentY += 40; // fallback spacing
+      }
     }
 
     const tableData = contributions.map(c => [
@@ -734,11 +785,13 @@ const ChamaDetails = () => {
 
     doc.setFontSize(12);
     doc.text("Recent Contributions", 14, currentY);
-    doc.autoTable({
-      startY: currentY + 5,
-      head: [['Date', 'Member', 'Amount', 'Method']],
-      body: tableData,
-    });
+    if (typeof doc.autoTable === 'function') {
+      doc.autoTable({
+        startY: currentY + 5,
+        head: [['Date', 'Member', 'Amount', 'Method']],
+        body: tableData,
+      });
+    }
 
     doc.save(`${chama.chama_name}_Report.pdf`);
   };
@@ -794,20 +847,20 @@ const ChamaDetails = () => {
     const wsContrib = XLSX.utils.json_to_sheet(contribData);
     XLSX.utils.book_append_sheet(wb, wsContrib, "Contributions");
 
-    // Sheet 2: ASCA Summary (If applicable)
-    if (chama.chama_type === "ASCA" && ascaReports) {
+    // Sheet 2: Summary (If applicable)
+    if ((chama.chama_type === "ASCA" || chama.chama_type === "TABLE_BANKING") && ascaReports) {
       const summaryData = [
-        { Metric: "Total Savings", Value: ascaReports.stats.totalSavings },
-        { Metric: "Interest Collected", Value: ascaReports.stats.interestCollected },
-        { Metric: "Dividends Distributed", Value: ascaReports.stats.totalDividends },
-        { Metric: "Outstanding Loans", Value: ascaReports.stats.outstandingBalance },
-        { Metric: "Liquid Cash", Value: ascaReports.readiness.liquidCash }
+        { Metric: "Total Savings", Value: ascaReports.stats?.totalSavings || 0 },
+        { Metric: "Interest Collected", Value: ascaReports.stats?.interestCollected || 0 },
+        { Metric: "Dividends Distributed", Value: ascaReports.stats?.totalDividends || 0 },
+        { Metric: "Outstanding Loans", Value: ascaReports.stats?.outstandingBalance || 0 },
+        { Metric: "Liquid Cash", Value: ascaReports.readiness?.liquidCash || 0 }
       ];
       const wsSummary = XLSX.utils.json_to_sheet(summaryData);
-      XLSX.utils.book_append_sheet(wb, wsSummary, "ASCA Summary");
+      XLSX.utils.book_append_sheet(wb, wsSummary, "Financial Summary");
     }
 
-    XLSX.utils.writeFile(wb, `${chama.chama_name}_Report.xlsx`);
+    XLSX.writeFile(wb, `${chama.chama_name}_Report.xlsx`);
   };
 
   const handleUpdateRole = (userId, newRole) => {
@@ -902,7 +955,7 @@ const ChamaDetails = () => {
               <Calendar size={18} className="tab-icon" aria-hidden="true" /> Meetings
             </button>
 
-            {chama.chama_type === "TABLE_BANKING" && (
+            {["TABLE_BANKING", "ASCA"].includes(chama.chama_type) && (
               <button
                 className={`tab-modern ${activeTab === "loans" ? "active" : ""}`}
                 onClick={() => setActiveTab("loans")}
@@ -1150,27 +1203,84 @@ const ChamaDetails = () => {
                     </div>
                   )}
 
-                  {chama.chama_type === "ASCA" && ascaEquity && (
-                    <div className="mt-3">
-                      <h4>My Equity in This ASCA</h4>
-                      <div className="equity-grid">
-                        <div className="equity-card">
-                          <div className="equity-label">Total Contributions</div>
-                          <div className="equity-value">{formatCurrency(ascaEquity.totalAmount)}</div>
+                  {/* Deadline Alerts - Phase 13.4 */}
+                  {officialStatus && loanAnalytics?.upcomingRepayments && (
+                    <DeadlineAlerts 
+                      repayments={loanAnalytics.upcomingRepayments} 
+                      formatDate={formatDate}
+                      formatCurrency={formatCurrency}
+                      isOfficial={true}
+                    />
+                  )}
+
+                  {!officialStatus && memberStanding?.upcomingRepayments && (
+                    <DeadlineAlerts 
+                      repayments={memberStanding.upcomingRepayments} 
+                      formatDate={formatDate}
+                      formatCurrency={formatCurrency}
+                      isOfficial={false}
+                    />
+                  )}
+
+                  {["ASCA", "TABLE_BANKING"].includes(chama.chama_type) && (
+                    <div className="grid grid-1 md:grid-2 gap-4 mt-4">
+                      {/* Original Equity Card */}
+                      {ascaEquity && (
+                        <div className="card-modern">
+                          <h4 className="flex items-center gap-2 mb-4">
+                            <TrendingUp size={18} className="text-success" />
+                            My Equity Shares
+                          </h4>
+                          <div className="equity-grid">
+                            <div className="equity-card">
+                              <div className="equity-label">Total Shares</div>
+                              <div className="equity-value">{ascaEquity.totalShares.toFixed(2)}</div>
+                            </div>
+                            <div className="equity-card">
+                              <div className="equity-label">Current Value</div>
+                              <div className="equity-value highlight">{formatCurrency(ascaEquity.estimatedValue || 0)}</div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="equity-card">
-                          <div className="equity-label">Total Shares</div>
-                          <div className="equity-value">{ascaEquity.totalShares.toFixed(2)}</div>
+                      )}
+
+                      {/* New Standing Card */}
+                      {memberStanding && (
+                        <div className="card-modern" style={{ background: 'linear-gradient(135deg, #ffffff, #fffbeb)' }}>
+                          <h4 className="flex items-center justify-between mb-4">
+                            <span className="flex items-center gap-2">
+                              <Shield size={18} className="text-amber-500" />
+                              Borrowing Capacity
+                            </span>
+                            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-bold">
+                              {Math.round((memberStanding.outstandingDebt / (memberStanding.loanLimit || 1)) * 100)}% Used
+                            </span>
+                          </h4>
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-end">
+                              <div>
+                                <div className="text-xs text-slate-400 uppercase font-black">Limit (3x Shares)</div>
+                                <div className="text-xl font-bold">{formatCurrency(memberStanding.loanLimit)}</div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-xs text-slate-400 uppercase font-black">Available Credit</div>
+                                <div className="text-xl font-bold text-success">{formatCurrency(memberStanding.availableCredit)}</div>
+                              </div>
+                            </div>
+                            <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                                <div 
+                                    className="h-full bg-amber transition-all duration-1000" 
+                                    style={{ width: `${Math.min((memberStanding.outstandingDebt / (memberStanding.loanLimit || 1)) * 100, 100)}%` }}
+                                />
+                            </div>
+                            {memberStanding.outstandingDebt > 0 && (
+                                <div className="text-xs text-slate-500 italic">
+                                    Current Debt: <span className="text-red-500 font-bold">{formatCurrency(memberStanding.outstandingDebt)}</span>
+                                </div>
+                            )}
+                          </div>
                         </div>
-                        <div className="equity-card">
-                          <div className="equity-label">Current Share Value</div>
-                          <div className="equity-value">{formatCurrency(ascaEquity.currentSharePrice || 0)}</div>
-                        </div>
-                        <div className="equity-card">
-                          <div className="equity-label">Estimated Value</div>
-                          <div className="equity-value highlight">{formatCurrency(ascaEquity.estimatedValue || 0)}</div>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1895,8 +2005,8 @@ const ChamaDetails = () => {
                 </div>
 
                 <div className="reports-grid">
-                  {/* ASCA Specific Reports */}
-                  {chama.chama_type === "ASCA" && ascaReports && (
+                  {/* Phase 13 Premium Reports */}
+                  {["ASCA", "TABLE_BANKING"].includes(chama.chama_type) && ascaReports && (
                     <>
                       <div className="report-card" style={{ gridColumn: '1 / -1' }}>
                         <div className="report-header">
@@ -1969,6 +2079,7 @@ const ChamaDetails = () => {
                         </div>
                       </div>
 
+
                       <div className="report-card" style={{ gridColumn: '1 / -1' }}>
                         <div className="report-header">
                           <div className="report-icon"><FileText size={20} className="text-blue-500" /></div>
@@ -2016,6 +2127,70 @@ const ChamaDetails = () => {
                       </div>
                     </>
                   )}
+
+                  {/* New Loan Performance Section for Officials (Rendered across modules) */}
+                  {officialStatus && loanAnalytics && (
+                    <div className="report-card" style={{ gridColumn: '1 / -1' }}>
+                      <div className="report-header">
+                        <div className="report-icon"><Building2 size={20} className="text-amber-500" /></div>
+                        <h4>Loan Performance Dashboard (Official View)</h4>
+                      </div>
+                      <div className="report-content">
+                        <div className="grid grid-1 md:grid-3 gap-6 mb-6">
+                          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <div className="text-xs text-slate-400 uppercase font-black mb-1">Interest Revenue</div>
+                            <div className="text-2xl font-bold text-success">{formatCurrency(loanAnalytics.totalInterestEarned)}</div>
+                            <div className="text-xs text-slate-500 mt-2">Total profit from internal lending</div>
+                          </div>
+                          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <div className="text-xs text-slate-400 uppercase font-black mb-1">Default Risk</div>
+                            <div className="text-2xl font-bold text-red-500">{loanAnalytics.defaultRate}%</div>
+                            <div className="text-xs text-slate-500 mt-2">Percentage of loans in arrears</div>
+                          </div>
+                          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <div className="text-xs text-slate-400 uppercase font-black mb-1">Portfolio Balance</div>
+                            <div className="text-2xl font-bold text-blue-500">{formatCurrency(loanAnalytics.totalOutstanding)}</div>
+                            <div className="text-xs text-slate-500 mt-2">Total capital currently lent out</div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-1 md:grid-2 gap-6">
+                          <div>
+                            <h5 className="text-sm font-bold mb-3 flex items-center gap-2">
+                              <Clock size={14} /> Upcoming Repayments
+                            </h5>
+                            <div className="space-y-2">
+                              {loanAnalytics.upcomingRepayments.slice(0, 3).map((r, idx) => (
+                                <div key={idx} className="flex justify-between items-center text-sm p-3 bg-white border rounded-xl">
+                                  <div>
+                                    <div className="font-semibold">{r.borrower_name}</div>
+                                    <div className="text-xs text-slate-400">Due: {formatDate(r.next_repayment_date)}</div>
+                                  </div>
+                                  <div className="font-bold">{formatCurrency(r.amount_due)}</div>
+                                </div>
+                              ))}
+                              {loanAnalytics.upcomingRepayments.length === 0 && (
+                                <div className="text-center text-xs text-slate-400 p-4">No repayments due in next 30 days.</div>
+                              )}
+                            </div>
+                          </div>
+                          <div>
+                            <h5 className="text-sm font-bold mb-3">Lending Velocity</h5>
+                            <ResponsiveContainer width="100%" height={120}>
+                              <LineChart data={loanAnalytics.disbursementTrends}>
+                                <Line type="step" dataKey="total" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                                <XAxis dataKey="month" hide />
+                                <YAxis hide />
+                                <Tooltip formatter={(val) => formatCurrency(val)} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                            <p className="text-center text-xs text-muted mt-2">Monthly disbursement volume</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Financial Summary */}
                   <div className="report-card">
                     <div className="report-header">

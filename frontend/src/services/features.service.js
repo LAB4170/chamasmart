@@ -37,6 +37,8 @@ export const ascaAPI = {
         api.get(`/asca/${chamaId}/reports/summary`, { params: { cycleId } }),
     getMemberStatement: (chamaId, cycleId) => 
         api.get(`/asca/${chamaId}/reports/member-statement`, { params: { cycleId } }),
+    getMemberStanding: (chamaId) =>
+        api.get(`/asca/${chamaId}/reports/standing`),
 };
 
 // Welfare API calls
