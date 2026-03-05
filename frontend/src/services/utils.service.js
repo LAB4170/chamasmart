@@ -59,3 +59,13 @@ export const apiKeyAPI = {
     delete: (keyId) => api.delete(`/api-keys/${keyId}`),
     rotate: (keyId) => api.post(`/api-keys/${keyId}/rotate`),
 };
+
+// Session Management calls
+export const sessionAPI = {
+    open: (chamaId, meetingId, openingCash) => 
+        api.post(`/sessions/${chamaId}/${meetingId}/open`, { openingCash }),
+    getData: (chamaId, meetingId) => 
+        api.get(`/sessions/${chamaId}/${meetingId}/data`),
+    close: (chamaId, meetingId, closingCashSummary) => 
+        api.post(`/sessions/${chamaId}/${meetingId}/close`, { closingCashSummary }),
+};

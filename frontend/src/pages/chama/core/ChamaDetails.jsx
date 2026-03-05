@@ -13,16 +13,17 @@ import CreateCycleModal from "../../../components/CreateCycleModal";
 import SwapRequestModal from "../../../components/SwapRequestModal";
 import PayoutConfirmationModal from "../../../components/PayoutConfirmationModal";
 import ConfirmDialog from "../../../components/ConfirmDialog";
+import LoanConfigCard from "../../../components/LoanConfigCard";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { FixedSizeList as List } from "react-window";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import {
   BarChart3, Calendar, Mail, Building2, Heart, RefreshCw, TrendingUp,
   Settings, CreditCard, Users, DollarSign, Handshake, FileText, Download,
   Target, Bell, Trash2, Filter, RotateCcw, CheckCircle2, Clock, MapPin,
-  Shield, Landmark, ArrowRight, TrendingDown, Wallet, Smartphone
+  Shield, Landmark, ArrowRight, TrendingDown, Wallet, Smartphone, AlertTriangle
 } from 'lucide-react';
 
 // --- Memoized Sub-components ---
@@ -418,6 +419,8 @@ const ChamaDetails = () => {
 
       socket.on("contribution_recorded", handleUpdate);
       socket.on("contribution_deleted", handleUpdate);
+      socket.on("member_added", handleUpdate);
+      socket.on("member_removed", handleUpdate);
       socket.on("presence_update", (users) => {
         setActiveUsers(Array.isArray(users) ? users : []);
       });
@@ -426,6 +429,8 @@ const ChamaDetails = () => {
         socket.emit("leave_chama", id);
         socket.off("contribution_recorded", handleUpdate);
         socket.off("contribution_deleted", handleUpdate);
+        socket.off("member_added", handleUpdate);
+        socket.off("member_removed", handleUpdate);
         socket.off("presence_update");
       };
     }
@@ -456,7 +461,9 @@ const ChamaDetails = () => {
   const fetchLoans = async () => {
     try {
       const res = await loanAPI.getChamaLoans(id);
-      setLoans(res.data.data || res.data || []);
+      // Backend returns { loans: [], pagination: {} } inside data
+      const loanData = res.data.data?.loans || res.data?.loans || res.data.data || res.data || [];
+      setLoans(Array.isArray(loanData) ? loanData : []);
     } catch (err) {
       console.error("Failed to fetch loans:", err);
     }
@@ -2047,8 +2054,8 @@ const ChamaDetails = () => {
                         </div>
                         <div className="report-content">
                           <div className="report-stat">
-                            <span className="stat-label">Total Investment</span>
-                            <span className="stat-value">{formatCurrency(ascaReports.stats.totalSavings)}</span>
+                            <span className="stat-label">Total investment</span>
+                            <span className="stat-value text-indigo-600">{formatCurrency(ascaReports.stats.totalSavings)}</span>
                           </div>
                           <div className="report-stat">
                             <span className="stat-label">Interest Earned</span>
@@ -2056,7 +2063,7 @@ const ChamaDetails = () => {
                           </div>
                           <div className="report-stat">
                             <span className="stat-label">Outstanding Debt</span>
-                            <span className="stat-value text-warning">{formatCurrency(ascaReports.stats.outstandingBalance)}</span>
+                            <span className="stat-value text-orange-500">{formatCurrency(ascaReports.stats.outstandingBalance)}</span>
                           </div>
                         </div>
                       </div>
@@ -2067,56 +2074,68 @@ const ChamaDetails = () => {
                           <h4>Cycle Growth</h4>
                         </div>
                         <div className="report-content">
-                          <ResponsiveContainer width="100%" height={150}>
-                            <LineChart data={ascaReports.trends}>
-                              <Line type="monotone" dataKey="amount" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981' }} />
-                              <XAxis dataKey="month" hide />
-                              <YAxis hide />
-                              <Tooltip formatter={(val) => formatCurrency(val)} />
-                            </LineChart>
-                          </ResponsiveContainer>
-                          <p className="text-center text-xs text-muted mt-2">Cumulative fund growth this cycle</p>
+                          <div className="h-[150px] w-full mt-2">
+                            <ResponsiveContainer width="100%" height={150}>
+                              <AreaChart data={ascaReports.trends}>
+                                <defs>
+                                  <linearGradient id="colorGrowth" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                  </linearGradient>
+                                </defs>
+                                <Area type="monotone" dataKey="amount" stroke="#10b981" fillOpacity={1} fill="url(#colorGrowth)" strokeWidth={3} />
+                                <XAxis dataKey="month" hide />
+                                <YAxis hide />
+                                <Tooltip formatter={(val) => formatCurrency(val)} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: 'var(--shadow-lg)' }} />
+                              </AreaChart>
+                            </ResponsiveContainer>
+                          </div>
+                          <p className="text-center text-[10px] uppercase font-black tracking-widest text-slate-400 mt-4">Cumulative fund growth this cycle</p>
                         </div>
                       </div>
 
 
                       <div className="report-card" style={{ gridColumn: '1 / -1' }}>
-                        <div className="report-header">
-                          <div className="report-icon"><FileText size={20} className="text-blue-500" /></div>
-                          <h4>Personal Equity Statement</h4>
+                        <div className="report-header" style={{ justifyContent: 'space-between' }}>
+                          <div className="flex items-center gap-3">
+                            <div className="report-icon"><FileText size={20} className="text-blue-500" /></div>
+                            <h4>Personal Equity Statement</h4>
+                          </div>
+                          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Live Audit</div>
                         </div>
                         <div className="report-content">
-                          <div style={{ overflowX: 'auto' }}>
-                            <table className="v-table-minimal" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <div className="overflow-hidden rounded-2xl border border-slate-100 dark:border-slate-800">
+                            <table className="w-full text-left border-collapse">
                               <thead>
-                                <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
-                                  <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Date</th>
-                                  <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Action</th>
-                                  <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Detail</th>
-                                  <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Amount</th>
+                                <tr className="bg-slate-50 dark:bg-slate-900/50">
+                                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Date</th>
+                                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Action</th>
+                                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Detail</th>
+                                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Amount</th>
                                 </tr>
                               </thead>
-                              <tbody>
+                              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                 {ascaStatement.length === 0 ? (
-                                  <tr><td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No equity transactions found.</td></tr>
+                                  <tr><td colSpan="4" className="px-6 py-8 text-center text-slate-400 italic">No equity transactions found.</td></tr>
                                 ) : (
                                   ascaStatement.map((s, idx) => (
-                                    <tr key={idx} style={{ borderBottom: '1px solid var(--surface-2)' }}>
-                                      <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem' }}>{formatDate(s.date)}</td>
-                                      <td style={{ padding: '0.75rem 0.5rem' }}>
-                                        <span style={{ 
-                                          padding: '0.2rem 0.5rem', 
-                                          borderRadius: '4px', 
-                                          fontSize: '0.7rem', 
-                                          fontWeight: 700,
-                                          background: s.type === 'SHARE_PURCHASE' ? 'rgba(79, 70, 229, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                                          color: s.type === 'SHARE_PURCHASE' ? '#4f46e5' : '#10b981'
-                                        }}>
+                                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
+                                      <td className="px-6 py-4 text-xs font-bold text-slate-500">{formatDate(s.date)}</td>
+                                      <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                          s.type === 'SHARE_PURCHASE' 
+                                            ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10' 
+                                            : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10'
+                                        }`}>
                                           {s.type.replace('_', ' ')}
                                         </span>
                                       </td>
-                                      <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem' }}>{s.type === 'SHARE_PURCHASE' ? `${s.detail} Shares` : 'Dividend'}</td>
-                                      <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', fontWeight: 600 }}>{formatCurrency(s.amount)}</td>
+                                      <td className="px-6 py-4 text-xs font-medium text-slate-600 dark:text-slate-300">
+                                        {s.type === 'SHARE_PURCHASE' ? `${s.detail} Shares` : 'Dividend Credit'}
+                                      </td>
+                                      <td className="px-6 py-4 text-sm font-black text-slate-800 dark:text-white text-right">
+                                        {formatCurrency(s.amount)}
+                                      </td>
                                     </tr>
                                   ))
                                 )}
@@ -2136,55 +2155,89 @@ const ChamaDetails = () => {
                         <h4>Loan Performance Dashboard (Official View)</h4>
                       </div>
                       <div className="report-content">
-                        <div className="grid grid-1 md:grid-3 gap-6 mb-6">
-                          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                            <div className="text-xs text-slate-400 uppercase font-black mb-1">Interest Revenue</div>
-                            <div className="text-2xl font-bold text-success">{formatCurrency(loanAnalytics.totalInterestEarned)}</div>
-                            <div className="text-xs text-slate-500 mt-2">Total profit from internal lending</div>
+                        <div className="grid grid-1 md:grid-3 gap-6 mb-8">
+                          <div className="p-6 bg-surface rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="p-2 bg-emerald-500/10 rounded-lg"><TrendingUp size={18} className="text-emerald-500" /></div>
+                              <div className="text-xs text-slate-400 uppercase font-black tracking-wider">Interest Revenue</div>
+                            </div>
+                            <div className="text-3xl font-black text-success tracking-tight">{formatCurrency(loanAnalytics.totalInterestEarned)}</div>
+                            <div className="text-xs text-slate-500 mt-2 font-medium">Total realized profit</div>
                           </div>
-                          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                            <div className="text-xs text-slate-400 uppercase font-black mb-1">Default Risk</div>
-                            <div className="text-2xl font-bold text-red-500">{loanAnalytics.defaultRate}%</div>
-                            <div className="text-xs text-slate-500 mt-2">Percentage of loans in arrears</div>
+                          <div className="p-6 bg-surface rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="p-2 bg-red-500/10 rounded-lg"><AlertTriangle size={18} className="text-red-500" /></div>
+                              <div className="text-xs text-slate-400 uppercase font-black tracking-wider">Default Risk</div>
+                            </div>
+                            <div className="text-3xl font-black text-orange-500 tracking-tight">{loanAnalytics.defaultRate}%</div>
+                            <div className="text-xs text-slate-500 mt-2 font-medium">Portfolio at risk (PAR)</div>
                           </div>
-                          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                            <div className="text-xs text-slate-400 uppercase font-black mb-1">Portfolio Balance</div>
-                            <div className="text-2xl font-bold text-blue-500">{formatCurrency(loanAnalytics.totalOutstanding)}</div>
-                            <div className="text-xs text-slate-500 mt-2">Total capital currently lent out</div>
+                          <div className="p-6 bg-surface rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="p-2 bg-blue-500/10 rounded-lg"><Shield size={18} className="text-blue-500" /></div>
+                              <div className="text-xs text-slate-400 uppercase font-black tracking-wider">Portfolio Balance</div>
+                            </div>
+                            <div className="text-3xl font-black text-blue-500 tracking-tight">{formatCurrency(loanAnalytics.totalOutstanding)}</div>
+                            <div className="text-xs text-slate-500 mt-2 font-medium">Active capital in circulation</div>
                           </div>
                         </div>
 
-                        <div className="grid grid-1 md:grid-2 gap-6">
-                          <div>
-                            <h5 className="text-sm font-bold mb-3 flex items-center gap-2">
-                              <Clock size={14} /> Upcoming Repayments
+                        <div className="grid grid-1 lg:grid-2 gap-8 items-start">
+                          <div className="p-6 bg-surface/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                            <h5 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-5 flex items-center gap-3">
+                              <Clock size={16} className="text-primary" /> Upcoming Repayments
                             </h5>
-                            <div className="space-y-2">
-                              {loanAnalytics.upcomingRepayments.slice(0, 3).map((r, idx) => (
-                                <div key={idx} className="flex justify-between items-center text-sm p-3 bg-white border rounded-xl">
-                                  <div>
-                                    <div className="font-semibold">{r.borrower_name}</div>
-                                    <div className="text-xs text-slate-400">Due: {formatDate(r.next_repayment_date)}</div>
+                            <div className="space-y-3">
+                              {loanAnalytics.upcomingRepayments.slice(0, 4).map((r, idx) => (
+                                <div key={idx} className="flex justify-between items-center p-4 bg-white dark:bg-slate-900 border rounded-2xl shadow-sm hover:border-primary transition-colors">
+                                  <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center font-bold text-primary">
+                                      {r.borrower_name?.charAt(0)}
+                                    </div>
+                                    <div>
+                                      <div className="font-bold text-sm text-slate-700 dark:text-slate-200">{r.borrower_name}</div>
+                                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Next: {formatDate(r.next_repayment_date)}</div>
+                                    </div>
                                   </div>
-                                  <div className="font-bold">{formatCurrency(r.amount_due)}</div>
+                                  <div className="text-right">
+                                    <div className="font-black text-slate-800 dark:text-white">{formatCurrency(r.amount_due)}</div>
+                                    <div className="text-[10px] text-slate-400 font-bold uppercase">Amount Due</div>
+                                  </div>
                                 </div>
                               ))}
                               {loanAnalytics.upcomingRepayments.length === 0 && (
-                                <div className="text-center text-xs text-slate-400 p-4">No repayments due in next 30 days.</div>
+                                <div className="text-center text-xs text-slate-400 p-8 italic bg-slate-50/50 rounded-2xl">No repayments due in next 30 days.</div>
                               )}
                             </div>
                           </div>
-                          <div>
-                            <h5 className="text-sm font-bold mb-3">Lending Velocity</h5>
-                            <ResponsiveContainer width="100%" height={120}>
-                              <LineChart data={loanAnalytics.disbursementTrends}>
-                                <Line type="step" dataKey="total" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
-                                <XAxis dataKey="month" hide />
-                                <YAxis hide />
-                                <Tooltip formatter={(val) => formatCurrency(val)} />
-                              </LineChart>
-                            </ResponsiveContainer>
-                            <p className="text-center text-xs text-muted mt-2">Monthly disbursement volume</p>
+                          
+                          <div className="p-6">
+                            <h5 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-5">Lending Velocity</h5>
+                            <div className="h-[180px] w-full">
+                              <ResponsiveContainer width="100%" height={180}>
+                                <AreaChart data={loanAnalytics.disbursementTrends}>
+                                  <defs>
+                                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3}/>
+                                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                                    </linearGradient>
+                                  </defs>
+                                  <Area type="monotone" dataKey="total" stroke="#2563eb" fillOpacity={1} fill="url(#colorTotal)" strokeWidth={3} />
+                                  <XAxis dataKey="month" hide />
+                                  <YAxis hide />
+                                  <Tooltip 
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: 'var(--shadow-lg)' }}
+                                    formatter={(val) => formatCurrency(val)} 
+                                  />
+                                </AreaChart>
+                              </ResponsiveContainer>
+                            </div>
+                            <div className="flex justify-between items-center mt-4 px-2">
+                               <div className="text-xs font-bold text-slate-400 uppercase">Capital Inflow vs Lending</div>
+                               <div className="text-xs font-bold text-success flex items-center gap-1">
+                                 <TrendingUp size={12} /> Positive
+                               </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -2194,24 +2247,24 @@ const ChamaDetails = () => {
                   {/* Financial Summary */}
                   <div className="report-card">
                     <div className="report-header">
-                      <div className="report-icon"><DollarSign size={20} /></div>
-                      <h4>Financial Summary</h4>
+                      <div className="report-icon"><DollarSign size={20} className="text-emerald-500" /></div>
+                      <h4>Core Fund Analytics</h4>
                     </div>
                     <div className="report-content">
                       <div className="report-stat">
-                        <span className="stat-label">Total Collected</span>
-                        <span className="stat-value">
+                        <span className="stat-label">Total inflow</span>
+                        <span className="stat-value text-emerald-600">
                           {formatCurrency(stats?.total_contributions || 0)}
                         </span>
                       </div>
                       <div className="report-stat">
-                        <span className="stat-label">Current Balance</span>
-                        <span className="stat-value">
+                        <span className="stat-label">Liquid Balance</span>
+                        <span className="stat-value text-blue-600">
                           {formatCurrency(stats?.current_fund || 0)}
                         </span>
                       </div>
                       <div className="report-stat">
-                        <span className="stat-label">Average per Member</span>
+                        <span className="stat-label">Equity Density</span>
                         <span className="stat-value">
                           {formatCurrency(
                             (stats?.total_contributions || 0) /
@@ -2225,13 +2278,13 @@ const ChamaDetails = () => {
                   {/* Member Performance */}
                   <div className="report-card">
                     <div className="report-header">
-                      <div className="report-icon"><TrendingUp size={20} /></div>
-                      <h4>Member Performance</h4>
+                      <div className="report-icon"><TrendingUp size={20} className="text-primary" /></div>
+                      <h4>Elite Performers</h4>
                     </div>
                     <div className="report-content">
                       <div className="performance-list">
                         {members.slice(0, 5).map((member, index) => (
-                          <div key={member.user_id} className="performance-item">
+                          <div key={member.user_id} className="performance-item hover:border-primary transition-all">
                             <div className="member-info">
                               <span className="member-rank">#{index + 1}</span>
                               <span className="member-name">
@@ -2244,6 +2297,7 @@ const ChamaDetails = () => {
                           </div>
                         ))}
                       </div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center mt-6">Top 5 by All-Time Contributions</p>
                     </div>
                   </div>
 
@@ -2559,6 +2613,13 @@ const ChamaDetails = () => {
                     </div>
                   </div>
                 </div>
+                 {/* Loan Configuration Panel — TABLE_BANKING and ASCA only */}
+                 {['TABLE_BANKING', 'ASCA'].includes(chama?.chama_type) && (
+                   <div className="mt-6">
+                     <LoanConfigCard chamaId={id} />
+                   </div>
+                 )}
+
               </div>
             )}
 

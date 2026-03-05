@@ -6,57 +6,74 @@ import LoadingSkeleton from "../../components/LoadingSkeleton";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area
 } from "recharts";
+import { motion } from "framer-motion";
 import {
   LayoutDashboard, Plus, Search, TrendingUp, Users, Wallet, ArrowRight,
-  PieChart, Activity, DollarSign, Calendar, ShieldCheck
+  PieChart, Activity, DollarSign, Calendar, ShieldCheck, BarChart3
 } from "lucide-react";
 
 // Memoized Stat Card component
 const StatCard = memo(({ icon: Icon, value, label, color }) => (
-  <div className="mini-stat-card">
-    <div className={`mini-stat-icon ${color}`}>
+  <motion.div 
+    className="mini-stat-card group"
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.4, ease: "easeOut" }}
+  >
+    <div className={`mini-stat-icon ${color} group-hover:scale-110 transition-transform`}>
       <Icon size={24} />
     </div>
-    <div>
+    <div className="flex flex-col">
       <div className="mini-stat-value">{value}</div>
       <div className="mini-stat-label">{label}</div>
     </div>
-  </div>
+  </motion.div>
 ));
 
 // Memoized Chama Card for dashboard list
 const DashboardChamaCard = memo(({ chama, getChamaTypeLabel, formatCurrency }) => (
-  <Link
-    to={`/chamas/${chama.chama_id}`}
-    className="cycle-card-modern"
-    style={{ textDecoration: 'none' }}
+  <motion.div
+    initial={{ opacity: 0, y: 30 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5 }}
   >
-    <div className="cycle-card-top">
-      <div className="cycle-card-name">{chama.chama_name}</div>
-      <span className={`cycle-badge ${chama.chama_type === "ROSCA" ? "badge-completed" : "badge-active"}`}>
-        {getChamaTypeLabel(chama.chama_type)}
-      </span>
-    </div>
+    <Link
+      to={`/chamas/${chama.chama_id}`}
+      className="cycle-card-modern group"
+      style={{ textDecoration: 'none' }}
+    >
+      <div className="cycle-card-top">
+        <div className="cycle-card-name group-hover:text-primary transition-colors">{chama.chama_name}</div>
+        <span className={`cycle-badge ${chama.chama_type === "ROSCA" ? "badge-completed" : "badge-active"}`}>
+          {getChamaTypeLabel(chama.chama_type)}
+        </span>
+      </div>
 
-    <div className="cycle-card-amount">
-      {formatCurrency(chama.total_contributions || 0)}
-      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 400, marginLeft: '0.5rem' }}>
-        saved
-      </span>
-    </div>
+      <div className="cycle-card-amount">
+        {formatCurrency(chama.total_contributions || 0)}
+        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">
+          Total Saved
+        </span>
+      </div>
 
-    <div className="cycle-card-meta">
-      <span title="Your Role">
-        <ShieldCheck size={14} /> {chama.role}
-      </span>
-      <span title="Members">
-        <Users size={14} /> {chama.total_members}
-      </span>
-      <span title="Contribution" style={{ marginLeft: 'auto' }}>
-        <Wallet size={14} /> {formatCurrency(chama.contribution_amount)}
-      </span>
-    </div>
-  </Link>
+      <div className="cycle-card-meta">
+        <span title="Your Role">
+          <ShieldCheck size={14} className="text-primary" /> {chama.role}
+        </span>
+        <span title="Members">
+          <Users size={14} className="text-secondary" /> {chama.total_members}
+        </span>
+        <span title="Contribution" style={{ marginLeft: 'auto' }}>
+          <Wallet size={14} className="text-indigo-500" /> {formatCurrency(chama.contribution_amount)}
+        </span>
+      </div>
+      
+      {/* Visual background element */}
+      <div className="absolute -bottom-4 -right-4 opacity-5 group-hover:opacity-10 transition-opacity">
+        <Activity size={100} strokeWidth={1} />
+      </div>
+    </Link>
+  </motion.div>
 ));
 
 const Dashboard = () => {
@@ -113,23 +130,24 @@ const Dashboard = () => {
   return (
     <div className="page">
       <div className="container">
-        <div className="page-header-modern">
-          <div className="page-header-info">
-            <div className="page-header-icon blue">
-              <LayoutDashboard size={28} />
+        <div className="dashboard-content-wrapper">
+          <div className="page-header-modern" style={{ border: 'none', background: 'transparent', padding: '0 0 2rem 0' }}>
+            <div className="page-header-info">
+              <div className="page-header-icon blue shadow-lg shadow-blue-500/20">
+                <LayoutDashboard size={28} />
+              </div>
+              <div>
+                <h1 className="text-3xl font-black tracking-tight">Welcome back, {user?.firstName}!</h1>
+                <p className="page-subtitle text-slate-500">
+                  Your financial portfolio overview across all groups.
+                </p>
+              </div>
             </div>
-            <div>
-              <h1>Welcome back, {user?.firstName}!</h1>
-              <p className="page-subtitle">
-                Overview of your financial growth and groups.
-              </p>
-            </div>
+            <Link to="/chamas/create" className="btn-action-primary shadow-xl shadow-emerald-500/20">
+              <Plus size={18} />
+              <span>Create New Chama</span>
+            </Link>
           </div>
-          <Link to="/chamas/create" className="btn-action-primary">
-            <Plus size={18} />
-            <span>Create New Chama</span>
-          </Link>
-        </div>
 
         {error && <div className="alert alert-error">{error}</div>}
 
@@ -211,112 +229,141 @@ const Dashboard = () => {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+            <div className="dashboard-grid-wrapper">
               {/* Growth Trend Chart */}
-              <div className="card-modern">
-                <div className="card-header" style={{ marginBottom: '1.5rem' }}>
-                  <h2 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <TrendingUp size={18} className="text-success" /> Wealth Growth
+              <div className="report-card !p-0 overflow-hidden">
+                <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+                  <h2 className="text-sm font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                    <TrendingUp size={16} className="text-emerald-500" /> Wealth Velocity
                   </h2>
                 </div>
-                <ResponsiveContainer width="100%" height={250}>
-                  <AreaChart
-                    data={(Array.isArray(chamas) ? chamas : []).map((c) => ({
-                      name: c.chama_name.substring(0, 10),
-                      total: parseFloat(c.total_contributions || 0)
-                    }))}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                  >
-                    <defs>
-                      <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="var(--text-secondary)" />
-                    <YAxis tick={{ fontSize: 12 }} stroke="var(--text-secondary)" />
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                    <Tooltip
-                      formatter={(value) => formatCurrency(value)}
-                      contentStyle={{
-                        backgroundColor: "var(--card-bg)",
-                        borderColor: "var(--border)",
-                        borderRadius: "8px",
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
-                      }}
-                      itemStyle={{ color: "var(--text-primary)" }}
-                    />
-                    <Area type="monotone" dataKey="total" stroke="#22c55e" strokeWidth={2} fillOpacity={1} fill="url(#colorTotal)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <div className="p-4">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart
+                      data={(Array.isArray(chamas) ? chamas : []).map((c) => ({
+                        name: c.chama_name.substring(0, 10),
+                        total: parseFloat(c.total_contributions || 0)
+                      }))}
+                      margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 700 }} stroke="var(--gray)" axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fontWeight: 700 }} stroke="var(--gray)" axisLine={false} tickLine={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.5} />
+                      <Tooltip
+                        formatter={(value) => formatCurrency(value)}
+                        contentStyle={{
+                          backgroundColor: "var(--bg-surface-glass)",
+                          backdropFilter: "var(--glass-blur)",
+                          borderColor: "var(--glass-border)",
+                          borderRadius: "16px",
+                          boxShadow: "var(--shadow-xl)",
+                          border: "none"
+                        }}
+                        labelStyle={{ fontWeight: 800, color: "var(--primary)", marginBottom: "4px" }}
+                      />
+                      <Area type="monotone" dataKey="total" stroke="#10b981" strokeWidth={4} fillOpacity={1} fill="url(#colorTotal)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
 
               {/* Contribution Trends Chart */}
-              <div className="card-modern">
-                <div className="card-header" style={{ marginBottom: '1.5rem' }}>
-                  <h2 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Activity size={18} className="text-primary" /> Target vs. Actual
+              <div className="report-card !p-0 overflow-hidden">
+                <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+                  <h2 className="text-sm font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                    <BarChart3 size={16} className="text-primary" /> Target Alignment
                   </h2>
                 </div>
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart
-                    data={(Array.isArray(chamas) ? chamas : []).slice(0, 6).map((chama) => ({
-                      name: chama.chama_name.length > 10
-                        ? chama.chama_name.substring(0, 10) + "..."
-                        : chama.chama_name,
-                      contributions: parseFloat(chama.total_contributions || 0),
-                      target: parseFloat(chama.contribution_amount || 0) * 12,
-                    }))}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fontSize: 12 }}
-                      stroke="var(--text-secondary)"
-                    />
-                    <YAxis tick={{ fontSize: 12 }} stroke="var(--text-secondary)" />
-                    <Tooltip
-                      formatter={(value) => formatCurrency(value)}
-                      cursor={{ fill: 'var(--bg-secondary)' }}
-                      contentStyle={{
-                        backgroundColor: "var(--card-bg)",
-                        borderColor: "var(--border)",
-                        borderRadius: "8px",
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
-                      }}
-                    />
-                    <Legend wrapperStyle={{ fontSize: '12px' }} />
-                    <Bar
-                      dataKey="contributions"
-                      fill="#3b82f6"
-                      name="Saved"
-                      radius={[4, 4, 0, 0]}
-                    />
-                    <Bar
-                      dataKey="target"
-                      fill="#e5e7eb"
-                      name="Goal"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+                <div className="p-4">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart
+                      data={(Array.isArray(chamas) ? chamas : []).slice(0, 6).map((chama) => ({
+                        name: chama.chama_name.length > 10
+                          ? chama.chama_name.substring(0, 10) + "..."
+                          : chama.chama_name,
+                        contributions: parseFloat(chama.total_contributions || 0),
+                        target: parseFloat(chama.contribution_amount || 0) * 12,
+                      }))}
+                      margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.5} />
+                      <XAxis
+                        dataKey="name"
+                        tick={{ fontSize: 10, fontWeight: 700 }}
+                        stroke="var(--gray)"
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis tick={{ fontSize: 10, fontWeight: 700 }} stroke="var(--gray)" axisLine={false} tickLine={false} />
+                      <Tooltip
+                        formatter={(value) => formatCurrency(value)}
+                        cursor={{ fill: 'rgba(59, 130, 246, 0.05)' }}
+                        contentStyle={{
+                          backgroundColor: "var(--bg-surface-glass)",
+                          backdropFilter: "var(--glass-blur)",
+                          borderColor: "var(--glass-border)",
+                          borderRadius: "16px",
+                          boxShadow: "var(--shadow-xl)",
+                          border: "none"
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', tracking: '0.1em' }} />
+                      <Bar
+                        dataKey="contributions"
+                        fill="url(#colorBar)"
+                        name="Accumulated"
+                        radius={[6, 6, 0, 0]}
+                      >
+                         <defs>
+                          <linearGradient id="colorBar" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#3b82f6" stopOpacity={1} />
+                            <stop offset="100%" stopColor="#2563eb" stopOpacity={1} />
+                          </linearGradient>
+                        </defs>
+                      </Bar>
+                      <Bar
+                        dataKey="target"
+                        fill="var(--border)"
+                        name="Benchmark"
+                        radius={[6, 6, 0, 0]}
+                        opacity={0.3}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
 
-            <h3 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', fontWeight: 600 }}>Your Chamas</h3>
-            <div className="rosca-grid">
-              {(Array.isArray(chamas) ? chamas : []).map((chama) => (
-                <DashboardChamaCard
-                  key={chama.chama_id}
-                  chama={chama}
-                  getChamaTypeLabel={getChamaTypeLabel}
-                  formatCurrency={formatCurrency}
-                />
-              ))}
+            <div className="dashboard-section" style={{ marginTop: '3rem' }}>
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-xl font-black tracking-tight flex items-center gap-3">
+                  <div className="w-1.5 h-6 bg-primary rounded-full" />
+                  Your Portfolio Groups
+                </h3>
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
+                  {chamas.length} groups active
+                </div>
+              </div>
+              <div className="rosca-grid">
+                {(Array.isArray(chamas) ? chamas : []).map((chama) => (
+                  <DashboardChamaCard
+                    key={chama.chama_id}
+                    chama={chama}
+                    getChamaTypeLabel={getChamaTypeLabel}
+                    formatCurrency={formatCurrency}
+                  />
+                ))}
+              </div>
             </div>
           </>
         )}
+        </div>
       </div>
     </div>
   );

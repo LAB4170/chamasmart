@@ -2,8 +2,9 @@ const pool = require('../config/db');
 const { isValidAmount, isValidPaymentMethod } = require('../utils/validators');
 const logger = require('../utils/logger');
 const { clearChamaCache } = require('../utils/cache');
+const { AppError } = require('../middleware/errorHandler');
 
-// Ensure chama is ASCA and active
+// Ensure chama is ASCA or Table Banking and active
 const getAscaChama = async chamaId => {
   const result = await pool.query(
     'SELECT chama_id, chama_type, current_fund, share_price FROM chamas WHERE chama_id = $1 AND is_active = true',
@@ -11,16 +12,14 @@ const getAscaChama = async chamaId => {
   );
 
   if (result.rows.length === 0) {
-    const error = new Error('Chama not found');
-    error.status = 404;
-    throw error;
+    throw new AppError('Chama not found', 404);
   }
 
   const chama = result.rows[0];
-  if (chama.chama_type !== 'ASCA') {
-    const error = new Error('This operation is only available for ASCA chamas');
-    error.status = 400;
-    throw error;
+  const allowedTypes = ['ASCA', 'TABLE_BANKING'];
+  
+  if (!allowedTypes.includes(chama.chama_type)) {
+    throw new AppError(`This operation is only available for ${allowedTypes.join(' or ')} chamas`, 400);
   }
 
   return chama;
@@ -224,9 +223,7 @@ const getMyEquity = async (req, res, next) => {
     ]);
 
     if (chamaRow.rows.length === 0) {
-      const error = new Error('Chama not found');
-      error.status = 404;
-      throw error;
+      throw new AppError('Chama not found', 404);
     }
 
     const currentFund = parseFloat(chamaRow.rows[0].current_fund || 0);

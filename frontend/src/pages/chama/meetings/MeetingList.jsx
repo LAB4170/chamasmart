@@ -193,12 +193,20 @@ const MeetingList = () => {
                                                         )}
                                                         {/* Only officials see the manage link */}
                                                         {isOfficial && (
-                                                            <Link
-                                                                to={`/chamas/${id}/meetings/${meeting._id || meeting.meeting_id}`}
-                                                                className="btn-manage"
-                                                            >
-                                                                Manage
-                                                            </Link>
+                                                            <div className="flex gap-2">
+                                                                <Link
+                                                                    to={`/chamas/${id}/meetings/${meeting._id || meeting.meeting_id}`}
+                                                                    className="btn-manage"
+                                                                >
+                                                                    Manage
+                                                                </Link>
+                                                                <Link
+                                                                    to={`/chamas/${id}/meetings/${meeting._id || meeting.meeting_id}/session`}
+                                                                    className="btn-session-link"
+                                                                >
+                                                                    <Play size={12} /> Live Session
+                                                                </Link>
+                                                            </div>
                                                         )}
                                                     </div>
                                                 </div>

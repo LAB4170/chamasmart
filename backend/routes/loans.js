@@ -14,6 +14,8 @@ const {
   respondToGuaranteeRequest,
   approveLoanByOfficial,
   getChamaLoanAnalytics,
+  getLoanConfig,
+  updateLoanConfig,
 } = require('../controllers/loanController');
 const validate = require('../middleware/validate');
 const { applyLoanSchema } = require('../utils/validationSchemas');
@@ -57,6 +59,20 @@ router.get(
   '/:chamaId/:loanId',
   authorize('member', 'admin', 'treasurer', 'chairperson'),
   getLoanById,
+);
+
+// ============================================================================
+// LOAN CONFIGURATION (Officials set terms, members read)
+// ============================================================================
+
+// Get loan config for wizard display (any member)
+router.get('/:chamaId/config', getLoanConfig);
+
+// Update loan config (officials only)
+router.put(
+  '/:chamaId/config',
+  authorize('admin', 'treasurer', 'chairperson', 'secretary'),
+  updateLoanConfig,
 );
 
 // Apply for a loan (with financial rate limiting)

@@ -10,6 +10,7 @@ const { body, param, validationResult } = require("express-validator");
 const { logAuditEvent, EVENT_TYPES, SEVERITY } = require("../utils/auditLog");
 const { createNotification, createBulkNotifications } = require('../utils/notificationService');
 const { clearChamaCache } = require('../utils/cache');
+const { getIo } = require("../socket");
 
 // ============================================================================
 // VALIDATION MIDDLEWARE
@@ -160,6 +161,14 @@ const addMember = async (req, res, next) => {
           by: req.user.user_id,
         });
 
+        // Emit socket event for real-time update
+        try {
+          const io = getIo();
+          io.to(`chama_${chamaId}`).emit("member_added", { chamaId, userId, role });
+        } catch (socketErr) {
+          logger.error("Socket emit failed (reactivateMember)", { error: socketErr.message });
+        }
+
         return res.status(200).json({
           success: true,
           message: "Member reactivated successfully",
@@ -249,6 +258,14 @@ const addMember = async (req, res, next) => {
       role,
       by: req.user.user_id,
     });
+
+    // Emit socket event for real-time update
+    try {
+      const io = getIo();
+      io.to(`chama_${chamaId}`).emit("member_added", { chamaId, userId, role });
+    } catch (socketErr) {
+      logger.error("Socket emit failed (addMember)", { error: socketErr.message });
+    }
 
     res.status(201).json({
       success: true,
@@ -519,6 +536,14 @@ const removeMember = async (req, res, next) => {
       by: req.user.user_id,
     });
 
+    // Emit socket event for real-time update
+    try {
+      const io = getIo();
+      io.to(`chama_${chamaId}`).emit("member_removed", { chamaId, userId: parseInt(userId) });
+    } catch (socketErr) {
+      logger.error("Socket emit failed (removeMember)", { error: socketErr.message });
+    }
+
     res.json({
       success: true,
       message: "Member removed successfully",
@@ -748,6 +773,16 @@ const bulkAddMembers = async (req, res, next) => {
       errors: results.errors.length,
       by: req.user.user_id,
     });
+
+    // Emit socket event for real-time update
+    if (results.added.length > 0) {
+      try {
+        const io = getIo();
+        io.to(`chama_${chamaId}`).emit("member_added", { chamaId, count: results.added.length });
+      } catch (socketErr) {
+        logger.error("Socket emit failed (bulkAddMembers)", { error: socketErr.message });
+      }
+    }
 
     res.status(200).json({
       success: true,

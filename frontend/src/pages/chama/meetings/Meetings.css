@@ -312,6 +312,25 @@
     color: var(--text-primary);
 }
 
+.btn-session-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 1rem;
+    background: #1e293b;
+    color: white;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.btn-session-link:hover {
+    background: #0f172a;
+    color: white;
+}
+
 /* Empty State */
 .meetings-empty {
     background: white;

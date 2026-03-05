@@ -13,6 +13,10 @@ const { clearChamaCache } = require("../utils/cache");
 const toDecimal = (val) => parseFloat(val);
 const fromDecimal = (val) => parseFloat(parseFloat(val).toFixed(2));
 
+// Currency Helpers
+const toCents = (amount) => Math.round(parseFloat(amount) * 100);
+const fromCents = (cents) => parseFloat((parseInt(cents || 0) / 100).toFixed(2));
+
 // LOAN INTEREST CALCULATOR
 
 class LoanCalculator {
@@ -1862,6 +1866,151 @@ const approveLoanByOfficial = async (req, res) => {
     }
   };
 
+// ============================================================================
+// LOAN CONFIGURATION (Officials set chama's interest rate & terms)
+// ============================================================================
+
+const DEFAULT_LOAN_CONFIG = {
+  interest_rate: 10,
+  interest_type: 'FLAT',
+  loan_multiplier: 3,
+  max_repayment_months: 12,
+  allowed_categories: ['EMERGENCY', 'SCHOOL_FEES', 'DEVELOPMENT', 'BUSINESS', 'MEDICAL'],
+};
+
+/**
+ * GET /api/loans/:chamaId/config
+ * Returns loan configuration for display in the wizard (public within chama members)
+ */
+const getLoanConfig = async (req, res) => {
+  try {
+    const { chamaId } = req.params;
+    const result = await pool.query(
+      'SELECT constitution_config, chama_type FROM chamas WHERE chama_id = $1 AND is_active = true',
+      [chamaId],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Chama not found' });
+    }
+
+    const loanConfig = {
+      ...DEFAULT_LOAN_CONFIG,
+      ...(result.rows[0].constitution_config?.loan || {}),
+    };
+
+    return res.json({
+      success: true,
+      data: {
+        ...loanConfig,
+        chama_type: result.rows[0].chama_type,
+      },
+    });
+  } catch (err) {
+    logger.logError(err, { context: 'getLoanConfig' });
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+/**
+ * PUT /api/loans/:chamaId/config
+ * Officials-only: update the chama's loan terms
+ */
+const updateLoanConfig = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { chamaId } = req.params;
+    const userId = req.user.user_id;
+    const {
+      interest_rate,
+      interest_type,
+      loan_multiplier,
+      max_repayment_months,
+      allowed_categories,
+    } = req.body;
+
+    // === Check official role ===
+    const officialCheck = await client.query(
+      `SELECT role FROM chama_members 
+       WHERE chama_id = $1 AND user_id = $2 AND is_active = true
+         AND role IN ('CHAIRPERSON', 'TREASURER', 'SECRETARY')`,
+      [chamaId, userId],
+    );
+
+    if (officialCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only officials (Chairperson, Treasurer, Secretary) can update loan configuration.',
+      });
+    }
+
+    // === Validate inputs ===
+    const rate = parseFloat(interest_rate);
+    const multiplier = parseFloat(loan_multiplier);
+    const maxMonths = parseInt(max_repayment_months, 10);
+
+    if (isNaN(rate) || rate < 0 || rate > 100) {
+      return res.status(400).json({ success: false, message: 'Interest rate must be 0–100%' });
+    }
+    if (isNaN(multiplier) || multiplier < 1 || multiplier > 10) {
+      return res.status(400).json({ success: false, message: 'Loan multiplier must be 1–10×' });
+    }
+    if (isNaN(maxMonths) || maxMonths < 1 || maxMonths > 60) {
+      return res.status(400).json({ success: false, message: 'Max repayment months must be 1–60' });
+    }
+    if (!['FLAT', 'REDUCING_BALANCE'].includes(interest_type)) {
+      return res.status(400).json({ success: false, message: 'Invalid interest type' });
+    }
+
+    await client.query('BEGIN');
+
+    // Get current config
+    const current = await client.query(
+      'SELECT constitution_config FROM chamas WHERE chama_id = $1 FOR UPDATE',
+      [chamaId],
+    );
+    const existingConfig = current.rows[0]?.constitution_config || {};
+
+    const newLoanConfig = {
+      ...DEFAULT_LOAN_CONFIG,
+      ...(existingConfig.loan || {}),
+      interest_rate: rate,
+      interest_type,
+      loan_multiplier: multiplier,
+      max_repayment_months: maxMonths,
+      allowed_categories: Array.isArray(allowed_categories) ? allowed_categories : DEFAULT_LOAN_CONFIG.allowed_categories,
+      updated_at: new Date().toISOString(),
+    };
+
+    await client.query(
+      'UPDATE chamas SET constitution_config = $1 WHERE chama_id = $2',
+      [JSON.stringify({ ...existingConfig, loan: newLoanConfig }), chamaId],
+    );
+
+    await logAuditEvent(client, {
+      chamaId,
+      actorId: userId,
+      eventType: EVENT_TYPES.SETTINGS_UPDATED,
+      severity: SEVERITY.MEDIUM,
+      description: `Loan config updated: rate=${rate}%, type=${interest_type}, multiplier=${multiplier}×, maxMonths=${maxMonths}`,
+    });
+
+    await client.query('COMMIT');
+
+    return res.json({
+      success: true,
+      message: 'Loan configuration updated successfully.',
+      data: newLoanConfig,
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    logger.logError(err, { context: 'updateLoanConfig' });
+    return res.status(500).json({ success: false, message: 'Server error' });
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   applyForLoan,
   getChamaLoans,
@@ -1874,6 +2023,8 @@ module.exports = {
   respondToGuaranteeRequest,
   approveLoanByOfficial,
   getChamaLoanAnalytics,
+  getLoanConfig,
+  updateLoanConfig,
   // Export services
   LoanCalculator,
   GuarantorService,

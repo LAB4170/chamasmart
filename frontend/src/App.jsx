@@ -59,6 +59,8 @@ const AscaDashboard = lazy(() => import("./pages/chama/asca/AscaDashboard"));
 const BuyShares = lazy(() => import("./pages/chama/asca/BuyShares"));
 const InvestmentProposals = lazy(() => import("./pages/chama/asca/InvestmentProposals"));
 
+const TableSessionDashboard = lazy(() => import("./pages/chama/meetings/TableSessionDashboard"));
+
 // Loading component
 import LoadingSpinner from "./components/LoadingSpinner";
 import { ToastContainer } from "react-toastify";
@@ -368,6 +370,14 @@ function AppContent() {
                                 element={
                                     <ProtectedRoute>
                                         <PageTransition><CreateMeeting /></PageTransition>
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/chamas/:id/meetings/:meetingId/session"
+                                element={
+                                    <ProtectedRoute>
+                                        <PageTransition><TableSessionDashboard /></PageTransition>
                                     </ProtectedRoute>
                                 }
                             />

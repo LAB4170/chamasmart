@@ -7,6 +7,7 @@ import {
   Users, Calendar, CheckCircle, AlertCircle, Search,
   Star, Shield, Lock, AlertTriangle, Clock, TrendingUp
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    LOAN APPLICATION WIZARD  — Phase 13.5
@@ -14,15 +15,15 @@ import {
    --input-bg, --border, --primary, etc.) so light/dark mode works correctly.
 ───────────────────────────────────────────────────────────────────────────── */
 
-const LOAN_TYPES = [
-  { value: "EMERGENCY",    label: "Emergency",       rate: 0,  desc: "Urgent crisis — 0% interest",        color: "#ef4444" },
-  { value: "SCHOOL_FEES",  label: "School Fees",     rate: 2,  desc: "Education — 2% flat",                color: "#3b82f6" },
-  { value: "DEVELOPMENT",  label: "Development",     rate: 5,  desc: "Personal growth — 5% flat",          color: "#8b5cf6" },
-  { value: "BUSINESS",     label: "Business",        rate: 8,  desc: "Entrepreneurial — 8% flat",          color: "#f59e0b" },
-  { value: "MEDICAL",      label: "Medical",         rate: 0,  desc: "Health — 0% interest",               color: "#10b981" },
+// Categories for classification/reporting only — interest rate is set by officials
+const LOAN_CATEGORIES = [
+  { value: "EMERGENCY",   label: "Emergency",   icon: "🚨", color: "#ef4444", desc: "Urgent crisis" },
+  { value: "SCHOOL_FEES", label: "School Fees",  icon: "🎓", color: "#3b82f6", desc: "Education" },
+  { value: "DEVELOPMENT", label: "Development",  icon: "🌱", color: "#8b5cf6", desc: "Personal growth" },
+  { value: "BUSINESS",    label: "Business",     icon: "💼", color: "#f59e0b", desc: "Entrepreneurial" },
+  { value: "MEDICAL",     label: "Medical",      icon: "🏥", color: "#10b981", desc: "Healthcare" },
 ];
 
-const MAX_MONTHS = 24;
 const MIN_LOAN   = 500;
 
 export default function LoanApplicationWizard() {
@@ -37,30 +38,62 @@ export default function LoanApplicationWizard() {
   const [members,        setMembers]        = useState([]);
   const [search,         setSearch]         = useState("");
   const [errors,         setErrors]         = useState({});
+  const [loanConfig,     setLoanConfig]     = useState({
+    interest_rate: 10,
+    interest_type: 'FLAT',
+    loan_multiplier: 3,
+    max_repayment_months: 12,
+  });
 
   const [form, setForm] = useState({
     amount: "", type: "DEVELOPMENT", purpose: "", repaymentPeriod: 6, guarantors: [],
     consent: false,
   });
 
+
   /* ── Init ── */
   useEffect(() => {
     (async () => {
       try {
-        const [chamaRes, standingRes, membersRes] = await Promise.all([
+        const [chamaRes, membersRes, configRes] = await Promise.all([
           chamaAPI.getById(chamaId),
-          ascaAPI.getMemberStanding(chamaId).catch(() => ({ data: { data: null } })),
           chamaAPI.getMembers(chamaId),
+          loanAPI.getConfig(chamaId).catch(() => ({ data: { data: null } })),
         ]);
+
+        const chamaData = chamaRes.data.data;
         const membersData = membersRes.data.data || [];
-        let standing = standingRes.data.data;
-        if (!standing) {
-          const u  = JSON.parse(localStorage.getItem("user") || "{}");
-          const me = membersData.find(m => m.user_id === (u?.user_id || u?.id || u?.userId));
-          const c  = parseFloat(me?.total_contributions || 0);
-          standing = { equityValue: c, loanLimit: c * 3, outstandingDebt: 0, availableCredit: c * 3, hasActiveCycle: true };
+        const u = JSON.parse(localStorage.getItem("user") || "{}");
+        const myUserId = u?.user_id || u?.id || u?.userId;
+        const me = membersData.find(m => m.user_id === myUserId);
+
+        // Load official loan config
+        if (configRes.data.data) {
+          setLoanConfig(prev => ({ ...prev, ...configRes.data.data }));
         }
-        setChama(chamaRes.data.data);
+
+        const officialMultiplier = configRes.data.data?.loan_multiplier || 3;
+        let standing;
+
+        if (chamaData?.chama_type === 'ASCA') {
+          // Only call the ASCA-specific API for ASCA chamas
+          const standingRes = await ascaAPI.getMemberStanding(chamaId).catch(() => ({ data: { data: null } }));
+          standing = standingRes.data.data;
+        }
+
+        if (!standing) {
+          // For TABLE_BANKING and all non-ASCA types, use member's total_contributions
+          const contributions = parseFloat(me?.total_contributions || 0);
+          standing = {
+            equityValue: contributions,
+            loanLimit: contributions * officialMultiplier,
+            outstandingDebt: 0,
+            availableCredit: contributions * officialMultiplier,
+            hasActiveCycle: true,
+          };
+        }
+
+        setChama(chamaData);
         setMemberStanding(standing);
         setMembers(membersData);
       } catch (e) {
@@ -73,16 +106,18 @@ export default function LoanApplicationWizard() {
   }, [chamaId]);
 
   /* ── Derived ── */
-  const selectedType = LOAN_TYPES.find(t => t.value === form.type) || LOAN_TYPES[2];
-  const rate = selectedType.rate;
+  // Official interest rate — NOT selectable by member
+  const officialRate     = loanConfig.interest_rate || 10;
+  const maxMonths        = loanConfig.max_repayment_months || 12;
+  const selectedCategory = LOAN_CATEGORIES.find(c => c.value === form.type) || LOAN_CATEGORIES[2];
 
   const amort = useMemo(() => {
     const prin     = parseFloat(form.amount) || 0;
-    const interest = (prin * rate) / 100;
+    const interest = (prin * officialRate) / 100;
     const total    = prin + interest;
     const monthly  = form.repaymentPeriod > 0 ? total / form.repaymentPeriod : 0;
     return { prin, interest, total, monthly };
-  }, [form.amount, rate, form.repaymentPeriod]);
+  }, [form.amount, officialRate, form.repaymentPeriod]);
 
   const utilPct = useMemo(() =>
     Math.min((parseFloat(form.amount || 0) / (memberStanding?.loanLimit || 1)) * 100, 100),
@@ -132,9 +167,9 @@ export default function LoanApplicationWizard() {
         errs.amount = `Exceeds limit: ${fmt(memberStanding.loanLimit)}`;
     }
     if (step === 2) {
-      if (!form.purpose.trim())          errs.purpose = "Describe how you will use this loan";
-      if (form.repaymentPeriod < 1 || form.repaymentPeriod > MAX_MONTHS)
-        errs.repaymentPeriod = `1 – ${MAX_MONTHS} months only`;
+      if (!form.purpose.trim())          errs.purpose = "Describe clearly how you will use this loan";
+      if (form.repaymentPeriod < 1 || form.repaymentPeriod > maxMonths)
+        errs.repaymentPeriod = `1 – ${maxMonths} months only (officials' maximum)`;
     }
     if (step === 3 && guaranteedTotal < amort.total)
       errs.coverage = `Need ${fmt(amort.total)} coverage — you have ${fmt(guaranteedTotal)}`;
@@ -236,57 +271,80 @@ export default function LoanApplicationWizard() {
 
       case 2: return (
         <div>
-          <StepHeader icon={<Calendar size={20}/>} colorClass="lw-icon-blue" title="Loan Terms" sub="Choose category and repayment timeline." />
+          <StepHeader icon={<Calendar size={20}/>} colorClass="lw-icon-blue" title="Loan Terms" sub="Your interest rate is set by the chama officials." />
 
-          {/* Type grid */}
-          <div className="lw-type-grid">
-            {LOAN_TYPES.map(t => (
-              <button
-                key={t.value}
-                type="button"
-                onClick={() => patch("type", t.value)}
-                className={`lw-type-card ${form.type === t.value ? "lw-type-card--active" : ""}`}
-                style={form.type === t.value ? { borderColor: t.color, background: `${t.color}12` } : {}}
-              >
-                <div className="lw-type-rate" style={{ color: t.color }}>{t.rate}%</div>
-                <div className="lw-type-name">{t.label}</div>
-                <div className="lw-type-desc">{t.desc}</div>
-              </button>
-            ))}
+          {/* Official Interest Rate Banner */}
+          <div className="lw-rate-banner">
+            <div className="lw-rate-banner-left">
+              <Lock size={16} className="lw-rate-lock-icon" />
+              <div>
+                <div className="lw-rate-label">Official Interest Rate</div>
+                <div className="lw-rate-sub">{loanConfig.interest_type === 'REDUCING_BALANCE' ? 'Reducing Balance' : 'Flat Rate'} · Set by chama officials</div>
+              </div>
+            </div>
+            <div className="lw-rate-value">{officialRate}%</div>
           </div>
 
-          {/* Slider */}
+          {/* Loan Category Chips (for classification only, no rates) */}
+          <div className="lw-field">
+            <label className="lw-label">Loan Category <span className="lw-label-hint">(For reporting purposes only)</span></label>
+            <div className="lw-category-chips">
+              {LOAN_CATEGORIES.map(cat => (
+                <button
+                  key={cat.value}
+                  type="button"
+                  onClick={() => patch("type", cat.value)}
+                  className={`lw-category-chip ${form.type === cat.value ? "lw-category-chip--active" : ""}`}
+                  style={form.type === cat.value ? {
+                    borderColor: cat.color,
+                    background: `${cat.color}18`,
+                    color: cat.color,
+                  } : {}}
+                >
+                  <span className="lw-chip-icon">{cat.icon}</span>
+                  <span className="lw-chip-label">{cat.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Repayment Period Slider */}
           <div className={`lw-field ${errors.repaymentPeriod ? "lw-field--err" : ""}`}>
             <label className="lw-label">Repayment Period: <strong>{form.repaymentPeriod} month{form.repaymentPeriod > 1 ? "s" : ""}</strong></label>
             <input
-              type="range" min="1" max={MAX_MONTHS} step="1"
+              type="range" min="1" max={maxMonths} step="1"
               className="lw-slider"
-              value={form.repaymentPeriod}
+              value={Math.min(form.repaymentPeriod, maxMonths)}
               onChange={e => { patch("repaymentPeriod", parseInt(e.target.value)); clearErr("repaymentPeriod"); }}
             />
-            <div className="lw-slider-labels"><span>1 mo</span><span>{MAX_MONTHS} mo</span></div>
-            {errors.repaymentPeriod && <p className="lw-err-msg"><AlertCircle size={12}/>{errors.repaymentPeriod}</p>}
+            <div className="lw-slider-labels"><span>1 mo</span><span>{maxMonths} mo (max)</span></div>
+            {errors.repaymentPeriod && <p className="lw-err-msg"><AlertCircle size={12}/>Max repayment is {maxMonths} months as set by officials</p>}
           </div>
 
-          {/* Purpose */}
+          {/* Purpose of Loan — redesigned, large textarea */}
           <div className={`lw-field ${errors.purpose ? "lw-field--err" : ""}`}>
-            <label className="lw-label">Purpose of Loan</label>
+            <label className="lw-label">
+              Purpose of Loan <span className="lw-required">*</span>
+            </label>
+            <p className="lw-field-hint">Be specific — officials will review this before approval. Vague applications may be rejected.</p>
             <textarea
-              className="lw-textarea"
-              rows={3}
+              className="lw-textarea lw-textarea--lg"
+              rows={6}
               maxLength={500}
               value={form.purpose}
               onChange={e => { patch("purpose", e.target.value); clearErr("purpose"); }}
-              placeholder="Describe clearly how the funds will be used…"
+              placeholder={`e.g. "I will use this ${fmt(amort.prin)} loan to purchase 3 bags of fertiliser and 50kg of maize seed for my ½-acre farm on Nakuru Road. Expected harvest in 3 months will cover repayments."`}
             />
-            <div className="lw-char-count">{form.purpose.length} / 500</div>
+            <div className="lw-char-count" style={{ color: form.purpose.length > 400 ? '#f59e0b' : undefined }}>
+              {form.purpose.length} / 500 characters
+            </div>
             {errors.purpose && <p className="lw-err-msg"><AlertCircle size={12}/>{errors.purpose}</p>}
           </div>
 
           {/* Amortisation summary */}
           <div className="lw-amort-card">
             <div className="lw-amort-row"><span>Principal</span><span>{fmt(amort.prin)}</span></div>
-            <div className="lw-amort-row"><span>Interest ({rate}%)</span><span className="lw-text-warn">+ {fmt(amort.interest)}</span></div>
+            <div className="lw-amort-row"><span>Interest ({officialRate}% {loanConfig.interest_type === 'REDUCING_BALANCE' ? 'reducing' : 'flat'})</span><span className="lw-text-warn">+ {fmt(amort.interest)}</span></div>
             <div className="lw-amort-divider"/>
             <div className="lw-amort-row lw-amort-row--total"><span>Total Repayable</span><strong>{fmt(amort.total)}</strong></div>
             <div className="lw-amort-row lw-amort-row--monthly">
@@ -440,15 +498,54 @@ export default function LoanApplicationWizard() {
   );
 
   if (memberStanding && memberStanding.equityValue <= 0) return (
-    <div className="lw-root">
-      <div className="lw-container lw-card lw-card-body lw-text-center">
-        <AlertTriangle size={48} className="lw-text-warn" style={{ margin: "0 auto 1rem" }}/>
-        <h2 className="lw-step-title">Action Required</h2>
-        <p className="lw-step-sub" style={{ marginBottom: "1.5rem" }}>
-          Constitutional Requirement: You must have active contributions in <strong>{chama?.chama_name}</strong> to apply for a loan.
+    <div className="min-h-[85vh] w-full flex flex-col items-center justify-center p-6 bg-slate-50/50 dark:bg-transparent">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="w-full max-w-md"
+      >
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-white dark:border-slate-800 rounded-[3rem] p-10 shadow-2xl shadow-slate-200/50 dark:shadow-none text-center relative overflow-hidden">
+          {/* Decorative background glow */}
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent opacity-50" />
+          
+          <div className="flex justify-center mb-8">
+             <div className="relative">
+               <motion.div 
+                 animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.5, 0.3] }}
+                 transition={{ duration: 3, repeat: Infinity }}
+                 className="absolute inset-0 bg-amber-500 rounded-full blur-2xl"
+               />
+               <div className="relative w-24 h-24 bg-amber-50 dark:bg-amber-950/30 rounded-full flex items-center justify-center border border-amber-100 dark:border-amber-900/50">
+                 <AlertTriangle size={48} className="text-amber-500" strokeWidth={2.5} />
+               </div>
+             </div>
+          </div>
+          
+          <h2 className="text-3xl font-[900] text-slate-900 dark:text-white mb-4 tracking-tight leading-tight">
+            Verification Required
+          </h2>
+          
+          <p className="text-slate-500 dark:text-slate-400 text-lg font-medium leading-relaxed mb-10 px-4">
+            To maintain Chama integrity, you must have active contributions in <span className="text-slate-900 dark:text-white font-bold">{chama?.chama_name || 'this group'}</span> to apply for credit.
+          </p>
+          
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.5rem' }}>
+            <button 
+              onClick={() => navigate(`/chamas/${chamaId}`)}
+              className="lw-back-link"
+              style={{ fontSize: '1rem', padding: '0.75rem 2rem', background: 'var(--primary)', color: '#fff', borderRadius: '999px', border: 'none', fontWeight: 700, boxShadow: 'var(--shadow-md)', transition: 'all 0.25s', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <ChevronLeft size={18} />
+              Return to Chama
+            </button>
+          </div>
+        </div>
+        
+        <p className="mt-8 text-center text-slate-400 text-sm font-bold uppercase tracking-widest">
+          Security Protocol v2.4
         </p>
-        <button className="btn btn-primary" onClick={() => navigate(`/chamas/${chamaId}`)}>Back to Chama</button>
-      </div>
+      </motion.div>
     </div>
   );
 
@@ -457,18 +554,22 @@ export default function LoanApplicationWizard() {
       <div className="lw-container">
 
         {/* Header */}
-        <div className="lw-header">
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="lw-header"
+        >
           <div>
             <button 
               onClick={() => navigate(`/chamas/${chamaId}`)} 
               className="lw-back-link"
             >
-              <ChevronLeft size={14}/> Back to {chama?.chama_name}
+              <ChevronLeft size={16}/> Back to {chama?.chama_name}
             </button>
-            <h1 className="lw-title"><Star size={18} style={{ color: "#f59e0b" }} fill="#f59e0b"/> Secure Loan</h1>
+            <h1 className="lw-title"><Star size={24} style={{ color: "#f59e0b" }} fill="#f59e0b"/> Secure Loan</h1>
           </div>
-          <span className="lw-step-badge">Step {step} of 4</span>
-        </div>
+          <span className="lw-step-badge">Phase {step} of 4</span>
+        </motion.div>
 
         {/* Progress bar */}
         <div className="lw-progress-steps">
@@ -478,222 +579,252 @@ export default function LoanApplicationWizard() {
         </div>
 
         {/* Card */}
-        <div className="lw-card">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="lw-card"
+        >
           <div className="lw-card-body">
-            {renderStep()}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {renderStep()}
+              </motion.div>
+            </AnimatePresence>
           </div>
 
           {/* Footer nav */}
           <div className="lw-footer">
             {step > 1
-              ? <button className="btn btn-outline btn-sm" onClick={prevStep} disabled={submitting}><ChevronLeft size={16}/> Back</button>
-              : <button className="btn btn-sm" style={{ background: "none", color: "var(--gray)", border: "1px solid var(--border)" }} onClick={() => navigate(-1)}>Cancel</button>
+              ? <button className="btn btn-outline btn-sm" onClick={prevStep} disabled={submitting}><ChevronLeft size={18}/> Previous</button>
+              : <button className="btn btn-sm btn-outline" style={{ opacity: 0.6 }} onClick={() => navigate(-1)}>Cancel</button>
             }
             {step < 4
-              ? <button className="btn btn-primary btn-sm" onClick={nextStep}>Continue <ChevronRight size={16}/></button>
+              ? <button className="btn btn-primary btn-sm" onClick={nextStep}>Continue <ChevronRight size={18}/></button>
               : (
                 <button
-                  className="btn btn-sm"
-                  style={{ background: submitting ? "#15803d" : "#16a34a", color: "#fff", minWidth: 160, gap: "0.4rem", fontWeight: 700, opacity: submitting ? 0.7 : 1 }}
+                  className="btn btn-primary btn-sm"
+                  style={{ background: submitting ? "var(--success-dark)" : "var(--success)", minWidth: 180 }}
                   onClick={handleSubmit}
                   disabled={submitting}
                 >
                   {submitting
-                    ? <><span className="lw-spinner"/>Processing…</>
-                    : <><CheckCircle size={16}/> Submit Application</>
+                    ? <><span className="lw-spinner"/>Submitting…</>
+                    : <><CheckCircle size={18}/> Confirm Application</>
                   }
                 </button>
               )
             }
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* ── Scoped CSS ── */}
       <style>{`
         /* Root */
-        .lw-root{padding:2rem 1rem;min-height:100vh;background:var(--light-gray);}
-        .lw-container{width:100%;max-width:580px;margin:0 auto;}
+        .lw-root{padding:2rem 1rem;min-height:100vh;background:var(--bg-page-gradient);background-attachment:fixed;transition: background 0.3s ease; display: flex; flex-direction: column;}
+        .lw-root--centered-page{justify-content: center; align-items: center;}
+        .lw-container{width:100%;max-width:640px;margin:0 auto; padding: 0 1rem;}
+        .lw-container--guard{max-width: 480px;}
+        .lw-text-center{text-align: center; justify-content: center;}
+        
+        /* Guard Specific */
+        .lw-guard-card{padding: 4rem 2.5rem; text-align: center; display: flex; flex-direction: column; align-items: center;}
+        .lw-guard-illustration{margin-bottom: 2rem; position: relative;}
+        .lw-guard-icon-wrapper{position: relative; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center;}
+        .lw-guard-icon-bg{color: var(--warning); opacity: 0.1; position: absolute;}
+        .lw-guard-icon-fg{color: var(--warning); position: relative; z-index: 10; filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.3));}
+        .lw-guard-title{font-size: 2.25rem; font-weight: 900; color: var(--text-primary); margin-bottom: 1rem; letter-spacing: -0.04em;}
+        .lw-guard-text{font-size: 1.05rem; color: var(--gray); line-height: 1.6; max-width: 320px; margin: 0 auto 2.5rem; font-weight: 500;}
+        .lw-guard-btn{
+          background: var(--success);
+          color: white;
+          border: none;
+          padding: 1.1rem 2.5rem;
+          border-radius: 18px;
+          font-weight: 900;
+          font-size: 1.1rem;
+          letter-spacing: -0.01em;
+          box-shadow: 0 12px 24px rgba(34, 197, 94, 0.25);
+          transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+          cursor: pointer;
+        }
+        .lw-guard-btn:hover{transform: translateY(-5px) scale(1.05); box-shadow: 0 20px 32px rgba(34, 197, 94, 0.35); background: #16a34a;}
+        .lw-guard-btn:active{transform: scale(0.95);}
 
         /* Header */
-        .lw-header{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem;}
-        .lw-back-link{background:none;border:none;padding:0;font-size:0.75rem;font-weight:700;color:var(--primary);cursor:pointer;display:flex;align-items:center;gap:0.25rem;margin-bottom:0.4rem;}
-        .lw-back-link:hover{text-decoration:underline;}
-        .lw-eyebrow{font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:var(--gray);margin:0 0 .25rem;}
-        .lw-title{font-size:1.45rem;font-weight:900;color:var(--text-primary);display:flex;align-items:center;gap:.5rem;margin:0;}
-        .lw-step-badge{font-size:.72rem;font-weight:700;color:var(--gray);white-space:nowrap;padding:.3rem .75rem;border:1px solid var(--border);border-radius:999px;background:var(--card-bg);}
+        .lw-header{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;margin-bottom:1.5rem;padding: 0 0.5rem;}
+        .lw-back-link{background:none;border:none;padding:0;font-size:0.85rem;font-weight:600;color:var(--primary);cursor:pointer;display:flex;align-items:center;gap:0.4rem;margin-bottom:0.5rem;transition: opacity 0.2s;}
+        .lw-back-link:hover{opacity: 0.8;}
+        .lw-title{font-size:1.75rem;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:.75rem;margin:0;letter-spacing: -0.02em;}
+        .lw-step-badge{font-size:.75rem;font-weight:700;color:var(--gray);background:var(--bg-surface-glass);backdrop-filter: var(--glass-blur);padding:.4rem 1rem;border:1px solid var(--border);border-radius:999px;box-shadow: var(--shadow-sm);}
 
         /* Step progress */
-        .lw-progress-steps{display:flex;gap:.35rem;margin-bottom:1.25rem;}
-        .lw-progress-seg{flex:1;height:5px;border-radius:999px;background:var(--border);transition:background .3s;}
-        .lw-progress-seg--on{background:var(--primary);}
+        .lw-progress-steps{display:flex;gap:.5rem;margin-bottom:2rem;padding: 0 0.5rem;}
+        .lw-progress-seg{flex:1;height:6px;border-radius:999px;background:var(--border);transition:all .4s cubic-bezier(0.4, 0, 0.2, 1);box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);}
+        .lw-progress-seg--on{background:var(--primary);box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);}
 
-        /* Card */
-        .lw-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow-lg);}
-        .lw-card-body{padding:1.75rem 1.5rem;}
+        /* Card Modernisation */
+        .lw-card{background:var(--bg-surface-glass);backdrop-filter: blur(12px);border:1px solid var(--border);border-radius:24px;overflow:hidden;box-shadow:var(--shadow-xl);transition: all 0.3s ease;}
+        .lw-card--glass{background:var(--bg-surface-glass);}
+        .lw-card-body{padding:2.5rem 2rem;}
 
         /* Step header */
-        .lw-step-header{display:flex;align-items:flex-start;gap:.85rem;margin-bottom:1.25rem;}
-        .lw-step-icon{width:46px;height:46px;min-width:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;}
-        .lw-icon-amber{background:#fef3c7;color:#d97706;}
-        .lw-icon-blue{background:#dbeafe;color:#2563eb;}
-        .lw-icon-purple{background:#ede9fe;color:#7c3aed;}
-        .lw-icon-green{background:#dcfce7;color:#16a34a;}
-        .lw-step-title{margin:0 0 .15rem;font-size:1.05rem;font-weight:800;color:var(--text-primary);}
-        .lw-step-sub{margin:0;font-size:.82rem;color:var(--gray);}
+        .lw-step-header{display:flex;align-items:center;gap:1.25rem;margin-bottom:2rem;}
+        .lw-step-icon{width:56px;height:56px;min-width:56px;border-radius:18px;display:flex;align-items:center;justify-content:center;box-shadow: var(--shadow-md);}
+        .lw-icon-amber{background:rgba(245, 158, 11, 0.15);color:#d97706;}
+        .lw-icon-blue{background:rgba(37, 99, 235, 0.15);color:#2563eb;}
+        .lw-icon-purple{background:rgba(124, 58, 237, 0.15);color:#7c3aed;}
+        .lw-icon-green{background:rgba(22, 163, 74, 0.15);color:#16a34a;}
+        .lw-step-title{margin:0 0 .25rem;font-size:1.35rem;font-weight:800;color:var(--text-primary);letter-spacing: -0.01em;}
+        .lw-step-sub{margin:0;font-size:.9rem;color:var(--gray);line-height:1.5;}
 
-        .lw-checkbox-label{display:flex;gap:.75rem;align-items:flex-start;font-size:.8rem;color:var(--text-primary);cursor:pointer;background:var(--surface-2);padding:.85rem;border-radius:10px;border:1.5px solid var(--border);margin-top:1rem;}
-        .lw-checkbox-label input{margin-top:.2rem;}
-        .lw-checkbox-label span{line-height:1.4;}
-        .lw-checkbox-label:hover{border-color:var(--primary);}
+        .lw-checkbox-label{display:flex;gap:1rem;align-items:flex-start;font-size:.9rem;color:var(--text-primary);cursor:pointer;background:var(--surface-2);padding:1.25rem;border-radius:16px;border:1.5px solid var(--border);margin-top:1.5rem;transition: all 0.2s;}
+        .lw-checkbox-label input{margin-top:.3rem;width: 18px; height: 18px;}
+        .lw-checkbox-label:hover{border-color:var(--primary);background: var(--bg-surface);}
 
         /* Info card */
-        .lw-info-card{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:1.25rem;}
-        .lw-info-row{display:flex;justify-content:space-between;align-items:center;font-size:.85rem;color:var(--text-primary);margin-bottom:.4rem;}
+        .lw-info-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:20px;padding:1.5rem;margin-bottom:2rem;box-shadow: var(--shadow-sm);}
+        .lw-info-row{display:flex;justify-content:space-between;align-items:center;font-size:.9rem;color:var(--text-primary);margin-bottom:.6rem;}
         .lw-info-row--sub{color:var(--gray);}
-        .lw-info-row--main{font-weight:700;font-size:.95rem;padding-top:.6rem;}
-        .lw-divider{border:none;border-top:1px dashed var(--border);margin:.5rem 0;}
+        .lw-info-row--main{font-weight:800;font-size:1.1rem;padding-top:.75rem;border-top: 1px solid var(--border);margin-top: 0.5rem;}
+        .lw-divider{border:none;border-top:1px dashed var(--border);margin:.75rem 0;}
 
-        /* Progress bar */
-        .lw-progress-track{width:100%;height:7px;background:var(--border);border-radius:999px;overflow:hidden;margin:.5rem 0 .25rem;}
-        .lw-progress-bar{height:100%;border-radius:999px;transition:width .5s;}
-        .lw-mini-track{height:4px;background:var(--border);border-radius:999px;overflow:hidden;margin-top:.3rem;}
-        .lw-mini-fill{height:100%;border-radius:999px;transition:width .3s;}
+        /* Progress bars */
+        .lw-progress-track{width:100%;height:10px;background:var(--border);border-radius:999px;overflow:hidden;margin:.75rem 0 .5rem;}
+        .lw-progress-bar{height:100%;border-radius:999px;transition:width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);}
+        .lw-mini-track{height:6px;background:var(--border);border-radius:999px;overflow:hidden;margin-top:.5rem;}
+        .lw-mini-fill{height:100%;border-radius:999px;transition:width 0.5s ease;}
 
         /* Fields */
-        .lw-field{margin-bottom:1rem;}
-        .lw-field--err .lw-input,.lw-field--err .lw-textarea{border-color:var(--danger)!important;}
-        .lw-label{display:block;font-size:.8rem;font-weight:700;color:var(--text-primary);margin-bottom:.4rem;}
-        .lw-err-msg{display:flex;align-items:center;gap:.3rem;color:var(--danger);font-size:.73rem;margin-top:.3rem;}
-        .lw-helper{font-size:.72rem;color:var(--gray);margin:0;}
-        .lw-char-count{font-size:.68rem;color:var(--gray);text-align:right;margin-top:.2rem;}
-        .lw-section-label{font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--gray);margin:0 0 .6rem;}
+        .lw-field{margin-bottom:1.5rem;}
+        .lw-label{display:block;font-size:.85rem;font-weight:700;color:var(--text-primary);margin-bottom:.6rem;text-transform: uppercase; letter-spacing: 0.05em;}
 
-        /* Inputs */
-        .lw-input-wrap{position:relative;display:flex;align-items:center;}
-        .lw-input-wrap--sm{flex:1;min-width:100px;}
-        .lw-prefix{position:absolute;left:.75rem;font-size:.78rem;font-weight:800;color:var(--gray);pointer-events:none;z-index:1;}
+        /* Inputs Modernisation */
+        .lw-input-wrap{position:relative;display:flex;align-items:center;transition: transform 0.2s;}
+        .lw-input-wrap:focus-within{transform: scale(1.01);}
         .lw-input{
           width:100%;
-          border:1.5px solid var(--input-border);
-          border-radius:10px;
-          padding:.65rem .75rem .65rem 3.25rem;
-          font-size:.95rem;
-          font-weight:600;
-          background:var(--input-bg);
-          color:var(--input-text);
+          border:2px solid var(--border);
+          border-radius:14px;
+          padding:.85rem 1rem .85rem 3.5rem;
+          font-size:1.1rem;
+          font-weight:700;
+          background:var(--bg-surface);
+          color:var(--text-primary);
           outline:none;
-          transition:border .2s,box-shadow .2s;
-          -webkit-appearance:none;
-          appearance:none;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .lw-input:focus{border-color:var(--primary)!important;box-shadow:0 0 0 3px rgba(37,99,235,.12);}
-        .lw-input::placeholder{color:var(--gray-light);font-weight:400;}
-        .lw-input--lg{font-size:1.1rem;font-weight:700;padding-top:.75rem;padding-bottom:.75rem;}
-        .lw-input--sm{font-size:.85rem;padding:.45rem .5rem .45rem 3rem;}
-        .lw-textarea{
-          display:block;
-          width:100%;
-          border:1.5px solid var(--input-border);
-          border-radius:10px;
-          padding:.65rem .9rem;
-          font-size:.88rem;
-          background:var(--input-bg);
-          color:var(--input-text);
-          resize:vertical;
-          outline:none;
-          transition:border .2s;
-          font-family:inherit;
-        }
-        .lw-textarea:focus{border-color:var(--primary)!important;}
-        .lw-textarea::placeholder{color:var(--gray-light);}
+        .lw-input:focus{border-color:var(--primary);box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);}
+        .lw-prefix{position:absolute;left:1.25rem;font-size:0.9rem;font-weight:800;color:var(--gray);opacity: 0.7;}
+        .lw-input--lg{font-size:1.5rem;padding: 1.1rem 1.25rem 1.1rem 3.75rem;}
 
         /* Slider */
-        .lw-slider{width:100%;-webkit-appearance:none;appearance:none;height:5px;border-radius:999px;background:var(--primary);outline:none;cursor:pointer;margin:.5rem 0 .25rem;}
-        .lw-slider::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--primary);box-shadow:0 1px 6px rgba(0,0,0,.2);cursor:pointer;}
-        .lw-slider-labels{display:flex;justify-content:space-between;font-size:.68rem;color:var(--gray);}
+        .lw-slider{width:100%;-webkit-appearance:none;height:8px;border-radius:999px;background:var(--border);outline:none;cursor:pointer;margin:1rem 0;}
+        .lw-slider::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:#fff;border:4px solid var(--primary);box-shadow:var(--shadow-md);cursor:pointer;transition: transform 0.2s;}
+        .lw-slider::-webkit-slider-thumb:hover{transform: scale(1.15);}
 
-        /* Loan type cards */
-        .lw-type-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.65rem;margin-bottom:1.25rem;}
-        @media(min-width:420px){.lw-type-grid{grid-template-columns:repeat(3,1fr);}}
-        .lw-type-card{padding:.75rem .6rem;border:1.5px solid var(--border);border-radius:12px;text-align:center;cursor:pointer;background:var(--card-bg);transition:all .2s;color:var(--text-primary);}
-        .lw-type-card:hover{border-color:var(--primary);}
-        .lw-type-card--active{box-shadow:0 0 0 3px rgba(37,99,235,.12);}
-        .lw-type-rate{font-size:1.3rem;font-weight:900;}
-        .lw-type-name{font-size:.72rem;font-weight:700;margin:.1rem 0;color:var(--text-primary);}
-        .lw-type-desc{font-size:.62rem;color:var(--gray);line-height:1.3;}
+        /* Official Rate Banner */
+        .lw-rate-banner{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,rgba(37,99,235,0.1) 0%,rgba(37,99,235,0.04) 100%);border:1.5px solid rgba(37,99,235,0.25);border-radius:20px;padding:1.25rem 1.5rem;margin-bottom:2rem;}
+        .lw-rate-banner-left{display:flex;align-items:center;gap:1rem;}
+        .lw-rate-lock-icon{color:var(--primary);opacity:0.8;flex-shrink:0;}
+        .lw-rate-label{font-size:0.9rem;font-weight:800;color:var(--text-primary);margin-bottom:0.15rem;letter-spacing:-0.01em;}
+        .lw-rate-sub{font-size:0.78rem;color:var(--gray);font-weight:600;}
+        .lw-rate-value{font-size:2.75rem;font-weight:900;color:var(--primary);letter-spacing:-0.04em;line-height:1;}
+
+        /* Loan Category Chips */
+        .lw-category-chips{display:flex;flex-wrap:wrap;gap:0.75rem;margin-top:0.25rem;}
+        .lw-category-chip{display:flex;align-items:center;gap:0.5rem;padding:0.6rem 1.1rem;border:2px solid var(--border);border-radius:999px;background:var(--bg-surface);color:var(--gray);font-size:0.9rem;font-weight:700;cursor:pointer;transition:all 0.25s cubic-bezier(0.4,0,0.2,1);}
+        .lw-category-chip:hover{border-color:var(--primary);color:var(--primary);transform:translateY(-2px);box-shadow:var(--shadow-md);}
+        .lw-category-chip--active{font-weight:800;transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,0.1);}
+        .lw-chip-icon{font-size:1.1rem;line-height:1;}
+        .lw-chip-label{line-height:1;}
+        .lw-label-hint{font-weight:500;color:var(--gray);text-transform:none;letter-spacing:normal;font-size:0.78rem;}
+        .lw-required{color:var(--danger);}
+        .lw-field-hint{font-size:0.83rem;color:var(--gray);margin:0 0 0.75rem;line-height:1.5;}
+
+        /* Textarea variants */
+        .lw-textarea{width:100%;border:2px solid var(--border);border-radius:14px;padding:1rem;font-size:0.95rem;font-weight:500;background:var(--bg-surface);color:var(--text-primary);resize:vertical;outline:none;transition:all 0.2s cubic-bezier(0.4,0,0.2,1);line-height:1.6;font-family:inherit;}
+        .lw-textarea:focus{border-color:var(--primary);box-shadow:0 0 0 4px rgba(37,99,235,0.12);}
+        .lw-textarea--lg{min-height:160px;font-size:1rem;}
+        .lw-char-count{text-align:right;font-size:0.78rem;color:var(--gray);margin-top:0.4rem;font-weight:600;}
 
         /* Amort card */
-        .lw-amort-card{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-top:1rem;}
-        .lw-amort-row{display:flex;justify-content:space-between;align-items:center;font-size:.85rem;color:var(--text-primary);padding:.2rem 0;gap:.5rem;}
-        .lw-amort-row--total{font-weight:800;font-size:.95rem;margin-top:.3rem;}
-        .lw-amort-row--monthly{font-size:.82rem;margin-top:.2rem;}
-        .lw-amort-divider{border:none;border-top:1px dashed var(--border);margin:.35rem 0;}
+        .lw-amort-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:20px;padding:1.5rem;margin-top:1.5rem;box-shadow: var(--shadow-sm);}
+        .lw-amort-row{display:flex;justify-content:space-between;align-items:center;font-size:1rem;color:var(--text-primary);padding:.5rem 0;}
+        .lw-amort-row--total{font-weight:900;font-size:1.25rem;margin-top:.75rem;padding-top: 0.75rem; border-top: 2px solid var(--border);}
 
-        /* Guarantors */
-        .lw-callout{display:flex;gap:.65rem;background:#fffbeb;border:1px solid #fbbf24;border-radius:10px;padding:.85rem;font-size:.78rem;color:#92400e;margin-bottom:1rem;}
-        [data-theme='dark'] .lw-callout{background:rgba(251,191,36,.08);color:#fcd34d;border-color:rgba(251,191,36,.3);}
-        .lw-list{padding-left:1.1rem;margin:.3rem 0 0;color:inherit;}
-        .lw-list li{margin-bottom:.15rem;}
-        .lw-search-wrap{position:relative;margin-bottom:.85rem;}
-        .lw-search-icon{position:absolute;left:.85rem;top:50%;transform:translateY(-50%);color:var(--gray);pointer-events:none;}
-        .lw-search{
-          width:100%;
-          border:1.5px solid var(--input-border);
-          border-radius:10px;
-          padding:.65rem .75rem .65rem 2.5rem;
-          font-size:.9rem;
-          background:var(--input-bg);
-          color:var(--input-text);
-          outline:none;
-          transition:border .2s;
-        }
-        .lw-search:focus{border-color:var(--primary);}
-        .lw-search::placeholder{color:var(--gray-light);}
-        .lw-dropdown{position:absolute;top:calc(100% + .35rem);left:0;right:0;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-xl);z-index:100;max-height:220px;overflow-y:auto;}
-        .lw-dropdown-item{display:flex;justify-content:space-between;align-items:center;width:100%;padding:.65rem 1rem;cursor:pointer;border:none;background:none;text-align:left;color:var(--text-primary);transition:background .15s;}
-        .lw-dropdown-item:hover{background:var(--surface-2);}
-        .lw-dropdown-name{font-weight:600;font-size:.85rem;color:var(--text-primary);}
-        .lw-dropdown-sub{font-size:.72rem;color:var(--gray);margin-top:.1rem;}
-        .lw-guarantors{display:flex;flex-direction:column;gap:.6rem;margin-bottom:.85rem;}
-        .lw-guarantor-row{background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:.85rem;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:.6rem;}
-        .lw-guarantor-meta{flex:1;min-width:0;}
-        .lw-guarantor-name{font-weight:700;font-size:.85rem;color:var(--text-primary);}
-        .lw-guarantor-sub{font-size:.7rem;color:var(--gray);margin-top:.1rem;}
-        .lw-guarantor-controls{display:flex;align-items:center;gap:.4rem;}
-        .lw-remove-btn{font-size:1rem;font-weight:700;padding:.25rem .5rem;border:1px solid var(--border);border-radius:6px;background:none;color:var(--danger);cursor:pointer;}
-        .lw-warn-inline{display:flex;align-items:center;gap:.2rem;font-size:.68rem;color:var(--warning);margin-top:.2rem;}
-        .lw-coverage-card{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:1rem;}
-        .lw-coverage-header{display:flex;justify-content:space-between;align-items:center;font-size:.85rem;font-weight:600;color:var(--text-primary);margin-bottom:.5rem;}
-
-        /* Security notes */
-        .lw-security-note{display:flex;align-items:flex-start;gap:.45rem;font-size:.72rem;color:var(--gray);background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;margin-top:.75rem;}
-        .lw-consent{display:flex;align-items:flex-start;gap:.5rem;font-size:.73rem;color:var(--gray);background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:.75rem;margin-top:.85rem;}
-        [data-theme='dark'] .lw-consent{background:rgba(249,115,22,.08);border-color:rgba(249,115,22,.2);}
-
-        /* Review card */
-        .lw-review-card{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:.9rem 1rem;margin-bottom:.75rem;}
-        .lw-review-row{display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem;font-size:.83rem;color:var(--text-primary);padding:.3rem 0;border-bottom:1px solid var(--border);}
-        .lw-review-row:last-child{border:none;}
-        .lw-review-label{color:var(--gray);font-size:.75rem;flex-shrink:0;}
-        .lw-review-value{font-weight:600;text-align:right;}
+        /* Illustration area for guard */
+        .lw-guard-illustration{height: 120px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem;}
 
         /* Footer */
-        .lw-footer{display:flex;justify-content:space-between;align-items:center;padding:.9rem 1.5rem;border-top:1px solid var(--border);background:var(--surface-2);}
+        .lw-footer{display:flex;justify-content:space-between;align-items:center;padding:1.5rem 2rem;border-top:1px solid var(--border);background:var(--bg-surface-glass);backdrop-filter: blur(8px);}
+        .btn-sm{padding: 0.75rem 1.5rem; font-size: 0.95rem; font-weight: 700; border-radius: 12px;}
 
-        /* Colours */
-        .lw-text-green{color:#22c55e;}
-        .lw-text-warn{color:#f59e0b;}
+        /* Animations */
+        /* Guarantors & Search */
+        .lw-callout{display:flex;gap:.75rem;background:rgba(245, 158, 11, 0.08);border:1px solid rgba(245, 158, 11, 0.2);border-radius:16px;padding:1.25rem;font-size:0.85rem;color:var(--text-primary);margin-bottom:1.5rem;}
+        .lw-list{padding-left:1.25rem;margin:.5rem 0 0;color:var(--gray);}
+        .lw-list li{margin-bottom:.25rem;}
+        
+        .lw-search-wrap{position:relative;margin-bottom:1.25rem;}
+        .lw-search-icon{position:absolute;left:1.1rem;top:50%;transform:translateY(-50%);color:var(--gray);opacity:0.6;}
+        .lw-search{
+          width:100%;
+          border:2px solid var(--border);
+          border-radius:14px;
+          padding:.85rem 1rem .85rem 2.75rem;
+          font-size:.95rem;
+          background:var(--bg-surface);
+          color:var(--text-primary);
+          outline:none;
+          transition:all 0.2s ease;
+        }
+        .lw-search:focus{border-color:var(--primary);box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);}
+        
+        .lw-dropdown{position:absolute;top:calc(100% + .5rem);left:0;right:0;background:var(--bg-surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-xl);z-index:100;max-height:280px;overflow-y:auto;backdrop-filter: blur(12px);}
+        .lw-dropdown-item{display:flex;justify-content:space-between;align-items:center;width:100%;padding:1rem 1.25rem;cursor:pointer;border:none;background:none;text-align:left;color:var(--text-primary);transition:background 0.2s;}
+        .lw-dropdown-item:hover{background:var(--bg-page);}
+        .lw-dropdown-name{font-weight:700;font-size:.95rem;}
+        .lw-dropdown-sub{font-size:.78rem;color:var(--gray);margin-top:.15rem;}
+        
+        .lw-guarantors{display:flex;flex-direction:column;gap:.75rem;margin-bottom:1.5rem;}
+        .lw-guarantor-row{background:var(--bg-surface);border:1px solid var(--border);border-radius:18px;padding:1.25rem;display:flex;justify-content:space-between;align-items:center;transition: transform 0.2s;}
+        .lw-guarantor-row:hover{transform: scale(1.01);}
+        .lw-guarantor-meta{flex:1;min-width:0;}
+        .lw-guarantor-name{font-weight:700;font-size:1rem;}
+        .lw-guarantor-sub{font-size:.8rem;color:var(--gray);margin-top:.2rem;}
+        .lw-guarantor-controls{display:flex;align-items:center;gap:.75rem;}
+        .lw-remove-btn{width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; border: 1.5px solid var(--border); border-radius: 10px; background: none; color: var(--danger); cursor: pointer; transition: all 0.2s;}
+        .lw-remove-btn:hover{background: rgba(239, 68, 68, 0.1); border-color: var(--danger);}
+        
+        .lw-coverage-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:20px;padding:1.5rem;box-shadow: var(--shadow-sm);}
+        .lw-coverage-header{display:flex;justify-content:space-between;align-items:center;font-size:1rem;font-weight:700;margin-bottom:.75rem;}
 
-        /* Spinner */
-        .lw-spinner{display:inline-block;width:13px;height:13px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:lwSpin .7s linear infinite;}
+        /* Security & Review */
+        .lw-security-note{display:flex;align-items:center;gap:.6rem;font-size:.8rem;color:var(--gray);background:var(--bg-page);border:1px solid var(--border);border-radius:12px;padding:.75rem 1rem;margin-top:1.25rem;}
+        .lw-consent{display:flex;align-items:flex-start;gap:.75rem;font-size:.85rem;color:var(--gray);background:rgba(249, 115, 22, 0.05);border:1px solid rgba(249, 115, 22, 0.15);border-radius:16px;padding:1.25rem;margin-top:1.5rem;}
+        
+        .lw-review-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:20px;padding:1.25rem 1.5rem;margin-bottom:1.25rem;box-shadow: var(--shadow-sm);}
+        .lw-review-row{display:flex;justify-content:space-between;align-items:center;padding:.85rem 0;border-bottom:1px solid var(--border);}
+        .lw-review-row:last-child{border:none;}
+        .lw-review-label{color:var(--gray);font-size:.9rem;font-weight:500;}
+        .lw-review-value{font-weight:700;text-align:right;}
+
         @keyframes lwSpin{to{transform:rotate(360deg)}}
+        .lw-spin-slowly{animation: lwSpin 8s linear infinite;}
 
-        /* Mobile */
         @media(max-width:480px){
-          .lw-card-body{padding:1.25rem 1rem;}
-          .lw-footer{padding:.75rem 1rem;}
-          .lw-title{font-size:1.15rem;}
+          .lw-card-body{padding:1.5rem 1.25rem;}
+          .lw-footer{padding:1rem 1.25rem;}
+          .lw-title{font-size:1.4rem;}
+          .lw-type-grid{grid-template-columns: 1fr;}
         }
       `}</style>
     </div>

@@ -31,6 +31,10 @@ export const loanAPI = {
         api.get(`/loans/${chamaId}/reports/analytics`),
     getAnalytics: (chamaId) => 
         api.get(`/loans/${chamaId}/reports/analytics`),
+    getConfig: (chamaId) =>
+        api.get(`/loans/${chamaId}/config`),
+    updateConfig: (chamaId, config) =>
+        api.put(`/loans/${chamaId}/config`, config),
 };
 
 // Payout API calls

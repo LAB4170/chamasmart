@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const pool = require('../config/db');
 const { createNotification, createBulkNotifications } = require('../utils/notificationService');
+const { getIo } = require("../socket");
 
 // Generate unique invite code
 const generateInviteCode = () => crypto.randomBytes(4).toString('hex').toUpperCase() // e.g., "A3F2B9C1"
@@ -215,6 +216,14 @@ const joinWithInvite = async (req, res) => {
 
     await client.query('COMMIT');
 
+    // Emit socket event for real-time update
+    try {
+      const io = getIo();
+      io.to(`chama_${invite.chama_id}`).emit("member_added", { chamaId: invite.chama_id, userId });
+    } catch (socketErr) {
+      console.error('Socket emit failed (joinWithInvite)', socketErr);
+    }
+
     res.json({
       success: true,
       message: 'Successfully joined the chama!',
@@ -383,6 +392,14 @@ const sendInvite = async (req, res) => {
       });
 
       await client.query('COMMIT');
+
+      // Emit socket event for real-time update
+      try {
+        const io = getIo();
+        io.to(`chama_${chamaId}`).emit("member_added", { chamaId, userId: targetUserId, role });
+      } catch (socketErr) {
+        console.error('Socket emit failed (sendInvite - direct)', socketErr);
+      }
 
       return res.json({
         success: true,
