@@ -549,10 +549,10 @@ const getAvailableTreasury = async (client, chamaId, chamaType) => {
     const totalPool = parseFloat(investRes.rows[0].total_pool || 0);
 
     const outRes = await client.query(
-      `SELECT SUM(CASE WHEN l.status = 'ACTIVE' THEN l.principal_outstanding ELSE l.loan_amount END) as disbursed 
+      `SELECT SUM(CASE WHEN l.status = 'DISBURSED' THEN l.balance ELSE l.loan_amount END) as disbursed 
        FROM loans l
        JOIN asca_members am ON l.borrower_id = am.user_id AND am.cycle_id = $1
-       WHERE l.chama_id = $2 AND l.status IN ('ACTIVE', 'PENDING_APPROVAL', 'PENDING_GUARANTOR')`,
+       WHERE l.chama_id = $2 AND l.status IN ('DISBURSED', 'APPROVED', 'PENDING')`,
       [cycleId, chamaId]
     );
     const totalDisbursed = parseFloat(outRes.rows[0].disbursed || 0);
@@ -566,9 +566,9 @@ const getAvailableTreasury = async (client, chamaId, chamaType) => {
     const totalPool = parseFloat(contRes.rows[0].total_pool || 0);
 
     const outRes = await client.query(
-      `SELECT SUM(CASE WHEN status = 'ACTIVE' THEN principal_outstanding ELSE loan_amount END) as disbursed 
+      `SELECT SUM(CASE WHEN status = 'DISBURSED' THEN balance ELSE loan_amount END) as disbursed 
        FROM loans 
-       WHERE chama_id = $1 AND status IN ('ACTIVE', 'PENDING_APPROVAL', 'PENDING_GUARANTOR')`,
+       WHERE chama_id = $1 AND status IN ('DISBURSED', 'APPROVED', 'PENDING')`,
       [chamaId]
     );
     const totalDisbursed = parseFloat(outRes.rows[0].disbursed || 0);
@@ -719,19 +719,15 @@ const applyForLoan = async (req, res) => {
     // Check outstanding loans
     const outstandingRes = await client.query(
       `SELECT 
-         COALESCE(SUM(principal_outstanding), 0) as principal,
-         COALESCE(SUM(interest_outstanding), 0) as interest,
-         COALESCE(SUM(penalty_outstanding), 0) as penalty
+         COALESCE(SUM(balance), 0) as balance
        FROM loans
        WHERE borrower_id = $1 
          AND chama_id = $2
-         AND status IN ('ACTIVE', 'PENDING_GUARANTOR', 'PENDING_APPROVAL')`,
+         AND status IN ('DISBURSED', 'APPROVED', 'PENDING')`,
       [userId, chamaId],
     );
 
-    const outstanding = parseFloat(outstandingRes.rows[0].principal || 0)
-      + parseFloat(outstandingRes.rows[0].interest || 0)
-      + parseFloat(outstandingRes.rows[0].penalty || 0);
+    const outstanding = parseFloat(outstandingRes.rows[0].balance || 0);
 
     const availableCredit = maxLoan - outstanding;
 
@@ -779,10 +775,10 @@ const applyForLoan = async (req, res) => {
     });
 
     if (requiredGuarantee > 0) {
-      const validation = await GuarantorService.validate(
+      const validation = await GuarantorService.validateAll(
         client,
         chamaId,
-        guarantorArray, // This might need a .validateAll call if plural, but I see validateAll below
+        guarantorArray, 
         userId,
         requiredGuarantee,
       );
@@ -792,7 +788,7 @@ const applyForLoan = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: 'Guarantor validation failed',
-          errors: validation.guarantors.flatMap(g => g.errors || []),
+          errors: validation.guarantors ? validation.guarantors.flatMap(g => g.errors || []) : [],
           guarantors: validation.guarantors,
         });
       }
@@ -843,10 +839,10 @@ const applyForLoan = async (req, res) => {
       dueDate.setMonth(dueDate.getMonth() + inst.installmentNumber);
 
       await client.query(
-        `INSERT INTO loan_installments (
+        `INSERT INTO loan_schedules (
           loan_id, installment_number, due_date,
-          amount, principal_amount, interest_amount, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, 'PENDING')`,
+          total_amount, principal_amount, interest_amount, balance, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING')`,
         [
           loan.loan_id,
           inst.installmentNumber,
@@ -854,6 +850,7 @@ const applyForLoan = async (req, res) => {
           inst.totalAmount,
           inst.principalAmount,
           inst.interestAmount,
+          inst.balance,
         ],
       );
     }
@@ -869,9 +866,9 @@ const applyForLoan = async (req, res) => {
 
         // Notify guarantor
         await client.query(
-          `INSERT INTO notifications (user_id, type, title, message, related_id)
+          `INSERT INTO notifications (user_id, type, title, message, entity_type, entity_id)
            VALUES ($1, 'LOAN_GUARANTEE_REQUEST', 'Guarantee Request', 
-                   'You have been requested to guarantee a loan', $2)`,
+                   'You have been requested to guarantee a loan', 'LOAN', $2)`,
           [g.userId, loan.loan_id],
         );
       }
@@ -917,6 +914,7 @@ const applyForLoan = async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     logger.logError(error, { context: 'applyForLoan' });
+    console.error("LOAN APPLY 500:", error);
 
     return res.status(500).json({
       success: false,

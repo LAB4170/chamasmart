@@ -42,6 +42,14 @@ router.post('/:loanId/guarantee/respond', respondToGuaranteeRequest);
 // MyGuarantees.jsx calls: respondGuarantor(loanId, decision) -> usually maps to POST /:loanId/respond OR POST /respond {loanId}
 // Let's stick to RESTful: POST /:loanId/guarantee/respond
 
+// ============================================================================
+// CHAMA LOAN ENDPOINTS (Chama specific)
+// ============================================================================
+
+// Get/Update Loan Configuration (MUST BE BEFORE /:chamaId route to avoid param collision)
+router.get('/:chamaId/config', getLoanConfig);
+router.put('/:chamaId/config', updateLoanConfig);
+
 
 // ============================================================================
 // CHAMA LOAN MANAGEMENT

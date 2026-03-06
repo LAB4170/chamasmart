@@ -197,7 +197,7 @@ export default function LoanApplicationWizard() {
         type: form.type,
         purpose: form.purpose.trim(),
         repaymentPeriod: parseInt(form.repaymentPeriod),
-        guarantors: form.guarantors.map(g => ({ guarantorId: g.guarantorId, amount: g.amount })),
+        guarantors: form.guarantors.map(g => ({ userId: g.guarantorId, amount: parseFloat(g.amount) })),
       });
       toast.success("Application submitted! Officials & guarantors will be notified.");
       navigate(`/chamas/${chamaId}`);
@@ -449,8 +449,8 @@ export default function LoanApplicationWizard() {
 
           <div className="lw-review-card">
             <Row label="Loan Amount"       val={fmt(amort.prin)} />
-            <Row label="Type"              val={selectedType.label} />
-            <Row label="Interest"          val={`${rate}%`} />
+            <Row label="Type"              val={selectedCategory.label} />
+            <Row label="Interest"          val={`${officialRate}%`} />
             <Row label="Total Repayable"   val={<strong className="lw-text-warn">{fmt(amort.total)}</strong>} />
             <Row label="Monthly"           val={<strong className="lw-text-green">{fmt(amort.monthly)}/mo</strong>} />
             <Row label="Repayment"         val={`${form.repaymentPeriod} months`} />

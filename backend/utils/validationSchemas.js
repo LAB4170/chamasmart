@@ -140,10 +140,15 @@ const createMeetingSchema = Joi.object({
 // Loan Schemas
 const applyLoanSchema = Joi.object({
   amount: Joi.number().positive().required(),
+  type: Joi.string().max(100).required(),
   purpose: Joi.string().min(5).max(500).required(),
-  repaymentPeriod: Joi.number().integer().min(1).max(60)
-    .required(),
-  guarantors: Joi.array().items(Joi.number().integer()).min(0).default([]),
+  repaymentPeriod: Joi.number().integer().min(1).max(60).required(),
+  guarantors: Joi.array().items(
+    Joi.object({
+      userId: Joi.number().integer().required(),
+      amount: Joi.number().positive().required()
+    })
+  ).min(0).default([]),
 });
 
 // Verification Schema
