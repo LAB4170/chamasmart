@@ -154,12 +154,11 @@ const LoanManagement = () => {
         const normalized = status || "";
         const badges = {
             PENDING: "badge-warning",
-            PENDING_GUARANTOR: "badge-warning",
-            PENDING_APPROVAL: "badge-warning",
-            ACTIVE: "badge-success",
-            PAID: "badge-primary",
+            APPROVED: "badge-info",
+            DISBURSED: "badge-success",
             COMPLETED: "badge-primary",
             DEFAULTED: "badge-error",
+            REJECTED: "badge-error",
             CANCELLED: "badge-secondary",
         };
         return badges[normalized] || "badge-secondary";
@@ -167,9 +166,12 @@ const LoanManagement = () => {
 
     const normalizedStatus = (status) => {
         if (!status) return "UNKNOWN";
-        if (status === "PENDING_GUARANTOR") return "AWAITING GUARANTORS";
-        if (status === "PENDING_APPROVAL") return "PENDING APPROVAL";
-        if (status === "COMPLETED") return "PAID";
+        if (status === "PENDING") return "AWAITING REVIEW";
+        if (status === "APPROVED") return "APPROVED";
+        if (status === "DISBURSED") return "ACTIVE";
+        if (status === "COMPLETED") return "PAID OFF";
+        if (status === "DEFAULTED") return "DEFAULTED";
+        if (status === "REJECTED") return "REJECTED";
         return status;
     };
 
@@ -178,21 +180,24 @@ const LoanManagement = () => {
             ? loans
             : loans.filter((l) => {
                 if (filter === "PENDING") {
-                    return ["PENDING", "PENDING_GUARANTOR", "PENDING_APPROVAL"].includes(l.status);
+                    return l.status === "PENDING";
+                }
+                if (filter === "ACTIVE") {
+                    return l.status === "DISBURSED";
                 }
                 if (filter === "PAID") {
-                    return ["PAID", "COMPLETED"].includes(l.status);
+                    return l.status === "COMPLETED";
                 }
                 return l.status === filter;
             });
 
     const stats = {
         total: loans.length,
-        pending: loans.filter((l) => ["PENDING", "PENDING_GUARANTOR", "PENDING_APPROVAL"].includes(l.status)).length,
-        active: loans.filter((l) => l.status === "ACTIVE").length,
+        pending: loans.filter((l) => l.status === "PENDING").length,
+        active: loans.filter((l) => l.status === "DISBURSED").length,
         totalAmount: loans
-            .filter((l) => l.status === "ACTIVE")
-            .reduce((sum, l) => sum + parseFloat(l.loan_amount), 0),
+            .filter((l) => l.status === "DISBURSED")
+            .reduce((sum, l) => sum + parseFloat(l.loan_amount || 0), 0),
     };
 
     if (loading) {
@@ -305,13 +310,13 @@ const LoanManagement = () => {
                         className={`filter-btn ${filter === "ACTIVE" ? "active" : ""}`}
                         onClick={() => setFilter("ACTIVE")}
                     >
-                        Active ({loans.filter((l) => l.status === "ACTIVE").length})
+                        Active ({loans.filter((l) => l.status === "DISBURSED").length})
                     </button>
                     <button
                         className={`filter-btn ${filter === "PAID" ? "active" : ""}`}
                         onClick={() => setFilter("PAID")}
                     >
-                        Paid ({loans.filter((l) => l.status === "PAID").length})
+                        Paid ({loans.filter((l) => l.status === "COMPLETED").length})
                     </button>
                 </div>
 
@@ -380,7 +385,7 @@ const LoanManagement = () => {
                                                     >
                                                         Details
                                                     </button>
-                                                    {loan.status === "PENDING_APPROVAL" && isOfficial() && (
+                                                    {loan.status === "PENDING" && isOfficial() && (
                                                         <>
                                                             <button
                                                                 className="btn btn-sm btn-success"
@@ -400,7 +405,7 @@ const LoanManagement = () => {
                                                             </button>
                                                         </>
                                                     )}
-                                                    {loan.status === "ACTIVE" && (
+                                                    {loan.status === "DISBURSED" && (
                                                         <Link
                                                             to={`/chamas/${id}/loans/${loan.loan_id}/repay`}
                                                             className="btn btn-sm btn-primary"
@@ -459,41 +464,41 @@ const LoanManagement = () => {
                                             <span className="info-value text-success">{formatCurrency(loanDetails.loan.amount_paid || 0)}</span>
                                         </div>
                                         <div className="info-item">
-                                            <span className="info-label">Outstanding Principal</span>
-                                            <span className="info-value text-error">{formatCurrency(loanDetails.loan.principal_outstanding || 0)}</span>
+                                            <span className="info-label">Balance Remaining</span>
+                                            <span className="info-value text-error">{formatCurrency(loanDetails.loan.balance || 0)}</span>
                                         </div>
                                         <div className="info-item">
-                                            <span className="info-label">Outstanding Interest</span>
-                                            <span className="info-value text-error">{formatCurrency(loanDetails.loan.interest_outstanding || 0)}</span>
-                                        </div>
-                                        <div className="info-item">
-                                            <span className="info-label">Outstanding Penalties</span>
-                                            <span className="info-value text-error">{formatCurrency(loanDetails.loan.penalty_outstanding || 0)}</span>
+                                            <span className="info-label">Monthly Payment</span>
+                                            <span className="info-value">{formatCurrency(loanDetails.loan.monthly_payment || 0)}</span>
                                         </div>
                                     </div>
 
-                                    {loanDetails.installments && loanDetails.installments.length > 0 && (
+                                    {loanDetails.schedule && loanDetails.schedule.length > 0 && (
                                         <div style={{ marginTop: "1.5rem" }}>
                                             <h4>Repayment Schedule</h4>
                                             <div className="table-responsive">
                                                 <table className="table table-sm">
                                                     <thead>
                                                         <tr>
+                                                            <th>#</th>
                                                             <th>Due Date</th>
-                                                            <th>Amount</th>
+                                                            <th>Total Due</th>
                                                             <th>Principal</th>
                                                             <th>Interest</th>
+                                                            <th>Balance</th>
                                                             <th>Status</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {loanDetails.installments.map((inst) => (
-                                                            <tr key={inst.id}>
+                                                        {loanDetails.schedule.map((inst) => (
+                                                            <tr key={inst.installment_number}>
+                                                                <td>{inst.installment_number}</td>
                                                                 <td>{new Date(inst.due_date).toLocaleDateString("en-KE")}</td>
-                                                                <td>{formatCurrency(inst.amount)}</td>
+                                                                <td><strong>{formatCurrency(inst.total_amount)}</strong></td>
                                                                 <td>{formatCurrency(inst.principal_amount)}</td>
                                                                 <td>{formatCurrency(inst.interest_amount)}</td>
-                                                                <td>{inst.status}</td>
+                                                                <td className="text-muted">{formatCurrency(inst.balance)}</td>
+                                                                <td><span className={`badge ${inst.status === 'PAID' ? 'badge-success' : 'badge-warning'}`}>{inst.status}</span></td>
                                                             </tr>
                                                         ))}
                                                     </tbody>
@@ -510,16 +515,16 @@ const LoanManagement = () => {
                                                     <thead>
                                                         <tr>
                                                             <th>Name</th>
-                                                            <th>Guaranteed Amount</th>
+                                                            <th>Covering</th>
                                                             <th>Status</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {loanDetails.guarantors.map((g) => (
-                                                            <tr key={g.id}>
-                                                                <td>{g.first_name} {g.last_name}</td>
-                                                                <td>{formatCurrency(g.guaranteed_amount)}</td>
-                                                                <td>{g.status}</td>
+                                                        {loanDetails.guarantors.map((g, idx) => (
+                                                            <tr key={g.guarantor_user_id || idx}>
+                                                                <td><strong>{g.guarantor_name || `${g.first_name || ''} ${g.last_name || ''}`.trim() || 'Unknown'}</strong></td>
+                                                                <td>{formatCurrency(g.guarantee_amount)}</td>
+                                                                <td><span className={`badge ${g.status === 'ACCEPTED' ? 'badge-success' : g.status === 'REJECTED' ? 'badge-error' : 'badge-warning'}`}>{g.status || 'PENDING'}</span></td>
                                                             </tr>
                                                         ))}
                                                     </tbody>

@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, useCallback, useMemo } from "react";
+﻿import { useState, useEffect, memo, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { chamaAPI, contributionAPI, ascaAPI, memberAPI } from "../../../services/api";
@@ -67,12 +67,12 @@ const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavig
             {chama.chama_name}
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {/* Chama type badge — uses theme primary color */}
+            {/* Chama type badge â€” uses theme primary color */}
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'var(--bg-primary-light)', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 600 }}>
               {isROSCA ? <RefreshCw size={13} /> : chama.chama_type === 'TABLE_BANKING' ? <DollarSign size={13} /> : chama.chama_type === 'ASCA' ? <TrendingUp size={13} /> : <Handshake size={13} />}
               {getChamaTypeLabel(chama.chama_type)}
             </span>
-            {/* Role badge — high-contrast for both modes */}
+            {/* Role badge â€” high-contrast for both modes */}
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
               padding: '0.25rem 0.75rem', borderRadius: '9999px',
@@ -1008,7 +1008,7 @@ const ChamaDetails = () => {
           <div className="tab-content-area">
             {activeTab === "overview" && (
               <>
-                {/* ── Chama Launchpad (Officials Only) ── */}
+                {/* â”€â”€ Chama Launchpad (Officials Only) â”€â”€ */}
                 {officialStatus && (() => {
                   const step1Done = !!chama.payment_methods;
                   const step2Done = members.length > 1;
@@ -1023,7 +1023,7 @@ const ChamaDetails = () => {
                         <div className="launchpad-title-area">
                           <h3>
                             <Target size={22} style={{ color: '#4f46e5' }} />
-                            {allDone ? '🚀 Chama is Live!' : 'Chama Launchpad'}
+                            {allDone ? 'ðŸš€ Chama is Live!' : 'Chama Launchpad'}
                           </h3>
                           <p>{allDone ? 'All setup steps are complete. Your group is operational.' : 'Complete the steps below to go live.'}</p>
                         </div>
@@ -1183,7 +1183,7 @@ const ChamaDetails = () => {
                           </div>
                         </div>
                         <div className="explanation-item">
-                          <div className="explanation-icon">⏰</div>
+                          <div className="explanation-icon">â°</div>
                           <div>
                             <h5>Regular Contributions</h5>
                             <p>
@@ -1369,7 +1369,7 @@ const ChamaDetails = () => {
 
                         {swapRequests.outgoing.map(req => (
                           <div key={req.request_id} className="alert alert-secondary mt-2">
-                            ⏳ Pending swap request with <strong>{req.target_first_name} {req.target_last_name}</strong>
+                            â³ Pending swap request with <strong>{req.target_first_name} {req.target_last_name}</strong>
                           </div>
                         ))}
                       </div>
@@ -1505,11 +1505,11 @@ const ChamaDetails = () => {
                               className={`timeline-item ${status.toLowerCase()}`}
                             >
                               <div className="timeline-marker">
-                                {status === "COMPLETED" && <span>✓</span>}
+                                {status === "COMPLETED" && <span>âœ“</span>}
                                 {status === "CURRENT_RECIPIENT" && (
                                   <Target size={16} />
                                 )}
-                                {status === "WAITING" && <span>⏳</span>}
+                                {status === "WAITING" && <span>â³</span>}
                               </div>
                               <div className="timeline-content">
                                 <div className="flex-between">
@@ -1525,12 +1525,12 @@ const ChamaDetails = () => {
                                         setShowSwapModal(true);
                                       }}
                                     >
-                                      ⇄ Swap
+                                      â‡„ Swap
                                     </button>
                                   )}
                                 </div>
                                 <div className="member-position">
-                                  Position {index + 1} •{" "}
+                                  Position {index + 1} â€¢{" "}
                                   {status.replace("_", " ")}
                                 </div>
                                 {status === "CURRENT_RECIPIENT" && (
@@ -1928,7 +1928,7 @@ const ChamaDetails = () => {
                                 </span>
                               </div>
                               <div className="v-td text-xs text-muted" style={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.notes || ''}>
-                                {c.notes || '—'}
+                                {c.notes || 'â€”'}
                               </div>
                             </div>
                           );
@@ -2039,8 +2039,8 @@ const ChamaDetails = () => {
                             <div style={{ padding: '0.75rem', background: 'rgba(79, 70, 229, 0.05)', borderRadius: '0.5rem', marginTop: '1rem', border: '1px dashed rgba(79, 70, 229, 0.2)' }}>
                               <p className="text-xs text-muted leading-tight">
                                 {ascaReports.readiness.liquidCash >= ascaReports.readiness.totalEquity 
-                                  ? "🟢 Funds are ready for share-out payout. Liquid cash covers 100% of member equity." 
-                                  : `🟡 Additional ${formatCurrency(ascaReports.readiness.totalEquity - ascaReports.readiness.liquidCash)} must be recovered from outstanding loans before a full share-out payout can be processed.`}
+                                  ? "ðŸŸ¢ Funds are ready for share-out payout. Liquid cash covers 100% of member equity." 
+                                  : `ðŸŸ¡ Additional ${formatCurrency(ascaReports.readiness.totalEquity - ascaReports.readiness.liquidCash)} must be recovered from outstanding loans before a full share-out payout can be processed.`}
                               </p>
                             </div>
                           </div>
@@ -2479,7 +2479,7 @@ const ChamaDetails = () => {
                         {loans.map(l => (
                           <tr key={l.loan_id} className="hover:bg-gray-50/50">
                             <td className="py-3 font-medium">{l.borrower_name}</td>
-                            <td className="py-3 text-indigo-600 font-bold">{formatCurrency(l.amount)}</td>
+                            <td className="py-3 text-indigo-600 font-bold">{formatCurrency(l.loan_amount)}</td>
                             <td className="py-3">
                               <span className={`px-2 py-1 rounded-full text-xs font-bold ${l.status === 'APPROVED' ? 'bg-green-100 text-green-700' : l.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
                                 {l.status}
@@ -2613,7 +2613,7 @@ const ChamaDetails = () => {
                     </div>
                   </div>
                 </div>
-                 {/* Loan Configuration Panel � TABLE_BANKING and ASCA only */}
+                 {/* Loan Configuration Panel — TABLE_BANKING and ASCA only */}
                  {['TABLE_BANKING', 'ASCA'].includes(chama?.chama_type) && (
                    <div className="mt-6">
                      <LoanConfigCard chamaId={id} />
@@ -2756,3 +2756,4 @@ const ChamaDetails = () => {
 };
 
 export default ChamaDetails;
+

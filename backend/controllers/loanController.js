@@ -968,10 +968,10 @@ const getChamaLoans = async (req, res) => {
 
     const loans = result.rows.map(loan => ({
       ...loan,
-      loan_amount: fromCents(loan.loan_amount),
-      total_repayable: fromCents(loan.total_repayable),
-      amount_paid: fromCents(loan.amount_paid),
-      balance: fromCents(loan.balance),
+      loan_amount: fromDecimal(loan.loan_amount),
+      total_repayable: fromDecimal(loan.total_repayable),
+      amount_paid: fromDecimal(loan.amount_paid),
+      balance: fromDecimal(loan.balance),
     }));
 
     res.json({
@@ -1048,10 +1048,12 @@ const getLoanById = async (req, res) => {
     const guarantorsResult = await pool.query(
       `SELECT 
         lg.*,
+        u.first_name,
+        u.last_name,
         u.first_name || ' ' || u.last_name as guarantor_name,
         u.email as guarantor_email
        FROM loan_guarantors lg
-       JOIN users u ON lg.guarantor_id = u.user_id
+       JOIN users u ON lg.guarantor_user_id = u.user_id
        WHERE lg.loan_id = $1`,
       [loanId],
     );
