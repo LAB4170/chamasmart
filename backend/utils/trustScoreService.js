@@ -71,7 +71,7 @@ class TrustScoreService {
         SELECT status, due_date, 
                (SELECT MAX(payment_date) FROM loan_repayments lr WHERE lr.loan_id = l.loan_id) as last_payment
         FROM loans l
-        WHERE chama_id = $1 AND borrower_id = $2 AND status IN ('ACTIVE', 'REPAID', 'DEFAULTED')
+        WHERE chama_id = $1 AND borrower_id = $2 AND status IN ('ACTIVE', 'REPAID', 'DEFAULTED', 'APPROVED', 'DISBURSED', 'COMPLETED')
       `, [chamaId, userId]);
 
       let loanScore = 100;
@@ -81,7 +81,7 @@ class TrustScoreService {
           if (loan.status === 'DEFAULTED') penalties += 60;
           if (loan.last_payment && new Date(loan.last_payment) > new Date(loan.due_date)) penalties += 20;
           // Check if current active loan is overdue
-          if (loan.status === 'ACTIVE' && new Date(loan.due_date) < now) penalties += 10;
+          if ((loan.status === 'ACTIVE' || loan.status === 'DISBURSED') && new Date(loan.due_date) < now) penalties += 10;
         }
         loanScore = Math.max(0, 100 - penalties);
       }

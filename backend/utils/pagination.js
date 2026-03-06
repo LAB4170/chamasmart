@@ -60,20 +60,33 @@ const formatPaginationMeta = (rows, total, page, limit) => {
 };
 
 /**
- * Get total count from a table
+ * Get total count from a table or a custom query
  * @param {Pool} pool - Database connection pool
- * @param {string} table - Table name
- * @param {string} whereClause - WHERE clause (optional)
- * @param {Array} params - Query parameters (optional)
+ * @param {string} tableOrQuery - Table name or full SELECT query
+ * @param {string|Array} whereClauseOrParams - WHERE clause if passing table, or Params if passing query
+ * @param {Array|string} paramsOrAlias - Query parameters if passing table, or Alias if passing query
  * @returns {Promise<number>} - Total count
  */
-const getTotal = async (pool, table, whereClause = '', params = []) => {
-  const query = whereClause
-    ? `SELECT COUNT(*) as count FROM ${table} WHERE ${whereClause}`
-    : `SELECT COUNT(*) as count FROM ${table}`;
+const getTotal = async (pool, tableOrQuery, whereClauseOrParams = '', paramsOrAlias = []) => {
+  let query;
+  let queryParams;
+  let alias = 'count';
 
-  const result = await pool.query(query, params);
-  return parseInt(result.rows[0].count || 0);
+  if (tableOrQuery.trim().toUpperCase().startsWith('SELECT')) {
+    // It's a full query
+    query = tableOrQuery;
+    queryParams = Array.isArray(whereClauseOrParams) ? whereClauseOrParams : [];
+    alias = typeof paramsOrAlias === 'string' ? paramsOrAlias : 'count';
+  } else {
+    // It's a table name
+    query = whereClauseOrParams
+      ? `SELECT COUNT(*) as count FROM ${tableOrQuery} WHERE ${whereClauseOrParams}`
+      : `SELECT COUNT(*) as count FROM ${tableOrQuery}`;
+    queryParams = Array.isArray(paramsOrAlias) ? paramsOrAlias : [];
+  }
+
+  const result = await pool.query(query, queryParams);
+  return parseInt(result.rows[0][alias] || result.rows[0].count || 0);
 };
 
 module.exports = {

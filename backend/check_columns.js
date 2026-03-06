@@ -1,20 +1,20 @@
-const pool = require('./config/db');
+require('dotenv').config();
+const p = require('./config/db');
 
-async function checkColumns() {
-  const client = await pool.connect();
+async function checkSchema() {
   try {
-    const res = await client.query(`
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'contributions'
-    `);
-    console.log('Columns in contributions table:', res.rows);
+    const res = await p.query("SELECT * FROM loans LIMIT 1");
+    if (res.rows.length > 0) {
+      console.log("Columns in 'loans' table:", Object.keys(res.rows[0]));
+    } else {
+      const colRes = await p.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'loans'");
+      console.log("Columns in 'loans' table (from schema):", colRes.rows.map(r => r.column_name));
+    }
   } catch (err) {
-    console.error('Error checking columns:', err.message);
+    console.error("Error checking schema:", err);
   } finally {
-    client.release();
-    pool.end();
+    p.end();
   }
 }
 
-checkColumns();
+checkSchema();

@@ -16,6 +16,9 @@ const {
   getChamaLoanAnalytics,
   getLoanConfig,
   updateLoanConfig,
+  getUnifiedLoanSummary,
+  getGuaranteedLoans,
+  settleChamaDefaults,
 } = require('../controllers/loanController');
 const validate = require('../middleware/validate');
 const { applyLoanSchema } = require('../utils/validationSchemas');
@@ -39,6 +42,12 @@ router.get('/my-guarantees', getMyGuarantees);
 
 // Respond to guarantee request
 router.post('/:loanId/guarantee/respond', respondToGuaranteeRequest);
+
+// Get unified loan summary for dashboard
+router.get('/unified-summary', getUnifiedLoanSummary);
+
+// Get loans guaranteed by the current user
+router.get('/my-guaranteed-loans', getGuaranteedLoans);
 // MyGuarantees.jsx calls: respondGuarantor(loanId, decision) -> usually maps to POST /:loanId/respond OR POST /respond {loanId}
 // Let's stick to RESTful: POST /:loanId/guarantee/respond
 
@@ -133,6 +142,13 @@ router.get(
   '/:chamaId/reports/analytics',
   authorize('admin', 'treasurer', 'chairperson', 'secretary'),
   getChamaLoanAnalytics,
+);
+
+// Manually trigger default detection (Official only)
+router.post(
+  '/:chamaId/settle-defaults',
+  authorize('admin', 'treasurer', 'chairperson'),
+  settleChamaDefaults,
 );
 
 module.exports = router;

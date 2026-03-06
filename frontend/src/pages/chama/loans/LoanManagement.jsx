@@ -8,6 +8,7 @@ import {
     ArrowLeft, Plus, BarChart2, Clock, CheckCircle2, Wallet,
     AlertCircle, FileText, X, Check, DollarSign, Calendar
 } from "lucide-react";
+import { toast } from "react-toastify";
 
 const LoanManagement = () => {
     const { id } = useParams();
@@ -69,14 +70,29 @@ const LoanManagement = () => {
     const handleApproveLoan = async (loanId) => {
         try {
             setActionLoading(loanId);
-            await loanAPI.approve(id, loanId);
+            const res = await loanAPI.approve(id, loanId);
+            
+            if (res.data?.message?.includes("already approved")) {
+                toast.info("This loan was already approved.");
+            } else {
+                toast.success("Loan approved successfully!");
+            }
+
             // Refresh data
             const loansRes = await loanAPI.getChamaLoans(id);
             const loansData = loansRes.data.data;
             setLoans(Array.isArray(loansData) ? loansData : (loansData?.loans || []));
             setActionLoading(null);
         } catch (err) {
-            setError(err.response?.data?.message || "Failed to approve loan");
+            console.error(err);
+            const message = err.response?.data?.message || "Failed to approve loan";
+            
+            if (err.response?.status === 403) {
+                toast.error(`Security Block: ${message}`, { autoClose: 6000 });
+            } else {
+                toast.error(message);
+            }
+            
             setActionLoading(null);
         }
     };
@@ -94,6 +110,7 @@ const LoanManagement = () => {
             setActionLoading(loanToReject);
             setRejectDialogOpen(false);
             await loanAPI.reject(id, loanToReject, rejectReason);
+            toast.success("Loan rejected successfully.");
             // Refresh data
             const loansRes = await loanAPI.getChamaLoans(id);
             const loansData2 = loansRes.data.data;
@@ -101,7 +118,8 @@ const LoanManagement = () => {
             setActionLoading(null);
             setLoanToReject(null);
         } catch (err) {
-            setError(err.response?.data?.message || "Failed to reject loan");
+            console.error(err);
+            toast.error(err.response?.data?.message || "Failed to reject loan");
             setActionLoading(null);
         }
     };
@@ -143,6 +161,7 @@ const LoanManagement = () => {
     };
 
     const formatDate = (dateString) => {
+        if (!dateString) return "-";
         return new Date(dateString).toLocaleDateString("en-KE", {
             year: "numeric",
             month: "short",
@@ -183,10 +202,10 @@ const LoanManagement = () => {
                     return l.status === "PENDING";
                 }
                 if (filter === "ACTIVE") {
-                    return l.status === "DISBURSED";
+                    return ["APPROVED", "DISBURSED", "DEFAULTED"].includes(l.status);
                 }
                 if (filter === "PAID") {
-                    return l.status === "COMPLETED";
+                    return ["COMPLETED", "PAID_OFF"].includes(l.status);
                 }
                 return l.status === filter;
             });
@@ -194,9 +213,9 @@ const LoanManagement = () => {
     const stats = {
         total: loans.length,
         pending: loans.filter((l) => l.status === "PENDING").length,
-        active: loans.filter((l) => l.status === "DISBURSED").length,
+        active: loans.filter((l) => ["APPROVED", "DISBURSED", "DEFAULTED"].includes(l.status)).length,
         totalAmount: loans
-            .filter((l) => l.status === "DISBURSED")
+            .filter((l) => ["APPROVED", "DISBURSED", "DEFAULTED"].includes(l.status))
             .reduce((sum, l) => sum + parseFloat(l.loan_amount || 0), 0),
     };
 
@@ -230,18 +249,55 @@ const LoanManagement = () => {
                 </div>
 
                 {isOfficial() && (
-                    <div className="lm-tabs">
+                    <div style={{
+                        display: 'inline-flex',
+                        background: 'var(--surface-5)',
+                        border: '1px solid var(--border)',
+                        padding: '0.4rem',
+                        borderRadius: '999px',
+                        marginBottom: '2rem',
+                        gap: '0.5rem',
+                        boxShadow: 'var(--shadow-sm)'
+                    }}>
                         <button 
-                            className={`lm-tab-btn ${activeTab === 'LOANS' ? 'active' : ''}`}
                             onClick={() => setActiveTab('LOANS')}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                padding: '0.6rem 1.25rem',
+                                borderRadius: '999px',
+                                fontSize: '0.875rem',
+                                fontWeight: 800,
+                                transition: 'all 0.3s ease',
+                                border: 'none',
+                                cursor: 'pointer',
+                                background: activeTab === 'LOANS' ? 'var(--primary)' : 'transparent',
+                                color: activeTab === 'LOANS' ? '#fff' : 'var(--text-secondary)',
+                                boxShadow: activeTab === 'LOANS' ? 'var(--shadow-md)' : 'none'
+                            }}
                         >
-                            Active Loans
+                            <Wallet size={16} /> Active Loans
                         </button>
                         <button 
-                            className={`lm-tab-btn ${activeTab === 'DASHBOARD' ? 'active' : ''}`}
                             onClick={() => setActiveTab('DASHBOARD')}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                padding: '0.6rem 1.25rem',
+                                borderRadius: '999px',
+                                fontSize: '0.875rem',
+                                fontWeight: 800,
+                                transition: 'all 0.3s ease',
+                                border: 'none',
+                                cursor: 'pointer',
+                                background: activeTab === 'DASHBOARD' ? '#2563eb' : 'transparent',
+                                color: activeTab === 'DASHBOARD' ? '#ffffff' : 'var(--text-secondary)',
+                                boxShadow: activeTab === 'DASHBOARD' ? 'var(--shadow-md)' : 'none'
+                            }}
                         >
-                            Loan Analytics
+                            <BarChart2 size={16} /> Loan Analytics
                         </button>
                     </div>
                 )}
@@ -310,13 +366,13 @@ const LoanManagement = () => {
                         className={`filter-btn ${filter === "ACTIVE" ? "active" : ""}`}
                         onClick={() => setFilter("ACTIVE")}
                     >
-                        Active ({loans.filter((l) => l.status === "DISBURSED").length})
+                        Active ({loans.filter((l) => ["APPROVED", "DISBURSED"].includes(l.status)).length})
                     </button>
                     <button
                         className={`filter-btn ${filter === "PAID" ? "active" : ""}`}
                         onClick={() => setFilter("PAID")}
                     >
-                        Paid ({loans.filter((l) => l.status === "COMPLETED").length})
+                        Paid ({loans.filter((l) => ["COMPLETED", "PAID_OFF"].includes(l.status)).length})
                     </button>
                 </div>
 
@@ -405,14 +461,16 @@ const LoanManagement = () => {
                                                             </button>
                                                         </>
                                                     )}
-                                                    {loan.status === "DISBURSED" && (
+                                                    {(loan.is_borrower && ["APPROVED", "DISBURSED", "DEFAULTED"].includes(loan.status)) || 
+                                                     (loan.is_guarantor && loan.status === "DEFAULTED") ? (
                                                         <Link
                                                             to={`/chamas/${id}/loans/${loan.loan_id}/repay`}
-                                                            className="btn btn-sm btn-primary"
+                                                            className={`btn btn-sm ${loan.status === "DEFAULTED" ? "btn-danger" : "btn-primary"}`}
+                                                            title={loan.is_guarantor ? "Settle Defaulted Loan" : "Make Repayment"}
                                                         >
-                                                            Repay
+                                                            {loan.is_guarantor ? "Settle Liability" : "Repay"}
                                                         </Link>
-                                                    )}
+                                                    ) : null}
                                                 </div>
                                             </td>
                                         </tr>

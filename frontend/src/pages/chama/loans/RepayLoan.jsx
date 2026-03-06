@@ -20,10 +20,8 @@ const RepayLoan = () => {
     const fetchLoan = async () => {
         try {
             setPageLoading(true);
-            const response = await loanAPI.getAll(id);
-            const foundLoan = response.data.data.find(
-                (l) => l.loan_id === parseInt(loanId)
-            );
+            const response = await loanAPI.getLoanById(id, loanId);
+            const foundLoan = response.data.data.loan;
             setLoan(foundLoan);
 
             // Auto-fill with remaining amount
@@ -46,7 +44,7 @@ const RepayLoan = () => {
         setLoading(true);
 
         try {
-            const response = await loanAPI.repay(loanId, { amount });
+            const response = await loanAPI.repay(id, loanId, { amount });
             const status = response.data.status || response.data.loanStatus;
             const components = response.data.components || {};
             setSuccess(
@@ -74,6 +72,7 @@ const RepayLoan = () => {
     };
 
     const formatDate = (dateString) => {
+        if (!dateString) return "-";
         return new Date(dateString).toLocaleDateString("en-KE", {
             year: "numeric",
             month: "short",
@@ -182,48 +181,66 @@ const RepayLoan = () => {
                     </div>
                 </div>
 
-                {/* Repayment Form */}
+                {/* Repayment Form or Completion Message */}
                 <div className="card">
-                    <h3>Make Repayment</h3>
-                    <form onSubmit={handleSubmit}>
-                        <div className="form-group">
-                            <label className="form-label">Repayment Amount (KES) *</label>
-                            <input
-                                type="number"
-                                className="form-input"
-                                placeholder="Enter amount"
-                                min="1"
-                                step="0.01"
-                                max={getRemainingAmount()}
-                                value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                                required
-                            />
-                            <small className="text-muted">
-                                Maximum: {formatCurrency(getRemainingAmount())}
-                            </small>
-                            <small className="text-muted" style={{ display: 'block', marginTop: '0.25rem' }}>
-                                Repayments are allocated to penalties, then interest, then principal.
-                            </small>
-                        </div>
+                    {getRemainingAmount() > 0 ? (
+                        <>
+                            <h3>Make Repayment</h3>
+                            <form onSubmit={handleSubmit}>
+                                <div className="form-group">
+                                    <label className="form-label">Repayment Amount (KES) *</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        placeholder="Enter amount"
+                                        min="1"
+                                        step="0.01"
+                                        max={getRemainingAmount()}
+                                        value={amount}
+                                        onChange={(e) => setAmount(e.target.value)}
+                                        required
+                                    />
+                                    <small className="text-muted">
+                                        Maximum: {formatCurrency(getRemainingAmount())}
+                                    </small>
+                                    <small className="text-muted" style={{ display: 'block', marginTop: '0.25rem' }}>
+                                        Repayments are allocated to penalties, then interest, then principal.
+                                    </small>
+                                </div>
 
-                        <div className="form-actions">
+                                <div className="form-actions">
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline"
+                                        onClick={() => navigate(`/chamas/${id}/loans`)}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="btn btn-primary"
+                                        disabled={loading}
+                                    >
+                                        {loading ? "Processing..." : "Submit Repayment"}
+                                    </button>
+                                </div>
+                            </form>
+                        </>
+                    ) : (
+                        <div className="text-center" style={{ padding: "2rem 0" }}>
+                            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🎉</div>
+                            <h3>Loan Fully Repaid!</h3>
+                            <p className="text-muted" style={{ marginBottom: "2rem" }}>
+                                This loan has been settled in full. No further repayments are required.
+                            </p>
                             <button
-                                type="button"
-                                className="btn btn-outline"
+                                className="btn btn-primary"
                                 onClick={() => navigate(`/chamas/${id}/loans`)}
                             >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                className="btn btn-primary"
-                                disabled={loading}
-                            >
-                                {loading ? "Processing..." : "Submit Repayment"}
+                                Back to Loan Management
                             </button>
                         </div>
-                    </form>
+                    )}
                 </div>
             </div>
         </div>

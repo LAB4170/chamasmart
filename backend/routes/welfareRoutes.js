@@ -9,6 +9,7 @@ const {
   updateWelfareConfigSchema,
   submitClaimSchema,
   approveClaimSchema,
+  makeWelfareContributionSchema,
 } = require('../utils/validationSchemas');
 const { applyRateLimiting } = require('../middleware/rateLimiting');
 
@@ -38,7 +39,7 @@ router.put(
 );
 
 // ============================================================================
-// WELFARE FUND INFORMATION
+// WELFARE FUND INFORMATION & CONTRIBUTIONS
 // ============================================================================
 
 // Get welfare fund information
@@ -46,6 +47,14 @@ router.get(
   '/:chamaId/fund',
   authorize('member', 'admin', 'treasurer', 'chairperson'),
   welfareController.getWelfareFund,
+);
+
+// Make a contribution to the welfare fund
+router.post(
+  '/:chamaId/contributions',
+  authorize('member', 'admin', 'treasurer', 'chairperson'),
+  validate(makeWelfareContributionSchema),
+  welfareController.makeWelfareContribution,
 );
 
 // ============================================================================
@@ -86,6 +95,31 @@ router.post(
   authorize('admin', 'treasurer', 'chairperson'),
   validate(approveClaimSchema),
   welfareController.approveClaim,
+);
+
+// ============================================================================
+// EMERGENCY DRIVES (Harambee) 
+// ============================================================================
+
+// Create an emergency drive for a member (admin/chairperson only)
+router.post(
+  '/:chamaId/emergency-drives',
+  authorize('admin', 'chairperson'),
+  welfareController.createEmergencyDrive,
+);
+
+// Get all emergency drives for a chama
+router.get(
+  '/:chamaId/emergency-drives',
+  authorize('member', 'admin', 'treasurer', 'chairperson'),
+  welfareController.getEmergencyDrives,
+);
+
+// Contribute to an active emergency drive
+router.post(
+  '/emergency-drives/:driveId/contribute',
+  authorize('member', 'admin', 'treasurer', 'chairperson'),
+  welfareController.contributeToEmergencyDrive,
 );
 
 module.exports = router;

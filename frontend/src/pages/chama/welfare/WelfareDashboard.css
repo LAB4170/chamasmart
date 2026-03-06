@@ -139,3 +139,115 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Alert Banner */
+.alert-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1.25rem;
+    border-radius: 10px;
+    margin-bottom: 1.25rem;
+    font-size: 0.88rem;
+    line-height: 1.4;
+}
+.alert-banner.warning {
+    background: #fff8e1;
+    border: 1px solid #f59e0b;
+    color: #92400e;
+}
+.alert-banner svg { flex-shrink: 0; color: #f59e0b; }
+
+/* Emergency Drives */
+.drives-list { display: flex; flex-direction: column; gap: 1rem; }
+.drive-card {
+    background: var(--surface-secondary, #f8f9fc);
+    border: 1px solid var(--border-color, #e4e9f2);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+.drive-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+.drive-title { font-weight: 600; font-size: 0.95rem; }
+.drive-meta {
+    font-size: 0.78rem;
+    color: var(--text-muted, #6b7280);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.2rem;
+}
+.drive-progress-bar-wrap {
+    background: #e5e7eb;
+    border-radius: 99px;
+    height: 8px;
+    overflow: hidden;
+}
+.drive-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+    border-radius: 99px;
+    transition: width 0.4s ease;
+}
+.drive-amounts {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: var(--text-muted, #6b7280);
+}
+.btn-sm { padding: 0.4rem 0.9rem; font-size: 0.82rem; align-self: flex-start; margin-top: 0.25rem; }
+
+/* Modals */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(3px);
+}
+.modal-card {
+    background: var(--card-bg, #fff);
+    border-radius: 16px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.2);
+    animation: slideUp 0.2s ease;
+}
+.modal-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.35rem;
+}
+.modal-subtitle {
+    font-size: 0.83rem;
+    color: var(--text-muted, #6b7280);
+    margin-bottom: 1.25rem;
+}
+.modal-form { display: flex; flex-direction: column; gap: 1rem; }
+.modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.5rem; }
+
+/* Text colors */
+.text-danger { color: #ef4444; }
+
+/* Loader spin animation */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 0.7s linear infinite; display: inline-block; }
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}

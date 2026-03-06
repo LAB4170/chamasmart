@@ -113,9 +113,14 @@ export default function LoanApplicationWizard() {
 
   const amort = useMemo(() => {
     const prin     = parseFloat(form.amount) || 0;
-    const interest = (prin * officialRate) / 100;
+    const rate     = officialRate || 0;
+    const months   = parseInt(form.repaymentPeriod) || 1;
+    
+    // Match backend LoanCalculator.calculateFlatInterest
+    // (principal * interestRate * termMonths) / 1200
+    const interest = Math.round((prin * rate * months) / 1200);
     const total    = prin + interest;
-    const monthly  = form.repaymentPeriod > 0 ? total / form.repaymentPeriod : 0;
+    const monthly  = months > 0 ? total / months : 0;
     return { prin, interest, total, monthly };
   }, [form.amount, officialRate, form.repaymentPeriod]);
 

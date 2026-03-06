@@ -138,11 +138,23 @@ const StatsSection = memo(({ stats, isROSCA, chama, members, formatCurrency }) =
         <p>Total Collected</p>
       </div>
     </div>
-    <div className="stat-card">
+    <div className="stat-card" style={{ flexGrow: 1 }}>
       <div className="stat-icon"><Building2 size={24} /></div>
-      <div>
+      <div style={{ width: '100%' }}>
         <h3>{formatCurrency(stats.current_fund || 0)}</h3>
         <p>Current Fund</p>
+        {['ASCA', 'TABLE_BANKING'].includes(chama.chama_type) && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginTop: '0.5rem', background: 'var(--bg-primary-light)', padding: '0.35rem 0.5rem', borderRadius: '0.35rem', width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ color: 'var(--primary)', fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 800 }}>Savings</span>
+              <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{formatCurrency(stats.total_contributions || 0)}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'right' }}>
+              <span style={{ color: 'var(--primary)', fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 800 }}>Interest</span>
+              <span style={{ fontWeight: 800, color: '#10b981' }}>+{formatCurrency(stats.total_interest_earned || 0)}</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
     <div className="stat-card">
@@ -700,6 +712,7 @@ const ChamaDetails = () => {
   }, []);
 
   const formatDate = useCallback((dateString) => {
+    if (!dateString) return "-";
     return new Date(dateString).toLocaleDateString("en-KE", {
       year: "numeric",
       month: "short",

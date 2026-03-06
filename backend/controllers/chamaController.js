@@ -503,8 +503,12 @@ const getMyChamas = async (req, res) => {
     // Get paginated results
     const result = await pool.query(
       `SELECT c.chama_id, c.chama_name, c.chama_type, c.contribution_amount, 
-              c.contribution_frequency, c.total_members,
-              cm.role, cm.join_date, cm.total_contributions
+              c.contribution_frequency, c.total_members, c.current_fund,
+              cm.role, cm.join_date, cm.total_contributions,
+              (SELECT COALESCE(SUM(ls.interest_amount), 0)
+               FROM loan_schedules ls
+               JOIN loans l2 ON ls.loan_id = l2.loan_id
+               WHERE l2.chama_id = c.chama_id AND ls.status = 'PAID') as total_interest_earned
        FROM chamas c
        INNER JOIN chama_members cm ON c.chama_id = cm.chama_id
        WHERE cm.user_id = $1 AND cm.is_active = true AND c.is_active = true
@@ -619,7 +623,11 @@ const getChamaStats = async (req, res) => {
            COALESCE(cs.recent_count, 0) as recent_contributions,
            ch.current_fund,
            ch.contribution_amount,
-           ch.chama_type
+           ch.chama_type,
+           (SELECT COALESCE(SUM(ls.interest_amount), 0)
+            FROM loan_schedules ls
+            JOIN loans l2 ON ls.loan_id = l2.loan_id
+            WHERE l2.chama_id = ch.chama_id AND ls.status = 'PAID') as total_interest_earned
          FROM chamas ch
          LEFT JOIN member_stats ms ON ch.chama_id = ms.chama_id
          LEFT JOIN contribution_stats cs ON ch.chama_id = cs.chama_id
@@ -639,7 +647,8 @@ const getChamaStats = async (req, res) => {
       ...statsResult.rows[0],
       total_members: parseInt(statsResult.rows[0].total_members),
       total_contributions: parseFloat(statsResult.rows[0].total_contributions),
-      recent_contributions: parseInt(statsResult.rows[0].recent_contributions)
+      recent_contributions: parseInt(statsResult.rows[0].recent_contributions),
+      total_interest_earned: parseFloat(statsResult.rows[0].total_interest_earned || 0)
     };
 
     cache.set(cacheKey, data);

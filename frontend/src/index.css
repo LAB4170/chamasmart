@@ -6957,4 +6957,52 @@ button:focus,
   }
 }
 
+/* Commitment Cards Styles */
+.commitment-card {
+  display: flex;
+  align-items: center;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.commitment-card:hover {
+  transform: translateX(4px);
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-md);
+}
+
+.commitment-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--gray-light);
+}
+
+.commitment-indicator.borrower {
+  background: var(--primary);
+}
+
+.commitment-indicator.guarantor {
+  background: var(--secondary);
+}
+
+.loan-commitments-grid {
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+  .commitment-card {
+    padding: 1rem;
+  }
+}
+
 /* Force tailwind recompile */
+

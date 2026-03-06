@@ -47,6 +47,8 @@ export const welfareAPI = {
     updateConfig: (chamaId, config) =>
         api.put(`/welfare/${chamaId}/config`, config),
     getFund: (chamaId) => api.get(`/welfare/${chamaId}/fund`),
+    makeContribution: (chamaId, payload) =>
+        api.post(`/welfare/${chamaId}/contributions`, payload),
     submitClaim: (chamaId, claimData) => {
         const formData = new FormData();
         Object.keys(claimData).forEach((key) => {
@@ -61,4 +63,11 @@ export const welfareAPI = {
         api.get(`/welfare/${chamaId}/members/${memberId}/claims`),
     approveClaim: (claimId, decision) =>
         api.post(`/welfare/claims/${claimId}/approve`, decision),
+    // Emergency Drives
+    getEmergencyDrives: (chamaId) => api.get(`/welfare/${chamaId}/emergency-drives`),
+    createEmergencyDrive: (chamaId, payload) =>
+        api.post(`/welfare/${chamaId}/emergency-drives`, payload),
+    contributeToEmergencyDrive: (driveId, payload) =>
+        api.post(`/welfare/emergency-drives/${driveId}/contribute`, payload),
 };
+

@@ -35,6 +35,8 @@ export const loanAPI = {
         api.get(`/loans/${chamaId}/config`),
     updateConfig: (chamaId, config) =>
         api.put(`/loans/${chamaId}/config`, config),
+    getUnifiedSummary: () =>
+        api.get("/loans/unified-summary"),
 };
 
 // Payout API calls

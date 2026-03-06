@@ -263,6 +263,12 @@ const createAscaCycleSchema = Joi.object({
   total_shares: Joi.number().integer().positive().optional(),
 });
 
+// Welfare Schemas
+const makeWelfareContributionSchema = Joi.object({
+  amount: Joi.number().positive().required(),
+  paymentMethod: Joi.string().valid('CASH', 'MPESA', 'BANK_TRANSFER', 'CHEQUE', 'OTHER').default('CASH'),
+});
+
 module.exports = {
   // Authentication
   registerPasswordSchema,
@@ -309,4 +315,7 @@ module.exports = {
   castVoteSchema,
   createAssetSchema,
   createAscaCycleSchema,
+
+  // Welfare
+  makeWelfareContributionSchema,
 };

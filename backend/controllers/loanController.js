@@ -12,6 +12,7 @@ const { clearChamaCache } = require("../utils/cache");
 // Money Utility (Decimal-aware)
 const toDecimal = (val) => parseFloat(val);
 const fromDecimal = (val) => parseFloat(parseFloat(val).toFixed(2));
+const fromDate = (date) => date ? new Date(date).toISOString() : null;
 
 // Currency Helpers
 const toCents = (amount) => Math.round(parseFloat(amount) * 100);
@@ -307,13 +308,16 @@ class DefaultDetector {
       await client.query('BEGIN');
 
       // Find loans with overdue installments (30+ days)
+      // Standardized to status DISBURSED and table loan_schedules
       const result = await client.query(`
-        SELECT DISTINCT l.loan_id, l.chama_id, l.borrower_id, l.loan_amount
+        SELECT DISTINCT l.loan_id, l.chama_id, l.borrower_id, l.loan_amount,
+               u.first_name || ' ' || u.last_name as borrower_name
         FROM loans l
-        JOIN loan_installments li ON l.loan_id = li.loan_id
-        WHERE l.status = 'ACTIVE'
-          AND li.status = 'PENDING'
-          AND li.due_date < CURRENT_DATE - INTERVAL '30 days'
+        JOIN users u ON l.borrower_id = u.user_id
+        JOIN loan_schedules ls ON l.loan_id = ls.loan_id
+        WHERE l.status IN ('ACTIVE', 'DISBURSED')
+          AND ls.status = 'PENDING'
+          AND ls.due_date < CURRENT_DATE - INTERVAL '30 days'
       `);
 
       for (const loan of result.rows) {
@@ -326,15 +330,31 @@ class DefaultDetector {
           [loan.loan_id],
         );
 
-        // Create notification for borrower
+        // Notify Borrower
         await client.query(
           `INSERT INTO notifications (user_id, type, title, message, related_id)
            VALUES ($1, 'LOAN_DEFAULTED', 'Loan Defaulted', 
-                   'Your loan has been marked as defaulted due to overdue payments', $2)`,
+                   'Critical: Your loan has been marked as defaulted due to being 30+ days overdue. Guarantors may be contacted for recovery.', $2)`,
           [loan.borrower_id, loan.loan_id],
         );
 
-        // Notify chama officials
+        // Notify ALL Approved Guarantors
+        const guarantors = await client.query(
+          `SELECT guarantor_user_id FROM loan_guarantors 
+           WHERE loan_id = $1 AND status = 'APPROVED'`,
+          [loan.loan_id]
+        );
+
+        for (const g of guarantors.rows) {
+          await client.query(
+            `INSERT INTO notifications (user_id, type, title, message, related_id)
+             VALUES ($1, 'GUARANTOR_LIABILITY', 'Action Required: Guaranteed Loan Defaulted', 
+                     'A loan you guaranteed for ${loan.borrower_name} has officially DEFAULTED. As a guarantor, you are now authorized and requested to settle the balance.', $2)`,
+            [g.guarantor_user_id, loan.loan_id]
+          );
+        }
+
+        // Notify Chama Officials
         const officials = await client.query(
           `SELECT user_id FROM chama_members 
            WHERE chama_id = $1 AND role IN ('TREASURER', 'CHAIRPERSON')`,
@@ -345,12 +365,12 @@ class DefaultDetector {
           await client.query(
             `INSERT INTO notifications (user_id, type, title, message, related_id)
              VALUES ($1, 'LOAN_DEFAULTED', 'Member Defaulted', 
-                     'A member has defaulted on their loan', $2)`,
+                     'System Alert: ${loan.borrower_name} has defaulted on their loan. Recovery procedures including guarantor notifications have been initiated.', $2)`,
             [official.user_id, loan.loan_id],
           );
         }
 
-        logger.logSecurityEvent('Loan marked as defaulted', {
+        logger.info('Loan marked as defaulted', {
           loanId: loan.loan_id,
           chamaId: loan.chama_id,
           borrowerId: loan.borrower_id,
@@ -364,11 +384,11 @@ class DefaultDetector {
         defaults: result.rows.map(r => r.loan_id),
       };
     } catch (error) {
-      await client.query('ROLLBACK');
-      logger.logError(error, { context: 'DefaultDetector.detectDefaults' });
+      if (client) await client.query('ROLLBACK');
+      logger.error('DefaultDetector.detectDefaults error:', error.message);
       throw error;
     } finally {
-      client.release();
+      if (client) client.release();
     }
   }
 
@@ -601,10 +621,10 @@ const applyForLoan = async (req, res) => {
       });
     }
 
-    const amountValue = parseFloat(amount);
+    const amountValueCents = toCents(amount);
     const term = parseInt(termMonths, 10);
 
-    if (amountValue <= 0 || term <= 0) {
+    if (amountValueCents <= 0 || term <= 0) {
       return res.status(400).json({
         success: false,
         message: 'Invalid amount or term',
@@ -727,21 +747,20 @@ const applyForLoan = async (req, res) => {
       [userId, chamaId],
     );
 
-    const outstanding = parseFloat(outstandingRes.rows[0].balance || 0);
+    const outstandingCents = toCents(outstandingRes.rows[0].balance || 0);
+    const availableCreditCents = maxLoanCents - outstandingCents;
 
-    const availableCredit = maxLoan - outstanding;
-
-    if (amountValue > availableCredit) {
+    if (amountValueCents > availableCreditCents) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
         message: chama.chama_type === 'ASCA' ? 'ASCA Loan Limit Exceeded.' : 'Requested amount exceeds your loan limit',
         data: {
-          requestedAmount: fromDecimal(amountValue),
-          availableCredit: fromDecimal(availableCredit),
-          maxLoan: fromDecimal(maxLoan),
-          outstandingLoans: fromDecimal(outstanding),
-          savings: fromDecimal(savings),
+          requestedAmount: fromCents(amountValueCents),
+          availableCredit: fromCents(availableCreditCents),
+          maxLoan: fromCents(maxLoanCents),
+          outstandingLoans: fromCents(outstandingCents),
+          savings: fromCents(savingsCents),
         },
       });
     }
@@ -797,12 +816,12 @@ const applyForLoan = async (req, res) => {
     // === CALCULATE LOAN SCHEDULE ===
     const schedule = loanConfig.interest_type === 'REDUCING_BALANCE'
       ? LoanCalculator.calculateReducingBalance(
-        amountValue,
+        amountValueCents,
         loanConfig.interest_rate,
         term,
       )
       : LoanCalculator.calculateFlatInterest(
-        amountValue,
+        amountValueCents,
         loanConfig.interest_rate,
         term,
       );
@@ -813,47 +832,25 @@ const applyForLoan = async (req, res) => {
         chama_id, borrower_id, loan_amount, 
         interest_rate, total_repayable,
         term_months, status, purpose,
-        monthly_payment
+        monthly_payment, next_payment_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
       ) RETURNING *`,
       [
         chamaId,
         userId,
-        amountValue,
+        fromCents(amountValueCents),
         loanConfig.interest_rate,
-        schedule.totalRepayable,
+        fromCents(schedule.totalRepayable),
         term,
-        requiredGuarantee > 0 ? 'PENDING' : 'PENDING',
+        'PENDING',
         purpose,
-        schedule.monthlyPayment,
+        fromCents(schedule.monthlyPayment),
+        schedule.installments[0]?.dueDate || new Date(new Date().setMonth(new Date().getMonth() + 1))
       ],
     );
 
     const loan = loanResult.rows[0];
-
-    // === CREATE INSTALLMENTS ===
-    const now = new Date();
-    for (const inst of schedule.installments) {
-      const dueDate = new Date(now);
-      dueDate.setMonth(dueDate.getMonth() + inst.installmentNumber);
-
-      await client.query(
-        `INSERT INTO loan_schedules (
-          loan_id, installment_number, due_date,
-          total_amount, principal_amount, interest_amount, balance, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING')`,
-        [
-          loan.loan_id,
-          inst.installmentNumber,
-          dueDate,
-          inst.totalAmount,
-          inst.principalAmount,
-          inst.interestAmount,
-          inst.balance,
-        ],
-      );
-    }
 
     // === CREATE GUARANTOR RECORDS ===
     if (guarantorArray.length > 0) {
@@ -949,16 +946,24 @@ const getChamaLoans = async (req, res) => {
     const result = await pool.query(
       `SELECT 
         l.*,
+        l.next_payment_at as due_date,
         u.first_name || ' ' || u.last_name as borrower_name,
         u.email as borrower_email,
-        m.role as borrower_role
+        m.role as borrower_role,
+        (l.borrower_id = $${params.length + 3}) as is_borrower,
+        EXISTS (
+          SELECT 1 FROM loan_guarantors 
+          WHERE loan_id = l.loan_id 
+          AND guarantor_user_id = $${params.length + 3} 
+          AND status = 'APPROVED'
+        ) as is_guarantor
        FROM loans l
        JOIN users u ON l.borrower_id = u.user_id
        JOIN chama_members m ON l.borrower_id = m.user_id AND m.chama_id = l.chama_id
        ${whereClause}
        ORDER BY l.created_at DESC
        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-      [...params, limit, offset],
+      [...params, limit, offset, req.user.user_id],
     );
 
     const countResult = await pool.query(
@@ -1005,6 +1010,7 @@ const getLoanById = async (req, res) => {
     const result = await pool.query(
       `SELECT 
         l.*,
+        l.next_payment_at as due_date,
         u.first_name || ' ' || u.last_name as borrower_name,
         u.email as borrower_email,
         m.role as borrower_role
@@ -1104,7 +1110,7 @@ const approveLoan = async (req, res) => {
     const { chamaId, loanId } = req.params;
     const {
       approvedAmount, interestRate, termMonths, notes,
-    } = req.body;
+    } = req.body || {};
     const userId = req.user.user_id;
 
     // Check if user is authorized
@@ -1126,7 +1132,7 @@ const approveLoan = async (req, res) => {
 
     // Get loan details
     const loanResult = await client.query(
-      'SELECT * FROM loans WHERE loan_id = $1 AND chama_id = $2 AND status = \'pending\'',
+      "SELECT * FROM loans WHERE loan_id = $1 AND chama_id = $2",
       [loanId, chamaId],
     );
 
@@ -1134,11 +1140,38 @@ const approveLoan = async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(404).json({
         success: false,
-        message: 'Loan not found or already processed',
+        message: 'Loan not found',
       });
     }
 
     const loan = loanResult.rows[0];
+
+    // If already approved, return success (Idempotency)
+    if (loan.status === 'APPROVED') {
+      await client.query('ROLLBACK');
+      return res.json({
+        success: true,
+        message: 'Loan is already approved',
+        data: loan
+      });
+    }
+
+    if (loan.status !== 'PENDING') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: `Loan cannot be approved in its current status: ${loan.status}`,
+      });
+    }
+
+    // SECURITY: Officials cannot approve their own loans
+    if (loan.borrower_id === userId) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({
+        success: false,
+        message: 'Security Violation: Officials cannot approve their own loan applications. Please have another authorized official review this.',
+      });
+    }
 
     // Check if all guarantors have accepted
     const pendingGuarantors = await client.query(
@@ -1153,66 +1186,83 @@ const approveLoan = async (req, res) => {
         message: 'All guarantors must explicitly accept the request before official approval.',
       });
     }
-    const approvedAmountValue = toDecimal(
-      approvedAmount || fromDecimal(loan.loan_amount),
-    );
+    const approvedAmountCents = toCents(approvedAmount || fromDecimal(loan.loan_amount));
 
     // === VALIDATE TREASURY LIQUIDITY ===
     const chamaRes = await client.query('SELECT chama_type FROM chamas WHERE chama_id = $1', [chamaId]);
     const chamaType = chamaRes.rows[0].chama_type;
-    const availablePool = await getAvailableTreasury(client, chamaId, chamaType);
+    const availablePoolCents = toCents(await getAvailableTreasury(client, chamaId, chamaType));
     
     // Add back the current loan amount because it was already deducted by getAvailableTreasury as a pending liability
-    const effectivePool = availablePool + parseFloat(loan.loan_amount || 0);
+    const effectivePoolCents = availablePoolCents + toCents(loan.loan_amount || 0);
 
-    if (approvedAmountValue > effectivePool) {
+    if (approvedAmountCents > effectivePoolCents) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
         message: 'Approval Failed: The requested amount exceeds the unallocated funds currently available in the Chama pool.',
         data: {
-          approvedAmount: fromDecimal(approvedAmountValue),
-          availablePool: fromDecimal(effectivePool),
+          approvedAmount: fromCents(approvedAmountCents),
+          availablePool: fromCents(effectivePoolCents),
         },
       });
     }
 
+    const finalInterestRate = parseFloat(interestRate || loan.interest_rate);
+    const finalTermMonths = parseInt(termMonths || loan.term_months, 10);
+
     // Calculate schedule
     const schedule = LoanCalculator.calculateFlatInterest(
       approvedAmountValue,
-      interestRate || 10,
-      termMonths || 12,
+      finalInterestRate,
+      finalTermMonths,
     );
 
-    // Update loan
+    // Update loan and deduct from chama fund (Fix Double Recovery Bug)
     await client.query(
       `UPDATE loans 
-       SET status = 'approved',
+       SET status = 'APPROVED',
            approved_amount = $1,
            interest_rate = $2,
            term_months = $3,
            total_repayable = $4,
            approved_by = $5,
            approved_at = NOW(),
-           approval_notes = $6
-       WHERE loan_id = $7`,
+           approval_notes = $6,
+           next_payment_at = $7
+       WHERE loan_id = $8`,
       [
-        approvedAmountValue,
-        interestRate || 10,
-        termMonths || 12,
-        schedule.totalRepayable,
+        fromCents(approvedAmountCents),
+        finalInterestRate,
+        finalTermMonths,
+        fromCents(schedule.totalRepayable),
         userId,
         notes,
+        schedule.installments[0]?.dueDate || new Date(new Date().setMonth(new Date().getMonth() + 1)),
         loanId,
       ],
     );
 
+    // CRITICAL: Deduct the approved amount from the chama's current fund to prevent "Double Recovery" inflation
+    await client.query(
+      'UPDATE chamas SET current_fund = current_fund - $1 WHERE chama_id = $2',
+      [fromCents(approvedAmountCents), chamaId]
+    );
+
     // Create loan schedule
+    // First, clean up any existing draft/pending schedules for this loan
+    await client.query('DELETE FROM loan_schedules WHERE loan_id = $1', [loanId]);
+
+    const approvalDate = new Date();
     for (const installment of schedule.installments) {
+      // Generate due dates starting 1 month from approval
+      const dueDate = new Date(approvalDate);
+      dueDate.setMonth(approvalDate.getMonth() + installment.installmentNumber);
+
       await client.query(
         `INSERT INTO loan_schedules 
-         (loan_id, installment_number, principal_amount, interest_amount, total_amount, balance, due_date)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+         (loan_id, installment_number, principal_amount, interest_amount, total_amount, balance, due_date, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING')`,
         [
           loanId,
           installment.installmentNumber,
@@ -1220,7 +1270,7 @@ const approveLoan = async (req, res) => {
           installment.interestAmount,
           installment.totalAmount,
           installment.balance,
-          installment.dueDate,
+          dueDate,
         ],
       );
     }
@@ -1242,6 +1292,9 @@ const approveLoan = async (req, res) => {
       },
       severity: SEVERITY.HIGH,
     });
+
+    // Invalidate stats cache since funds have moved
+    clearChamaCache(chamaId);
 
     res.json({
       success: true,
@@ -1271,7 +1324,7 @@ const approveLoan = async (req, res) => {
 const rejectLoan = async (req, res) => {
   try {
     const { chamaId, loanId } = req.params;
-    const { reason } = req.body;
+    const { reason } = req.body || {};
     const userId = req.user.user_id;
 
     // Check if user is authorized
@@ -1293,11 +1346,11 @@ const rejectLoan = async (req, res) => {
     // Update loan
     const result = await pool.query(
       `UPDATE loans 
-       SET status = 'rejected',
+       SET status = 'REJECTED',
            rejected_by = $1,
            rejected_at = NOW(),
            rejection_reason = $2
-       WHERE loan_id = $3 AND chama_id = $4 AND status = 'pending'
+       WHERE loan_id = $3 AND chama_id = $4 AND status = 'PENDING'
        RETURNING *`,
       [userId, reason, loanId, chamaId],
     );
@@ -1345,15 +1398,22 @@ const makeRepayment = async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    const { chamaId, loanId } = req.params;
+    const chamaId = parseInt(req.params.chamaId, 10);
+    const loanId = parseInt(req.params.loanId, 10);
     const { amount, paymentMethod = 'cash', notes } = req.body;
     const userId = req.user.user_id;
 
-    const repaymentAmount = toDecimal(amount);
+    if (isNaN(chamaId) || isNaN(loanId)) {
+        throw new Error('Invalid Chama or Loan ID format');
+    }
 
-    // Get loan details
+    const repaymentAmountCents = toCents(amount);
+
+    // Get loan details - allow repayment if APPROVED, DISBURSED, or DEFAULTED
     const loanResult = await client.query(
-      'SELECT * FROM loans WHERE loan_id = $1 AND chama_id = $2 AND status IN (\'approved\', \'disbursed\')',
+      `SELECT * FROM loans 
+       WHERE loan_id = $1 AND chama_id = $2 
+       AND status IN ('APPROVED', 'DISBURSED', 'DEFAULTED')`,
       [loanId, chamaId],
     );
 
@@ -1361,89 +1421,166 @@ const makeRepayment = async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(404).json({
         success: false,
-        message: 'Loan not found or not in repayable status',
+        message: 'Loan not found or not in repayable status (must be Approved, Disbursed, or Defaulted)',
       });
     }
 
     const loan = loanResult.rows[0];
-    const newBalance = Math.max(0, parseFloat(loan.balance) - repaymentAmount);
-    const newAmountPaid = parseFloat(loan.amount_paid) + repaymentAmount;
+
+    // SECURITY: Only borrower or a guarantor can repay
+    const guarantorCheck = await client.query(
+        "SELECT 1 FROM loan_guarantors WHERE loan_id = $1 AND guarantor_user_id = $2 AND status = 'APPROVED'",
+        [loanId, userId]
+    );
+    const isBorrower = loan.borrower_id === userId;
+    const isGuarantor = guarantorCheck.rowCount > 0;
+
+    if (!isBorrower && !isGuarantor) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+            success: false,
+            message: 'Not authorized: Only the borrower or an approved guarantor can make repayments on this loan.'
+        });
+    }
+
+    // GUARANTOR RESTRICTION: Guarantors can only pay if the loan is DEFAULTED
+    if (isGuarantor && !isBorrower && loan.status !== 'DEFAULTED') {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+            success: false,
+            message: 'Action Restricted: Guarantors can only initiate repayments if the loan has officially DEFAULTED.'
+        });
+    }
+
+    const loanBalanceCents = toCents(loan.balance);
+    const loanAmountPaidCents = toCents(loan.amount_paid);
+    const totalRepayableCents = toCents(loan.total_repayable);
+
+    const newBalanceCents = Math.max(0, loanBalanceCents - repaymentAmountCents);
+    const newAmountPaidCents = loanAmountPaidCents + repaymentAmountCents;
+    const newAmountPaidDecimal = fromCents(newAmountPaidCents);
+
+    // Find the next upcoming installment(s) to apply this repayment to
+    const pendingInstallmentsRes = await client.query(
+      `SELECT * FROM loan_schedules 
+       WHERE loan_id = $1 AND status = 'PENDING'
+       ORDER BY installment_number ASC`,
+      [loanId],
+    );
+    
+    let remainingToAllocateCents = repaymentAmountCents;
+    for (const installment of pendingInstallmentsRes.rows) {
+      const installmentTotalCents = toCents(installment.total_amount);
+      if (remainingToAllocateCents >= installmentTotalCents) {
+        // Mark this installment as fully paid
+        await client.query(
+          "UPDATE loan_schedules SET status = 'PAID', paid_at = NOW() WHERE schedule_id = $1",
+          [installment.schedule_id]
+        );
+        remainingToAllocateCents -= installmentTotalCents;
+      } else {
+        // Partial payment for this installment - for now, we leave as PENDING 
+        // but we could implement partial status if needed. 
+        // Most Chamas treat an installment as PAID only when fully settled.
+        break;
+      }
+    }
+
+    const nextDueDate = pendingInstallmentsRes.rows.find(i => toCents(i.total_amount) > 0 && remainingToAllocateCents < toCents(i.total_amount))?.due_date || loan.next_payment_at;
 
     // Update loan
     await client.query(
       `UPDATE loans 
-       SET amount_paid = $1,
-           balance = $2,
-           status = CASE WHEN $2 = 0 THEN 'completed' ELSE status END,
-           last_payment_date = NOW()
-       WHERE loan_id = $3`,
-      [newAmountPaid, newBalance, loanId],
+       SET amount_paid = $1::NUMERIC,
+           status = CASE WHEN $1::NUMERIC >= total_repayable THEN 'COMPLETED' ELSE status END,
+           last_payment_date = NOW(),
+           next_payment_at = $2
+       WHERE loan_id = $3::INTEGER`,
+      [newAmountPaidDecimal, nextDueDate, loanId],
     );
 
-    // Record repayment
+    // Record repayment - explicitly track the payer
     await client.query(
       `INSERT INTO loan_repayments 
        (loan_id, payer_id, amount, payment_method, notes, payment_date)
-       VALUES ($1, $2, $3, $4, $5, NOW())
-       RETURNING *`,
-      [loanId, userId, repaymentAmount, paymentMethod, notes],
+       VALUES ($1::INTEGER, $2::INTEGER, $3::NUMERIC, $4, $5, NOW())`,
+      [loanId, userId, fromCents(repaymentAmountCents), paymentMethod, notes || (isGuarantor && !isBorrower ? 'Repayment by Guarantor' : null)],
     );
 
-    // If ASCA, repayment amount returns to the group fund (principal + interest)
+    // If the chama uses a revolving fund (ASCA or TABLE_BANKING), return the repayment to the fund
     const chamaTypeResult = await client.query(
       'SELECT chama_type FROM chamas WHERE chama_id = $1',
       [chamaId],
     );
     
-    if (chamaTypeResult.rows.length > 0 && chamaTypeResult.rows[0].chama_type === 'ASCA') {
+    if (chamaTypeResult.rows.length > 0 && ['ASCA', 'TABLE_BANKING'].includes(chamaTypeResult.rows[0].chama_type)) {
       await client.query(
         'UPDATE chamas SET current_fund = current_fund + $1 WHERE chama_id = $2',
-        [repaymentAmount, chamaId],
+        [fromCents(repaymentAmountCents), chamaId],
       );
     }
 
     await client.query('COMMIT');
 
-    // Trigger Trust Score Update
-    try {
-      await TrustScoreService.updateMemberTrustScore(chamaId, loan.borrower_id);
-    } catch (tsErr) {
-      console.error('Failed to update trust score after repayment:', tsErr);
-    }
-
-    await logAuditEvent({
-      eventType: EVENT_TYPES.LOAN_REPAYMENT,
-      userId,
-      action: 'Made loan repayment',
-      entityType: 'loan',
-      entityId: loanId,
-      metadata: {
-        chamaId,
-        amount,
-        paymentMethod,
-        remainingBalance: fromCents(newBalance),
-      },
-      severity: SEVERITY.MEDIUM,
+    // ISOLATED BACKGROUND TASKS: We use try-catch and don't await if they are not critical for the response
+    // to prevent secondary failures from cascading to the user.
+    
+    // 1. Trust Score Update
+    setImmediate(async () => {
+        try {
+            await TrustScoreService.updateMemberTrustScore(chamaId, loan.borrower_id);
+            if (isGuarantor && !isBorrower) {
+                await TrustScoreService.updateMemberTrustScore(chamaId, userId); // Boost guarantor score too
+            }
+        } catch (tsErr) {
+            console.error('Non-critical: Failed to update trust score after repayment:', tsErr.message);
+        }
     });
+
+    // 2. Audit Event
+    setImmediate(async () => {
+        try {
+            await logAuditEvent({
+                eventType: EVENT_TYPES.LOAN_REPAYMENT,
+                userId,
+                action: isGuarantor && !isBorrower ? 'Guarantor settled loan payment' : 'Made loan repayment',
+                entityType: 'loan',
+                entityId: loanId,
+                metadata: {
+                    chamaId,
+                    amount,
+                    payerType: isBorrower ? 'borrower' : 'guarantor',
+                    remainingBalance: fromDecimal(newBalance),
+                },
+                severity: SEVERITY.MEDIUM,
+            });
+        } catch (auditErr) {
+            console.error('Non-critical: Failed to log audit event after repayment:', auditErr.message);
+        }
+    });
+
+    // Invalidate stats cache since funds have moved
+    clearChamaCache(chamaId);
 
     res.json({
       success: true,
-      message: 'Repayment recorded successfully',
+      message: isGuarantor && !isBorrower ? 'Guarantor repayment recorded' : 'Repayment recorded successfully',
       data: {
         amount,
-        remainingBalance: fromCents(newBalance),
+        remainingBalance: fromDecimal(newBalance),
         isCompleted: newBalance === 0,
+        nextDueDate: fromDate(nextDueDate)
       },
     });
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Make repayment error:', error);
+    if (client) await client.query('ROLLBACK');
+    console.error('FATAL: Make repayment error:', error.message);
     res.status(500).json({
       success: false,
-      message: 'Error processing repayment',
+      message: 'Error processing repayment: ' + error.message,
     });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 };
 
@@ -1484,10 +1621,10 @@ const getUserLoans = async (req, res) => {
 
     const loans = result.rows.map(loan => ({
       ...loan,
-      loan_amount: fromCents(loan.loan_amount),
-      total_repayable: fromCents(loan.total_repayable),
-      amount_paid: fromCents(loan.amount_paid),
-      balance: fromCents(loan.balance),
+      loan_amount: fromDecimal(loan.loan_amount),
+      total_repayable: fromDecimal(loan.total_repayable),
+      amount_paid: fromDecimal(loan.amount_paid),
+      balance: fromDecimal(loan.balance),
     }));
 
     res.json({
@@ -1668,7 +1805,7 @@ const approveLoanByOfficial = async (req, res) => {
   try {
     const { loanId } = req.params;
     const userId = req.user.user_id;
-    const { action, notes } = req.body; // action: 'APPROVED' | 'REJECTED'
+    const { action, notes } = req.body || {}; // action: 'APPROVED' | 'REJECTED'
 
     if (!['APPROVED', 'REJECTED'].includes(action)) {
       return res.status(400).json({ success: false, message: "Action must be APPROVED or REJECTED" });
@@ -1765,6 +1902,16 @@ const approveLoanByOfficial = async (req, res) => {
         'UPDATE loans SET status = $1, approved_at = NOW(), approved_by = $2 WHERE loan_id = $3',
         [newStatus, userId, loanId]
       );
+
+      // CRITICAL: If the loan was approved, deduct from chama fund to synchronise assets (Double Recovery Bug Fix)
+      if (newStatus === 'APPROVED') {
+        const loanAmountRes = await client.query('SELECT loan_amount FROM loans WHERE loan_id = $1', [loanId]);
+        const loanAmount = parseFloat(loanAmountRes.rows[0].loan_amount || 0);
+        await client.query(
+          'UPDATE chamas SET current_fund = current_fund - $1 WHERE chama_id = $2',
+          [loanAmount, loan.chama_id]
+        );
+      }
     }
 
     await client.query('COMMIT');
@@ -1800,11 +1947,11 @@ const approveLoanByOfficial = async (req, res) => {
       // 1. Basic Stats: Total interest, pending, active
       const basicStats = await pool.query(
         `SELECT 
-           COALESCE(SUM(total_repayable - loan_amount), 0) as total_interest_earned,
-           COUNT(*) FILTER (WHERE status = 'ACTIVE') as active_loans_count,
-           COUNT(*) FILTER (WHERE status IN ('PENDING', 'PENDING_GUARANTOR', 'PENDING_APPROVAL')) as pending_loans_count,
-           COALESCE(SUM(balance), 0) as total_outstanding_balance,
-           COALESCE(SUM(amount_paid), 0) as total_recovered
+           COALESCE(SUM(total_repayable - loan_amount) FILTER (WHERE status IN ('APPROVED', 'DISBURSED', 'DEFAULTED', 'COMPLETED')), 0) as total_interest_earned,
+           COUNT(*) FILTER (WHERE status IN ('APPROVED', 'DISBURSED', 'DEFAULTED')) as active_loans_count,
+           COUNT(*) FILTER (WHERE status = 'PENDING') as pending_loans_count,
+           COALESCE(SUM(balance) FILTER (WHERE status IN ('APPROVED', 'DISBURSED', 'DEFAULTED')), 0) as total_outstanding_balance,
+           COALESCE(SUM(amount_paid) FILTER (WHERE status IN ('APPROVED', 'DISBURSED', 'DEFAULTED', 'COMPLETED')), 0) as total_recovered
          FROM loans 
          WHERE chama_id = $1`,
         [chamaId],
@@ -1842,17 +1989,17 @@ const approveLoanByOfficial = async (req, res) => {
         [chamaId],
       );
 
-      // 4. Monthly Trend (Loans disbursed last 6 months)
+      // 4. Monthly Trend (Loans activated last 6 months)
       const monthlyTrends = await pool.query(
         `SELECT 
            TO_CHAR(created_at, 'Mon YYYY') as month,
            SUM(loan_amount) as amount,
            COUNT(*) as count
          FROM loans
-         WHERE chama_id = $1 AND status != 'REJECTED'
+         WHERE chama_id = $1 AND status IN ('APPROVED', 'DISBURSED', 'DEFAULTED', 'COMPLETED')
            AND created_at >= (CURRENT_DATE - INTERVAL '6 months')
-         GROUP BY 1, created_at
-         ORDER BY created_at ASC`,
+         GROUP BY TO_CHAR(created_at, 'YYYYMM'), TO_CHAR(created_at, 'Mon YYYY')
+         ORDER BY TO_CHAR(created_at, 'YYYYMM') ASC`,
         [chamaId],
       );
 
@@ -2019,6 +2166,162 @@ const updateLoanConfig = async (req, res) => {
   }
 };
 
+// @desc    Get unified loan summary for dashboard
+// @route   GET /api/loans/unified-summary
+// @access  Private
+const getUnifiedLoanSummary = async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+
+    // 1. Get loans where user is BORROWER
+    const borrowedRes = await pool.query(
+      `SELECT 
+        l.loan_id,
+        l.chama_id,
+        l.borrower_id,
+        l.loan_amount,
+        l.total_repayable,
+        l.amount_paid,
+        l.balance,
+        l.monthly_payment,
+        l.status,
+        l.created_at,
+        c.chama_name,
+        c.chama_type,
+        (SELECT due_date FROM loan_schedules 
+         WHERE loan_id = l.loan_id AND status = 'PENDING' 
+         ORDER BY installment_number ASC LIMIT 1) as next_payment_date
+       FROM loans l
+       JOIN chamas c ON l.chama_id = c.chama_id
+       WHERE l.borrower_id = $1 AND l.status IN ('PENDING', 'APPROVED', 'DISBURSED', 'DEFAULTED')
+       ORDER BY l.created_at DESC`,
+      [userId],
+    );
+
+    // 2. Get loans where user is GUARANTOR
+    const guaranteedRes = await pool.query(
+      `SELECT 
+        l.loan_id,
+        l.chama_id,
+        l.borrower_id,
+        l.loan_amount,
+        l.total_repayable,
+        l.amount_paid,
+        l.balance,
+        l.status,
+        l.created_at,
+        c.chama_name,
+        c.chama_type,
+        u.first_name || ' ' || u.last_name as borrower_name,
+        lg.guarantee_amount as my_guarantee_amount,
+        lg.status as my_guarantee_status
+       FROM loans l
+       JOIN chamas c ON l.chama_id = c.chama_id
+       JOIN users u ON l.borrower_id = u.user_id
+       JOIN loan_guarantors lg ON l.loan_id = lg.loan_id
+       WHERE lg.guarantor_user_id = $1 AND l.status IN ('PENDING', 'APPROVED', 'DISBURSED', 'DEFAULTED')
+       ORDER BY l.created_at DESC`,
+      [userId],
+    );
+
+    const borrowed = borrowedRes.rows.map(l => ({
+      ...l,
+      user_role: 'BORROWER',
+      loan_amount: parseFloat(l.loan_amount) || 0,
+      total_repayable: parseFloat(l.total_repayable) || 0,
+      amount_paid: parseFloat(l.amount_paid) || 0,
+      balance: parseFloat(l.balance) || 0,
+      monthly_payment: parseFloat(l.monthly_payment) || 0,
+    }));
+
+    const guaranteed = guaranteedRes.rows.map(l => ({
+      ...l,
+      user_role: 'GUARANTOR',
+      loan_amount: parseFloat(l.loan_amount) || 0,
+      total_repayable: parseFloat(l.total_repayable) || 0,
+      amount_paid: parseFloat(l.amount_paid) || 0,
+      balance: parseFloat(l.balance) || 0,
+      my_guarantee_amount: parseFloat(l.my_guarantee_amount) || 0,
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        borrowed,
+        guaranteed,
+        summary: {
+          totalBorrowed: borrowed.reduce((sum, l) => sum + l.balance, 0),
+          totalGuaranteed: guaranteed.reduce((sum, l) => sum + l.my_guarantee_amount, 0),
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Unified summary error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @desc    Manually trigger default detection for a chama
+// @route   POST /api/loans/:chamaId/settle-defaults
+// @access  Private (Official)
+const settleChamaDefaults = async (req, res) => {
+  try {
+    const { chamaId } = req.params;
+    
+    // Authorization check (simplified, could use middleware)
+    const result = await DefaultDetector.detectDefaults();
+    
+    res.json({
+      success: true,
+      message: 'Default detection job completed',
+      data: result
+    });
+  } catch (error) {
+    console.error('Manual default settlement error:', error);
+    res.status(500).json({ success: false, message: 'Server error during default detection' });
+  }
+};
+
+// @desc    Get loans guaranteed by the current user
+// @route   GET /api/loans/my-guaranteed-loans
+// @access  Private
+const getGuaranteedLoans = async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+    
+    const result = await pool.query(
+      `SELECT 
+        l.*,
+        u.first_name || ' ' || u.last_name as borrower_name,
+        lg.guarantee_amount as my_guarantee_amount,
+        lg.status as my_guarantee_status,
+        c.chama_name
+       FROM loans l
+       JOIN loan_guarantors lg ON l.loan_id = lg.loan_id
+       JOIN users u ON l.borrower_id = u.user_id
+       JOIN chamas c ON l.chama_id = c.chama_id
+       WHERE lg.guarantor_user_id = $1 AND lg.status = 'APPROVED'
+       ORDER BY l.created_at DESC`,
+      [userId]
+    );
+
+    res.json({
+      success: true,
+      data: result.rows.map(row => ({
+        ...row,
+        loan_amount: parseFloat(row.loan_amount),
+        balance: parseFloat(row.balance),
+        amount_paid: parseFloat(row.amount_paid),
+        total_repayable: parseFloat(row.total_repayable),
+        my_guarantee_amount: parseFloat(row.my_guarantee_amount)
+      }))
+    });
+  } catch (error) {
+    console.error('Get guaranteed loans error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 module.exports = {
   applyForLoan,
   getChamaLoans,
@@ -2033,6 +2336,9 @@ module.exports = {
   getChamaLoanAnalytics,
   getLoanConfig,
   updateLoanConfig,
+  getUnifiedLoanSummary,
+  settleChamaDefaults,
+  getGuaranteedLoans,
   // Export services
   LoanCalculator,
   GuarantorService,
