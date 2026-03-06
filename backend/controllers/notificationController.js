@@ -25,10 +25,39 @@ const getNotifications = async (req, res) => {
       [userId, limit],
     );
 
+    const notifications = result.rows.map(n => {
+      let link = '#';
+      const metadata = n.metadata || {};
+      
+      switch (n.type) {
+        case 'LOAN_GUARANTEE_REQUEST':
+          link = '/my-guarantees';
+          break;
+        case 'LOAN_GUARANTEE_REJECTED':
+          // If we had a loan-specific page, we'd link there. For now, general dashboard or my-loans.
+          link = '/dashboard'; 
+          break;
+        case 'JOIN_REQUEST':
+          if (n.entity_id) link = `/chamas/${n.entity_id}/join-requests`;
+          break;
+        case 'JOIN_APPROVED':
+        case 'JOIN_REJECTED':
+          if (n.entity_id) link = `/chamas/${n.entity_id}`;
+          break;
+        case 'LOAN_APPROVED':
+        case 'LOAN_REJECTED':
+        case 'LOAN_PAYMENT_DUE':
+          link = '/dashboard';
+          break;
+      }
+      
+      return { ...n, link };
+    });
+
     res.json({
       success: true,
-      count: result.rows.length,
-      data: result.rows,
+      count: notifications.length,
+      data: notifications,
     });
   } catch (error) {
     console.error('Get notifications error:', error);

@@ -108,6 +108,8 @@ const NotificationBell = () => {
             JOIN_REQUEST: "👋",
             JOIN_APPROVED: "✅",
             JOIN_REJECTED: "❌",
+            LOAN_GUARANTEE_REQUEST: "🛡️",
+            LOAN_GUARANTEE_REJECTED: "🚫",
         };
         return icons[type] || "🔔";
     };

@@ -575,6 +575,14 @@ function AppContent() {
                                 }
                             />
                             <Route
+                                path="/my-guarantees"
+                                element={
+                                    <ProtectedRoute>
+                                        <PageTransition><MyGuarantees /></PageTransition>
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
                                 path="/browse-chamas"
                                 element={
                                     <ProtectedRoute>

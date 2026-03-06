@@ -1532,14 +1532,21 @@ const getMyGuarantees = async (req, res) => {
       `SELECT 
         l.loan_id,
         l.loan_amount,
-        l.status,
+        l.status as loan_status,
+        l.purpose,
+        l.term_months,
+        l.monthly_payment,
+        l.created_at,
         lg.guarantee_amount,
         lg.status as guarantee_status,
         u.first_name || ' ' || u.last_name as borrower_name,
-        u.user_id as borrower_id
+        u.user_id as borrower_id,
+        c.chama_name,
+        c.chama_id
        FROM loan_guarantors lg
        JOIN loans l ON lg.loan_id = l.loan_id
        JOIN users u ON l.borrower_id = u.user_id
+       JOIN chamas c ON l.chama_id = c.chama_id
        ${whereClause}
        ORDER BY l.created_at DESC
        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
@@ -1613,7 +1620,8 @@ const respondToGuaranteeRequest = async (req, res) => {
 
     await client.query(
       `UPDATE loan_guarantors 
-       SET status = $1, updated_at = NOW() 
+       SET status = $1::varchar, 
+           approved_at = CASE WHEN $1::varchar = 'APPROVED' THEN NOW() ELSE NULL END
        WHERE loan_id = $2 AND guarantor_user_id = $3`,
       [status, loanId, userId],
     );
@@ -1622,14 +1630,14 @@ const respondToGuaranteeRequest = async (req, res) => {
     if (status === 'REJECTED') {
       const borrowerRes = await client.query('SELECT borrower_id, chama_id FROM loans WHERE loan_id = $1', [loanId]);
       if (borrowerRes.rows.length > 0) {
-        const { borrower_id, chama_id } = borrowerRes.rows[0];
+        const { borrower_id } = borrowerRes.rows[0];
         const guarantorRes = await client.query('SELECT first_name, last_name FROM users WHERE user_id = $1', [userId]);
         const gName = guarantorRes.rows[0] ? `${guarantorRes.rows[0].first_name} ${guarantorRes.rows[0].last_name}` : 'A guarantor';
         
         await client.query(
-          `INSERT INTO notifications (user_id, type, title, message, related_id)
+          `INSERT INTO notifications (user_id, type, title, message, entity_type, entity_id)
            VALUES ($1, 'LOAN_GUARANTEE_REJECTED', 'Guarantor Declined', 
-                   $2, $3)`,
+                   $2, 'LOAN', $3)`,
           [borrower_id, `${gName} declined your guarantee request for loan #${loanId}. Please select a different guarantor.`, loanId]
         );
       }
