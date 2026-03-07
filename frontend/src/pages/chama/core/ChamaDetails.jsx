@@ -2517,7 +2517,7 @@ const ChamaDetails = () => {
                   </h3>
                   <button
                     className="btn btn-sm btn-primary"
-                    onClick={() => navigate(`/chamas/${id}/welfare/claim`)}
+                    onClick={() => navigate(`/chamas/${id}/welfare/submit-claim`)}
                   >
                     New Claim
                   </button>

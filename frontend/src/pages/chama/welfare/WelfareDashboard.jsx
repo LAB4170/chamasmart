@@ -163,7 +163,7 @@ const WelfareDashboard = () => {
                             </button>
                             <button
                                 className="btn-action-secondary"
-                                onClick={() => navigate(`/chamas/${id}/welfare/claim`)}
+                                onClick={() => navigate(`/chamas/${id}/welfare/submit-claim`)}
                             >
                                 <AlertTriangle size={16} />
                                 <span>File Claim</span>

@@ -165,7 +165,8 @@ const makeWelfareContribution = async (req, res) => {
 
 // Claim Management
 const submitClaim = async (req, res) => {
-  const { chamaId, memberId } = req.params;
+  const { chamaId } = req.params;
+  const memberId = req.user.user_id; // Use logged in user ID from protect middleware
   const { event_type_id, description, date_of_occurrence } = req.body;
   let proof_document_url = null;
 

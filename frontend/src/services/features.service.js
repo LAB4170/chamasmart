@@ -59,8 +59,10 @@ export const welfareAPI = {
         });
     },
     getChamaClaims: (chamaId) => api.get(`/welfare/${chamaId}/claims`),
-    getMemberClaims: (chamaId, memberId) =>
-        api.get(`/welfare/${chamaId}/members/${memberId}/claims`),
+    getMemberClaims: (chamaId, memberId) => {
+        const id = memberId || JSON.parse(localStorage.getItem('user'))?.user_id;
+        return api.get(`/welfare/${chamaId}/members/${id}/claims`);
+    },
     approveClaim: (claimId, decision) =>
         api.post(`/welfare/claims/${claimId}/approve`, decision),
     // Emergency Drives

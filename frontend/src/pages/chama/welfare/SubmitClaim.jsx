@@ -31,7 +31,9 @@ const SubmitClaim = () => {
         const fetchConfig = async () => {
             try {
                 const response = await welfareAPI.getConfig(id);
-                setConfig(response.data);
+                // The response might be wrapped in .data or .data.data depending on formatters
+                const configList = response.data?.data || response.data || [];
+                setConfig(Array.isArray(configList) ? configList : []);
             } catch (err) {
                 console.error("Error loading config:", err);
                 const errorMsg = err.response?.data?.message || "Failed to load event types.";
@@ -92,7 +94,7 @@ const SubmitClaim = () => {
         );
     }
 
-    const selectedEvent = config.find(c => c.id.toString() === formData.event_type_id);
+    const selectedEvent = Array.isArray(config) ? config.find(c => c.id?.toString() === formData.event_type_id) : null;
 
     return (
         <div style={{ maxWidth: '700px', margin: '0 auto', padding: '1.5rem', color: 'var(--text-primary)' }}>
