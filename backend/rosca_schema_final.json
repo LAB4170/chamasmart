@@ -1,0 +1,198 @@
+[
+  {
+    "table_name": "rosca_cycles",
+    "column_name": "cycle_id",
+    "is_nullable": "NO",
+    "column_default": "nextval('rosca_cycles_cycle_id_seq'::regclass)",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "rosca_cycles",
+    "column_name": "chama_id",
+    "is_nullable": "NO",
+    "column_default": null,
+    "data_type": "integer"
+  },
+  {
+    "table_name": "rosca_cycles",
+    "column_name": "cycle_name",
+    "is_nullable": "NO",
+    "column_default": null,
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rosca_cycles",
+    "column_name": "start_date",
+    "is_nullable": "NO",
+    "column_default": null,
+    "data_type": "date"
+  },
+  {
+    "table_name": "rosca_cycles",
+    "column_name": "end_date",
+    "is_nullable": "NO",
+    "column_default": null,
+    "data_type": "date"
+  },
+  {
+    "table_name": "rosca_cycles",
+    "column_name": "total_members",
+    "is_nullable": "NO",
+    "column_default": null,
+    "data_type": "integer"
+  },
+  {
+    "table_name": "rosca_cycles",
+    "column_name": "contribution_amount",
+    "is_nullable": "NO",
+    "column_default": null,
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "rosca_cycles",
+    "column_name": "payout_order",
+    "is_nullable": "YES",
+    "column_default": "'ROTATIONAL'::character varying",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rosca_cycles",
+    "column_name": "status",
+    "is_nullable": "YES",
+    "column_default": "'ACTIVE'::character varying",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rosca_cycles",
+    "column_name": "created_at",
+    "is_nullable": "YES",
+    "column_default": "now()",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "rosca_cycles",
+    "column_name": "frequency",
+    "is_nullable": "YES",
+    "column_default": "'MONTHLY'::character varying",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rosca_roster",
+    "column_name": "roster_id",
+    "is_nullable": "NO",
+    "column_default": "nextval('rosca_roster_roster_id_seq'::regclass)",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "rosca_roster",
+    "column_name": "cycle_id",
+    "is_nullable": "NO",
+    "column_default": null,
+    "data_type": "integer"
+  },
+  {
+    "table_name": "rosca_roster",
+    "column_name": "user_id",
+    "is_nullable": "NO",
+    "column_default": null,
+    "data_type": "integer"
+  },
+  {
+    "table_name": "rosca_roster",
+    "column_name": "position",
+    "is_nullable": "NO",
+    "column_default": null,
+    "data_type": "integer"
+  },
+  {
+    "table_name": "rosca_roster",
+    "column_name": "status",
+    "is_nullable": "YES",
+    "column_default": "'ACTIVE'::character varying",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rosca_roster",
+    "column_name": "payout_date",
+    "is_nullable": "YES",
+    "column_default": null,
+    "data_type": "date"
+  },
+  {
+    "table_name": "rosca_roster",
+    "column_name": "created_at",
+    "is_nullable": "YES",
+    "column_default": "now()",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "rosca_roster",
+    "column_name": "deadline_date",
+    "is_nullable": "YES",
+    "column_default": null,
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "rosca_roster",
+    "column_name": "expected_payout_date",
+    "is_nullable": "YES",
+    "column_default": null,
+    "data_type": "date"
+  },
+  {
+    "table_name": "rosca_swap_requests",
+    "column_name": "request_id",
+    "is_nullable": "NO",
+    "column_default": "nextval('rosca_swap_requests_request_id_seq'::regclass)",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "rosca_swap_requests",
+    "column_name": "cycle_id",
+    "is_nullable": "NO",
+    "column_default": null,
+    "data_type": "integer"
+  },
+  {
+    "table_name": "rosca_swap_requests",
+    "column_name": "requester_id",
+    "is_nullable": "NO",
+    "column_default": null,
+    "data_type": "integer"
+  },
+  {
+    "table_name": "rosca_swap_requests",
+    "column_name": "target_position",
+    "is_nullable": "NO",
+    "column_default": null,
+    "data_type": "integer"
+  },
+  {
+    "table_name": "rosca_swap_requests",
+    "column_name": "reason",
+    "is_nullable": "YES",
+    "column_default": null,
+    "data_type": "text"
+  },
+  {
+    "table_name": "rosca_swap_requests",
+    "column_name": "status",
+    "is_nullable": "YES",
+    "column_default": "'PENDING'::character varying",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rosca_swap_requests",
+    "column_name": "created_at",
+    "is_nullable": "YES",
+    "column_default": "now()",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "rosca_swap_requests",
+    "column_name": "requester_position",
+    "is_nullable": "YES",
+    "column_default": null,
+    "data_type": "integer"
+  }
+]

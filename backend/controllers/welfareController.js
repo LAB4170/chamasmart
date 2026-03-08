@@ -83,23 +83,20 @@ const updateWelfareConfig = async (req, res) => {
 const getWelfareFund = async (req, res) => {
   const { chamaId } = req.params;
   try {
-    const query = 'SELECT * FROM welfare_fund WHERE chama_id = $1';
+    // Return unified fund from chamas table instead of separate welfare_fund table
+    const query = 'SELECT current_fund FROM chamas WHERE chama_id = $1';
     const { rows } = await pool.query(query, [chamaId]);
 
-    if (rows.length === 0) {
-      // Initialize fund if it doesn't exist
-      const initQuery = 'INSERT INTO welfare_fund (chama_id, balance) VALUES ($1, 0) RETURNING fund_id as id, *';
-      const {
-        rows: [newFund],
-      } = await pool.query(initQuery, [chamaId]);
-      return res.success(
-        newFund,
-        'Welfare fund initialized and retrieved successfully',
-      );
-    }
+    const unifiedBalance = rows.length > 0 ? rows[0].current_fund : 0;
 
-    const formattedFund = { ...rows[0], id: rows[0].fund_id };
-    return res.success(formattedFund, 'Welfare fund retrieved successfully');
+    return res.success(
+      {
+        fund_id: parseInt(chamaId),
+        chama_id: parseInt(chamaId),
+        balance: unifiedBalance
+      },
+      'Welfare fund retrieved successfully'
+    );
   } catch (error) {
     logger.error('Error fetching welfare fund:', error);
     return res.error('Error fetching welfare fund', 500);
@@ -138,7 +135,13 @@ const makeWelfareContribution = async (req, res) => {
     `;
     const { rows: [fund] } = await client.query(fundQuery, [amount, chamaId]);
 
-    // 3. Record transaction for general audit log
+    // 3. Sync to chamas.current_fund if it's a WELFARE chama
+    const { rows: [chama] } = await client.query('SELECT chama_type FROM chamas WHERE chama_id = $1', [chamaId]);
+    if (chama && chama.chama_type === 'WELFARE') {
+      await client.query('UPDATE chamas SET current_fund = current_fund + $1 WHERE chama_id = $2', [amount, chamaId]);
+    }
+
+    // 4. Record transaction for general audit log
     await client.query(
       `INSERT INTO transactions (chama_id, member_id, amount, transaction_type, reference_id, status, description)
        VALUES ($1, $2, $3, 'WELFARE_CONTRIBUTION', $4, 'COMPLETED', $5)`,
@@ -167,35 +170,105 @@ const makeWelfareContribution = async (req, res) => {
 const submitClaim = async (req, res) => {
   const { chamaId } = req.params;
   const memberId = req.user.user_id; // Use logged in user ID from protect middleware
-  const { event_type_id, description, date_of_occurrence } = req.body;
+  const { event_type_id, custom_event_name, claim_amount, description, date_of_occurrence } = req.body;
   let proof_document_url = null;
 
-  try {
-    // Verify the event type exists and is active
-    const eventQuery = 'SELECT config_id as id, * FROM welfare_config WHERE config_id = $1 AND chama_id = $2 AND is_active = true';
-    const {
-      rows: [eventType],
-    } = await pool.query(eventQuery, [event_type_id, chamaId]);
+  // --- Validate claim_amount immediately (must be a positive number) ---
+  const requestedAmount = parseFloat(claim_amount);
+  if (!requestedAmount || isNaN(requestedAmount) || requestedAmount <= 0) {
+    return res.status(400).json({ message: 'Please enter a valid claim amount greater than KES 0.' });
+  }
 
-    if (!eventType) {
-      return res
-        .status(400)
-        .json({ message: 'Invalid or inactive event type' });
+  try {
+    let eventType = null;
+
+    if (event_type_id) {
+      // --- PATH A: Predefined event selected from config ---
+      const eventQuery = `
+        SELECT config_id as id, * FROM welfare_config 
+        WHERE config_id = $1 AND chama_id = $2 AND is_active = true
+      `;
+      const { rows: [found] } = await pool.query(eventQuery, [event_type_id, chamaId]);
+      if (!found) {
+        return res.status(400).json({ message: 'Invalid or inactive event type' });
+      }
+      eventType = found;
+
+      // --- CEILING CHECK: member cannot request more than the configured maximum ---
+      const ceiling = parseFloat(eventType.payout_amount);
+      if (ceiling > 0 && requestedAmount > ceiling) {
+        return res.status(400).json({
+          message: `Your request of KES ${requestedAmount.toLocaleString()} exceeds the maximum allowed for ${eventType.event_type.replace(/_/g, ' ')}: KES ${ceiling.toLocaleString()}. Please enter a lower amount.`,
+        });
+      }
+    } else if (custom_event_name && custom_event_name.trim().length > 0) {
+      // --- PATH B: Custom free-text event ---
+      // Normalize the name: uppercase, trim, replace spaces with underscores
+      const normalizedName = custom_event_name.trim().toUpperCase().replace(/\s+/g, '_');
+
+      // Try to find an existing config with same name first
+      const existingQuery = `
+        SELECT config_id as id, * FROM welfare_config 
+        WHERE chama_id = $1 AND event_type = $2
+      `;
+      const { rows: [existing] } = await pool.query(existingQuery, [chamaId, normalizedName]);
+
+      if (existing) {
+        eventType = existing;
+        // Enforce ceiling if one exists on this custom type
+        const ceiling = parseFloat(eventType.payout_amount);
+        if (ceiling > 0 && requestedAmount > ceiling) {
+          return res.status(400).json({
+            message: `Your request of KES ${requestedAmount.toLocaleString()} exceeds the maximum allowed: KES ${ceiling.toLocaleString()}.`,
+          });
+        }
+      } else {
+        // Auto-create a new config entry with payout 0, pending admin approval
+        const createQuery = `
+          INSERT INTO welfare_config 
+            (chama_id, event_type, description, payout_amount, contribution_type, contribution_amount, is_active)
+          VALUES ($1, $2, $3, 0, 'AD_HOC', 0, true)
+          RETURNING config_id as id, *
+        `;
+        const { rows: [created] } = await pool.query(createQuery, [
+          chamaId,
+          normalizedName,
+          `Custom event: ${custom_event_name.trim()}`,
+        ]);
+        eventType = created;
+        logger.info(`Auto-created welfare_config for custom event "${normalizedName}" in chama ${chamaId}`);
+      }
+    } else {
+      return res.status(400).json({ message: 'You must select an event type or enter a custom event name.' });
     }
 
-    // --- ENHANCED ELIGIBILITY AND INTEGRITY GUARDS ---
+    // --- ELIGIBILITY AND INTEGRITY GUARDS ---
+
+    // 1. Fund sufficiency check — against the ACTUAL requested amount, not the ceiling
+    const chamaQuery = 'SELECT chama_type, current_fund FROM chamas WHERE chama_id = $1';
+    const { rows: [chama] } = await pool.query(chamaQuery, [chamaId]);
     
-    // 1. Verify welfare fund balance is sufficient (Prevent Negative Funds)
-    const fundQuery = 'SELECT balance FROM welfare_fund WHERE chama_id = $1';
-    const { rows: [fund] } = await pool.query(fundQuery, [chamaId]);
-    if (!fund || parseFloat(fund.balance) < parseFloat(eventType.payout_amount)) {
-      return res.status(400).json({ message: 'Insufficient welfare fund balance to process a claim of this magnitude.' });
+    let currentBalance = 0;
+    if (chama && chama.chama_type === 'WELFARE') {
+      currentBalance = parseFloat(chama.current_fund || 0);
+    } else {
+      const fundQuery = 'SELECT balance FROM welfare_fund WHERE chama_id = $1';
+      const { rows: [fund] } = await pool.query(fundQuery, [chamaId]);
+      currentBalance = fund ? parseFloat(fund.balance || 0) : 0;
+    }
+
+    if (currentBalance < requestedAmount) {
+      return res.status(400).json({
+        message: `Insufficient welfare fund balance. The fund currently holds KES ${currentBalance.toLocaleString()}, but your claim is for KES ${requestedAmount.toLocaleString()}.`,
+      });
     }
 
     // 2. Verify Member Standing (Active Status, Contributions, and Tenure)
+    // NOTE: Per Phase 6 requirements, the previous "30-day tenure" rule is waived.
+    // Any active member who has successfully contributed is eligible to apply.
     const memberQuery = `
-      SELECT cm.joined_at, 
-             (SELECT COALESCE(SUM(amount), 0) FROM contributions WHERE member_id = $1 AND chama_id = $2 AND status = 'COMPLETED') as base_savings,
+      SELECT cm.join_date as joined_at, 
+             (SELECT COALESCE(SUM(amount), 0) FROM contributions WHERE user_id = $1 AND chama_id = $2 AND status = 'COMPLETED') as base_savings,
              (SELECT COALESCE(SUM(amount), 0) FROM welfare_contributions WHERE member_id = $1 AND chama_id = $2 AND status = 'COMPLETED') as welfare_savings
       FROM chama_members cm
       WHERE cm.user_id = $1 AND cm.chama_id = $2 AND cm.is_active = true
@@ -206,34 +279,27 @@ const submitClaim = async (req, res) => {
       return res.status(400).json({ message: 'Member is not active in this chama' });
     }
 
-    // Require financial accountability (must have paid something)
+    // Require financial accountability (at least one contribution)
     if (parseFloat(memberStanding.welfare_savings) <= 0 && parseFloat(memberStanding.base_savings) <= 0) {
-      return res.status(400).json({ message: 'Member must have actively contributed to the chama to be eligible for welfare claims' });
-    }
-
-    // Require a 30-day vesting period to prevent "join-and-flee" fraud
-    const joinedDate = new Date(memberStanding.joined_at);
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    if (joinedDate > thirtyDaysAgo) {
-      return res.status(400).json({ message: 'Member must complete a 30-day vesting period before submitting welfare claims' });
+      return res.status(403).json({ 
+        message: 'Member must have actively contributed to the chama to be eligible for welfare claims' 
+      });
     }
     // --- END GUARDS ---
 
     // Handle file upload if present
-    if (req.file) {
+    // Support both req.file (multer.single) and req.files[0] (multer.array)
+    const uploadedFile = req.file || (req.files && req.files[0]) || (req.uploadedFiles && req.uploadedFiles[0]);
+    
+    if (uploadedFile) {
       try {
-        proof_document_url = await uploadToStorage(
-          req.file,
-          `welfare/${chamaId}/claims`,
-        );
+        proof_document_url = await uploadToStorage(uploadedFile, `welfare/${chamaId}/claims`);
       } catch (uploadError) {
         logger.error('Error uploading document:', uploadError);
-        return res.status(500).json({ message: 'Error uploading document' });
+        // Don't fail the whole claim if only the upload fails (optional, but safer)
+        // return res.status(500).json({ message: 'Error uploading document' });
       }
     }
-
     // Create the claim
     const query = `
       INSERT INTO welfare_claims 
@@ -241,23 +307,29 @@ const submitClaim = async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7, 'SUBMITTED')
       RETURNING *
     `;
-
-    const {
-      rows: [claim],
-    } = await pool.query(query, [
+    const { rows: [claim] } = await pool.query(query, [
       chamaId,
       memberId,
-      event_type_id,
-      eventType.payout_amount,
+      eventType.id,
+      requestedAmount,         // ← member's actual need, not the ceiling
       description,
       date_of_occurrence,
       proof_document_url,
     ]);
 
-    // Notify admins
     await notifyAdminsAboutNewClaim(chamaId, claim.claim_id || claim.id);
 
-    res.status(201).json(claim);
+    const isCustom = !event_type_id;
+    res.status(201).json({
+      ...claim,
+      claim_type: eventType.event_type,  // explicit alias for frontend rendering
+      event_type: eventType.event_type,
+      is_custom_event: isCustom,
+      ceiling_amount: eventType.payout_amount,
+      message: isCustom
+        ? 'Custom event claim submitted. An admin will review and set the final payout amount.'
+        : `Claim of KES ${requestedAmount.toLocaleString()} submitted successfully. Pending admin approval.`,
+    });
   } catch (error) {
     logger.error('Error submitting claim:', error);
     res.status(500).json({ message: 'Error submitting claim' });
@@ -325,7 +397,7 @@ const getChamaClaims = async (req, res) => {
     const totalCount = await getTotal(pool, countQuery, countParams, 'count');
 
     let query = `
-      SELECT wc.claim_id as id, wc.*, wcfg.event_type, wcfg.payout_amount,
+      SELECT wc.claim_id as id, wc.*, wcfg.event_type as claim_type, wcfg.event_type, wcfg.payout_amount,
              u.first_name || ' ' || u.last_name as member_name,
              (SELECT COUNT(*) FROM welfare_claim_approvals wca WHERE wca.claim_id = wc.claim_id) as approval_count
       FROM welfare_claims wc
@@ -366,7 +438,10 @@ const getChamaClaims = async (req, res) => {
 // Approval Workflow
 const approveClaim = async (req, res) => {
   const { claimId } = req.params;
-  const { approverId, status, comments } = req.body;
+  // approverId should be the authenticated user — fall back to body if explicitly provided
+  const approverId = req.user?.user_id || req.body.approverId;
+  const { status, comments, reviewer_notes } = req.body;
+  const finalComments = comments || reviewer_notes || null;
 
   const client = await pool.connect();
 
@@ -385,58 +460,96 @@ const approveClaim = async (req, res) => {
       RETURNING *
     `;
 
-    await client.query(approvalQuery, [claimId, approverId, status, comments]);
+    await client.query(approvalQuery, [claimId, approverId, status, finalComments]);
 
-    // Check if we have enough approvals
-    const checkApprovalsQuery = `
-      WITH claim_info AS (
-        SELECT wc.claim_id as id, wc.*, wc.claim_amount, wc.chama_id, c.chama_name,
-               (SELECT COUNT(*) FROM welfare_claim_approvals 
-                WHERE claim_id = $1 AND status = 'APPROVED') as approval_count
-        FROM welfare_claims wc
-        JOIN chamas c ON wc.chama_id = c.chama_id
-        WHERE wc.claim_id = $1
-      )
-      SELECT ci.*, 
-             (SELECT COUNT(*) FROM chama_members 
-              WHERE chama_id = ci.chama_id 
-              AND role IN ('CHAIRPERSON', 'SECRETARY', 'TREASURER') 
-              AND is_active = true) as total_admins
-      FROM claim_info ci
-    `;
-
-    const {
-      rows: [claimInfo],
-    } = await client.query(checkApprovalsQuery, [claimId]);
-
-    // If we have at least 2 approvals or this is the last admin to approve
-    if (
-      claimInfo.approval_count >= 2
-      || claimInfo.approval_count >= claimInfo.total_admins
-    ) {
-      // Update claim status to approved
+    if (status === 'REJECTED') {
+      // Any single rejection from an official => mark claim as REJECTED
       await client.query(
-        'UPDATE welfare_claims SET status = \'APPROVED\' WHERE claim_id = $1',
+        "UPDATE welfare_claims SET status = 'REJECTED', updated_at = CURRENT_TIMESTAMP WHERE claim_id = $1",
         [claimId],
       );
 
-      // Process payment (simplified - in reality, you'd integrate with M-Pesa API)
-      // Passing client to helper to maintain transaction context
-      await processWelfarePayout(claimInfo, client);
+      // Notify the claimant of rejection
+      const { rows: [rejectedClaim] } = await client.query(
+        `SELECT wc.member_id, c.chama_name FROM welfare_claims wc
+         JOIN chamas c ON wc.chama_id = c.chama_id WHERE wc.claim_id = $1`,
+        [claimId],
+      );
+      if (rejectedClaim) {
+        await sendNotification({
+          userId: rejectedClaim.member_id,
+          title: 'Welfare Claim Rejected',
+          message: `Your welfare claim in ${rejectedClaim.chama_name} has been reviewed and rejected. ${finalComments ? 'Note: ' + finalComments : ''}`,
+          entityId: claimId,
+        }).catch(err => logger.warn('Notification failed (non-fatal):', err));
+      }
+    } else {
+      // APPROVED path: check multi-sig threshold
+      const checkApprovalsQuery = `
+        WITH claim_info AS (
+          SELECT wc.claim_id as id, wc.*, c.chama_name,
+                 (SELECT COUNT(*) FROM welfare_claim_approvals 
+                  WHERE claim_id = $1 AND status = 'APPROVED') as approval_count
+          FROM welfare_claims wc
+          JOIN chamas c ON wc.chama_id = c.chama_id
+          WHERE wc.claim_id = $1
+        )
+        SELECT ci.*, 
+               (SELECT COUNT(*) FROM chama_members 
+                WHERE chama_id = ci.chama_id 
+                AND role IN ('CHAIRPERSON', 'SECRETARY', 'TREASURER') 
+                AND is_active = true) as total_admins
+        FROM claim_info ci
+      `;
 
-      // Notify the claimant
-      await sendNotification({
-        userId: claimInfo.member_id,
-        ...notificationTemplates.welfareClaimApproved(
-          claimInfo.chama_name,
-          claimInfo.claim_amount,
-        ),
-        entityId: claimId,
-      });
+      const { rows: [claimInfo] } = await client.query(checkApprovalsQuery, [claimId]);
+
+      // Need at least 2 approvals, or all officials have approved (whichever comes first)
+      const approvalCount = parseInt(claimInfo.approval_count, 10);
+      const totalAdmins = parseInt(claimInfo.total_admins, 10);
+
+      const threshold = Math.min(2, totalAdmins);
+      if (approvalCount >= threshold) {
+        // --- FINAL FUND INTEGRITY CHECK BEFORE DISBURSEMENT ---
+        const { rows: [chama] } = await client.query('SELECT chama_type, current_fund FROM chamas WHERE chama_id = $1', [claimInfo.chama_id]);
+        
+        let currentBalance = 0;
+        if (chama && chama.chama_type === 'WELFARE') {
+          currentBalance = parseFloat(chama.current_fund || 0);
+        } else {
+          const { rows: [fund] } = await client.query('SELECT balance FROM welfare_fund WHERE chama_id = $1', [claimInfo.chama_id]);
+          currentBalance = fund ? parseFloat(fund.balance || 0) : 0;
+        }
+
+        if (currentBalance < parseFloat(claimInfo.claim_amount)) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ 
+            message: `Payout failed: Insufficient welfare fund balance (Available: KES ${currentBalance.toLocaleString()}, Needed: KES ${parseFloat(claimInfo.claim_amount).toLocaleString()})`
+          });
+        }
+
+        // Mark claim as APPROVED
+        await client.query(
+          "UPDATE welfare_claims SET status = 'APPROVED', updated_at = CURRENT_TIMESTAMP WHERE claim_id = $1",
+          [claimId],
+        );
+
+        // Process the payout (deducts from fund, records transaction, sets to PAID)
+        await processWelfarePayout(claimInfo, client);
+
+        // Notify the claimant
+        await sendNotification({
+          userId: claimInfo.member_id,
+          ...notificationTemplates.welfareClaimApproved(
+            claimInfo.chama_name,
+            claimInfo.claim_amount,
+          ),
+          entityId: claimId,
+        }).catch(err => logger.warn('Notification failed (non-fatal):', err));
+      }
     }
 
     await client.query('COMMIT');
-
     res.json({ message: 'Approval recorded successfully' });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -509,11 +622,20 @@ async function processWelfarePayout(claim, client = pool) {
       [claim.claim_id || claim.id],
     );
 
-    // Update the welfare fund balance
-    await client.query(
-      'UPDATE welfare_fund SET balance = balance - $1 WHERE chama_id = $2',
-      [claim.claim_amount, claim.chama_id],
-    );
+    // Update the correct fund balance based on chama type
+    const { rows: [chama] } = await client.query('SELECT chama_type FROM chamas WHERE chama_id = $1', [claim.chama_id]);
+    
+    if (chama && chama.chama_type === 'WELFARE') {
+      await client.query(
+        'UPDATE chamas SET current_fund = current_fund - $1 WHERE chama_id = $2',
+        [claim.claim_amount, claim.chama_id]
+      );
+    } else {
+      await client.query(
+        'UPDATE welfare_fund SET balance = balance - $1 WHERE chama_id = $2',
+        [claim.claim_amount, claim.chama_id]
+      );
+    }
 
     logger.info(
       `Processed welfare payout of KES ${claim.claim_amount} for claim ${claim.id}`,

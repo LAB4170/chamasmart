@@ -91,6 +91,9 @@ if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
 }
 
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Final Catch-all Middleware (Replaces app.get('*'))
 app.use((req, res, next) => {
   // If API route not found

@@ -14,6 +14,7 @@ const cache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
  * @access  Private (Admin/Officials)
  */
 const createCycle = async (req, res) => {
+  console.log('ENTERING createCycle');
   const client = await pool.connect();
   const {
     chama_id, cycle_name, contribution_amount, frequency, start_date, roster_method = 'RANDOM', manual_roster = [],
@@ -26,7 +27,7 @@ const createCycle = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
-    if (!['WEEKLY', 'BIWEEKLY', 'MONTHLY'].includes(frequency)) {
+    if (!['DAILY', 'WEEKLY', 'BIWEEKLY', 'MONTHLY'].includes(frequency)) {
       return res.status(400).json({ success: false, message: 'Invalid frequency' });
     }
 
@@ -82,7 +83,6 @@ const createCycle = async (req, res) => {
       endDateObj.setMonth(startDateObj.getMonth() + memberCount);
     }
 
-    // Create the cycle including end_date and total_members
     const cycleResult = await client.query(
       `INSERT INTO rosca_cycles 
              (chama_id, cycle_name, contribution_amount, frequency, start_date, end_date, total_members, status)
@@ -111,17 +111,21 @@ const createCycle = async (req, res) => {
 
       rosterMembers = manual_roster.map(userId => members.rows.find(m => m.user_id === userId));
     } else if (roster_method === 'TRUST') {
-      // Fetch members with trust scores
+      // Challenge A: "Trust-Based Roster" - Ensure scores are FRESH
+      const TrustScoreService = require('../utils/trustScoreService');
+      console.log(`Refreshing trust scores for chama ${chama_id} before cycle creation...`);
+      await TrustScoreService.analyzeChamaReliability(chama_id);
+
+      // Fetch members with newly updated trust scores
       const membersWithScores = await client.query(
         `SELECT cm.user_id, COALESCE(cm.trust_score, 50) as trust_score 
                  FROM chama_members cm
-                 WHERE cm.chama_id = $1 AND cm.user_id = ANY($2)`,
+                 WHERE cm.chama_id = $1 AND cm.user_id = ANY($2) AND cm.is_active = true`,
         [chama_id, members.rows.map(m => m.user_id)],
       );
 
       const scoredMembers = membersWithScores.rows;
 
-      // Challenge A: "Trust-Based Roster"
       // > 80: High Trust (First slots)
       // < 60: Low Trust (Last slots)
       const highTrust = scoredMembers.filter(m => m.trust_score >= 80);
@@ -148,7 +152,7 @@ const createCycle = async (req, res) => {
       // (cycle_id, user_id, position)
       const baseIndex = rosterParams.length + 1;
       rosterValues.push(`($${baseIndex}, $${baseIndex + 1}, $${baseIndex + 2})`);
-      rosterParams.push(cycle.cycle_id, member.user_id, index + 1);
+      rosterParams.push(cycle.cycle_id || cycle.id, member.user_id, index + 1);
     });
 
     await client.query(
@@ -507,6 +511,7 @@ const requestPositionSwap = async (req, res) => {
 
   const targetPositionInt = parseInt(target_position, 10);
   if (!Number.isInteger(targetPositionInt) || targetPositionInt <= 0) {
+    fs.appendFileSync('rosca_debug.log', 'DEBUG: requestPositionSwap - Invalid target position\n');
     await client.release();
     return res.status(400).json({ success: false, message: 'Invalid target position' });
   }
@@ -522,6 +527,7 @@ const requestPositionSwap = async (req, res) => {
     );
 
     if (userRoster.rows.length === 0) {
+      fs.appendFileSync('rosca_debug.log', `DEBUG: requestPositionSwap - User ${userId} not in roster for cycle ${cycleId}\n`);
       await client.query('ROLLBACK');
       return res.status(403).json({
         success: false,
@@ -533,6 +539,7 @@ const requestPositionSwap = async (req, res) => {
 
     // Verify target position exists and is not the same as current position
     if (target_position === userPosition) {
+      fs.appendFileSync('rosca_debug.log', 'DEBUG: requestPositionSwap - Same position swap attempt\n');
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
@@ -547,6 +554,7 @@ const requestPositionSwap = async (req, res) => {
     );
 
     if (targetRoster.rows.length === 0) {
+      fs.appendFileSync('rosca_debug.log', `DEBUG: requestPositionSwap - Target position ${targetPositionInt} not found\n`);
       await client.query('ROLLBACK');
       return res.status(404).json({
         success: false,
@@ -558,6 +566,7 @@ const requestPositionSwap = async (req, res) => {
 
     // Check if either position has already been paid
     if (userRoster.rows[0].status === 'PAID' || targetRoster.rows[0].status === 'PAID') {
+      fs.appendFileSync('rosca_debug.log', 'DEBUG: requestPositionSwap - Position already paid\n');
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
@@ -586,21 +595,25 @@ const requestPositionSwap = async (req, res) => {
     // Create swap request
     await client.query(
       `INSERT INTO rosca_swap_requests 
-             (cycle_id, requester_id, target_position, status, reason)
-             VALUES ($1, $2, $3, 'PENDING', $4)`,
-      [cycleId, userId, targetPositionInt, reason],
+             (cycle_id, requester_id, requester_position, target_position, status, reason)
+             VALUES ($1, $2, $3, $4, 'PENDING', $5)`,
+      [cycleId, userId, userPosition, targetPositionInt, reason],
     );
 
     await client.query('COMMIT');
 
     // Notify target user via WebSocket
-    const io = getIo();
-    io.to(`user_${targetUser.user_id}`).emit('rosca_swap_requested', {
-      cycle_id: cycleId,
-      requester_id: userId,
-      target_position,
-      reason,
-    });
+    try {
+      const io = getIo();
+      io.to(`user_${targetUser.user_id}`).emit('rosca_swap_requested', {
+        cycle_id: cycleId,
+        requester_id: userId,
+        target_position,
+        reason,
+      });
+    } catch (ioErr) {
+      logger.warn('Socket notification failed for swap request', { error: ioErr.message });
+    }
 
     res.status(201).json({
       success: true,
@@ -644,12 +657,13 @@ const respondToSwapRequest = async (req, res) => {
 
     // Get the swap request
     const requestResult = await client.query(
-      `SELECT sr.*, rr1.position as requester_position, rr1.user_id as requester_id,
-                    rr2.position as target_position, rr2.user_id as target_user_id
-             FROM rosca_swap_requests sr
-             JOIN rosca_roster rr1 ON sr.cycle_id = rr1.cycle_id AND sr.requester_id = rr1.user_id
-             JOIN rosca_roster rr2 ON sr.cycle_id = rr2.cycle_id AND sr.target_position = rr2.position
-             WHERE sr.request_id = $1`,
+      `SELECT sr.*, 
+              rr1.position as current_requester_position, 
+              rr2.user_id as target_user_id
+       FROM rosca_swap_requests sr
+       JOIN rosca_roster rr1 ON sr.cycle_id = rr1.cycle_id AND sr.requester_id = rr1.user_id
+       LEFT JOIN rosca_roster rr2 ON sr.cycle_id = rr2.cycle_id AND sr.target_position = rr2.position
+       WHERE sr.request_id = $1`,
       [requestId],
     );
 
@@ -681,6 +695,18 @@ const respondToSwapRequest = async (req, res) => {
     );
 
     if (action === 'APPROVED') {
+      // Defer constraints to allow atomic position swap
+      await client.query('SET CONSTRAINTS ALL DEFERRED');
+
+      // ADDITIONAL INTEGRITY CHECK: Verify requester's current position still matches what was requested
+      if (request.current_requester_position !== request.requester_position) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Swap failed: Requester position has changed since the request was made.' 
+        });
+      }
+
       // Swap the positions in the roster
       await client.query(
         `UPDATE rosca_roster 
@@ -702,25 +728,33 @@ const respondToSwapRequest = async (req, res) => {
       cache.del(`rosca_roster_${request.cycle_id}`);
 
       // Notify both users via WebSocket
-      const io = getIo();
-      io.to(`user_${request.requester_id}`).emit('rosca_swap_completed', {
-        request_id: requestId,
-        status: 'APPROVED',
-        new_position: request.target_position,
-      });
+      try {
+        const io = getIo();
+        io.to(`user_${request.requester_id}`).emit('rosca_swap_completed', {
+          request_id: requestId,
+          status: 'APPROVED',
+          new_position: request.target_position,
+        });
 
-      io.to(`user_${request.target_user_id}`).emit('rosca_swap_completed', {
-        request_id: requestId,
-        status: 'APPROVED',
-        new_position: request.requester_position,
-      });
+        io.to(`user_${request.target_user_id}`).emit('rosca_swap_completed', {
+          request_id: requestId,
+          status: 'APPROVED',
+          new_position: request.requester_position,
+        });
+      } catch (ioErr) {
+        logger.warn('Socket notification failed for swap approval', { error: ioErr.message });
+      }
     } else {
       // Notify requester of rejection
-      const io = getIo();
-      io.to(`user_${request.requester_id}`).emit('rosca_swap_completed', {
-        request_id: requestId,
-        status: 'REJECTED',
-      });
+      try {
+        const io = getIo();
+        io.to(`user_${request.requester_id}`).emit('rosca_swap_completed', {
+          request_id: requestId,
+          status: 'REJECTED',
+        });
+      } catch (ioErr) {
+        logger.warn('Socket notification failed for swap rejection', { error: ioErr.message });
+      }
     }
 
     await client.query('COMMIT');

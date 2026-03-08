@@ -10,6 +10,8 @@ const {
   submitClaimSchema,
   approveClaimSchema,
   makeWelfareContributionSchema,
+  createEmergencyDriveSchema,
+  contributeToEmergencyDriveSchema,
 } = require('../utils/validationSchemas');
 const { applyRateLimiting } = require('../middleware/rateLimiting');
 
@@ -105,6 +107,7 @@ router.post(
 router.post(
   '/:chamaId/emergency-drives',
   authorize('admin', 'chairperson'),
+  validate(createEmergencyDriveSchema),
   welfareController.createEmergencyDrive,
 );
 
@@ -119,6 +122,7 @@ router.get(
 router.post(
   '/emergency-drives/:driveId/contribute',
   authorize('member', 'admin', 'treasurer', 'chairperson'),
+  validate(contributeToEmergencyDriveSchema),
   welfareController.contributeToEmergencyDrive,
 );
 

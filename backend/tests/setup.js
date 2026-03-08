@@ -143,28 +143,28 @@ jest.mock("../config/db", () => {
 });
 
 // Stateful Redis Mock
-const redisStore = new Map();
+const mockRedisStore = new Map();
 
 jest.mock("../config/redis", () => ({
   redis: {
-    get: jest.fn((key) => Promise.resolve(redisStore.get(key) || null)),
+    get: jest.fn((key) => Promise.resolve(mockRedisStore.get(key) || null)),
     set: jest.fn((key, value) => {
-      redisStore.set(key, value);
+      mockRedisStore.set(key, value);
       return Promise.resolve("OK");
     }),
     setex: jest.fn((key, seconds, value) => {
-      redisStore.set(key, value);
+      mockRedisStore.set(key, value);
       return Promise.resolve("OK");
     }),
     del: jest.fn((key) => {
-      const deleted = redisStore.delete(key);
+      const deleted = mockRedisStore.delete(key);
       return Promise.resolve(deleted ? 1 : 0);
     }),
-    exists: jest.fn((key) => Promise.resolve(redisStore.has(key) ? 1 : 0)),
+    exists: jest.fn((key) => Promise.resolve(mockRedisStore.has(key) ? 1 : 0)),
     expire: jest.fn(() => Promise.resolve(1)),
     incr: jest.fn((key) => {
-      const val = parseInt(redisStore.get(key) || "0") + 1;
-      redisStore.set(key, val.toString());
+      const val = parseInt(mockRedisStore.get(key) || "0") + 1;
+      mockRedisStore.set(key, val.toString());
       return Promise.resolve(val);
     }),
     ttl: jest.fn().mockResolvedValue(3600),
@@ -280,7 +280,7 @@ jest.mock("../utils/notifications", () => ({
 beforeEach(() => {
   jest.clearAllMocks();
   usersStore.length = 0;
-  redisStore.clear();
+  mockRedisStore.clear();
   userIdCounter = 1;
 });
 

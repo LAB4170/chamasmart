@@ -62,8 +62,8 @@ const validateQueryParams = (req, res, next) => {
     });
   }
 
-  // Replace query with validated values
-  req.query = value;
+  // Merge validated values into the existing query object (req.query is read-only in some Node versions)
+  Object.assign(req.query, value);
 
   // Log search queries for debugging
   if (req.query.search || req.query.query) {

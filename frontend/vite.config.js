@@ -178,10 +178,14 @@ export default defineConfig({
 
       "/socket.io": {
         target: "http://localhost:5005",
-
         changeOrigin: true,
-
         ws: true,
+      },
+
+      "/uploads": {
+        target: "http://localhost:5005",
+        changeOrigin: true,
+        secure: false,
       },
     },
 

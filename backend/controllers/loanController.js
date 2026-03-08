@@ -551,6 +551,9 @@ class LoanConfigService {
 // ============================================================================
 // TREASURY LIQUIDITY HELPER
 // ============================================================================
+// ============================================================================
+// TREASURY LIQUIDITY HELPER
+// ============================================================================
 const getAvailableTreasury = async (client, chamaId, chamaType) => {
   let availablePool = 0;
 
@@ -572,7 +575,7 @@ const getAvailableTreasury = async (client, chamaId, chamaType) => {
       `SELECT SUM(CASE WHEN l.status = 'DISBURSED' THEN l.balance ELSE l.loan_amount END) as disbursed 
        FROM loans l
        JOIN asca_members am ON l.borrower_id = am.user_id AND am.cycle_id = $1
-       WHERE l.chama_id = $2 AND l.status IN ('DISBURSED', 'APPROVED', 'PENDING')`,
+       WHERE l.chama_id = $2 AND l.status IN ('DISBURSED', 'APPROVED', 'PENDING', 'PENDING_GUARANTOR', 'PENDING_APPROVAL')`,
       [cycleId, chamaId]
     );
     const totalDisbursed = parseFloat(outRes.rows[0].disbursed || 0);
@@ -588,7 +591,7 @@ const getAvailableTreasury = async (client, chamaId, chamaType) => {
     const outRes = await client.query(
       `SELECT SUM(CASE WHEN status = 'DISBURSED' THEN balance ELSE loan_amount END) as disbursed 
        FROM loans 
-       WHERE chama_id = $1 AND status IN ('DISBURSED', 'APPROVED', 'PENDING')`,
+       WHERE chama_id = $1 AND status IN ('DISBURSED', 'APPROVED', 'PENDING', 'PENDING_GUARANTOR', 'PENDING_APPROVAL')`,
       [chamaId]
     );
     const totalDisbursed = parseFloat(outRes.rows[0].disbursed || 0);
@@ -1105,7 +1108,8 @@ const approveLoan = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    await client.query('BEGIN');
+    // ENFORCE SERIALIZABLE TO PREVENT RACE CONDITIONS DURING SIMULTANEOUS APPROVALS
+    await client.query('BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE');
 
     const { chamaId, loanId } = req.params;
     const {
@@ -1213,7 +1217,7 @@ const approveLoan = async (req, res) => {
 
     // Calculate schedule
     const schedule = LoanCalculator.calculateFlatInterest(
-      approvedAmountValue,
+      approvedAmountCents,
       finalInterestRate,
       finalTermMonths,
     );
@@ -1798,7 +1802,7 @@ const respondToGuaranteeRequest = async (req, res) => {
   }
 };
 
-const APPROVAL_THRESHOLD = 2; // Minimum official approvals needed
+// Standardized Multi-Sig Approval logic moved dynamically into the function body
 
 const approveLoanByOfficial = async (req, res) => {
   const client = await pool.connect();
@@ -1853,21 +1857,26 @@ const approveLoanByOfficial = async (req, res) => {
       });
     }
 
-    await client.query('BEGIN');
+    await client.query('BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE');
 
     // === VALIDATE TREASURY LIQUIDITY BEFORE VOTE/APPROVAL ===
     const chamaRes = await client.query('SELECT chama_type FROM chamas WHERE chama_id = $1', [loan.chama_id]);
     const chamaType = chamaRes.rows[0].chama_type;
-    const availablePool = await getAvailableTreasury(client, loan.chama_id, chamaType);
+    const availablePoolCents = toCents(await getAvailableTreasury(client, loan.chama_id, chamaType));
     
     // Add back the current loan amount because it was already deducted by getAvailableTreasury as a pending liability
-    const effectivePool = availablePool + parseFloat(loan.loan_amount || 0);
+    const loanAmountCents = toCents(loan.loan_amount || 0);
+    const effectivePoolCents = availablePoolCents + loanAmountCents;
 
-    if (parseFloat(loan.loan_amount || 0) > effectivePool) {
+    if (loanAmountCents > effectivePoolCents) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
         message: 'Approval Blocked: There are insufficient unallocated funds in the Chama pool to disburse this loan.',
+        data: {
+          required: fromCents(loanAmountCents),
+          available: fromCents(effectivePoolCents)
+        }
       });
     }
 
@@ -1877,21 +1886,30 @@ const approveLoanByOfficial = async (req, res) => {
       [loanId, userId, action, notes || null]
     );
 
-    // 6. Count total approvals
-    const countRes = await client.query(
-      "SELECT COUNT(*) as count FROM loan_approvals WHERE loan_id = $1 AND status = 'APPROVED'",
-      [loanId]
-    );
-    const approvalCount = parseInt(countRes.rows[0].count, 10);
+    // 6. Count total approvals and get total available admins
+    const checkApprovalsQuery = `
+      SELECT 
+        (SELECT COUNT(*) FROM loan_approvals WHERE loan_id = $1 AND status = 'APPROVED') as approval_count,
+        (SELECT COUNT(*) FROM chama_members 
+         WHERE chama_id = $2 
+         AND role IN ('CHAIRPERSON', 'SECRETARY', 'TREASURER') 
+         AND is_active = true) as total_admins
+    `;
+    const { rows: [approvalStats] } = await client.query(checkApprovalsQuery, [loanId, loan.chama_id]);
+    const approvalCount = parseInt(approvalStats.approval_count, 10);
+    const totalAdmins = parseInt(approvalStats.total_admins, 10);
+
+    // Standardized Multi-Sig Threshold: at least 2 approvals, or all admins if less than 2
+    const threshold = Math.min(2, totalAdmins);
 
     let newStatus = loan.status;
-    let message = `Vote recorded. ${approvalCount}/${APPROVAL_THRESHOLD} approvals.`;
+    let message = `Vote recorded. ${approvalCount}/${threshold} approvals.`;
 
     if (action === 'REJECTED') {
       // Any official can reject immediately
       newStatus = 'REJECTED';
       message = 'Loan rejected.';
-    } else if (approvalCount >= APPROVAL_THRESHOLD) {
+    } else if (approvalCount >= threshold) {
       // Threshold met — approve the loan
       newStatus = 'APPROVED';
       message = `Loan approved. ${approvalCount} officials approved — funds authorized.`;

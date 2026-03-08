@@ -131,7 +131,7 @@ const WelfareDashboard = () => {
     };
 
     const balance = Number(fundValues?.balance ?? 0);
-    const isChairperson = ["CHAIRPERSON", "ADMIN"].includes(userRole?.toUpperCase());
+    const isOfficial = ["CHAIRPERSON", "ADMIN", "TREASURER", "SECRETARY"].includes(userRole?.toUpperCase());
     const maxCoverage = config.length > 0 ? Math.max(...config.map(c => Number(c.payout_amount))) : 0;
     const fundIsLow = balance < maxCoverage;
 
@@ -168,7 +168,7 @@ const WelfareDashboard = () => {
                                 <AlertTriangle size={16} />
                                 <span>File Claim</span>
                             </button>
-                            {isChairperson && (
+                            {isOfficial && (
                                 <button
                                     className="btn-action-secondary"
                                     onClick={() => navigate(`/chamas/${id}/welfare/admin`)}

@@ -39,6 +39,29 @@ try {
  * @returns {Promise<string>} - Public URL of the uploaded file
  */
 const uploadToStorage = async (file, destinationPath) => {
+  // If GCS is not configured (mocked bucket), fallback to local storage
+  if (!process.env.GOOGLE_APPLICATION_CREDENTIALS || !process.env.GCS_BUCKET_NAME) {
+    try {
+      const uploadDir = path.join(__dirname, '../uploads', destinationPath);
+      const fs = require('fs');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
+      const localFilePath = path.join(uploadDir, filename);
+      
+      fs.writeFileSync(localFilePath, file.buffer);
+      
+      const publicUrl = `/uploads/${destinationPath}/${filename}`.replace(/\\/g, '/');
+      logger.info(`File stored locally (GCS not configured): ${publicUrl}`);
+      return publicUrl;
+    } catch (localError) {
+      logger.error('Error in local storage fallback:', localError);
+      throw localError;
+    }
+  }
+
   try {
     // Generate a unique filename
     const extension = path.extname(file.originalname);

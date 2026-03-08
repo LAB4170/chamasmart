@@ -25,12 +25,23 @@ module.exports = {
     if (process.env.REDIS_HOST) {
       try {
         pubClient = createClient({
-          host: process.env.REDIS_HOST,
-          port: parseInt(process.env.REDIS_PORT) || 6379,
+          // Use url instead of host/port for newer redis client if needed, 
+          // but sticking to standard config if it works.
+          socket: {
+            host: process.env.REDIS_HOST,
+            port: parseInt(process.env.REDIS_PORT) || 6379,
+          },
           password: process.env.REDIS_PASSWORD,
         });
 
+        pubClient.on('error', (err) => {
+          logger.error('Redis Pub Client Error:', err.message);
+        });
+
         subClient = pubClient.duplicate();
+        subClient.on('error', (err) => {
+          logger.error('Redis Sub Client Error:', err.message);
+        });
 
         await Promise.all([
           pubClient.connect(),

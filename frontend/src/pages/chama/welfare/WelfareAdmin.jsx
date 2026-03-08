@@ -28,7 +28,9 @@ const WelfareAdmin = () => {
             try {
                 const response = await welfareAPI.getChamaClaims(id);
                 if (isMounted) {
-                    setClaims(response.data);
+                    // Backend wraps paginated data in response.data.data
+                    const claimsData = response.data?.data || response.data || [];
+                    setClaims(Array.isArray(claimsData) ? claimsData : []);
                     setLoading(false);
                 }
             } catch (err) {
@@ -53,9 +55,8 @@ const WelfareAdmin = () => {
         try {
             setActionLoading(claimId);
             await welfareAPI.approveClaim(claimId, {
-                approverId: user.user_id,
                 status: status,
-                comments: status === 'APPROVED' ? "Approved via Admin Dashboard" : "Rejected"
+                comments: status === 'APPROVED' ? 'Approved via Admin Dashboard' : 'Rejected via Admin Dashboard',
             });
             toast.success(`Claim ${status.toLowerCase()} successfully`);
 
@@ -72,14 +73,17 @@ const WelfareAdmin = () => {
     };
 
     const stats = {
-        pending: claims.filter(c => c.status === 'PENDING').length,
-        approved: claims.filter(c => c.status === 'APPROVED').length,
-        disbursed: claims.filter(c => c.status === 'APPROVED').reduce((sum, c) => sum + parseFloat(c.claim_amount), 0)
+        // Claims start as 'SUBMITTED', not 'PENDING'
+        pending: claims.filter(c => c.status === 'SUBMITTED' || c.status === 'PENDING').length,
+        approved: claims.filter(c => c.status === 'APPROVED' || c.status === 'PAID').length,
+        disbursed: claims.filter(c => c.status === 'APPROVED' || c.status === 'PAID').reduce((sum, c) => sum + parseFloat(c.claim_amount), 0)
     };
 
     const filteredClaims = filter === 'ALL'
         ? claims
-        : claims.filter(c => c.status === filter);
+        : filter === 'PENDING'
+            ? claims.filter(c => c.status === 'SUBMITTED' || c.status === 'PENDING')
+            : claims.filter(c => c.status === filter);
 
     if (loading) {
         return (
@@ -126,7 +130,7 @@ const WelfareAdmin = () => {
 
                     {/* Filter Tabs */}
                     <div style={{ background: 'var(--bg-secondary)', padding: '4px', borderRadius: '8px', display: 'flex', gap: '4px' }}>
-                        {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map(f => (
+                        {['ALL', 'PENDING', 'APPROVED', 'PAID', 'REJECTED'].map(f => (
                             <button
                                 key={f}
                                 onClick={() => setFilter(f)}
@@ -143,7 +147,7 @@ const WelfareAdmin = () => {
                                     transition: 'all 0.2s'
                                 }}
                             >
-                                {f.charAt(0) + f.slice(1).toLowerCase()}
+                                {f === 'PENDING' ? 'Awaiting Review' : f.charAt(0) + f.slice(1).toLowerCase()}
                             </button>
                         ))}
                     </div>
@@ -232,10 +236,12 @@ const WelfareAdmin = () => {
                                             </span>
                                             <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)' }}>{claim.member_name}</h4>
                                         </div>
-                                        {claim.status === 'PENDING' ? (
-                                            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--warning)', background: 'rgba(234, 179, 8, 0.1)', padding: '4px 8px', borderRadius: '6px' }}>PENDING</span>
+                                        {(claim.status === 'PENDING' || claim.status === 'SUBMITTED') ? (
+                                            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--warning)', background: 'rgba(234, 179, 8, 0.1)', padding: '4px 8px', borderRadius: '6px' }}>AWAITING REVIEW</span>
                                         ) : claim.status === 'APPROVED' ? (
                                             <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--success)', background: 'rgba(34, 197, 94, 0.1)', padding: '4px 8px', borderRadius: '6px' }}>APPROVED</span>
+                                        ) : claim.status === 'PAID' ? (
+                                            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#3b82f6', background: 'rgba(59, 130, 246, 0.1)', padding: '4px 8px', borderRadius: '6px' }}>PAID</span>
                                         ) : (
                                             <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--danger)', background: 'rgba(239, 68, 68, 0.1)', padding: '4px 8px', borderRadius: '6px' }}>REJECTED</span>
                                         )}
@@ -271,7 +277,7 @@ const WelfareAdmin = () => {
                                     )}
                                 </div>
 
-                                {claim.status === 'PENDING' && (
+                                {(claim.status === 'SUBMITTED' || claim.status === 'PENDING') && (
                                     <div style={{ padding: '1rem 1.5rem', background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-light)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                         <button
                                             onClick={() => handleApproval(claim.id, 'APPROVED')}

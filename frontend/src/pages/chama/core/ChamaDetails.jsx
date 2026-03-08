@@ -146,8 +146,8 @@ const StatsSection = memo(({ stats, isROSCA, chama, members, formatCurrency }) =
         {['ASCA', 'TABLE_BANKING'].includes(chama.chama_type) && (
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginTop: '0.5rem', background: 'var(--bg-primary-light)', padding: '0.35rem 0.5rem', borderRadius: '0.35rem', width: '100%' }}>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ color: 'var(--primary)', fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 800 }}>Savings</span>
-              <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{formatCurrency(stats.total_contributions || 0)}</span>
+              <span style={{ color: 'var(--primary)', fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 800 }}>Base Savings</span>
+              <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{formatCurrency((stats.current_fund || 0) - (stats.total_interest_earned || 0))}</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'right' }}>
               <span style={{ color: 'var(--primary)', fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 800 }}>Interest</span>
@@ -2515,12 +2515,22 @@ const ChamaDetails = () => {
                     <Heart size={20} className="text-pink-500" />
                     Welfare Fund
                   </h3>
-                  <button
-                    className="btn btn-sm btn-primary"
-                    onClick={() => navigate(`/chamas/${id}/welfare/submit-claim`)}
-                  >
-                    New Claim
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {officialStatus && (
+                      <button
+                        className="btn btn-sm btn-outline border-pink-200 text-pink-600 hover:bg-pink-50"
+                        onClick={() => navigate(`/chamas/${id}/welfare/admin`)}
+                      >
+                        <Shield size={14} className="mr-1" /> Manage Claims
+                      </button>
+                    )}
+                    <button
+                      className="btn btn-sm btn-primary"
+                      onClick={() => navigate(`/chamas/${id}/welfare/submit-claim`)}
+                    >
+                      New Claim
+                    </button>
+                  </div>
                 </div>
                 {welfareFund && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
@@ -2545,10 +2555,10 @@ const ChamaDetails = () => {
                       <div key={c.claim_id} className="p-3 bg-white border border-gray-100 rounded-xl flex-between shadow-sm">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center font-bold">
-                            {c.claim_type[0]}
+                            {(c.claim_type || c.event_type || '?')[0]}
                           </div>
                           <div>
-                            <p className="font-bold text-gray-800">{c.claim_type}</p>
+                            <p className="font-bold text-gray-800">{c.claim_type || c.event_type || 'Custom Claim'}</p>
                             <p className="text-xs text-gray-400">{formatDate(c.created_at)}</p>
                           </div>
                         </div>

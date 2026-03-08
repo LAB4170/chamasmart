@@ -52,7 +52,11 @@ export const welfareAPI = {
     submitClaim: (chamaId, claimData) => {
         const formData = new FormData();
         Object.keys(claimData).forEach((key) => {
-            formData.append(key, claimData[key]);
+            if (claimData[key] instanceof Date) {
+                formData.append(key, claimData[key].toISOString());
+            } else if (claimData[key] !== null && claimData[key] !== undefined) {
+                formData.append(key, claimData[key]);
+            }
         });
         return api.post(`/welfare/${chamaId}/claims`, formData, {
             headers: { "Content-Type": "multipart/form-data" },

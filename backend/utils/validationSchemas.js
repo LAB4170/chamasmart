@@ -202,7 +202,7 @@ const createCycleSchema = Joi.object({
   chama_id: Joi.number().integer().required(),
   cycle_name: Joi.string().min(3).max(100).required(),
   contribution_amount: Joi.number().positive().required(),
-  frequency: Joi.string().valid('WEEKLY', 'BIWEEKLY', 'MONTHLY').required(),
+  frequency: Joi.string().valid('DAILY', 'WEEKLY', 'BIWEEKLY', 'MONTHLY').required(),
   start_date: Joi.date().iso().required(),
   roster_method: Joi.string().valid('RANDOM', 'TRUST', 'MANUAL').default('RANDOM'),
   manual_roster: Joi.array().items(Joi.number().integer()).when('roster_method', {
@@ -269,6 +269,43 @@ const makeWelfareContributionSchema = Joi.object({
   paymentMethod: Joi.string().valid('CASH', 'MPESA', 'BANK_TRANSFER', 'CHEQUE', 'OTHER').default('CASH'),
 });
 
+const submitClaimSchema = Joi.object({
+  event_type_id: Joi.number().integer().optional().allow(null, ''),
+  custom_event_name: Joi.string().max(100).optional().allow(null, ''),
+  claim_amount: Joi.number().positive().required(),
+  description: Joi.string().max(500).optional().allow(null, ''),
+  date_of_occurrence: Joi.date().iso().required(),
+});
+
+const approveClaimSchema = Joi.object({
+  status: Joi.string().valid('APPROVED', 'REJECTED').required(),
+  approverId: Joi.number().integer().optional(), // Can also come from req.user
+  comments: Joi.string().max(500).optional().allow('', null),
+  reviewer_notes: Joi.string().max(500).optional().allow('', null),
+  approved_amount: Joi.number().positive().optional().allow(null),
+});
+
+const createEmergencyDriveSchema = Joi.object({
+  beneficiary_id: Joi.number().integer().required(),
+  description: Joi.string().min(5).max(500).required(),
+  target_amount: Joi.number().positive().required(),
+});
+
+const contributeToEmergencyDriveSchema = Joi.object({
+  amount: Joi.number().positive().required(),
+});
+
+const updateWelfareConfigSchema = Joi.object({
+  config: Joi.array().items(
+    Joi.object({
+      id: Joi.number().integer().optional(),
+      event_type: Joi.string().max(100).required(),
+      payout_amount: Joi.number().min(0).required(),
+      is_active: Joi.boolean().default(true),
+    })
+  ).min(1).required(),
+});
+
 module.exports = {
   // Authentication
   registerPasswordSchema,
@@ -318,4 +355,9 @@ module.exports = {
 
   // Welfare
   makeWelfareContributionSchema,
+  submitClaimSchema,
+  approveClaimSchema,
+  createEmergencyDriveSchema,
+  contributeToEmergencyDriveSchema,
+  updateWelfareConfigSchema,
 };
