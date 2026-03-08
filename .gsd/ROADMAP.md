@@ -4,38 +4,11 @@
 > **Milestone**: v1.1 - ROSCA & Schema Stability
 
 ## Must-Haves (from SPEC)
-- [ ] Corrected ROSCA Payout Logic
-- [ ] Synchronized Validation Schemas
-- [ ] Trust Score Integration fix
-- [ ] Redundant Auth Controller Removal
+- [x] Corrected ROSCA Payout Logic
+- [x] Synchronized Validation Schemas
+- [x] Trust Score Integration fix
+- [x] Redundant Auth Controller Removal
 
 ## Phases
 
-### Phase 1: ROSCA Logic Stabilization
-**Status**: ✅ Complete
-**Objective**: Fix critical bugs in payout eligibility and trust score querying.
-**Requirements**: REQ-01, REQ-02, REQ-03
-
-### Phase 2: Schema & Validation Sync
-**Status**: 🚧 In Progress
-**Objective**: Update all Joi schemas and ensure they match controller logic across the project.
-**Requirements**: REQ-04
-
-### Phase 3: Technical Debt & Cleanup
-**Status**: ⬜ Not Started
-**Objective**: Consolidate authentication controllers and clean up redundant backup files.
-**Requirements**: REQ-05
-
-### Phase 4: Verification & Hardening
-**Status**: ✅ Complete
-**Objective**: Perform empirical validation of the full ROSCA cycle and ensure concurrency stability.
-**Requirements**: REQ-06, REQ-07
-
-### Phase 14: Visual Loan Analytics Dashboard & Functional Exports
-**Status**: ?? In Progress
-**Objective**: Implement a visually appealing, role-gated loan analytics dashboard leveraging existing backend APIs, and ensure robust report export capabilities (PDF/Excel).
-**Requirements**: REQ-08
-
-### Phase 15: Treasury Liquidity Security Protocols
-**Status**:  In Progress
-**Objective**: Patch backend controllers to universally restrict loan disbursements that mathematically exceed the Chama's physical wallet balances.
+*(No phases planned yet for the next milestone. Run `/plan` to generate new phases.)*
