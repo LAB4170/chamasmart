@@ -16,17 +16,7 @@
 - **Status**: Completed
 - **Type**: Stability Improvement
 
-### Phase 15.3: M-Pesa Hardening (Audit Gap Closure)
-- **Goal**: Close 4 audit gaps: production safety guard, mock E2E callback, Safaricom 200 contract, Money utility extraction.
-- **Status**: Completed
-- **Type**: Stability / Correctness
-
 ### Phase 16: ROSCA Cycle Management & Ledgers 
 - **Goal**: Implement physical backend endpoints for ROSCA cycle contributions and add unified frontend ledger components so members can track their payment history.
-- **Status**: Completed
-- **Type**: Feature Completion
-
-### Phase 17: Multi-Tenancy Segregation 
-- **Goal**: Implement strict data isolation across Chamas. Enforce backend permission guards (IDOR prevention) based on Chama ID and standardize frontend context passing for active groups.
 - **Status**: Not started
-- **Type**: Security / Architecture
+- **Type**: Feature Completion

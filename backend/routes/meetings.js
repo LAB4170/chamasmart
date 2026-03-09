@@ -7,6 +7,7 @@ const {
   getMeetingById,
   updateMeeting,
   recordAttendance,
+  deleteMeeting,
 } = require('../controllers/meetingController');
 const { protect, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validate');
@@ -64,6 +65,13 @@ router.post(
   authorize('ADMIN', 'TREASURER', 'CHAIRPERSON'),
   validate(recordAttendanceSchema),
   recordAttendance,
+);
+
+// Delete meeting (chairperson only)
+router.delete(
+  '/:chamaId/:meetingId',
+  authorize('CHAIRPERSON'),
+  deleteMeeting,
 );
 
 module.exports = router;

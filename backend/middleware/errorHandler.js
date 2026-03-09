@@ -176,6 +176,12 @@ const errorHandler = (err, req, res, next) => {
     // PostgreSQL foreign key violation
     statusCode = HTTP_STATUS.BAD_REQUEST;
     message = 'Invalid reference';
+  } else if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
+    statusCode = 504;
+    message = 'Request timed out. Please try again.';
+  } else if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED') {
+    statusCode = 503;
+    message = 'Service is currently unreachable. Please check your connection.';
   }
 
   // Set status code on error object for response formatter

@@ -184,13 +184,25 @@ const RoscaDashboard = () => {
             e.preventDefault();
             setProcessing(true);
 
-            // SIMULATION
-            setTimeout(() => {
+            try {
+                await roscaAPI.makeContribution(id, selectedCycle.cycle_id, {
+                    amount: parseFloat(amount),
+                    phoneNumber: phone,
+                    payment_method: 'MPESA'
+                });
+                
                 setProcessing(false);
                 setShowPayModal(false);
-                toast.success("Payment request sent to " + phone);
-                toast.info("Check your phone to complete the transaction.", { autoClose: 8000 });
-            }, 2000);
+                toast.success("Contribution recorded successfully!");
+                
+                // Refresh the cycles list to reflect potential status changes
+                const cyclesRes = await roscaAPI.getCycles(id);
+                setCycles(cyclesRes.data.data || cyclesRes.data);
+            } catch (err) {
+                console.error(err);
+                setProcessing(false);
+                toast.error(err.response?.data?.message || "Failed to record contribution");
+            }
         };
 
         return (

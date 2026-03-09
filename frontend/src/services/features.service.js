@@ -5,6 +5,7 @@ export const roscaAPI = {
     getCycles: (chamaId) => api.get(`/rosca/chama/${chamaId}/cycles`),
     createCycle: (cycleData) =>
         api.post(`/rosca/chama/${cycleData.chama_id}/cycles`, cycleData),
+    getCycle: (cycleId) => api.get(`/rosca/cycles/${cycleId}`),
     getRoster: (cycleId) => api.get(`/rosca/cycles/${cycleId}/roster`),
     requestSwap: (cycleId, swapData) =>
         api.post(`/rosca/cycles/${cycleId}/swap-request`, swapData),
@@ -18,6 +19,12 @@ export const roscaAPI = {
     cancelCycle: (cycleId) =>
         api.put(`/rosca/cycles/${cycleId}/cancel`),
     deleteCycle: (cycleId) => api.delete(`/rosca/cycles/${cycleId}`),
+    makeContribution: (chamaId, cycleId, payload) =>
+        api.post(`/rosca/chama/${chamaId}/cycles/${cycleId}/contributions`, payload),
+    getContributions: (cycleId) =>
+        api.get(`/rosca/cycles/${cycleId}/contributions`),
+    getMemberStatement: (cycleId, memberId) =>
+        api.get(`/rosca/cycles/${cycleId}/members/${memberId}/statement`),
 };
 
 // ASCA API calls

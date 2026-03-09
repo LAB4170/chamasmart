@@ -52,6 +52,7 @@ const ApiKeyManagement = lazy(() => import("./pages/dashboard/ApiKeyManagement")
 const UserProfile = lazy(() => import("./pages/user/UserProfile"));
 const MeetingList = lazy(() => import("./pages/chama/meetings/MeetingList"));
 const CreateMeeting = lazy(() => import("./pages/chama/meetings/CreateMeeting"));
+const MeetingDetails = lazy(() => import("./pages/chama/meetings/MeetingDetails"));
 const RoscaDashboard = lazy(() => import("./pages/chama/rosca/RoscaDashboard"));
 const CreateCycle = lazy(() => import("./pages/chama/rosca/CreateCycle"));
 const RoscaDetails = lazy(() => import("./pages/chama/rosca/RoscaDetails"));
@@ -370,6 +371,14 @@ function AppContent() {
                                 element={
                                     <ProtectedRoute>
                                         <PageTransition><CreateMeeting /></PageTransition>
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/chamas/:id/meetings/:meetingId"
+                                element={
+                                    <ProtectedRoute>
+                                        <PageTransition><MeetingDetails /></PageTransition>
                                     </ProtectedRoute>
                                 }
                             />

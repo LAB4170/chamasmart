@@ -13,8 +13,15 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const { loginWithFirebase, loginWithGoogle } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, loginWithFirebase, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard");
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleChange = (e) => {
     setFormData({
@@ -47,12 +54,25 @@ const Login = () => {
 
     if (result.success) {
       navigate("/dashboard");
-    } else if (!result.ignored) {
+    } else {
       setError(result.error);
     }
 
     setLoading(false);
   };
+
+  if (authLoading && !isAuthenticated) {
+    return (
+      <div className="auth-page">
+        <div className="auth-container">
+          <div className="auth-card text-center">
+            <div className="spinner"></div>
+            <p className="mt-3">Authenticating...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-page">

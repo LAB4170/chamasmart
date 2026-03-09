@@ -76,8 +76,8 @@ const getSessionData = async (req, res, next) => {
         cm.role,
         (SELECT attended FROM meeting_attendance WHERE meeting_id = $1 AND user_id = u.user_id) as attended,
         COALESCE((SELECT SUM(amount) FROM contributions WHERE meeting_id = $1 AND user_id = u.user_id), 0) as total_contribution,
-        COALESCE((SELECT SUM(amount) FROM loan_repayments WHERE meeting_id = $1 AND borrower_id = u.user_id), 0) as total_repayment,
-        COALESCE((SELECT amount FROM loans WHERE meeting_id = $1 AND borrower_id = u.user_id LIMIT 1), 0) as loan_requested
+        COALESCE((SELECT SUM(amount) FROM loan_repayments WHERE meeting_id = $1 AND payer_id = u.user_id), 0) as total_repayment,
+        COALESCE((SELECT approved_amount FROM loans WHERE borrower_id = u.user_id AND created_at::date = (SELECT scheduled_date::date FROM meetings WHERE meeting_id = $1) LIMIT 1), 0) as loan_requested
       FROM chama_members cm
       JOIN users u ON cm.user_id = u.user_id
       WHERE cm.chama_id = $2 AND cm.is_active = true

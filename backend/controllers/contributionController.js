@@ -11,39 +11,9 @@ const { getIo } = require("../socket");
 const { AppError } = require("../middleware/errorHandler");
 const { body, validationResult } = require("express-validator");
 const TrustScoreService = require("../utils/trustScoreService");
-const { clearChamaCache } = require("../utils/cache");
+const { clearChamaCache } = require('../utils/cache');
+const Money = require('../utils/money');
 
-// ============================================================================
-// MONEY HANDLING (Integer Cents)
-// ============================================================================
-
-class Money {
-  static toCents(amount) {
-    if (typeof amount === "string") {
-      amount = parseFloat(amount);
-    }
-    if (isNaN(amount) || amount < 0) {
-      throw new AppError("Invalid amount", 400, "INVALID_AMOUNT");
-    }
-    return Math.round(amount * 100);
-  }
-
-  static fromCents(cents) {
-    return parseFloat((cents / 100).toFixed(2));
-  }
-
-  static add(a, b) {
-    return a + b;
-  }
-
-  static subtract(a, b) {
-    const result = a - b;
-    if (result < 0) {
-      throw new AppError("Insufficient funds", 400, "INSUFFICIENT_FUNDS");
-    }
-    return result;
-  }
-}
 
 // ============================================================================
 // VALIDATION MIDDLEWARE

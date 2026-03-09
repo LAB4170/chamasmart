@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { meetingAPI, chamaAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import { toast } from "react-toastify";
-import { Calendar, MapPin, Clock, Video, Users, PlusCircle, ArrowLeft } from "lucide-react";
+import { Calendar, MapPin, Clock, Video, Users, PlusCircle, ArrowLeft, Play } from "lucide-react";
 import "./Meetings.css";
 
 const MeetingList = () => {
@@ -66,7 +66,10 @@ const MeetingList = () => {
     };
 
     const formatDate = (dateString) => {
+        if (!dateString) return { day: '??', month: '???', year: '????', time: '--:--', full: 'Date not set' };
         const date = new Date(dateString);
+        if (isNaN(date.getTime())) return { day: '??', month: '???', year: '????', time: '--:--', full: 'Invalid Date' };
+        
         return {
             day: date.getDate(),
             month: date.toLocaleString('default', { month: 'short' }),
@@ -152,10 +155,10 @@ const MeetingList = () => {
                                 </h2>
                                 <div className="meeting-cards">
                                     {upcomingMeetings.map(meeting => {
-                                        const date = formatDate(meeting.scheduledAt || meeting.date);
+                                        const date = formatDate(meeting.scheduled_date || meeting.scheduledAt || meeting.date);
                                         const status = getStatusStyle(meeting.status);
                                         return (
-                                            <div key={meeting._id || meeting.meeting_id} className="meeting-card-modern upcoming-card">
+                                            <div key={meeting.meeting_id || meeting._id} className="meeting-card-modern upcoming-card">
                                                 <div className="meeting-date-block">
                                                     <span className="meeting-day">{date.day}</span>
                                                     <span className="meeting-month">{date.month}</span>
@@ -195,13 +198,13 @@ const MeetingList = () => {
                                                         {isOfficial && (
                                                             <div className="flex gap-2">
                                                                 <Link
-                                                                    to={`/chamas/${id}/meetings/${meeting._id || meeting.meeting_id}`}
+                                                                    to={`/chamas/${id}/meetings/${meeting.meeting_id || meeting._id}`}
                                                                     className="btn-manage"
                                                                 >
                                                                     Manage
                                                                 </Link>
                                                                 <Link
-                                                                    to={`/chamas/${id}/meetings/${meeting._id || meeting.meeting_id}/session`}
+                                                                    to={`/chamas/${id}/meetings/${meeting.meeting_id || meeting._id}/session`}
                                                                     className="btn-session-link"
                                                                 >
                                                                     <Play size={12} /> Live Session
@@ -226,10 +229,10 @@ const MeetingList = () => {
                                 </h2>
                                 <div className="meeting-cards">
                                     {pastMeetings.map(meeting => {
-                                        const date = formatDate(meeting.scheduledAt || meeting.date);
+                                        const date = formatDate(meeting.scheduled_date || meeting.scheduledAt || meeting.date);
                                         const status = getStatusStyle(meeting.status);
                                         return (
-                                            <div key={meeting._id || meeting.meeting_id} className="meeting-card-modern past-card">
+                                            <div key={meeting.meeting_id || meeting._id} className="meeting-card-modern past-card">
                                                 <div className="meeting-date-block past">
                                                     <span className="meeting-day">{date.day}</span>
                                                     <span className="meeting-month">{date.month}</span>

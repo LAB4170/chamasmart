@@ -3,6 +3,8 @@ import { authAPI } from "../services/api";
 import { auth } from "../config/firebase";
 import {
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -26,20 +28,46 @@ export const AuthProvider = ({ children }) => {
 
   // Check if user is logged in on mount
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const savedUser = localStorage.getItem("user");
-
-    if (token && savedUser) {
+    const checkUser = async () => {
+      setLoading(true);
+      
+      // 1. Check for Redirect Results first (to catch Google/OAuth returns)
       try {
-        setUser(JSON.parse(savedUser));
-      } catch (error) {
-        console.error("Failed to parse saved user data:", error);
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
-        setUser(null);
+        const redirectResult = await getRedirectResult(auth);
+        if (redirectResult) {
+          const idToken = await redirectResult.user.getIdToken();
+          const response = await authAPI.firebaseSync(idToken);
+          const { user: syncedUser, tokens } = response.data.data;
+
+          localStorage.setItem("token", tokens.accessToken);
+          localStorage.setItem("user", JSON.stringify(syncedUser));
+          setUser(syncedUser);
+          setLoading(false);
+          return; // Skip reading from localStorage if we just synced
+        }
+      } catch (err) {
+        console.error("Redirect result error:", err);
+        setError(err.message);
       }
-    }
-    setLoading(false);
+
+      // 2. Fallback to LocalStorage
+      const token = localStorage.getItem("token");
+      const savedUser = localStorage.getItem("user");
+
+      if (token && savedUser) {
+        try {
+          setUser(JSON.parse(savedUser));
+        } catch (err) {
+          console.error("Failed to parse saved user data:", err);
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+          setUser(null);
+        }
+      }
+      setLoading(false);
+    };
+
+    checkUser();
   }, []);
 
   // Consolidated Firebase-based Register
@@ -79,28 +107,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Improved Login with Sync support
-  const loginWithGoogle = async (userData = {}) => {
+  // Improved Login with Redirect support
+  const loginWithGoogle = async () => {
     try {
       setError(null);
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      
-      const idToken = await result.user.getIdToken();
-
-      // Sync with our backend
-      const response = await authAPI.firebaseSync(idToken, userData);
-      const { user: loggedInUser, tokens } = response.data.data;
-
-      localStorage.setItem("token", tokens.accessToken);
-      localStorage.setItem("user", JSON.stringify(loggedInUser));
-      setUser(loggedInUser);
-
-      return { success: true };
+      // Use redirect to avoid popup-blocked errors
+      await signInWithRedirect(auth, provider);
+      // Execution stops here as page redirects
+      return { success: true }; 
     } catch (err) {
-      if (err.code === 'auth/popup-closed-by-user') {
-        return { success: false, ignored: true };
-      }
       console.error("Google Login error:", err);
       const message = err.response?.data?.message || err.message || "Google login failed";
       setError(message);

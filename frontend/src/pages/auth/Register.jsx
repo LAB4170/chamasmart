@@ -168,7 +168,7 @@ const Register = () => {
 
     if (result.success) {
       navigate("/dashboard");
-    } else if (!result.ignored) {
+    } else {
       setError(result.error);
     }
 

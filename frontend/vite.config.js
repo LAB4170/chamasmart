@@ -190,9 +190,7 @@ export default defineConfig({
     },
 
     headers: {
-      // Relaxed in dev to allow Firebase Auth popup to communicate with main window.
-      // In production, this is controlled by Helmet in the backend with same-origin-allow-popups.
-      "Cross-Origin-Opener-Policy": "unsafe-none",
+      "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
     },
   },
 

@@ -4,14 +4,7 @@ const logger = require("../utils/logger");
 const { getIo } = require("../socket");
 const { AppError } = require("../middleware/errorHandler");
 const TrustScoreService = require("../utils/trustScoreService");
-
-// Money utility (duplicated for now to avoid cross-controller dependency)
-class Money {
-  static toCents(amount) {
-    if (typeof amount === "string") amount = parseFloat(amount);
-    return Math.round(amount * 100);
-  }
-}
+const Money = require("../utils/money");
 
 /**
  * Initiate STK Push
@@ -52,6 +45,8 @@ const initiatePayment = async (req, res, next) => {
       if (cycleRes.rows.length > 0) cycleId = cycleRes.rows[0].cycle_id;
     }
 
+    logger.info("Initiating M-Pesa STK Push", { chamaId, amount, phoneNumber, userId });
+
     // 2. Initiate STK Push via Daraja
     const mpesaRes = await mpesaService.initiateStkPush(
       phoneNumber,
@@ -59,6 +54,8 @@ const initiatePayment = async (req, res, next) => {
       `CHAMA${chamaId}`,
       'Contribution'
     );
+
+    logger.info("M-Pesa STK Push Initiated Success", { checkoutRequestId: mpesaRes.CheckoutRequestID });
 
     // 3. Log request in mpesa_transactions (with cycle_id for ROSCA)
     await pool.query(
@@ -73,7 +70,42 @@ const initiatePayment = async (req, res, next) => {
       message: 'STK Push initiated. Please check your phone.',
       checkoutRequestId: mpesaRes.CheckoutRequestID
     });
+
+    // In mock mode, auto-fire callback after response is sent to complete the full ledger cycle
+    if (mpesaRes.isMock) {
+      setImmediate(async () => {
+        try {
+          const fakePayload = await mpesaService.simulateMockCallback(
+            mpesaRes.CheckoutRequestID, amount, phoneNumber
+          );
+          const mockReq = { body: fakePayload };
+          const mockRes = {
+            status: (s) => ({ send: (m) => logger.info('Mock callback response', { status: s, msg: m }) })
+          };
+          await handleCallback(mockReq, mockRes);
+          logger.info('M-Pesa Mock: Auto-callback completed — DB updated');
+        } catch (err) {
+          logger.error('M-Pesa Mock: Auto-callback failed', { error: err.message });
+        }
+      });
+    }
   } catch (error) {
+    logger.error("M-Pesa Initiation Error", { 
+      message: error.message, 
+      stack: error.stack,
+      data: error.response?.data,
+      code: error.code
+    });
+
+    // Handle network/timeout errors specifically
+    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' || error.message.toLowerCase().includes('timeout')) {
+      return next(new AppError('M-Pesa service is currently taking too long to respond. Please try again.', 504));
+    }
+    
+    if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+      return next(new AppError('M-Pesa service is currently unreachable. Please try again later.', 503));
+    }
+
     next(error);
   }
 };
@@ -100,13 +132,18 @@ const handleCallback = async (req, res) => {
 
   const client = await pool.connect();
 
+  // Step helper: tags errors with their origin for structured logging
+  const step = (label, fn) => fn().catch(e => { e._step = label; throw e; });
+
   try {
     await client.query("BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
 
     // 1. Find transaction
-    const txRes = await client.query(
-      "SELECT * FROM mpesa_transactions WHERE checkout_request_id = $1 FOR UPDATE",
-      [CheckoutRequestID]
+    const txRes = await step('find_transaction', () =>
+      client.query(
+        "SELECT * FROM mpesa_transactions WHERE checkout_request_id = $1 FOR UPDATE",
+        [CheckoutRequestID]
+      )
     );
 
     if (txRes.rows.length === 0) {
@@ -151,7 +188,17 @@ const handleCallback = async (req, res) => {
     let cycleSharePrice = 0;
 
     if (!cycleId) {
-      if (chamaType === 'ROSCA' || chamaType === 'ASCA') {
+      if (chamaType === 'ROSCA') {
+        const cycleRes = await client.query(
+          `SELECT cycle_id FROM rosca_cycles 
+           WHERE chama_id = $1 AND status IN ('ACTIVE', 'PENDING') 
+           ORDER BY CASE WHEN status = 'ACTIVE' THEN 0 ELSE 1 END, created_at DESC LIMIT 1`,
+          [transaction.chama_id]
+        );
+        if (cycleRes.rows.length > 0) {
+          cycleId = cycleRes.rows[0].cycle_id;
+        }
+      } else if (chamaType === 'ASCA') {
         const cycleRes = await client.query(
           `SELECT cycle_id, share_price FROM asca_cycles 
            WHERE chama_id = $1 AND status IN ('ACTIVE', 'PENDING') 
@@ -164,25 +211,29 @@ const handleCallback = async (req, res) => {
         }
       }
     } else {
-      // If cycleId was pre-stored, fetch its share price
-      const cycleInfo = await client.query('SELECT share_price FROM asca_cycles WHERE cycle_id = $1', [cycleId]);
-      cycleSharePrice = parseFloat(cycleInfo.rows[0]?.share_price || 0);
+      // If cycleId was pre-stored, fetch its share price if ASCA
+      if (chamaType === 'ASCA') {
+        const cycleInfo = await client.query('SELECT share_price FROM asca_cycles WHERE cycle_id = $1', [cycleId]);
+        cycleSharePrice = parseFloat(cycleInfo.rows[0]?.share_price || 0);
+      }
     }
 
     // 5. Create Contribution Record (Generic Ledger)
-    const contribRes = await client.query(
-      `INSERT INTO contributions 
-      (chama_id, user_id, amount, payment_method, receipt_number, verification_status, status, contribution_date, notes, cycle_id, contribution_type)
-      VALUES ($1, $2, $3, 'MPESA', $4, 'VERIFIED', 'COMPLETED', CURRENT_DATE, 'Automated M-Pesa Payment', $5, $6)
-      RETURNING contribution_id`,
-      [
-        transaction.chama_id,
-        transaction.user_id,
-        parseFloat(amount),
-        receipt,
-        cycleId,
-        chamaType === 'ASCA' ? 'ASCA_SHARE' : 'CONTRIBUTION'
-      ]
+    const contribRes = await step('insert_contribution', () =>
+      client.query(
+        `INSERT INTO contributions 
+        (chama_id, user_id, amount, payment_method, receipt_number, verification_status, status, contribution_date, notes, cycle_id, contribution_type)
+        VALUES ($1, $2, $3, 'MPESA', $4, 'VERIFIED', 'COMPLETED', CURRENT_DATE, 'Automated M-Pesa Payment', $5, $6)
+        RETURNING contribution_id`,
+        [
+          transaction.chama_id,
+          transaction.user_id,
+          parseFloat(amount),
+          receipt,
+          cycleId,
+          chamaType === 'ASCA' ? 'ASCA_SHARE' : 'CONTRIBUTION'
+        ]
+      )
     );
 
     // 6. ASCA Specific Logic: Record Shares & Update Equity
@@ -192,21 +243,25 @@ const handleCallback = async (req, res) => {
         const sharesBought = parseFloat(amount) / basePrice;
         
         // Record in ASCA share ledger
-        await client.query(
-          `INSERT INTO asca_share_contributions (user_id, chama_id, cycle_id, amount, number_of_shares)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [transaction.user_id, transaction.chama_id, cycleId, amount, sharesBought]
+        await step('insert_asca_shares', () =>
+          client.query(
+            `INSERT INTO asca_share_contributions (user_id, chama_id, cycle_id, amount, number_of_shares)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [transaction.user_id, transaction.chama_id, cycleId, amount, sharesBought]
+          )
         );
 
         // Update asca_members membership
-        await client.query(
-          `INSERT INTO asca_members (user_id, cycle_id, shares_owned, total_investment, status)
-           VALUES ($1, $2, $3, $4, 'ACTIVE')
-           ON CONFLICT (user_id, cycle_id) 
-           DO UPDATE SET 
-             shares_owned = asca_members.shares_owned + EXCLUDED.shares_owned,
-             total_investment = asca_members.total_investment + EXCLUDED.total_investment`,
-          [transaction.user_id, cycleId, sharesBought, amount]
+        await step('upsert_asca_members', () =>
+          client.query(
+            `INSERT INTO asca_members (user_id, cycle_id, shares_owned, total_investment, status)
+             VALUES ($1, $2, $3, $4, 'ACTIVE')
+             ON CONFLICT (user_id, cycle_id) 
+             DO UPDATE SET 
+               shares_owned = asca_members.shares_owned + EXCLUDED.shares_owned,
+               total_investment = asca_members.total_investment + EXCLUDED.total_investment`,
+            [transaction.user_id, cycleId, sharesBought, amount]
+          )
         );
       } else {
         logger.warn("ASCA payment received but no share price found", { chamaId: transaction.chama_id });
@@ -214,22 +269,28 @@ const handleCallback = async (req, res) => {
     }
 
     // 7. Update Transaction status
-    await client.query(
-      `UPDATE mpesa_transactions 
-      SET status = 'COMPLETED', result_code = 0, mpesa_receipt_number = $1
-      WHERE checkout_request_id = $2`,
-      [receipt, CheckoutRequestID]
+    await step('update_mpesa_tx', () =>
+      client.query(
+        `UPDATE mpesa_transactions 
+        SET status = 'COMPLETED', result_code = 0, mpesa_receipt_number = $1
+        WHERE checkout_request_id = $2`,
+        [receipt, CheckoutRequestID]
+      )
     );
 
     // 8. Update Chama Fund & Member Stats
-    await client.query(
-       "UPDATE chamas SET current_fund = current_fund + $1 WHERE chama_id = $2",
-       [parseFloat(amount), transaction.chama_id]
+    await step('update_chama_fund', () =>
+      client.query(
+         "UPDATE chamas SET current_fund = current_fund + $1 WHERE chama_id = $2",
+         [parseFloat(amount), transaction.chama_id]
+      )
     );
 
-    await client.query(
-      'UPDATE chama_members SET total_contributions = total_contributions + $1, last_contribution_date = NOW(), updated_at = NOW() WHERE chama_id = $2 AND user_id = $3',
-      [amount, transaction.chama_id, transaction.user_id]
+    await step('update_member_stats', () =>
+      client.query(
+        'UPDATE chama_members SET total_contributions = total_contributions + $1, last_contribution_date = NOW(), updated_at = NOW() WHERE chama_id = $2 AND user_id = $3',
+        [amount, transaction.chama_id, transaction.user_id]
+      )
     );
 
     await client.query("COMMIT");
@@ -250,9 +311,16 @@ const handleCallback = async (req, res) => {
 
     res.status(200).send("Success");
   } catch (error) {
-    await client.query("ROLLBACK");
-    logger.error("Error processing M-Pesa callback", { error: error.message, stack: error.stack });
-    res.status(500).send("Internal Server Error");
+    try { await client.query("ROLLBACK"); } catch (_) {}
+    logger.error("M-Pesa callback processing FAILED", {
+      checkoutRequestId: CheckoutRequestID,
+      step: error._step || 'unknown',
+      error: error.message,
+      stack: error.stack
+    });
+    // Safaricom API contract: MUST return 200 — non-200 triggers automatic retries
+    // which can cause duplicate contribution processing
+    res.status(200).send("Acknowledged");
   } finally {
     client.release();
   }

@@ -241,7 +241,7 @@ const getChamaMeetings = async (req, res, next) => {
 
 const getMeetingById = async (req, res, next) => {
   try {
-    const { chamaId, id } = req.params;
+    const { chamaId, meetingId } = req.params;
 
     // Check authorization
     await checkChamaMember(chamaId, req.user.user_id);
@@ -252,7 +252,7 @@ const getMeetingById = async (req, res, next) => {
        FROM meetings m
        LEFT JOIN users u ON m.created_by = u.user_id
        WHERE m.chama_id = $1 AND m.meeting_id = $2`,
-      [chamaId, id],
+      [chamaId, meetingId],
     );
 
     if (meetingResult.rows.length === 0) {
@@ -268,7 +268,7 @@ const getMeetingById = async (req, res, next) => {
        LEFT JOIN chama_members cm ON cm.user_id = ma.user_id AND cm.chama_id = $1
        WHERE ma.meeting_id = $2
        ORDER BY cm.role, u.last_name, u.first_name`,
-      [chamaId, id],
+      [chamaId, meetingId],
     );
 
     res.json({
@@ -290,7 +290,7 @@ const getMeetingById = async (req, res, next) => {
 
 const updateMeeting = async (req, res, next) => {
   try {
-    const { chamaId, id } = req.params;
+    const { chamaId, meetingId } = req.params;
 
     // Check authorization
     await checkChamaOfficial(chamaId, req.user.user_id);
@@ -304,7 +304,7 @@ const updateMeeting = async (req, res, next) => {
       status: 'status',
       title: 'title',
       meetingLink: 'meeting_link',
-      type: 'type',
+      type: 'meeting_type',
     };
 
     const updates = [];
@@ -323,7 +323,7 @@ const updateMeeting = async (req, res, next) => {
       throw new AppError('No valid fields to update', 400, 'NO_FIELDS');
     }
 
-    values.push(chamaId, id);
+    values.push(chamaId, meetingId);
 
     const query = `
       UPDATE meetings 
@@ -363,7 +363,7 @@ const recordAttendance = async (req, res, next) => {
   const client = await pool.connect();
 
   try {
-    const { chamaId, id } = req.params;
+    const { chamaId, meetingId } = req.params;
     const { attendance } = req.body; // Array of { userId, attended, late, notes }
 
     // Validate input
@@ -379,7 +379,7 @@ const recordAttendance = async (req, res, next) => {
     // Verify meeting exists
     const meetingCheck = await client.query(
       'SELECT meeting_id FROM meetings WHERE chama_id = $1 AND meeting_id = $2',
-      [chamaId, id],
+      [chamaId, meetingId],
     );
 
     if (meetingCheck.rows.length === 0) {
@@ -388,7 +388,7 @@ const recordAttendance = async (req, res, next) => {
 
     // Delete existing attendance records
     await client.query('DELETE FROM meeting_attendance WHERE meeting_id = $1', [
-      id,
+      meetingId,
     ]);
 
     // Bulk insert new attendance records
@@ -402,7 +402,7 @@ const recordAttendance = async (req, res, next) => {
           `($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${baseIndex + 4}, $${baseIndex + 5})`,
         );
         values.push(
-          id,
+          meetingId,
           record.userId,
           record.attended || false,
           record.late || false,
@@ -463,7 +463,7 @@ const deleteMeeting = async (req, res, next) => {
   const client = await pool.connect();
 
   try {
-    const { chamaId, id } = req.params;
+    const { chamaId, meetingId } = req.params;
 
     // Check authorization (only CHAIRPERSON can delete)
     const role = await checkChamaOfficial(chamaId, req.user.user_id);
@@ -479,13 +479,13 @@ const deleteMeeting = async (req, res, next) => {
 
     // Delete attendance records first
     await client.query('DELETE FROM meeting_attendance WHERE meeting_id = $1', [
-      id,
+      meetingId,
     ]);
 
     // Delete meeting
     const result = await client.query(
       'DELETE FROM meetings WHERE chama_id = $1 AND meeting_id = $2 RETURNING *',
-      [chamaId, id],
+      [chamaId, meetingId],
     );
 
     if (result.rows.length === 0) {
