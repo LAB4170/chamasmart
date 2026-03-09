@@ -628,9 +628,9 @@ async function firebaseSync(req, res) {
 
   try {
     // 1. Verify Firebase Token
-    // console.log("Debug: Verifying ID Token...");
+    logger.debug("FirebaseSync: Verifying ID Token...");
     const decodedToken = await admin.auth().verifyIdToken(idToken);
-    // console.log("Debug: Token Verified:", decodedToken.uid);
+    logger.debug(`FirebaseSync: Token Verified for UID: ${decodedToken.uid}`);
 
     const {
       uid, email, name, picture, email_verified: emailVerified, firebase,
@@ -639,13 +639,14 @@ async function firebaseSync(req, res) {
     const providerId = firebase.sign_in_provider;
 
     // 2. Check if user exists in PG
-    // console.log("Debug: Connecting to DB...");
+    logger.debug("FirebaseSync: Connecting to DB...");
     const client = await pool.connect();
-    // console.log("Debug: DB Connected");
+    logger.debug("FirebaseSync: DB Connected");
     try {
       await client.query('BEGIN');
 
       // Try searching by firebase_uid first, then by email
+      logger.debug(`FirebaseSync: Searching for user with email: ${email} or UID: ${uid}`);
       let userResult = await client.query(
         'SELECT * FROM users WHERE firebase_uid = $1 OR email = $2',
         [uid, email],
@@ -654,6 +655,7 @@ async function firebaseSync(req, res) {
       let user = userResult.rows[0];
 
       if (user) {
+        logger.debug(`FirebaseSync: User found (ID: ${user.user_id}). Checking for updates...`);
         // User exists - Update firebase_uid and other info if missing
         const updateFields = [];
         const updateValues = [];
@@ -680,6 +682,7 @@ async function firebaseSync(req, res) {
         }
 
         if (updateFields.length > 0) {
+          logger.debug(`FirebaseSync: Updating user fields: ${updateFields.join(', ')}`);
           updateValues.push(user.user_id);
           await client.query(
             `UPDATE users SET ${updateFields.join(', ')} WHERE user_id = $${placeholderIndex}`,
@@ -687,6 +690,7 @@ async function firebaseSync(req, res) {
           );
         }
       } else {
+        logger.debug(`FirebaseSync: User not found. Creating new user record for ${email}`);
         // User doesn't exist - Create new record
         const names = (name || '').split(' ');
         const firstName = providedFirstName || names[0] || 'User';
@@ -704,6 +708,7 @@ async function firebaseSync(req, res) {
           ],
         );
         user = newUserResult.rows[0];
+        logger.debug(`FirebaseSync: New user created with ID: ${user.user_id}`);
       }
 
       await client.query('COMMIT');

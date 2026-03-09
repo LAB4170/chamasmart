@@ -10,6 +10,7 @@ Milestone v1.1 - ROSCA & Schema Stability is fully complete. All phases mapped i
 - Generated Milestone `v1.1-SUMMARY.md` report.
 - Archived all phase completion documents into `.gsd/milestones/v1.1`.
 - Cleaned up technical debt and unified the auth controllers.
+- Fixed `ReferenceError: useEffect is not defined` in `Login.jsx`.
 - Reset ROADMAP.md for the next cycle.
 
 ## Current Position

@@ -28,46 +28,75 @@ export const AuthProvider = ({ children }) => {
 
   // Check if user is logged in on mount
   useEffect(() => {
-    const checkUser = async () => {
-      setLoading(true);
-      
-      // 1. Check for Redirect Results first (to catch Google/OAuth returns)
+    // 1. Check for Redirect Results first (to catch Google/OAuth returns)
+    const checkRedirect = async () => {
       try {
+        console.log("AuthProvider: Checking for redirect result...");
         const redirectResult = await getRedirectResult(auth);
+        console.log("AuthProvider: Redirect result:", redirectResult ? "Found" : "None");
+        
         if (redirectResult) {
+          console.log("AuthProvider: User from redirect:", redirectResult.user.email);
           const idToken = await redirectResult.user.getIdToken();
+          console.log("AuthProvider: Syncing with backend...");
           const response = await authAPI.firebaseSync(idToken);
+          console.log("AuthProvider: Backend sync response:", response.data);
+          
           const { user: syncedUser, tokens } = response.data.data;
 
           localStorage.setItem("token", tokens.accessToken);
           localStorage.setItem("user", JSON.stringify(syncedUser));
           setUser(syncedUser);
-          setLoading(false);
-          return; // Skip reading from localStorage if we just synced
+          console.log("AuthProvider: User state updated from redirect");
         }
       } catch (err) {
         console.error("Redirect result error:", err);
         setError(err.message);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      // 2. Fallback to LocalStorage
+    // 2. Firebase Observer for persistent state sync
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      console.log("AuthProvider: onAuthStateChanged", firebaseUser ? "User present" : "No user");
+      
       const token = localStorage.getItem("token");
       const savedUser = localStorage.getItem("user");
 
-      if (token && savedUser) {
-        try {
+      if (firebaseUser) {
+        // If we have a Firebase user but no local record, we might need to sync
+        if (!token || !savedUser) {
+          console.log("AuthProvider: Firebase user detected but local state missing, syncing...");
+          try {
+            const idToken = await firebaseUser.getIdToken();
+            const response = await authAPI.firebaseSync(idToken);
+            const { user: syncedUser, tokens } = response.data.data;
+            localStorage.setItem("token", tokens.accessToken);
+            localStorage.setItem("user", JSON.stringify(syncedUser));
+            setUser(syncedUser);
+          } catch (err) {
+            console.error("Auth sync error:", err);
+          }
+        } else if (!user) {
+          // Restore from localStorage if React state is empty
           setUser(JSON.parse(savedUser));
-        } catch (err) {
-          console.error("Failed to parse saved user data:", err);
-          localStorage.removeItem("user");
+        }
+      } else {
+        // Clear local state if Firebase says we are logged out
+        if (token || savedUser) {
+          console.log("AuthProvider: Firebase user lost, clearing local state");
           localStorage.removeItem("token");
+          localStorage.removeItem("user");
           setUser(null);
         }
       }
       setLoading(false);
-    };
+    });
 
-    checkUser();
+    checkRedirect();
+
+    return () => unsubscribe();
   }, []);
 
   // Consolidated Firebase-based Register

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { Eye, EyeOff } from 'lucide-react';
@@ -50,15 +50,15 @@ const Login = () => {
     setError("");
     setLoading(true);
 
-    const result = await loginWithGoogle();
-
-    if (result.success) {
-      navigate("/dashboard");
-    } else {
-      setError(result.error);
+    try {
+      console.log("Login: Initiating Google Login...");
+      await loginWithGoogle();
+      // Redirection logic is handled by AuthContext on re-mount
+    } catch (err) {
+      console.error("Login: Google login error", err);
+      setError("An unexpected error occurred. Please try again.");
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   if (authLoading && !isAuthenticated) {
