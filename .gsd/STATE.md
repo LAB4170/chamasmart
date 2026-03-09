@@ -13,10 +13,13 @@ Milestone v1.1 - ROSCA & Schema Stability is fully complete. All phases mapped i
 - Reset ROADMAP.md for the next cycle.
 
 ## Current Position
-- **Phase**: N/A (Milestone Complete)
-- **Task**: Waiting for next milestone planning.
-- **Status**: 🎉 Milestone v1.1 Complete
+- **Phase**: 16 (completed)
+- **Task**: ROSCA Cycle Management & Ledgers
+- **Status**: Verified
+
+## Last Session Summary
+Resolved the persistent `popup-closed-by-user` Firebase Auth error by relaxing the Vite Dev Server `Cross-Origin-Opener-Policy` to `unsafe-none` and switching `AuthContext.jsx` from `signInWithPopup` to the robust `signInWithRedirect` flow.
+Executed Phase 16 (`16.1` ROSCA Cycle Management & Ledgers). Discovered that `makeContribution`, `getContributions`, `getMemberStatement` endpoints and the unified frontend `RoscaCycleLedger.jsx` were fully implemented in prior work but not formally verified or marked complete in the roadmap. Verified all requirements against the codebase and marked Phase 16 successful.
 
 ## Next Steps
-1. Run `/plan` or `/new-milestone` to start the next iteration.
-2. Prioritize user feedback for the next objectives.
+1. Proceed to Phase 17: Multi-Tenancy Segregation.

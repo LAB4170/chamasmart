@@ -11,4 +11,17 @@
 
 ## Phases
 
-*(No phases planned yet for the next milestone. Run `/plan` to generate new phases.)*
+### Phase 15.2: Backend Stabilization (M-Pesa & Socket)
+- **Goal**: Resolve M-Pesa 500/504 timeouts and Socket.io connection refusal issues.
+- **Status**: Completed
+- **Type**: Stability Improvement
+
+### Phase 15.3: M-Pesa Hardening (Audit Gap Closure)
+- **Goal**: Close 4 audit gaps: production safety guard, mock E2E callback, Safaricom 200 contract, Money utility extraction.
+- **Status**: Completed
+- **Type**: Stability / Correctness
+
+### Phase 16: ROSCA Cycle Management & Ledgers 
+- **Goal**: Implement physical backend endpoints for ROSCA cycle contributions and add unified frontend ledger components so members can track their payment history.
+- **Status**: Completed
+- **Type**: Feature Completion

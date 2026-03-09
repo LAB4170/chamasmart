@@ -2,7 +2,8 @@ import { createContext, useContext, useState, useEffect } from "react";
 import { authAPI } from "../services/api";
 import { auth } from "../config/firebase";
 import {
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -24,7 +25,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Check if user is logged in on mount
+  // Check if user is logged in on mount — also handles Google redirect result
   useEffect(() => {
     const token = localStorage.getItem("token");
     const savedUser = localStorage.getItem("user");
@@ -34,13 +35,29 @@ export const AuthProvider = ({ children }) => {
         setUser(JSON.parse(savedUser));
       } catch (error) {
         console.error("Failed to parse saved user data:", error);
-        // Clear corrupted data
         localStorage.removeItem("user");
         localStorage.removeItem("token");
         setUser(null);
       }
     }
-    setLoading(false);
+
+    // Handle Google redirect result (fires after Google Sign-In redirect)
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (!result) { setLoading(false); return; } // No redirect in progress
+        const idToken = await result.user.getIdToken();
+        const response = await authAPI.firebaseSync(idToken, {});
+        const { user: loggedInUser, tokens } = response.data.data;
+        localStorage.setItem("token", tokens.accessToken);
+        localStorage.setItem("user", JSON.stringify(loggedInUser));
+        setUser(loggedInUser);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Google redirect result error:", err);
+        setError(err.message);
+        setLoading(false);
+      });
   }, []);
 
   // Consolidated Firebase-based Register
@@ -80,23 +97,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Improved Login with Sync support
+  // Google Sign-In via redirect (avoids COOP/popup issues entirely)
   const loginWithGoogle = async (userData = {}) => {
     try {
       setError(null);
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const idToken = await result.user.getIdToken();
-
-      // Sync with our backend
-      const response = await authAPI.firebaseSync(idToken, userData);
-      const { user: loggedInUser, tokens } = response.data.data;
-
-      localStorage.setItem("token", tokens.accessToken);
-      localStorage.setItem("user", JSON.stringify(loggedInUser));
-      setUser(loggedInUser);
-
-      return { success: true };
+      // signInWithRedirect navigates away and returns via getRedirectResult in useEffect
+      await signInWithRedirect(auth, provider);
+      // No code runs after this line — page will navigate to Google
     } catch (err) {
       console.error("Google Login error:", err);
       const message = err.response?.data?.message || err.message || "Google login failed";
