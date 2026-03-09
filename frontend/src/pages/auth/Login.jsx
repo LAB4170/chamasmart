@@ -47,7 +47,7 @@ const Login = () => {
 
     if (result.success) {
       navigate("/dashboard");
-    } else {
+    } else if (!result.ignored) {
       setError(result.error);
     }
 
