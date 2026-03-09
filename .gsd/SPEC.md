@@ -38,3 +38,12 @@ To transform ChamaSmart into a production-ready, highly reliable financial manag
 
 ## Phase 15 Goals
 - **Treasury Liquidity Guards**: Ensure loans cannot be applied for or approved if the requested amount exceeds the Chama's actual unallocated cash pool (Total Contributions - Active Disbursed Loans).
+
+## Phase 16 Goals (New)
+- **ROSCA Contribution Backend**: Create backend endpoints (`makeContribution`, `getContributions`, `getMemberStatement`) to capture real ROSCA payments.
+- **ROSCA Payment Ledger**: Build a frontend component to track member payments for the active cycle, replacing the simulated payment flow.
+
+## Phase 17 Goals (New)
+- **Multi-Tenancy Segregation**: Ensure strict isolation of data between different Chamas.
+- **Context Enforcement**: Verify that backend controllers explicitly validate `req.chama` or `chamaId` against the user's membership to prevent IDOR (Insecure Direct Object Reference) vulnerabilities.
+- **Frontend Context Sharing**: Standardize how the `Chama ID` is passed in the frontend layout/router, reducing redundant API lookups within nested Chama views.

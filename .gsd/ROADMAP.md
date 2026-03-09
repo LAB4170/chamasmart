@@ -25,3 +25,8 @@
 - **Goal**: Implement physical backend endpoints for ROSCA cycle contributions and add unified frontend ledger components so members can track their payment history.
 - **Status**: Completed
 - **Type**: Feature Completion
+
+### Phase 17: Multi-Tenancy Segregation 
+- **Goal**: Implement strict data isolation across Chamas. Enforce backend permission guards (IDOR prevention) based on Chama ID and standardize frontend context passing for active groups.
+- **Status**: Not started
+- **Type**: Security / Architecture
