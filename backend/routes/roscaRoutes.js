@@ -10,9 +10,13 @@ const {
   requestPositionSwap,
   respondToSwapRequest,
   getSwapRequests,
+  cancelCycle,
+  getCycleById,
   deleteCycle,
   activateCycle,
-  cancelCycle,
+  makeContribution,
+  getContributions,
+  getMemberStatement,
 } = require('../controllers/roscaController');
 const validate = require('../middleware/validate');
 const {
@@ -56,6 +60,13 @@ router.post(
 // Delete cycle (admin/treasurer)
 router.delete('/cycles/:cycleId', authorize('ADMIN', 'TREASURER', 'CHAIRPERSON'), deleteCycle);
 
+// Get specific cycle details
+router.get(
+  '/cycles/:cycleId',
+  authorize('MEMBER', 'ADMIN', 'TREASURER', 'CHAIRPERSON', 'SECRETARY'),
+  getCycleById,
+);
+
 // Activate cycle (officials only)
 router.put(
   '/cycles/:cycleId/activate',
@@ -75,6 +86,32 @@ router.get(
   '/cycles/:cycleId/roster',
   authorize('MEMBER', 'ADMIN', 'TREASURER', 'CHAIRPERSON', 'SECRETARY'),
   getCycleRoster,
+);
+
+// ============================================================================
+// CONTRIBUTIONS AND LEDGERS
+// ============================================================================
+
+// Make a ROSCA contribution
+router.post(
+  '/chama/:chamaId/cycles/:cycleId/contributions',
+  authorize('MEMBER', 'ADMIN', 'TREASURER', 'CHAIRPERSON', 'SECRETARY'),
+  applyFinancialRateLimiting,
+  makeContribution,
+);
+
+// Get all contributions for a cycle
+router.get(
+  '/cycles/:cycleId/contributions',
+  authorize('MEMBER', 'ADMIN', 'TREASURER', 'CHAIRPERSON', 'SECRETARY'),
+  getContributions,
+);
+
+// Get member statement for a cycle
+router.get(
+  '/cycles/:cycleId/members/:memberId/statement',
+  authorize('MEMBER', 'ADMIN', 'TREASURER', 'CHAIRPERSON', 'SECRETARY'),
+  getMemberStatement,
 );
 
 // ============================================================================

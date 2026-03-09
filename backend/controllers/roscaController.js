@@ -1114,6 +1114,247 @@ const cancelCycle = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Make a ROSCA contribution
+ * @route   POST /api/rosca/chama/:chamaId/cycles/:cycleId/contributions
+ * @access  Private (Chama members)
+ */
+const makeContribution = async (req, res) => {
+  const client = await pool.connect();
+  const { chamaId, cycleId } = req.params;
+  const {
+    amount, payment_method = 'MPESA', payment_proof, notes,
+  } = req.body;
+  const userId = req.user.user_id;
+
+  try {
+    if (!amount || isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid contribution amount' });
+    }
+
+    await client.query('BEGIN');
+
+    // Verify membership
+    const membership = await client.query(
+      'SELECT role FROM chama_members WHERE chama_id = $1 AND user_id = $2 AND is_active = true',
+      [chamaId, userId],
+    );
+
+    if (membership.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ success: false, message: 'Not a member of this chama' });
+    }
+
+    // Verify cycle exists and is active for this chama
+    const cycleResult = await client.query(
+      'SELECT * FROM rosca_cycles WHERE cycle_id = $1 AND chama_id = $2 AND status = \'ACTIVE\'',
+      [cycleId, chamaId],
+    );
+
+    if (cycleResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Active cycle not found for this chama' });
+    }
+
+    // Insert into contributions
+    const contributionResult = await client.query(
+      `INSERT INTO contributions 
+       (chama_id, user_id, amount, contribution_type, status, cycle_id, contribution_date, 
+        payment_method, payment_proof, notes, verification_status, recorded_by)
+       VALUES ($1, $2, $3, 'ROSCA', 'COMPLETED', $4, NOW(), $5, $6, $7, 'VERIFIED', $8)
+       RETURNING *`,
+      [chamaId, userId, amount, cycleId, payment_method, payment_proof, notes, userId],
+    );
+
+    // Update member's total contributions
+    await client.query(
+      'UPDATE chama_members SET total_contributions = total_contributions + $1 WHERE chama_id = $2 AND user_id = $3',
+      [amount, chamaId, userId],
+    );
+
+    // Update chama current fund
+    await client.query(
+      'UPDATE chamas SET current_fund = current_fund + $1 WHERE chama_id = $2',
+      [amount, chamaId],
+    );
+
+    await client.query('COMMIT');
+
+    // Clear caches
+    cache.del(`rosca_contributions_${cycleId}`);
+
+    res.status(201).json({
+      success: true,
+      data: contributionResult.rows[0],
+      message: 'Contribution recorded successfully',
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    logger.logError(error, {
+      context: 'rosca_makeContribution',
+      chamaId,
+      cycleId,
+      userId,
+    });
+    res.status(500).json({ success: false, message: 'Error recording contribution' });
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * @desc    Get all contributions for a ROSCA cycle
+ * @route   GET /api/rosca/cycles/:cycleId/contributions
+ * @access  Private (Chama members)
+ */
+const getContributions = async (req, res) => {
+  try {
+    const { cycleId } = req.params;
+    const userId = req.user.user_id;
+    const cacheKey = `rosca_contributions_${cycleId}`;
+
+    const cachedData = cache.get(cacheKey);
+    if (cachedData) {
+      return res.json({ success: true, data: cachedData, cached: true });
+    }
+
+    // Verify membership
+    const membership = await pool.query(
+      `SELECT 1 FROM rosca_cycles rc
+       JOIN chama_members cm ON rc.chama_id = cm.chama_id
+       WHERE rc.cycle_id = $1 AND cm.user_id = $2 AND cm.is_active = true`,
+      [cycleId, userId],
+    );
+
+    if (membership.rows.length === 0) {
+      return res.status(403).json({ success: false, message: 'Not authorized to view these contributions' });
+    }
+
+    const contributions = await pool.query(
+      `SELECT c.*, u.first_name, u.last_name 
+       FROM contributions c
+       JOIN users u ON c.user_id = u.user_id
+       WHERE c.cycle_id = $1 AND c.is_deleted = false
+       ORDER BY c.contribution_date DESC`,
+      [cycleId],
+    );
+
+    cache.set(cacheKey, contributions.rows);
+
+    res.json({ success: true, data: contributions.rows });
+  } catch (error) {
+    logger.logError(error, {
+      context: 'rosca_getContributions',
+      cycleId: req.params.cycleId,
+      userId: req.user.user_id,
+    });
+    res.status(500).json({ success: false, message: 'Error fetching contributions' });
+  }
+};
+
+/**
+ * @desc    Get member statement for a cycle
+ * @route   GET /api/rosca/cycles/:cycleId/members/:memberId/statement
+ * @access  Private
+ */
+const getMemberStatement = async (req, res) => {
+  try {
+    const { cycleId, memberId } = req.params;
+    const userId = req.user.user_id;
+
+    // Enforce privacy: user can only see their own statement or must be an official
+    if (parseInt(memberId, 10) !== userId) {
+      const officialCheck = await pool.query(
+        `SELECT 1 FROM rosca_cycles rc
+             JOIN chama_members cm ON rc.chama_id = cm.chama_id
+             WHERE rc.cycle_id = $1 AND cm.user_id = $2 AND cm.role IN ('CHAIRPERSON', 'TREASURER', 'SECRETARY')`,
+        [cycleId, userId],
+      );
+      if (officialCheck.rows.length === 0) {
+        return res.status(403).json({ success: false, message: 'Not authorized' });
+      }
+    }
+
+    const contributions = await pool.query(
+      `SELECT SUM(amount) as total_contributed, COUNT(*) as contribution_count
+       FROM contributions
+       WHERE cycle_id = $1 AND user_id = $2 AND contribution_type = 'ROSCA' AND status = 'COMPLETED' AND is_deleted = false`,
+      [cycleId, memberId],
+    );
+
+    const payouts = await pool.query(
+      `SELECT SUM(amount) as total_received, COUNT(*) as payout_count
+       FROM contributions
+       WHERE cycle_id = $1 AND user_id = $2 AND contribution_type = 'ROSCA_PAYOUT' AND status = 'COMPLETED' AND is_deleted = false`,
+      [cycleId, memberId],
+    );
+
+    res.json({
+      success: true,
+      data: {
+        total_contributed: parseFloat(contributions.rows[0].total_contributed || 0),
+        contribution_count: parseInt(contributions.rows[0].contribution_count || 0),
+        total_received: parseFloat(payouts.rows[0].total_received || 0),
+        payout_count: parseInt(payouts.rows[0].payout_count || 0),
+      },
+    });
+  } catch (error) {
+    logger.logError(error, {
+      context: 'rosca_getMemberStatement',
+      cycleId: req.params.cycleId,
+      userId: req.user.user_id,
+    });
+    res.status(500).json({ success: false, message: 'Error fetching statement' });
+  }
+};
+
+
+/**
+ * @desc    Get a single ROSCA cycle by ID
+ * @route   GET /api/rosca/cycles/:cycleId
+ * @access  Private (Chama members)
+ */
+const getCycleById = async (req, res) => {
+  try {
+    const { cycleId } = req.params;
+    const userId = req.user.user_id;
+
+    const result = await pool.query(
+      `SELECT rc.*, 
+              (SELECT COUNT(*) FROM rosca_roster WHERE cycle_id = rc.cycle_id) as total_members,
+              (SELECT COUNT(*) FROM rosca_roster WHERE cycle_id = rc.cycle_id AND status = 'PAID') as completed_payouts
+       FROM rosca_cycles rc
+       WHERE rc.cycle_id = $1`,
+      [cycleId],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Cycle not found' });
+    }
+
+    const cycle = result.rows[0];
+
+    // Verify membership
+    const membership = await pool.query(
+      'SELECT 1 FROM chama_members WHERE chama_id = $1 AND user_id = $2 AND is_active = true',
+      [cycle.chama_id, userId],
+    );
+
+    if (membership.rows.length === 0) {
+      return res.status(403).json({ success: false, message: 'Not authorized to view this cycle' });
+    }
+
+    res.json({ success: true, data: cycle });
+  } catch (error) {
+    logger.logError(error, {
+      context: 'rosca_getCycleById',
+      cycleId: req.params.cycleId,
+      userId: req.user?.user_id,
+    });
+    res.status(500).json({ success: false, message: 'Error fetching cycle details' });
+  }
+};
+
 module.exports = {
   createCycle,
   getChamaCycles,
@@ -1125,4 +1366,8 @@ module.exports = {
   deleteCycle,
   activateCycle,
   cancelCycle,
+  getCycleById,
+  makeContribution,
+  getContributions,
+  getMemberStatement,
 };
