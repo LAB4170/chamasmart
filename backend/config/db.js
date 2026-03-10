@@ -121,7 +121,11 @@ module.exports = {
     try {
       return await pool.query(text, params);
     } catch (err) {
-      console.error("Database query error:", err.message);
+      logger.error("Database query error:", { 
+        message: err.message, 
+        text: text?.substring(0, 100),
+        code: err.code 
+      });
       throw err;
     }
   },

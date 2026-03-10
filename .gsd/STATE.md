@@ -1,24 +1,22 @@
 # STATE.md — Project Memory
 
 ## Project: ChamaSmart Stabilization
-**Last Updated**: 2026-03-07
+**Last Updated**: 2026-03-09
 
 ## Current Status
-Milestone v1.1 - ROSCA & Schema Stability is fully complete. All phases mapped in this milestone have been executed, verified, and merged.
+Phase 16.1 (Authentication Stability) complete and verified.
 
 ## Last Session Summary
-- Generated Milestone `v1.1-SUMMARY.md` report.
-- Archived all phase completion documents into `.gsd/milestones/v1.1`.
-- Cleaned up technical debt and unified the auth controllers.
-- Fixed `ReferenceError: useEffect is not defined` in `Login.jsx`.
-- Reset ROADMAP.md for the next cycle.
+- Fixed Google Auth redirect loop by removing silent logouts on sync failure in `AuthContext.jsx`.
+- Added detailed error feedback on the Login page for synchronization issues.
+- Optimized Redis initialization with a 2s timeout and automatic Mock fallback to prevent backend hangs.
+- Established `backend/logs/debug.log` for real-time authentication monitoring and improved error visibility.
 
 ## Current Position
-- **Phase**: 15.2
-- **Task**: Backend Stabilization (M-Pesa & Socket)
-- **Status**: Pending Verification
+- **Phase**: 16.1 (Authentication Stability)
+- **Status**: ✅ Complete and verified
 
 ## Next Steps
 1. Implement `makeContribution`, `getContributions`, and `getMemberStatement` in ROSCA controller.
 2. Update ROSCA routes.
-3. Integrate with frontend.
+3. Integrate contribution ledger with frontend.

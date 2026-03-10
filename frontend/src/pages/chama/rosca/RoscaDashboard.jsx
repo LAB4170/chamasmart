@@ -15,6 +15,7 @@ const RoscaDashboard = () => {
     const { user } = useAuth();
     const [chama, setChama] = useState(null);
     const [cycles, setCycles] = useState([]);
+    const [swapRequests, setSwapRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [userRole, setUserRole] = useState('MEMBER');
     const [showPayModal, setShowPayModal] = useState(false);
@@ -25,10 +26,11 @@ const RoscaDashboard = () => {
 
         const fetchCycles = async () => {
             try {
-                const [cyclesRes, membersRes, chamaRes] = await Promise.all([
+                const [cyclesRes, membersRes, chamaRes, swapRes] = await Promise.all([
                     roscaAPI.getCycles(id),
                     chamaAPI.getMembers(id),
-                    chamaAPI.getChama(id)
+                    chamaAPI.getById(id),
+                    roscaAPI.getSwapRequests()
                 ]);
 
                 if (isMounted) {
@@ -37,6 +39,11 @@ const RoscaDashboard = () => {
                     const currentMember = members.find(m => m.user_id === user.user_id);
                     setUserRole(currentMember?.role || 'MEMBER');
                     setChama(chamaRes.data.data || chamaRes.data);
+                    
+                    // Filter pending swaps for this chama
+                    const allSwaps = swapRes.data.data || swapRes.data || [];
+                    setSwapRequests(allSwaps.filter(s => s.chama_id === parseInt(id) && s.status === 'PENDING'));
+                    
                     setLoading(false);
                 }
             } catch (err) {
@@ -424,6 +431,37 @@ const RoscaDashboard = () => {
                         {/* Content Sections */}
                         <div className="dashboard-content-grid">
                             <div className="main-content">
+                                {swapRequests.length > 0 && (
+                                    <div className="card-premium mb-8 bg-amber-50 border-amber-200 shadow-amber-100/50">
+                                        <div className="p-5">
+                                            <h3 className="flex items-center gap-2 text-amber-800 font-bold mb-4">
+                                                <RefreshCw size={18} className="animate-spin-slow" />
+                                                Pending Swap Requests
+                                            </h3>
+                                            <div className="space-y-3">
+                                                {swapRequests.map(request => (
+                                                    <div key={request.request_id} className="bg-white p-4 rounded-xl shadow-sm border border-amber-100 flex justify-between items-center animate-pulse-subtle">
+                                                        <div>
+                                                            <p className="text-sm font-bold text-gray-800">
+                                                                {request.requester_first_name} {request.requester_last_name}
+                                                            </p>
+                                                            <p className="text-xs text-amber-600 font-medium">
+                                                                Wants to swap Turn #{request.requester_position} for your Turn #{request.target_position} in <span className="underline">{request.cycle_name}</span>
+                                                            </p>
+                                                            {request.reason && <p className="text-[10px] text-gray-400 mt-1">"{request.reason}"</p>}
+                                                        </div>
+                                                        <Link 
+                                                            to={`/chamas/${id}/rosca/${request.cycle_id}`}
+                                                            className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all"
+                                                        >
+                                                            View & Respond
+                                                        </Link>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                                 {renderCycleGrid("Ongoing Rounds", activeCycles, "active")}
                                 {renderCycleGrid("Upcoming / Scheduled", pendingCycles, "pending")}
                                 {renderCycleGrid("Past Rounds", completedCycles, "completed")}

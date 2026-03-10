@@ -13,7 +13,14 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const { user, isAuthenticated, loading: authLoading, loginWithFirebase, loginWithGoogle } = useAuth();
+  const { 
+    user, 
+    isAuthenticated, 
+    loading: authLoading, 
+    error: authError,
+    loginWithFirebase, 
+    loginWithGoogle 
+  } = useAuth();
   const navigate = useNavigate();
 
   // Redirect if already authenticated
@@ -83,7 +90,11 @@ const Login = () => {
             Login to your ChamaSmart account
           </p>
 
-          {error && <div className="alert alert-error">{error}</div>}
+          {(authError || error) && (
+            <div className="alert alert-error">
+              {authError || error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit}>
             <div className="form-group">

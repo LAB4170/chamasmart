@@ -139,6 +139,17 @@ if (isProduction) {
   );
 }
 
+// Temporary debug file for development
+if (isDevelopment) {
+  logger.add(
+    new winston.transports.File({
+      filename: path.join(logsDir, "debug.log"),
+      level: "debug",
+      format: consoleFormat, // Use readable format for debug file
+    })
+  );
+}
+
 // Request ID middleware
 const requestId = (req, res, next) => {
   req.id = req.headers["x-request-id"] || uuidv4();

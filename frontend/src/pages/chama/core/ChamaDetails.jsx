@@ -993,6 +993,15 @@ const ChamaDetails = () => {
               </button>
             )}
 
+            {isROSCA && (
+              <button
+                className={`tab-modern ${activeTab === "cycle" ? "active" : ""}`}
+                onClick={() => setActiveTab("cycle")}
+              >
+                <RefreshCw size={18} className="tab-icon" aria-hidden="true" /> Cycle & Roster
+              </button>
+            )}
+
             <button
               className={`tab-modern ${activeTab === "reports" ? "active" : ""}`}
               onClick={() => setActiveTab("reports")}

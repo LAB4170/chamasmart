@@ -28,71 +28,63 @@ export const AuthProvider = ({ children }) => {
 
   // Check if user is logged in on mount
   useEffect(() => {
-    // 1. Check for Redirect Results first (to catch Google/OAuth returns)
+    // Unified Firebase Observer for persistent state sync
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      console.log("AuthProvider: onAuthStateChanged", firebaseUser ? "User: " + firebaseUser.email : "No user");
+      
+      try {
+        if (firebaseUser) {
+          const token = localStorage.getItem("token");
+          const savedUser = localStorage.getItem("user");
+
+          // If we have a Firebase user but no local record, we must sync
+          if (!token || !savedUser) {
+            console.log("AuthProvider: Syncing Firebase user with backend...");
+            const idToken = await firebaseUser.getIdToken();
+            const response = await authAPI.firebaseSync(idToken);
+            const { user: syncedUser, tokens } = response.data.data;
+            
+            localStorage.setItem("token", tokens.accessToken);
+            localStorage.setItem("user", JSON.stringify(syncedUser));
+            setUser(syncedUser);
+            console.log("AuthProvider: Sync complete");
+          } else if (!user) {
+            // Restore from localStorage if React state is empty
+            setUser(JSON.parse(savedUser));
+            console.log("AuthProvider: Restored from localStorage");
+          }
+        } else {
+          // User is signed out, clear local state
+          if (localStorage.getItem("token") || localStorage.getItem("user")) {
+            console.log("AuthProvider: Clearing local state");
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            setUser(null);
+          }
+        }
+      } catch (err) {
+        console.error("AuthProvider Sync Error:", err);
+        const errorMessage = err.response?.data?.message || err.message || "Authentication sync failed";
+        setError(errorMessage);
+        // Do NOT call handleLogout here — it triggers onAuthStateChanged(null) 
+        // which resets the loop. Let the user see the error on the login page.
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    // Check for redirect result (Google sign-in) without competing with onAuthStateChanged
     const checkRedirect = async () => {
       try {
         console.log("AuthProvider: Checking for redirect result...");
         const redirectResult = await getRedirectResult(auth);
         console.log("AuthProvider: Redirect result:", redirectResult ? "Found" : "None");
-        
-        if (redirectResult) {
-          console.log("AuthProvider: User from redirect:", redirectResult.user.email);
-          const idToken = await redirectResult.user.getIdToken();
-          console.log("AuthProvider: Syncing with backend...");
-          const response = await authAPI.firebaseSync(idToken);
-          console.log("AuthProvider: Backend sync response:", response.data);
-          
-          const { user: syncedUser, tokens } = response.data.data;
-
-          localStorage.setItem("token", tokens.accessToken);
-          localStorage.setItem("user", JSON.stringify(syncedUser));
-          setUser(syncedUser);
-          console.log("AuthProvider: User state updated from redirect");
-        }
+        // No need to sync here — onAuthStateChanged will fire and cover it
       } catch (err) {
-        console.error("Redirect result error:", err);
+        console.error("AuthProvider Redirect Error:", err);
         setError(err.message);
-      } finally {
-        setLoading(false);
       }
     };
-
-    // 2. Firebase Observer for persistent state sync
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
-      console.log("AuthProvider: onAuthStateChanged", firebaseUser ? "User present" : "No user");
-      
-      const token = localStorage.getItem("token");
-      const savedUser = localStorage.getItem("user");
-
-      if (firebaseUser) {
-        // If we have a Firebase user but no local record, we might need to sync
-        if (!token || !savedUser) {
-          console.log("AuthProvider: Firebase user detected but local state missing, syncing...");
-          try {
-            const idToken = await firebaseUser.getIdToken();
-            const response = await authAPI.firebaseSync(idToken);
-            const { user: syncedUser, tokens } = response.data.data;
-            localStorage.setItem("token", tokens.accessToken);
-            localStorage.setItem("user", JSON.stringify(syncedUser));
-            setUser(syncedUser);
-          } catch (err) {
-            console.error("Auth sync error:", err);
-          }
-        } else if (!user) {
-          // Restore from localStorage if React state is empty
-          setUser(JSON.parse(savedUser));
-        }
-      } else {
-        // Clear local state if Firebase says we are logged out
-        if (token || savedUser) {
-          console.log("AuthProvider: Firebase user lost, clearing local state");
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          setUser(null);
-        }
-      }
-      setLoading(false);
-    });
 
     checkRedirect();
 
@@ -136,15 +128,27 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Improved Login with Redirect support
+  // Improved Login with Popup support
   const loginWithGoogle = async () => {
     try {
       setError(null);
       const provider = new GoogleAuthProvider();
-      // Use redirect to avoid popup-blocked errors
-      await signInWithRedirect(auth, provider);
-      // Execution stops here as page redirects
-      return { success: true }; 
+      // Use popup for immediate feedback and better local development persistence
+      const result = await signInWithPopup(auth, provider);
+      
+      if (result.user) {
+        console.log("LoginWithGoogle: Popup successful, syncing...");
+        const idToken = await result.user.getIdToken();
+        const response = await authAPI.firebaseSync(idToken);
+        const { user: syncedUser, tokens } = response.data.data;
+
+        localStorage.setItem("token", tokens.accessToken);
+        localStorage.setItem("user", JSON.stringify(syncedUser));
+        setUser(syncedUser);
+        return { success: true, user: syncedUser };
+      }
+      
+      return { success: false, error: "No user returned from Google" };
     } catch (err) {
       console.error("Google Login error:", err);
       const message = err.response?.data?.message || err.message || "Google login failed";

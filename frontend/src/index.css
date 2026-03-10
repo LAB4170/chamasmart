@@ -2311,8 +2311,15 @@ button:focus,
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   margin-bottom: 3rem;
   border: 1px solid rgba(255, 255, 255, 0.8);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
   position: relative;
+}
+
+.tabs-modern::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
 }
 
 .tabs-modern::before {
@@ -2329,13 +2336,14 @@ button:focus,
 }
 
 .tab-modern {
-  flex: 1;
-  padding: 1rem 1.5rem;
+  flex: 0 0 auto;
+  padding: 1rem 1.25rem;
   border: none;
   background: transparent;
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
+  white-space: nowrap;
   color: #6b7280;
   border-radius: 12px;
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);

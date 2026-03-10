@@ -626,17 +626,22 @@ async function firebaseSync(req, res) {
     });
   }
 
+  let uid = null;
+  let email = null;
+  let providerId = null;
+
   try {
     // 1. Verify Firebase Token
     logger.debug("FirebaseSync: Verifying ID Token...");
     const decodedToken = await admin.auth().verifyIdToken(idToken);
-    logger.debug(`FirebaseSync: Token Verified for UID: ${decodedToken.uid}`);
-
+    
+    uid = decodedToken.uid;
+    email = decodedToken.email;
     const {
-      uid, email, name, picture, email_verified: emailVerified, firebase,
+      name, picture, email_verified: emailVerified, firebase,
       phone_number: firebasePhone
     } = decodedToken;
-    const providerId = firebase.sign_in_provider;
+    providerId = firebase.sign_in_provider;
 
     // 2. Check if user exists in PG
     logger.debug("FirebaseSync: Connecting to DB...");
@@ -747,17 +752,27 @@ async function firebaseSync(req, res) {
       });
     } catch (error) {
       await client.query('ROLLBACK');
+      logger.error('FirebaseSync: Database transaction error:', { 
+        error: error.message,
+        code: error.code,
+        uid: uid 
+      });
       throw error;
     } finally {
       client.release();
     }
   } catch (error) {
-    logger.error('Firebase Sync Error:', { error: error.message, uid: error.uid });
+    logger.error('Firebase Sync Fatal Error:', { 
+      error: error.message, 
+      code: error.code,
+      stack: error.stack,
+      uid: uid 
+    });
     const isAuthError = error.code && error.code.startsWith('auth/');
     return res.status(isAuthError ? 401 : 500).json({
       success: false,
-      message: 'Authentication failed',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      message: 'Authentication failed: ' + (error.code || 'Internal Error'),
+      debug: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 }

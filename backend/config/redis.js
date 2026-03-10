@@ -95,46 +95,57 @@ const circuitBreaker = new CircuitBreaker();
 function getRedisClient() { return redis; }
 
 const initializeRedis = async () => {
-  if (!redisConfig.host) {
+  if (!process.env.REDIS_HOST) {
     logger.info("Redis host not configured, using mock store");
     return false;
   }
 
   try {
+    logger.info(`Attempting to connect to Redis at ${process.env.REDIS_HOST}:${redisConfig.port}...`);
+    
+    // Create client but don't let it hang the process
     const redisClient = new Redis(redisConfig);
 
-    // Immediate error handler
-    redisClient.on("error", (err) => {
-      // Only log if we are supposedly available
-      if (redisAvailable) logger.error("Redis Error", { message: err.message });
+    // Promise that resolves when connected or rejects on error/timeout
+    const connectionPromise = new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        redisClient.disconnect();
+        reject(new Error("Redis connection timeout (2s)"));
+      }, 2000);
+
+      redisClient.once("connect", () => {
+        clearTimeout(timeout);
+        resolve(true);
+      });
+
+      redisClient.once("error", (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
     });
 
-    // Test connection
-    await redisClient.connect().catch(() => {});
-    const ping = await Promise.race([
-        redisClient.ping(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 2000))
-    ]);
+    await connectionPromise;
+    
+    // Extra safety: Ping check
+    await redisClient.ping();
 
-    if (ping === "PONG") {
-      logger.info("Redis connected successfully");
-      redis = redisClient;
-      redisAvailable = true;
-      return true;
-    }
-    throw new Error("Ping failed");
+    logger.info("✅ Redis connected successfully");
+    redis = redisClient;
+    redisAvailable = true;
+    return true;
   } catch (err) {
-    logger.warn("Redis unavailable, using mock store", { error: err.message });
+    logger.warn("⚠️ Redis unavailable, falling back to mock store", { 
+      error: err.message,
+      host: process.env.REDIS_HOST 
+    });
     redis = new MockRedis();
     redisAvailable = false;
     return false;
   }
 };
 
-// Start initialization but don't block
-initializeRedis().then(status => {
-    if (!status) console.log("⚠️ Using mock Redis");
-});
+// Initialize but don't block exports
+initializeRedis();
 
 const redisProxy = new Proxy({}, {
   get: (target, prop) => {
