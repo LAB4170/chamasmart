@@ -21,10 +21,11 @@ import { FixedSizeList as List } from "react-window";
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import {
   BarChart3, Calendar, Mail, Building2, Heart, RefreshCw, TrendingUp,
-  Settings, CreditCard, Users, DollarSign, Handshake, FileText, Download,
+  Settings, CreditCard, Users, User, DollarSign, Handshake, FileText, Download,
   Target, Bell, Trash2, Filter, RotateCcw, CheckCircle2, Clock, MapPin,
   Shield, Landmark, ArrowRight, TrendingDown, Wallet, Smartphone, AlertTriangle
 } from 'lucide-react';
+import ContributionMatrix from "../../../components/rosca/ContributionMatrix";
 
 // --- Memoized Sub-components ---
 
@@ -744,10 +745,20 @@ const ChamaDetails = () => {
 
   const isROSCA = useMemo(() => chama?.chama_type === "ROSCA", [chama]);
 
+  // Return the current unpaid member in the roster (first ACTIVE or PENDING member by position)
   const getCurrentRecipient = useCallback(() => {
     if (!isROSCA || !Array.isArray(roster) || roster.length === 0) return null;
-    return roster[currentCyclePosition % roster.length];
-  }, [isROSCA, roster, currentCyclePosition]);
+    // Find the first roster entry that hasn't been paid yet
+    const sortedRoster = [...roster].sort((a, b) => a.position - b.position);
+    const current = sortedRoster.find(r => r.status === 'ACTIVE' || r.status === 'PENDING');
+    if (!current) return null;
+    // Try to enrich with member name data from members list if roster entry lacks it
+    if (!current.first_name) {
+      const member = members.find(m => m.user_id === current.user_id);
+      return member ? { ...current, ...member } : current;
+    }
+    return current;
+  }, [isROSCA, roster, members]);
 
   const getCycleProgress = useCallback(() => {
     if (!isROSCA || !activeCycle || !Array.isArray(roster) || roster.length === 0) return 0;
@@ -757,13 +768,16 @@ const ChamaDetails = () => {
 
   const getMemberStatus = useCallback((member) => {
     if (!isROSCA || !Array.isArray(roster)) return "MEMBER";
-    const position = roster.findIndex((r) => r.user_id === member.user_id);
-    if (position === -1) return "MEMBER";
-    const currentPos = currentCyclePosition % roster.length;
-    if (position === currentPos) return "CURRENT_RECIPIENT";
-    if (position < currentPos) return "COMPLETED";
+    const entry = roster.find((r) => r.user_id === member.user_id);
+    if (!entry) return "MEMBER";
+    // Use the actual status from the DB roster entry
+    if (entry.status === 'PAID') return "COMPLETED";
+    // The current recipient is the first ACTIVE/PENDING entry by position
+    const sortedRoster = [...roster].sort((a, b) => a.position - b.position);
+    const currentEntry = sortedRoster.find(r => r.status === 'ACTIVE' || r.status === 'PENDING');
+    if (currentEntry && entry.user_id === currentEntry.user_id) return "CURRENT_RECIPIENT";
     return "WAITING";
-  }, [isROSCA, roster, currentCyclePosition]);
+  }, [isROSCA, roster]);
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
@@ -948,8 +962,8 @@ const ChamaDetails = () => {
           formatCurrency={formatCurrency}
         />
 
-        <div className="tab-container-premium">
-          <div className="tabs-modern scroll-fade">
+        <div className="tab-container-premium" style={{ width: '100%', overflow: 'hidden' }}>
+          <div className="tabs-modern scroll-fade" style={{ display: 'flex', overflowX: 'auto', flexWrap: 'nowrap', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none', paddingBottom: '4px' }}>
             <button
               className={`tab-modern ${activeTab === "overview" ? "active" : ""}`}
               onClick={() => setActiveTab("overview")}
@@ -1363,22 +1377,22 @@ const ChamaDetails = () => {
                       <div className="swap-requests-section mb-4">
                         {swapRequests.incoming.length > 0 && (
                           <div className="alert alert-info">
-                            <h4><Bell size={18} /> Incoming Swap Requests</h4>
+                            <h4 className="flex items-center gap-2 mb-3"><Bell size={18} /> Incoming Swap Requests</h4>
                             {swapRequests.incoming.map(req => (
-                              <div key={req.request_id} className="swap-request-card flex-between mt-2 p-2 bg-white rounded">
+                              <div key={req.request_id} className="flex flex-col md:flex-row md:items-center justify-between mt-2 p-3 bg-white/50 dark:bg-slate-800/50 rounded-xl border border-blue-200 dark:border-blue-800 gap-3">
                                 <div>
-                                  <strong>{req.requester_first_name} {req.requester_last_name}</strong> wants to swap with you.
-                                  <div className="text-sm text-muted">Reason: "{req.reason}"</div>
+                                  <strong className="text-gray-900 dark:text-gray-100">{req.requester_first_name} {req.requester_last_name}</strong> wants to swap with you.
+                                  <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Reason: "{req.reason}"</div>
                                 </div>
-                                <div className="flex-gap">
+                                <div className="flex gap-2">
                                   <button
-                                    className="btn btn-sm btn-success"
+                                    className="btn btn-sm btn-success flex-1"
                                     onClick={() => handleSwapResponse(req.request_id, 'APPROVED')}
                                   >
                                     Approve
                                   </button>
                                   <button
-                                    className="btn btn-sm btn-danger"
+                                    className="btn btn-sm btn-danger flex-1"
                                     onClick={() => handleSwapResponse(req.request_id, 'REJECTED')}
                                   >
                                     Reject
@@ -1397,61 +1411,72 @@ const ChamaDetails = () => {
                       </div>
                     )}
 
-                    <div className="cycle-info">
-                      <div className="cycle-stat">
-                        <span className="stat-label">Cycle Name</span>
-                        <span className="stat-value">{activeCycle.cycle_name}</span>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                      <div className="card-premium">
+                        <span className="text-secondary text-xs uppercase font-bold tracking-wider block mb-2">Cycle Name</span>
+                        <span className="card-value-premium text-lg font-bold">{activeCycle.cycle_name}</span>
                       </div>
-                      <div className="cycle-stat">
-                        <span className="stat-label">Progress</span>
-                        <span className="stat-value">
+                      <div className="card-premium">
+                        <span className="text-secondary text-xs uppercase font-bold tracking-wider block mb-2">Progress</span>
+                        <span className="card-value-premium text-lg font-bold text-primary">
                           {Math.round(getCycleProgress())}%
                         </span>
                       </div>
-                      <div className="cycle-stat">
-                        <span className="stat-label">Next Payout</span>
-                        <span className="stat-value">
+                      <div className="card-premium">
+                        <span className="text-secondary text-xs uppercase font-bold tracking-wider block mb-2">Next Payout</span>
+                        <span className="card-value-premium text-lg font-bold text-success">
                           {formatCurrency(
-                            chama.contribution_amount * members.length
+                            activeCycle.contribution_amount * members.length
                           )}
                         </span>
                       </div>
                     </div>
 
-                    <div className="progress-bar">
+                    <div className="h-4 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden border border-slate-200 dark:border-slate-600 mb-8">
                       <div
-                        className="progress-fill"
+                        className="h-full bg-primary transition-all duration-1000"
                         style={{ width: `${getCycleProgress()}%` }}
                       ></div>
                     </div>
 
-                    <div className="current-recipient">
-                      <h4>Current Recipient</h4>
+                    <div className="card-premium mb-8 border border-success/30 relative overflow-hidden">
+                      {/* Subtle status indicator strip */}
+                      <div className="absolute top-0 left-0 w-full h-1 bg-success"></div>
+                      
+                      <div className="card-header pb-4 mb-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                        <h4 className="flex items-center gap-2 m-0 text-gray-800 dark:text-gray-100 font-bold">
+                          <User size={18} className="text-success" />
+                          Current Recipient
+                        </h4>
+                        <span className="badge badge-success px-3 py-1">Ready for Payout</span>
+                      </div>
+
                       {getCurrentRecipient() && (
-                        <div className="recipient-card">
-                          <div className="recipient-avatar">
-                            {getCurrentRecipient().first_name[0]}
-                            {getCurrentRecipient().last_name[0]}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                          
+                          <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 rounded-full bg-success/10 flex items-center justify-center text-success font-bold text-xl shrink-0 border border-success/20">
+                              {getCurrentRecipient().first_name[0]}
+                              {getCurrentRecipient().last_name[0]}
+                            </div>
+                            <div>
+                              <h5 className="text-xl font-bold text-gray-900 dark:text-gray-50 mb-1">
+                                {getCurrentRecipient().first_name} {getCurrentRecipient().last_name}
+                              </h5>
+                              <p className="text-sm text-gray-500 dark:text-gray-400 m-0 flex items-center gap-2">
+                                Expected Payout:
+                                <span className="font-bold text-lg text-gray-900 dark:text-gray-100 tracking-tight">
+                                  {formatCurrency(activeCycle.contribution_amount * members.length)}
+                                </span>
+                              </p>
+                            </div>
                           </div>
-                          <div className="recipient-info">
-                            <h5>
-                              {getCurrentRecipient().first_name}{" "}
-                              {getCurrentRecipient().last_name}
-                            </h5>
-                            <p>
-                              Receives{" "}
-                              {formatCurrency(
-                                activeCycle.contribution_amount * members.length
-                              )}
-                            </p>
-                            <span className="badge badge-success">
-                              Ready for Payout
-                            </span>
-                          </div>
-                          {officialStatus && (
-                            <div className="flex-gap">
+
+                          {/* Only TREASURER and CHAIRPERSON can disburse funds */}
+                          {['TREASURER', 'CHAIRPERSON'].includes(userRole) && (
+                            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto mt-2 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-gray-100 dark:border-gray-800">
                               <button
-                                className="btn btn-success"
+                                className="btn btn-success flex-1 md:flex-none shadow-sm h-10 px-5 font-bold"
                                 onClick={() => {
                                   setPayoutRecipient({
                                     ...getCurrentRecipient(),
@@ -1464,7 +1489,7 @@ const ChamaDetails = () => {
                               </button>
 
                               <button
-                                className="btn btn-warning btn-outline ml-2"
+                                className="btn btn-outline flex-1 md:flex-none h-10 px-4 flex justify-center items-center gap-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
                                 onClick={() => {
                                   confirmAction({
                                     title: "Cancel ROSCA Cycle",
@@ -1483,11 +1508,11 @@ const ChamaDetails = () => {
                                   });
                                 }}
                               >
-                                <RefreshCw size={16} /> Cancel Cycle
+                                <RefreshCw size={14} /> Cancel
                               </button>
 
                               <button
-                                className="btn btn-danger btn-outline ml-2"
+                                className="btn btn-danger btn-outline flex-1 md:flex-none h-10 px-4 flex justify-center items-center gap-2 cursor-pointer"
                                 onClick={() => {
                                   if (window.confirm("Are you sure you want to delete this cycle? This action cannot be undone and will remove all roster and payment history for this cycle.")) {
                                     roscaAPI.deleteCycle(activeCycle.cycle_id)
@@ -1502,7 +1527,7 @@ const ChamaDetails = () => {
                                   }
                                 }}
                               >
-                                <Trash2 size={16} /> Delete Cycle
+                                <Trash2 size={14} /> Delete
                               </button>
                             </div>
                           )}
@@ -1510,63 +1535,97 @@ const ChamaDetails = () => {
                       )}
                     </div>
 
-                    <div className="roster-timeline">
-                      <h4>Cycle Roster</h4>
-                      <div className="timeline">
-                        {roster.map((member, index) => {
-                          const status = getMemberStatus(member);
-                          const isCurrentUser = member.user_id === user?.id;
-                          const isFutureSlot = status === "WAITING";
+                    <div className="card-premium mb-8">
+                      <div className="card-header pb-4 mb-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                        <h4 className="flex items-center gap-2 m-0 text-gray-800 dark:text-gray-100">
+                          <Users size={18} className="text-primary" /> Cycle Roster
+                        </h4>
+                      </div>
+                      
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-gray-50 dark:bg-slate-800/50">
+                              <th className="p-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700 w-16 text-center">Pos</th>
+                              <th className="p-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">Member</th>
+                              <th className="p-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">Payout Status</th>
+                              <th className="p-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700 text-right">Expected Payout</th>
+                              <th className="p-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700 text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                            {roster.map((member, index) => {
+                              const status = getMemberStatus(member);
+                              const isCurrentUser = member.user_id === user?.id;
+                              const isFutureSlot = status === "WAITING";
+                              const canRequestSwap = !isCurrentUser && isFutureSlot && roster.find(r => r.user_id === user?.id)?.status === "WAITING";
+                              
+                              const payoutAmount = activeCycle.contribution_amount * members.length;
 
-                          // Can only request swap with future slots, and not with self
-                          const canRequestSwap = !isCurrentUser && isFutureSlot && roster.find(r => r.user_id === user?.id)?.status === "WAITING";
-
-                          return (
-                            <div
-                              key={member.user_id}
-                              className={`timeline-item ${status.toLowerCase()}`}
-                            >
-                              <div className="timeline-marker">
-                                {status === "COMPLETED" && <span>âœ“</span>}
-                                {status === "CURRENT_RECIPIENT" && (
-                                  <Target size={16} />
-                                )}
-                                {status === "WAITING" && <span>â³</span>}
-                              </div>
-                              <div className="timeline-content">
-                                <div className="flex-between">
-                                  <div className="member-name">
-                                    {member.first_name} {member.last_name}
-                                    {isCurrentUser && <span className="badge badge-sm badge-outline ml-2">You</span>}
-                                  </div>
-                                  {canRequestSwap && (
-                                    <button
-                                      className="btn btn-xs btn-outline"
-                                      onClick={() => {
-                                        setSwapTarget(member);
-                                        setShowSwapModal(true);
-                                      }}
-                                    >
-                                      â‡„ Swap
-                                    </button>
-                                  )}
-                                </div>
-                                <div className="member-position">
-                                  Position {index + 1} â€¢{" "}
-                                  {status.replace("_", " ")}
-                                </div>
-                                {status === "CURRENT_RECIPIENT" && (
-                                  <div className="payout-amount">
-                                    Receives{" "}
-                                    {formatCurrency(
-                                      activeCycle.contribution_amount * members.length
+                              return (
+                                <tr 
+                                  key={member.user_id} 
+                                  className={`hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-colors ${status === 'CURRENT_RECIPIENT' ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}
+                                >
+                                  <td className="p-3 text-center">
+                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 dark:bg-slate-700 text-xs font-bold text-gray-700 dark:text-gray-300">
+                                      {index + 1}
+                                    </span>
+                                  </td>
+                                  <td className="p-3">
+                                    <div className="flex items-center gap-3">
+                                      <div className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 ${
+                                          status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400' :
+                                          status === 'CURRENT_RECIPIENT' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400' :
+                                          'bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400'
+                                        }`}
+                                      >
+                                        {status === "COMPLETED" && <CheckCircle2 size={14} />}
+                                        {status === "CURRENT_RECIPIENT" && <Target size={14} />}
+                                        {status === "WAITING" && <Clock size={14} />}
+                                      </div>
+                                      <div>
+                                        <div className="font-bold text-gray-900 dark:text-gray-100 text-sm">
+                                          {member.first_name} {member.last_name}
+                                          {isCurrentUser && <span className="ml-2 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">You</span>}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="p-3">
+                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
+                                      status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400' :
+                                      status === 'CURRENT_RECIPIENT' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400 border border-blue-200 dark:border-blue-800' :
+                                      'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-400'
+                                    }`}>
+                                      {status.replace("_", " ")}
+                                    </span>
+                                  </td>
+                                  <td className="p-3 text-right">
+                                    <div className={`text-sm font-semibold ${status === 'COMPLETED' ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'}`}>
+                                      {formatCurrency(payoutAmount)}
+                                    </div>
+                                  </td>
+                                  <td className="p-3 text-right">
+                                    {canRequestSwap ? (
+                                      <button
+                                        className="btn btn-xs btn-outline hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                                        onClick={() => {
+                                          setSwapTarget(member);
+                                          setShowSwapModal(true);
+                                        }}
+                                      >
+                                        <ArrowRightLeft size={14} className="mr-1" /> Swap
+                                      </button>
+                                    ) : (
+                                      <span className="text-gray-300 dark:text-gray-600">-</span>
                                     )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
 
@@ -1575,6 +1634,7 @@ const ChamaDetails = () => {
                       members={members}
                       contributions={contributions}
                       formatCurrency={formatCurrency}
+                      activeCycle={activeCycle}
                     />
                   </div>
                 )}

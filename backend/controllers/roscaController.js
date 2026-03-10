@@ -334,27 +334,28 @@ const processPayout = async (req, res) => {
 
     const cycle = cycleResult.rows[0];
 
-    // Verify user is treasurer
-    const isTreasurer = await client.query(
-      `SELECT 1 FROM chama_members 
-             WHERE chama_id = $1 AND user_id = $2 AND role = 'TREASURER'`,
+    // Verify user is treasurer OR chairperson (chairperson acts as super-admin)
+    const authCheck = await client.query(
+      `SELECT role FROM chama_members 
+             WHERE chama_id = $1 AND user_id = $2 AND role IN ('TREASURER', 'CHAIRPERSON') AND is_active = true`,
       [cycle.chama_id, userId],
     );
 
-    if (isTreasurer.rows.length === 0) {
+    if (authCheck.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(403).json({
         success: false,
-        message: 'Only treasurers can process payouts',
+        message: 'Only the Treasurer or Chairperson can process payouts',
       });
     }
 
     // Get the roster entry to pay out
+    // Accept PENDING or ACTIVE status (new cycles create entries as ACTIVE)
     const rosterResult = await client.query(
       `SELECT rr.*, u.first_name, u.last_name
              FROM rosca_roster rr
              JOIN users u ON rr.user_id = u.user_id
-             WHERE rr.cycle_id = $1 AND rr.position = $2 AND rr.status = 'PENDING'
+             WHERE rr.cycle_id = $1 AND rr.position = $2 AND rr.status IN ('PENDING', 'ACTIVE')
              FOR UPDATE`,
       [cycleId, payoutPosition],
     );
@@ -363,7 +364,7 @@ const processPayout = async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: 'Invalid position or already paid',
+        message: 'Invalid position or already paid out',
       });
     }
 
@@ -376,29 +377,29 @@ const processPayout = async (req, res) => {
     );
     const totalMembers = parseInt(rosterCountRes.rows[0].count, 10);
 
-    // Payout amount = each member contributes × number of OTHER members
-    // (the recipient collects everyone else's contribution)
-    const payoutAmount = parseFloat(cycle.contribution_amount) * (totalMembers - 1);
+    // Payout amount = each member contributes × total number of members
+    // (the recipient also contributes to the pot before collecting the gross sum)
+    const payoutAmount = parseFloat(cycle.contribution_amount) * totalMembers;
 
-    // Verify all members (except the recipient) have paid enough times for this position
+    // Verify all members (including the recipient) have paid for this round.
+    // Accepts contributions with status COMPLETED or VERIFIED (covers M-Pesa and manual entries).
     const unpaidCount = await client.query(
       `SELECT COUNT(*) FROM rosca_roster rr
              WHERE rr.cycle_id = $1 
-             AND rr.user_id != $2
              AND (
                  SELECT COALESCE(SUM(amount), 0) FROM contributions c 
                  WHERE c.cycle_id = rr.cycle_id 
                  AND c.user_id = rr.user_id
-                 AND c.status = 'COMPLETED'
-             ) < ($3 * $4)`,
-      [cycleId, rosterEntry.user_id, cycle.contribution_amount, payoutPosition],
+                 AND (c.status IN ('COMPLETED', 'VERIFIED') OR c.verification_status IN ('VERIFIED'))
+             ) < ($2::numeric * $3::numeric)`,
+      [cycleId, cycle.contribution_amount, payoutPosition],
     );
 
     if (parseInt(unpaidCount.rows[0].count, 10) > 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: `Not all members have contributed for round ${payoutPosition}. Waiting for contributions.`,
+        message: `Not all members have contributed for round ${payoutPosition}. Check that all members have made their contributions before disbursing.`,
       });
     }
 
@@ -431,10 +432,10 @@ const processPayout = async (req, res) => {
       ],
     );
 
-    // Check if cycle is complete
+    // Check if cycle is complete (no remaining ACTIVE/PENDING roster entries)
     const remainingPayouts = await client.query(
       `SELECT COUNT(*) FROM rosca_roster 
-             WHERE cycle_id = $1 AND status = 'PENDING'`,
+             WHERE cycle_id = $1 AND status IN ('PENDING', 'ACTIVE')`,
       [cycleId],
     );
 

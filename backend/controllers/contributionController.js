@@ -739,7 +739,7 @@ const getContributions = async (req, res, next) => {
 
     const offset = (safePage - 1) * safeLimit;
     let query = `
-      SELECT c.contribution_id, c.chama_id, c.user_id, c.amount,
+      SELECT c.contribution_id, c.chama_id, c.user_id, c.amount, c.cycle_id,
              c.payment_method, c.receipt_number, c.contribution_date, c.created_at,
              c.verification_status, c.status, c.notes,
              u.first_name || ' ' || u.last_name as contributor_name,
