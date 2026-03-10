@@ -299,6 +299,7 @@ class GuarantorService {
 class DefaultDetector {
   /**
    * Check and mark overdue loans as defaulted
+   * Phase 19: Apply Guarantor Freeze for ASCA
    * Should run daily via cron job
    */
   static async detectDefaults() {
@@ -307,17 +308,17 @@ class DefaultDetector {
     try {
       await client.query('BEGIN');
 
-      // Find loans with overdue installments (30+ days)
-      // Standardized to status DISBURSED and table loan_schedules
+      // Find loans with overdue installments (60+ days)
       const result = await client.query(`
-        SELECT DISTINCT l.loan_id, l.chama_id, l.borrower_id, l.loan_amount,
+        SELECT DISTINCT l.loan_id, l.chama_id, l.borrower_id, l.loan_amount, c.chama_type,
                u.first_name || ' ' || u.last_name as borrower_name
         FROM loans l
         JOIN users u ON l.borrower_id = u.user_id
+        JOIN chamas c ON l.chama_id = c.chama_id
         JOIN loan_schedules ls ON l.loan_id = ls.loan_id
         WHERE l.status IN ('ACTIVE', 'DISBURSED')
           AND ls.status = 'PENDING'
-          AND ls.due_date < CURRENT_DATE - INTERVAL '30 days'
+          AND ls.due_date < CURRENT_DATE - INTERVAL '60 days'
       `);
 
       for (const loan of result.rows) {
@@ -334,9 +335,21 @@ class DefaultDetector {
         await client.query(
           `INSERT INTO notifications (user_id, type, title, message, related_id)
            VALUES ($1, 'LOAN_DEFAULTED', 'Loan Defaulted', 
-                   'Critical: Your loan has been marked as defaulted due to being 30+ days overdue. Guarantors may be contacted for recovery.', $2)`,
+                   'Critical: Your loan has been marked as defaulted due to being 60+ days overdue. Guarantors have been contacted for recovery.', $2)`,
           [loan.borrower_id, loan.loan_id],
         );
+
+        // Phase 19: Freeze ASCA Guarantors
+        let liabilityMessage = 'A loan you guaranteed for ${loan.borrower_name} has officially DEFAULTED. As a guarantor, you are now requested to settle the balance.';
+        if (loan.chama_type === 'ASCA') {
+          liabilityMessage = `CRITICAL: A loan you guaranteed for ${loan.borrower_name} has DEFAULTED (60+ days overdue). Your ASCA shares have been FROZEN up to your guaranteed amount.`;
+          await client.query(
+            `UPDATE loan_guarantors 
+             SET liability_status = 'FROZEN', frozen_at = NOW()
+             WHERE loan_id = $1 AND status = 'APPROVED'`,
+            [loan.loan_id]
+          );
+        }
 
         // Notify ALL Approved Guarantors
         const guarantors = await client.query(
@@ -348,9 +361,8 @@ class DefaultDetector {
         for (const g of guarantors.rows) {
           await client.query(
             `INSERT INTO notifications (user_id, type, title, message, related_id)
-             VALUES ($1, 'GUARANTOR_LIABILITY', 'Action Required: Guaranteed Loan Defaulted', 
-                     'A loan you guaranteed for ${loan.borrower_name} has officially DEFAULTED. As a guarantor, you are now authorized and requested to settle the balance.', $2)`,
-            [g.guarantor_user_id, loan.loan_id]
+             VALUES ($1, 'GUARANTOR_LIABILITY', 'Action Required: Guaranteed Loan Defaulted', $3, $2)`,
+            [g.guarantor_user_id, loan.loan_id, liabilityMessage]
           );
         }
 
@@ -365,12 +377,12 @@ class DefaultDetector {
           await client.query(
             `INSERT INTO notifications (user_id, type, title, message, related_id)
              VALUES ($1, 'LOAN_DEFAULTED', 'Member Defaulted', 
-                     'System Alert: ${loan.borrower_name} has defaulted on their loan. Recovery procedures including guarantor notifications have been initiated.', $2)`,
+                     'System Alert: ${loan.borrower_name} has defaulted on their loan. Recovery procedures including guarantor freezes have been initiated.', $2)`,
             [official.user_id, loan.loan_id],
           );
         }
 
-        logger.info('Loan marked as defaulted', {
+        logger.info('Loan marked as defaulted, guarantors warned/frozen', {
           loanId: loan.loan_id,
           chamaId: loan.chama_id,
           borrowerId: loan.borrower_id,
@@ -816,16 +828,37 @@ const applyForLoan = async (req, res) => {
       }
     }
 
+    // === PHASE 20: TIERED INTEREST RATES (Loyalty Pricing) ===
+    let trustDiscountApplied = 0;
+    let finalInterestRate = loanConfig.interest_rate;
+    
+    // Only apply loyalty pricing for ASCA
+    if (chama.chama_type === 'ASCA') {
+      const trustRes = await client.query(
+        'SELECT COALESCE(trust_score, 50) as trust_score FROM chama_members WHERE chama_id = $1 AND user_id = $2',
+        [chamaId, userId]
+      );
+      const score = trustRes.rows[0]?.trust_score || 50;
+      
+      if (score >= 90) {
+        trustDiscountApplied = -0.02; // 2% discount
+        finalInterestRate = Math.max(0, loanConfig.interest_rate * 0.98); 
+      } else if (score < 70) {
+        trustDiscountApplied = +0.01; // 1% premium
+        finalInterestRate = loanConfig.interest_rate * 1.01;
+      }
+    }
+
     // === CALCULATE LOAN SCHEDULE ===
     const schedule = loanConfig.interest_type === 'REDUCING_BALANCE'
       ? LoanCalculator.calculateReducingBalance(
         amountValueCents,
-        loanConfig.interest_rate,
+        finalInterestRate,
         term,
       )
       : LoanCalculator.calculateFlatInterest(
         amountValueCents,
-        loanConfig.interest_rate,
+        finalInterestRate,
         term,
       );
 
@@ -835,21 +868,22 @@ const applyForLoan = async (req, res) => {
         chama_id, borrower_id, loan_amount, 
         interest_rate, total_repayable,
         term_months, status, purpose,
-        monthly_payment, next_payment_at
+        monthly_payment, next_payment_at, trust_discount_applied
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
       ) RETURNING *`,
       [
         chamaId,
         userId,
         fromCents(amountValueCents),
-        loanConfig.interest_rate,
+        finalInterestRate,
         fromCents(schedule.totalRepayable),
         term,
         'PENDING',
         purpose,
         fromCents(schedule.monthlyPayment),
-        schedule.installments[0]?.dueDate || new Date(new Date().setMonth(new Date().getMonth() + 1))
+        schedule.installments[0]?.dueDate || new Date(new Date().setMonth(new Date().getMonth() + 1)),
+        trustDiscountApplied
       ],
     );
 

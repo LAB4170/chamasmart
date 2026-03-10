@@ -17,6 +17,7 @@ const {
   makeContribution,
   getContributions,
   getMemberStatement,
+  getNextCycleRosterPreview,
 } = require('../controllers/roscaController');
 const validate = require('../middleware/validate');
 const {
@@ -46,6 +47,13 @@ router.get(
   '/chama/:chamaId/cycles',
   authorize('MEMBER', 'ADMIN', 'TREASURER', 'CHAIRPERSON', 'SECRETARY'),
   getChamaCycles,
+);
+
+// Preview trust-based roster order (no cycle created)
+router.get(
+  '/chama/:chamaId/roster-preview',
+  authorize('MEMBER', 'ADMIN', 'TREASURER', 'CHAIRPERSON', 'SECRETARY'),
+  getNextCycleRosterPreview,
 );
 
 // Create new ROSCA cycle (officials only)

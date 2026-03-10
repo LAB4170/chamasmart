@@ -3,6 +3,7 @@ import { roscaAPI } from "../services/api";
 
 const SwapRequestModal = ({ cycle, targetMember, onClose, onSuccess }) => {
     const [reason, setReason] = useState("");
+    const [swapFee, setSwapFee] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
@@ -20,6 +21,7 @@ const SwapRequestModal = ({ cycle, targetMember, onClose, onSuccess }) => {
             await roscaAPI.requestSwap(cycle.cycle_id, {
                 target_position: targetMember.position,
                 reason: reason.trim(),
+                swap_fee: swapFee ? parseInt(swapFee, 10) : 0
             });
             onSuccess();
             onClose();
@@ -61,6 +63,26 @@ const SwapRequestModal = ({ cycle, targetMember, onClose, onSuccess }) => {
                             onChange={(e) => setReason(e.target.value)}
                             required
                         />
+                    </div>
+
+                    <div className="form-group mt-4 p-4 rounded-xl border border-indigo-100 bg-indigo-50/30">
+                        <label className="flex items-center gap-2 text-indigo-700 font-bold mb-1">
+                            Swap Fee (Optional)
+                        </label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-400 font-bold">KES</span>
+                            <input
+                                type="number"
+                                className="form-input"
+                                style={{ paddingLeft: '3.5rem' }}
+                                placeholder="0"
+                                value={swapFee}
+                                onChange={(e) => setSwapFee(e.target.value)}
+                            />
+                        </div>
+                        <p className="text-[10px] text-indigo-500 mt-2 italic">
+                            💡 Offering a fee increases the chance of acceptance.
+                        </p>
                     </div>
 
                     <div className="modal-actions">

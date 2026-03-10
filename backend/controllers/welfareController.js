@@ -510,6 +510,24 @@ const approveClaim = async (req, res) => {
 
       const threshold = Math.min(2, totalAdmins);
       if (approvalCount >= threshold) {
+        // === PHASE 23: WELFARE TRANCHE PAYOUTS ===
+        const TRANCHE_THRESHOLD = 50000;
+        const totalClaimAmount = parseFloat(claimInfo.claim_amount);
+        let currentPayoutAmount = totalClaimAmount;
+        let finalStatus = 'PAID';
+        let disbursementStage = 1;
+        let totalStages = 1;
+        let nextDate = null;
+
+        if (totalClaimAmount > TRANCHE_THRESHOLD) {
+          // Large claim: Tranche it. 40% now, 60% later.
+          totalStages = 2;
+          currentPayoutAmount = totalClaimAmount * 0.4;
+          finalStatus = 'APPROVED'; // Remains approved until fully paid
+          nextDate = new Date();
+          nextDate.setDate(nextDate.getDate() + 14); // Next tranche in 2 weeks
+        }
+
         // --- FINAL FUND INTEGRITY CHECK BEFORE DISBURSEMENT ---
         const { rows: [chama] } = await client.query('SELECT chama_type, current_fund FROM chamas WHERE chama_id = $1', [claimInfo.chama_id]);
         
@@ -521,29 +539,36 @@ const approveClaim = async (req, res) => {
           currentBalance = fund ? parseFloat(fund.balance || 0) : 0;
         }
 
-        if (currentBalance < parseFloat(claimInfo.claim_amount)) {
+        if (currentBalance < currentPayoutAmount) {
           await client.query('ROLLBACK');
           return res.status(400).json({ 
-            message: `Payout failed: Insufficient welfare fund balance (Available: KES ${currentBalance.toLocaleString()}, Needed: KES ${parseFloat(claimInfo.claim_amount).toLocaleString()})`
+            message: `Payout failed: Insufficient welfare fund balance (Available: KES ${currentBalance.toLocaleString()}, Needed for Tranche 1: KES ${currentPayoutAmount.toLocaleString()})`
           });
         }
 
         // Mark claim as APPROVED
         await client.query(
-          "UPDATE welfare_claims SET status = 'APPROVED', updated_at = CURRENT_TIMESTAMP WHERE claim_id = $1",
-          [claimId],
+          `UPDATE welfare_claims 
+           SET status = $1, 
+               updated_at = CURRENT_TIMESTAMP,
+               amount_approved = $2
+           WHERE claim_id = $3`,
+          [finalStatus, totalClaimAmount, claimId],
         );
 
-        // Process the payout (deducts from fund, records transaction, sets to PAID)
-        await processWelfarePayout(claimInfo, client);
+        // Process the payout (deducts from fund, records transaction)
+        await processWelfarePayout(claimInfo, currentPayoutAmount, finalStatus, disbursementStage, totalStages, nextDate, client);
 
         // Notify the claimant
         await sendNotification({
           userId: claimInfo.member_id,
           ...notificationTemplates.welfareClaimApproved(
             claimInfo.chama_name,
-            claimInfo.claim_amount,
+            totalClaimAmount,
           ),
+          message: totalStages > 1 
+            ? `Your welfare claim of KES ${totalClaimAmount} was approved. KES ${currentPayoutAmount} (Tranche 1) has been disbursed to protect fund liquidity.`
+            : `Your welfare claim of KES ${totalClaimAmount} was approved and disbursed.`,
           entityId: claimId,
         }).catch(err => logger.warn('Notification failed (non-fatal):', err));
       }
@@ -580,46 +605,55 @@ async function notifyAdminsAboutNewClaim(chamaId, claimId) {
       JOIN chama_members cm ON u.user_id = cm.user_id
       WHERE cm.chama_id = $1 
       AND cm.role IN ('CHAIRPERSON', 'SECRETARY', 'TREASURER')
-      AND cm.is_active = true
       AND u.fcm_token IS NOT NULL
+      AND cm.is_active = true
     `;
+    const { rows: officials } = await pool.query(query, [chamaId]);
 
-    const { rows: admins } = await pool.query(query, [chamaId]);
+    const title = notificationTemplates.welfareClaimSubmitted(
+      claim.chama_name,
+      claim.claim_amount,
+    ).title;
+    const body = `A new claim of KES ${claim.claim_amount} requires your review in ${claim.chama_name}.`;
 
-    // Send notification to chama officials
-    await sendOfficialNotification(chamaId, {
-      ...notificationTemplates.welfareClaimSubmitted(claim.chama_name, claim.claim_amount),
+    // Send to each official
+    const promises = officials.map((official) => sendNotification({
+      userId: official.user_id,
+      title,
+      message: body,
       entityId: claimId,
-    });
+      fcmToken: official.fcm_token,
+    }));
+
+    await Promise.all(promises);
   } catch (error) {
-    logger.error('Error notifying admins:', error);
-    // Don't fail the whole operation if notifications fail
+    logger.error('Failed to notify admins about new claim:', error);
   }
 }
 
-async function processWelfarePayout(claim, client = pool) {
+async function processWelfarePayout(claim, payoutAmount, status, disbursementStage, totalStages, nextDate, client = pool) {
   try {
-    // In a real implementation, this would integrate with M-Pesa API
-    // For now, we'll just update the status and log the transaction
+    const claimId = claim.claim_id || claim.id;
 
-    // Record the payout
+    // Record the payout transaction
     await client.query(
       `INSERT INTO transactions (
-        chama_id, 
-        member_id, 
-        amount, 
-        transaction_type, 
-        reference_id, 
-        status, 
-        description
-      ) VALUES ($1, $2, $3, 'WELFARE_PAYOUT', $4, 'COMPLETED', 'Welfare claim payout')`,
-      [claim.chama_id, claim.member_id, claim.claim_amount, claim.id],
+        chama_id, member_id, amount, transaction_type, reference_id, status, description
+      ) VALUES ($1, $2, $3, 'WELFARE_PAYOUT', $4, 'COMPLETED', $5)`,
+      [claim.chama_id, claim.member_id, payoutAmount, claimId, `Welfare payout (Stage ${disbursementStage} of ${totalStages})`],
     );
 
-    // Update the claim status
+    // Update the claim tracking
     await client.query(
-      'UPDATE welfare_claims SET status = \'PAID\', updated_at = CURRENT_TIMESTAMP WHERE claim_id = $1',
-      [claim.claim_id || claim.id],
+      `UPDATE welfare_claims 
+       SET status = $1, 
+           updated_at = CURRENT_TIMESTAMP,
+           amount_disbursed_so_far = COALESCE(amount_disbursed_so_far, 0) + $2,
+           disbursement_stage = $3,
+           total_stages = $4,
+           next_disbursement_date = $5
+       WHERE claim_id = $6`,
+      [status, payoutAmount, disbursementStage, totalStages, nextDate, claimId],
     );
 
     // Update the correct fund balance based on chama type
@@ -628,22 +662,20 @@ async function processWelfarePayout(claim, client = pool) {
     if (chama && chama.chama_type === 'WELFARE') {
       await client.query(
         'UPDATE chamas SET current_fund = current_fund - $1 WHERE chama_id = $2',
-        [claim.claim_amount, claim.chama_id]
+        [payoutAmount, claim.chama_id]
       );
     } else {
       await client.query(
         'UPDATE welfare_fund SET balance = balance - $1 WHERE chama_id = $2',
-        [claim.claim_amount, claim.chama_id]
+        [payoutAmount, claim.chama_id]
       );
     }
 
     logger.info(
-      `Processed welfare payout of KES ${claim.claim_amount} for claim ${claim.id}`,
+      `Processed welfare payout (Stage ${disbursementStage}) of KES ${payoutAmount} for claim ${claimId}`,
     );
   } catch (error) {
     logger.error('Error processing welfare payout:', error);
-    // In a real implementation, you'd want to handle this error appropriately
-    // and possibly retry or notify an admin
     throw error;
   }
 }
@@ -782,6 +814,20 @@ const contributeToEmergencyDrive = async (req, res) => {
   }
 };
 
+const getPayoutLedger = async (req, res) => {
+  try {
+    const { chamaId } = req.params;
+    const { rows } = await pool.query(
+      'SELECT * FROM welfare_payout_ledger WHERE chama_id = $1 ORDER BY last_disbursed_at DESC',
+      [chamaId]
+    );
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    logger.error('Error fetching welfare ledger:', error);
+    res.status(500).json({ success: false, message: 'Error fetching welfare ledger' });
+  }
+};
+
 module.exports = {
   // Welfare Configuration
   getWelfareConfig,
@@ -801,6 +847,8 @@ module.exports = {
   createEmergencyDrive,
   getEmergencyDrives,
   contributeToEmergencyDrive,
+  
+  getPayoutLedger,
 
   // Helper functions (exported for testing)
   _notifyAdminsAboutNewClaim: notifyAdminsAboutNewClaim,

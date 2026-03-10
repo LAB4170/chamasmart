@@ -256,6 +256,19 @@ const ApplyLoan = () => {
                                 <span>Monthly Installment:</span>
                                 <span>KES {repaymentStats.monthly.toLocaleString()} / mo</span>
                             </div>
+
+                            <div className="mt-4 p-3 rounded" style={{ backgroundColor: 'var(--surface-5)', border: '1px dashed var(--primary)' }}>
+                                <div className="d-flex align-center gap-2 mb-1 text-primary">
+                                    <BarChart2 size={16} />
+                                    <strong style={{ fontSize: "0.85rem" }}>ASCA Loyalty Pricing</strong>
+                                </div>
+                                <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: 0 }}>
+                                    Your final interest rate will be calculated upon approval based on your <strong>Trust Score</strong>.
+                                    <br />
+                                    • Score &gt; 90: <span className="text-success">-2% Discount</span><br />
+                                    • Score &lt; 70: <span className="text-danger">+1% Premium</span>
+                                </p>
+                            </div>
                         </div>
 
                         <div className="mt-4">

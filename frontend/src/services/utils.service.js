@@ -66,6 +66,10 @@ export const sessionAPI = {
         api.post(`/sessions/${chamaId}/${meetingId}/open`, { openingCash }),
     getData: (chamaId, meetingId) => 
         api.get(`/sessions/${chamaId}/${meetingId}/data`),
-    close: (chamaId, meetingId, closingCashSummary) => 
-        api.post(`/sessions/${chamaId}/${meetingId}/close`, { closingCashSummary }),
+    close: (chamaId, meetingId, physical_cash_count, discrepancy_note) => 
+        api.post(`/sessions/${chamaId}/${meetingId}/close`, { physical_cash_count, discrepancy_note }),
+    addLivePenalty: (chamaId, meetingId, penaltyData) =>
+        api.post(`/sessions/${chamaId}/${meetingId}/penalties`, penaltyData),
+    getPenalties: (chamaId, meetingId) =>
+        api.get(`/sessions/${chamaId}/${meetingId}/penalties`),
 };

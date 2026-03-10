@@ -25,6 +25,8 @@ export const roscaAPI = {
         api.get(`/rosca/cycles/${cycleId}/contributions`),
     getMemberStatement: (cycleId, memberId) =>
         api.get(`/rosca/cycles/${cycleId}/members/${memberId}/statement`),
+    getRosterPreview: (chamaId) =>
+        api.get(`/rosca/chama/${chamaId}/roster-preview`),
 };
 
 // ASCA API calls
@@ -82,5 +84,8 @@ export const welfareAPI = {
         api.post(`/welfare/${chamaId}/emergency-drives`, payload),
     contributeToEmergencyDrive: (driveId, payload) =>
         api.post(`/welfare/emergency-drives/${driveId}/contribute`, payload),
+        
+    // Payout Ledger (Phase 23 Transparency)
+    getPayoutLedger: (chamaId) => api.get(`/welfare/${chamaId}/ledger`),
 };
 

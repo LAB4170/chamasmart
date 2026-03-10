@@ -20,6 +20,7 @@ const WelfareDashboard = () => {
     const [myClaims, setMyClaims] = useState([]);
     const [config, setConfig] = useState([]);
     const [emergencyDrives, setEmergencyDrives] = useState([]);
+    const [ledger, setLedger] = useState([]);
     const [error, setError] = useState(null);
     const [userRole, setUserRole] = useState(null);
 
@@ -39,18 +40,20 @@ const WelfareDashboard = () => {
             setLoading(true);
             setError(null);
 
-            const [fundRes, claimsRes, configRes, membersRes, drivesRes] = await Promise.allSettled([
+            const [fundRes, claimsRes, configRes, membersRes, drivesRes, ledgerRes] = await Promise.allSettled([
                 welfareAPI.getFund(id),
                 welfareAPI.getMemberClaims(id, user.user_id),
                 welfareAPI.getConfig(id),
                 chamaAPI.getMembers(id),
                 welfareAPI.getEmergencyDrives(id),
+                welfareAPI.getPayoutLedger(id),
             ]);
 
             setFundValues(fundRes.status === "fulfilled" ? fundRes.value.data : null);
             setMyClaims(claimsRes.status === "fulfilled" ? (claimsRes.value.data?.data || claimsRes.value.data || []) : []);
             setConfig(configRes.status === "fulfilled" ? (configRes.value.data?.data || configRes.value.data || []) : []);
             setEmergencyDrives(drivesRes.status === "fulfilled" ? (drivesRes.value.data?.data || []) : []);
+            setLedger(ledgerRes.status === "fulfilled" ? (ledgerRes.value.data?.data || []) : []);
 
             if (membersRes.status === "fulfilled") {
                 const members = membersRes.value.data?.data || membersRes.value.data || [];
@@ -312,13 +315,59 @@ const WelfareDashboard = () => {
                                     <div className="claim-info">
                                         <div className="claim-event">{claim.event_type?.replace(/_/g, " ")}</div>
                                         <div className="claim-date">{new Date(claim.created_at).toLocaleDateString()}</div>
+                                        {claim.total_stages > 1 && (
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '0.25rem' }}>
+                                                Tranche Progress: Stage {claim.disbursement_stage} of {claim.total_stages}
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="claim-amount">KES {Number(claim.claim_amount).toLocaleString()}</div>
+                                    <div className="claim-amount">
+                                        KES {Number(claim.claim_amount).toLocaleString()}
+                                        {claim.amount_disbursed_so_far > 0 && claim.amount_disbursed_so_far < claim.claim_amount && (
+                                            <div className="text-success fw-bold mt-1" style={{ fontSize: '0.75rem' }}>
+                                                {Number(claim.amount_disbursed_so_far).toLocaleString()} Paid Out
+                                            </div>
+                                        )}
+                                    </div>
                                     <span className={`status-pill ${getStatusClass(claim.status)}`}>
                                         {getStatusIcon(claim.status)} {claim.status}
                                     </span>
                                 </div>
                             ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Transparency Ledger (Phase 23) */}
+                <div className="card-modern mt-4">
+                    <h3 className="card-modern-title d-flex align-center"><ShieldCheck size={18} className="mr-2 text-success"/> Transparency Payout Ledger</h3>
+                    <p className="text-sm text-muted mb-3" style={{ fontSize: '0.85rem' }}>Publicly accessible record of all welfare fund disbursements protecting against fund mismanagement.</p>
+                    {ledger.length === 0 ? (
+                        <div className="empty-state-modern compact">
+                            <p className="text-muted text-sm my-3">No payouts recorded yet.</p>
+                        </div>
+                    ) : (
+                        <div className="table-responsive">
+                            <table className="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Disbursed On</th>
+                                        <th>Beneficiary</th>
+                                        <th>Event Type</th>
+                                        <th>Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {ledger.map(row => (
+                                        <tr key={row.claim_id}>
+                                            <td>{new Date(row.last_disbursed_at).toLocaleDateString()}</td>
+                                            <td><strong>{row.beneficiary}</strong></td>
+                                            <td><span className="badge badge-secondary">{row.event_type ? row.event_type.replace(/_/g, " ") : "Unknown"}</span></td>
+                                            <td className="text-success font-bold">KES {Number(row.total_disbursed).toLocaleString()}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     )}
                 </div>

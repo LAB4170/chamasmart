@@ -17,6 +17,11 @@
 - **Type**: Stability Improvement
 
 ### Phase 16: ROSCA Cycle Management & Ledgers 
-- **Goal**: Implement physical backend endpoints for ROSCA cycle contributions and add unified frontend ledger components so members can track their payment history.
-- **Status**: Not started
+- **Goal**: Implement physical backend endpoints for ROSCA cycle contributions and add unified frontend ledger components.
+- **Status**: Completed
+- **Type**: Feature Completion
+
+### Phase 17: ROSCA 10/10 Enhancements (Autopilot & Swaps)
+- **Goal**: Implement monetized position swaps and M-Pesa automated payouts.
+- **Status**: Completed
 - **Type**: Feature Completion

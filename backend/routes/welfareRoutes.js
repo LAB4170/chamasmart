@@ -126,4 +126,13 @@ router.post(
   welfareController.contributeToEmergencyDrive,
 );
 
+// ============================================================================
+// PAYOUT LEDGER (Transparency view)
+// ============================================================================
+router.get(
+  '/:chamaId/ledger',
+  authorize('member', 'admin', 'treasurer', 'chairperson'),
+  welfareController.getPayoutLedger,
+);
+
 module.exports = router;

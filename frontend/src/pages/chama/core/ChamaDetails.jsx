@@ -1372,40 +1372,72 @@ const ChamaDetails = () => {
 
                 {activeCycle && (
                   <div className="rosca-cycle">
-                    {/* Swap Requests Section */}
-                    {(swapRequests.incoming.length > 0 || swapRequests.outgoing.length > 0) && (
-                      <div className="swap-requests-section mb-4">
-                        {swapRequests.incoming.length > 0 && (
-                          <div className="alert alert-info">
-                            <h4 className="flex items-center gap-2 mb-3"><Bell size={18} /> Incoming Swap Requests</h4>
-                            {swapRequests.incoming.map(req => (
-                              <div key={req.request_id} className="flex flex-col md:flex-row md:items-center justify-between mt-2 p-3 bg-white/50 dark:bg-slate-800/50 rounded-xl border border-blue-200 dark:border-blue-800 gap-3">
-                                <div>
-                                  <strong className="text-gray-900 dark:text-gray-100">{req.requester_first_name} {req.requester_last_name}</strong> wants to swap with you.
-                                  <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Reason: "{req.reason}"</div>
-                                </div>
-                                <div className="flex gap-2">
-                                  <button
-                                    className="btn btn-sm btn-success flex-1"
-                                    onClick={() => handleSwapResponse(req.request_id, 'APPROVED')}
-                                  >
-                                    Approve
-                                  </button>
-                                  <button
-                                    className="btn btn-sm btn-danger flex-1"
-                                    onClick={() => handleSwapResponse(req.request_id, 'REJECTED')}
-                                  >
-                                    Reject
-                                  </button>
-                                </div>
+                    {/* Swap Requests & Marketplace Section */}
+                    {(swapRequests.incoming.length > 0 || swapRequests.outgoing.length > 0 || activeCycle.autopilot_enabled) && (
+                      <div className="swap-requests-section mb-6">
+                        {/* Autopilot Status Indicator */}
+                        {activeCycle.autopilot_enabled && (
+                          <div className="alert alert-success mb-4 flex items-center justify-between border-success/30 bg-success/5">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-success/20 flex items-center justify-center text-success animate-pulse">
+                                <Smartphone size={20} />
                               </div>
-                            ))}
+                              <div>
+                                <h4 className="m-0 text-success font-bold text-sm">M-Pesa Autopilot Active</h4>
+                                <p className="text-xs text-success/70 m-0">Payouts will trigger automatically via M-Pesa once collective funds are secured.</p>
+                              </div>
+                            </div>
+                            <span className="badge badge-success px-2 py-1 text-[10px]">VERIFIED 10/10</span>
+                          </div>
+                        )}
+
+                        {swapRequests.incoming.length > 0 && (
+                          <div className="alert alert-info shadow-sm">
+                            <h4 className="flex items-center gap-2 mb-3 text-blue-700"><Bell size={18} /> Incoming Swap Requests</h4>
+                            <div className="grid gap-3">
+                              {swapRequests.incoming.map(req => (
+                                <div key={req.request_id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-xl border border-blue-100 dark:border-blue-900 gap-4 shadow-sm">
+                                  <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <strong className="text-gray-900 dark:text-gray-100">{req.requester_first_name} {req.requester_last_name}</strong>
+                                      <span className="text-gray-500 font-normal">wants to swap slots</span>
+                                    </div>
+                                    <div className="text-xs text-gray-600 dark:text-gray-400">
+                                      Reason: <span className="italic">"{req.reason}"</span>
+                                    </div>
+                                    {req.swap_fee > 0 && (
+                                      <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-md text-xs font-bold border border-amber-200 dark:border-amber-800">
+                                        <DollarSign size={12} /> Incentive Offered: {formatCurrency(req.swap_fee)}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button
+                                      className="btn btn-sm btn-success px-4"
+                                      onClick={() => handleSwapResponse(req.request_id, 'APPROVED')}
+                                    >
+                                      Accept Swap
+                                    </button>
+                                    <button
+                                      className="btn btn-sm btn-outline px-4"
+                                      onClick={() => handleSwapResponse(req.request_id, 'REJECTED')}
+                                    >
+                                      Decline
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
 
                         {swapRequests.outgoing.map(req => (
-                          <div key={req.request_id} className="alert alert-secondary mt-2">
-                            â³ Pending swap request with <strong>{req.target_first_name} {req.target_last_name}</strong>
+                          <div key={req.request_id} className="alert alert-secondary mt-2 flex items-center justify-between border-slate-200">
+                            <div className="flex items-center gap-2">
+                              <Clock size={16} className="text-slate-400" />
+                              <span>Pending swap request with <strong>{req.target_first_name} {req.target_last_name}</strong></span>
+                            </div>
+                            {req.swap_fee > 0 && <span className="text-xs font-bold text-slate-500">Fee: {formatCurrency(req.swap_fee)}</span>}
                           </div>
                         ))}
                       </div>

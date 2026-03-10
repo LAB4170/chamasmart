@@ -20,6 +20,17 @@ const TableSessionDashboard = () => {
     const [showOpenModal, setShowOpenModal] = useState(false);
     const [actionLoading, setActionLoading] = useState(null);
     
+    // Close Session & Reconciliation States
+    const [showCloseModal, setShowCloseModal] = useState(false);
+    const [physicalCash, setPhysicalCash] = useState("");
+    const [discrepancyNote, setDiscrepancyNote] = useState("");
+    const [discrepancyError, setDiscrepancyError] = useState(false);
+
+    // Live Penalty States
+    const [showPenaltyModal, setShowPenaltyModal] = useState(false);
+    const [penalties, setPenalties] = useState([]);
+    const [penaltyForm, setPenaltyForm] = useState({ memberId: "", amount: "", reason: "" });
+
     // Inline edit states
     const [editingMember, setEditingMember] = useState(null);
     const [editValues, setEditValues] = useState({ contribution: "", repayment: "" });
@@ -33,11 +44,21 @@ const TableSessionDashboard = () => {
             setLoading(true);
             const res = await sessionAPI.getData(chamaId, meetingId);
             setSessionData(res.data.data);
+            fetchPenalties();
         } catch (err) {
             console.error(err);
             toast.error("Failed to load session data");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchPenalties = async () => {
+        try {
+            const res = await sessionAPI.getPenalties(chamaId, meetingId);
+            setPenalties(res.data.data || []);
+        } catch (err) {
+            console.error("Failed to load penalties:", err);
         }
     };
 
@@ -50,6 +71,46 @@ const TableSessionDashboard = () => {
             fetchSessionSync();
         } catch (err) {
             toast.error(err.response?.data?.message || "Failed to open session");
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleCloseSession = async () => {
+        try {
+            if (!physicalCash) return toast.error("Physical cash count is required.");
+            setActionLoading("closing");
+            await sessionAPI.close(chamaId, meetingId, parseFloat(physicalCash), discrepancyNote);
+            toast.success("Session closed and reconciled successfully.");
+            setShowCloseModal(false);
+            fetchSessionSync();
+        } catch (err) {
+            const errorMsg = err.response?.data?.message || "Failed to close session";
+            if (errorMsg.includes("discrepancy")) {
+                setDiscrepancyError(true);
+                toast.warning("Cash discrepancy detected. Please provide a discrepancy note.");
+            } else {
+                toast.error(errorMsg);
+            }
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleAddPenalty = async (e) => {
+        e.preventDefault();
+        try {
+            setActionLoading("penalty");
+            await sessionAPI.addLivePenalty(chamaId, meetingId, {
+                memberId: penaltyForm.memberId,
+                amount: parseFloat(penaltyForm.amount),
+                reason: penaltyForm.reason
+            });
+            toast.success("Live penalty issued.");
+            setPenaltyForm({ memberId: "", amount: "", reason: "" });
+            fetchPenalties();
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Failed to issue penalty");
         } finally {
             setActionLoading(null);
         }
@@ -147,9 +208,14 @@ const TableSessionDashboard = () => {
                                 </button>
                             )}
                             {isOpen && (
-                                <button className="btn-session-close" onClick={() => {}}>
-                                    <Lock size={18} /> Close Session
-                                </button>
+                                <>
+                                    <button className="btn btn-warning btn-sm" onClick={() => setShowPenaltyModal(true)} style={{ marginRight: '10px' }}>
+                                        <AlertCircle size={18} className="mr-1" /> Fines & Penalties ({penalties.length})
+                                    </button>
+                                    <button className="btn-session-close" onClick={() => setShowCloseModal(true)}>
+                                        <Lock size={18} /> Close Session
+                                    </button>
+                                </>
                             )}
                         </div>
                     </div>
@@ -311,6 +377,144 @@ const TableSessionDashboard = () => {
                             >
                                 {actionLoading === "opening" ? "Opening..." : "Confirm & Start"}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Hard-Lock Reconciliation Modal (Phase 21) */}
+            {showCloseModal && (
+                <div className="modal-backdrop">
+                    <div className="modal compact">
+                        <div className="modal-header bg-danger text-white">
+                            <h3><Lock size={18} className="mr-2" /> End Session & Reconcile</h3>
+                            <button onClick={() => { setShowCloseModal(false); setDiscrepancyError(false); setDiscrepancyNote(""); }} className="btn-icon text-white"><X size={20} /></button>
+                        </div>
+                        <div className="modal-body p-4">
+                            <div className="alert alert-warning mb-4">
+                                <strong>System Computed Expected Fund: KES {tableFund.toLocaleString()}</strong><br />
+                                The physical cash on the table MUST MATCH this expected value.
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Total Cash Counted (KES)</label>
+                                <input 
+                                    type="number" 
+                                    className={`form-input focus-ring font-mono text-xl text-center pb-2 pt-2 form-input-lg ${discrepancyError ? 'border-danger' : ''}`}
+                                    value={physicalCash} 
+                                    onChange={(e) => { setPhysicalCash(e.target.value); setDiscrepancyError(false); }}
+                                    placeholder="Count physical cash"
+                                    autoFocus
+                                />
+                            </div>
+                            
+                            {discrepancyError && (
+                                <div className="form-group mt-3">
+                                    <label className="form-label text-danger">Discrepancy Detected! Explain Variance:</label>
+                                    <textarea 
+                                        className="form-input border-danger focus-ring"
+                                        placeholder="Enter signed-off reason for why the physical cash does not match expected fund..."
+                                        rows="3"
+                                        value={discrepancyNote}
+                                        onChange={(e) => setDiscrepancyNote(e.target.value)}
+                                        required
+                                    ></textarea>
+                                    <small className="text-danger mt-1">This will be permanently logged in the digital minutes.</small>
+                                </div>
+                            )}
+
+                            <button 
+                                className={`btn w-full mt-4 ${discrepancyError ? 'btn-danger' : 'btn-primary'}`} 
+                                onClick={handleCloseSession}
+                                disabled={actionLoading === "closing"}
+                            >
+                                {actionLoading === "closing" ? "Closing..." : discrepancyError ? "Force Close with Discrepancy" : "Confirm Reconciliation & Close Session"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Live Penalty Modal (Phase 22) */}
+            {showPenaltyModal && (
+                <div className="modal-backdrop">
+                    <div className="modal p-0" style={{ maxWidth: '600px', width: '100%' }}>
+                        <div className="modal-header bg-warning text-dark border-bottom px-4 py-3">
+                            <h3 className="m-0"><AlertCircle size={18} className="mr-2" /> Live Fines & Penalties</h3>
+                            <button onClick={() => setShowPenaltyModal(false)} className="btn-icon"><X size={20} /></button>
+                        </div>
+                        <div className="modal-body p-4">
+                            <div className="d-flex" style={{ gap: '20px' }}>
+                                {/* Penalty Log */}
+                                <div className="flex-1 border rounded p-3 bg-light" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                    <h5 className="mb-3 text-muted text-uppercase" style={{ fontSize: '0.8rem' }}>Issued Fines ({penalties.length})</h5>
+                                    {penalties.length === 0 ? (
+                                        <div className="text-center text-muted text-sm py-4">No penalties tracked yet.</div>
+                                    ) : (
+                                        <div className="d-flex flex-column" style={{ gap: '10px' }}>
+                                            {penalties.map(p => (
+                                                <div key={p.penalty_id} className="p-2 border rounded bg-white" style={{ borderLeft: '4px solid var(--warning)'}}>
+                                                    <div className="d-flex justify-between fw-bold mb-1">
+                                                        <span>{p.member_name}</span>
+                                                        <span className="text-danger">KES {p.amount}</span>
+                                                    </div>
+                                                    <span className="text-muted text-sm d-flex align-center gap-1 justify-between">
+                                                        <span>{p.reason}</span>
+                                                        <span className={`badge ${p.status === 'PAID' ? 'badge-success' : 'badge-warning'} px-1 py-0`}>{p.status}</span>
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Issue New Form */}
+                                <div className="flex-1">
+                                    <h5 className="mb-3">Issue New</h5>
+                                    <form onSubmit={handleAddPenalty}>
+                                        <div className="form-group mb-2">
+                                            <label className="text-sm">Select Member</label>
+                                            <select 
+                                                className="form-input form-select" 
+                                                value={penaltyForm.memberId}
+                                                onChange={(e) => setPenaltyForm({...penaltyForm, memberId: e.target.value})}
+                                                required
+                                            >
+                                                <option value="">-- Choose --</option>
+                                                {activities.map(a => <option key={a.user_id} value={a.user_id}>{a.full_name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="form-group mb-2">
+                                            <label className="text-sm">Amount (KES)</label>
+                                            <input 
+                                                type="number" 
+                                                className="form-input" 
+                                                placeholder="e.g 100"
+                                                value={penaltyForm.amount}
+                                                onChange={(e) => setPenaltyForm({...penaltyForm, amount: e.target.value})}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="form-group mb-3">
+                                            <label className="text-sm">Reason / Infraction</label>
+                                            <input 
+                                                type="text" 
+                                                className="form-input" 
+                                                placeholder="e.g Late arrival, Phone ringing"
+                                                value={penaltyForm.reason}
+                                                onChange={(e) => setPenaltyForm({...penaltyForm, reason: e.target.value})}
+                                                required
+                                            />
+                                        </div>
+                                        <button 
+                                            type="submit" 
+                                            className="btn btn-warning w-full"
+                                            disabled={actionLoading === "penalty"}
+                                        >
+                                            <AlertCircle size={16} /> Issue Fine Now
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

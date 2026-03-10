@@ -568,6 +568,12 @@ const LoanManagement = () => {
                                     {loanDetails.guarantors && loanDetails.guarantors.length > 0 && (
                                         <div style={{ marginTop: "1.5rem" }}>
                                             <h4>Guarantors</h4>
+                                            {loanDetails.loan.status === 'DEFAULTED' && chama?.chama_type === 'ASCA' && (
+                                                <div className="alert alert-danger" style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                                    <AlertCircle size={18} />
+                                                    <strong>ASCA Risk Alert:</strong> This loan has defaulted. Guarantors' shares are FROZEN to cover liabilities.
+                                                </div>
+                                            )}
                                             <div className="table-responsive">
                                                 <table className="table table-sm">
                                                     <thead>
@@ -579,10 +585,15 @@ const LoanManagement = () => {
                                                     </thead>
                                                     <tbody>
                                                         {loanDetails.guarantors.map((g, idx) => (
-                                                            <tr key={g.guarantor_user_id || idx}>
+                                                            <tr key={g.guarantor_user_id || idx} className={g.liability_status === 'FROZEN' ? 'bg-danger-light' : ''}>
                                                                 <td><strong>{g.guarantor_name || `${g.first_name || ''} ${g.last_name || ''}`.trim() || 'Unknown'}</strong></td>
                                                                 <td>{formatCurrency(g.guarantee_amount)}</td>
-                                                                <td><span className={`badge ${g.status === 'ACCEPTED' ? 'badge-success' : g.status === 'REJECTED' ? 'badge-error' : 'badge-warning'}`}>{g.status || 'PENDING'}</span></td>
+                                                                <td>
+                                                                    <span className={`badge ${g.status === 'ACCEPTED' ? 'badge-success' : g.status === 'REJECTED' ? 'badge-error' : 'badge-warning'}`}>{g.status || 'PENDING'}</span>
+                                                                    {g.liability_status === 'FROZEN' && (
+                                                                        <span className="badge badge-error ml-2" style={{ marginLeft: "0.5rem" }}>FROZEN ❄️</span>
+                                                                    )}
+                                                                </td>
                                                             </tr>
                                                         ))}
                                                     </tbody>
