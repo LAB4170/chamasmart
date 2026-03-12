@@ -42,3 +42,8 @@ To transform ChamaSmart into a production-ready, highly reliable financial manag
 ## Phase 16 Goals (New)
 - **ROSCA Contribution Backend**: Create backend endpoints (`makeContribution`, `getContributions`, `getMemberStatement`) to capture real ROSCA payments.
 - **ROSCA Payment Ledger**: Build a frontend component to track member payments for the active cycle, replacing the simulated payment flow.
+
+## Phase 30 Goals (New)
+- **Real-Time Group Chat**: Implement a WhatsApp-like real-time messaging platform within every Chama for seamless member communication.
+- **Media Support**: Support secure photo and video attachments within the chat via resilient cloud storage.
+- **AI Customer Service**: Deploy a 24/7 intelligent chatbot integrated into the platform to handle member FAQs, customer service, and platform navigation.
