@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, memo, useCallback, useMemo } from "react";
+import { useState, useEffect, memo, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { chamaAPI, contributionAPI, ascaAPI, memberAPI } from "../../../services/api";
@@ -26,6 +26,8 @@ import {
   Shield, Landmark, ArrowRight, TrendingDown, Wallet, Smartphone, AlertTriangle
 } from 'lucide-react';
 import ContributionMatrix from "../../../components/rosca/ContributionMatrix";
+import ChamaCreditScore from "./ChamaCreditScore";
+import HealthAlerts from "./HealthAlerts";
 
 // --- Memoized Sub-components ---
 
@@ -1264,6 +1266,11 @@ const ChamaDetails = () => {
                       isOfficial={false}
                     />
                   )}
+
+                  <div className="grid grid-col-1 md:grid-cols-2 gap-4 my-4">
+                    <ChamaCreditScore chamaId={id} />
+                    <HealthAlerts chamaId={id} />
+                  </div>
 
                   {["ASCA", "TABLE_BANKING"].includes(chama.chama_type) && (
                     <div className="grid grid-1 md:grid-2 gap-4 mt-4">

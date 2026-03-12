@@ -75,3 +75,10 @@ export const sessionAPI = {
     getPenalties: (chamaId, meetingId) =>
         api.get(`/sessions/${chamaId}/${meetingId}/penalties`),
 };
+
+// Score / Credit Bureau API calls
+export const scoreAPI = {
+    getScore: (chamaId) => api.get(`/chamas/${chamaId}/score`),
+    getHistory: (chamaId) => api.get(`/chamas/${chamaId}/score/history`),
+    getAlerts: (chamaId) => api.get(`/chamas/${chamaId}/health-alerts`),
+};

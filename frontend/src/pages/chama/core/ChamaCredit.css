@@ -1,0 +1,208 @@
+/* =====================================================================
+   ChamaCredit.css — Styles for ChamaCreditScore & HealthAlerts widgets
+   ===================================================================== */
+
+/* ─── Credit Score Card ─────────────────────────────────────────────── */
+.credit-score-card {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    border-radius: 24px;
+    padding: 1.75rem;
+    border: 1.5px solid #e5e7eb;
+    box-shadow: 0 8px 32px rgba(16, 185, 129, 0.06);
+    margin-bottom: 1.5rem;
+}
+
+.credit-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 2.5rem;
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+.credit-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+}
+
+.credit-title-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.credit-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+.credit-refresh-btn {
+    background: #f3f4f6;
+    border: none;
+    border-radius: 8px;
+    padding: 0.4rem 0.6rem;
+    cursor: pointer;
+    color: #6b7280;
+    transition: all 0.2s;
+}
+.credit-refresh-btn:hover { background: #e5e7eb; color: #10b981; }
+
+/* ─── Gauge Section ─────────────────────────────────────────────────── */
+.credit-gauge-section {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.credit-gauge-wrapper { flex-shrink: 0; }
+
+.credit-tier-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.credit-tier-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.85rem;
+    border-radius: 100px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+}
+
+.credit-computed-at {
+    font-size: 0.7rem;
+    color: #9ca3af;
+    margin: 0;
+}
+
+/* ─── Dimension Bars ────────────────────────────────────────────────── */
+.credit-dimensions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.dimension-item { display: flex; flex-direction: column; gap: 3px; }
+
+.dimension-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dimension-label { font-size: 0.8rem; color: #374151; font-weight: 500; }
+.dimension-score { font-size: 0.8rem; font-weight: 700; color: #111827; }
+.dimension-weight { font-size: 0.65rem; color: #9ca3af; }
+
+.dimension-track {
+    height: 7px;
+    border-radius: 100px;
+    background: #f3f4f6;
+    overflow: hidden;
+}
+
+.dimension-fill {
+    height: 100%;
+    border-radius: 100px;
+}
+
+/* ─── Sparkline ─────────────────────────────────────────────────────── */
+.sparkline-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+/* ─── Health Alerts ─────────────────────────────────────────────────── */
+.health-alerts-container {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    border-radius: 24px;
+    padding: 1.5rem;
+    border: 1.5px solid #e5e7eb;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+    margin-bottom: 1.5rem;
+}
+
+.health-alerts-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.health-alerts-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+    flex: 1;
+}
+
+.health-alerts-critical-badge {
+    background: #fef2f2;
+    color: #ef4444;
+    border: 1px solid #fecaca;
+    border-radius: 100px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+}
+
+.health-alerts-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.health-alert-card {
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.health-alert-header {
+    width: 100%;
+    background: none;
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 0.9rem;
+    cursor: pointer;
+    text-align: left;
+}
+
+.health-alert-icon { font-size: 1rem; display: flex; align-items: center; gap: 3px; }
+.health-alert-title { font-weight: 700; font-size: 0.85rem; flex: 1; }
+
+.health-alert-severity-badge {
+    border-radius: 100px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.15rem 0.55rem;
+}
+
+.health-alert-body { padding: 0.65rem 0.9rem 0.75rem; }
+
+.health-alert-detail {
+    font-size: 0.82rem;
+    color: #374151;
+    margin: 0 0 0.5rem 0;
+    line-height: 1.5;
+}
+
+.health-alert-action {
+    font-size: 0.78rem;
+    color: #6b7280;
+    padding: 0.5rem 0.7rem;
+    background: rgba(0,0,0,0.04);
+    border-radius: 8px;
+    line-height: 1.5;
+}

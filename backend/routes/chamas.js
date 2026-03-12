@@ -20,6 +20,8 @@ const {
   updateChamaSchema,
 } = require('../utils/validationSchemas');
 const { applyRateLimiting } = require('../middleware/rateLimiting');
+const { getChamaScore, getScoreHistory } = require('../controllers/creditBureauController');
+const { getHealthAlerts } = require('../controllers/financialHealthController');
 
 // ============================================================================
 // PUBLIC ROUTES (no authentication required)
@@ -103,5 +105,14 @@ router.post('/:id/analyze-reliability', protect, authorize('admin', 'chairperson
     next(error);
   }
 });
+
+// Credit Bureau: compute & cache score (accessible by all members)
+router.get('/:id/score', protect, authorize('member', 'admin', 'treasurer', 'chairperson', 'secretary'), getChamaScore);
+
+// Credit Bureau: score history for sparkline
+router.get('/:id/score/history', protect, authorize('member', 'admin', 'treasurer', 'chairperson', 'secretary'), getScoreHistory);
+
+// AI Health Coach: rule-based alerts
+router.get('/:id/health-alerts', protect, authorize('member', 'admin', 'treasurer', 'chairperson', 'secretary'), getHealthAlerts);
 
 module.exports = router;
