@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { ArrowRight, MessageSquare, ShieldCheck } from "lucide-react";
+import googleLogo from "../../assets/images/google-logo.png";
 
 // Shared frictionless auth UI for both Login and Register
 const AuthFlow = ({ title = "Welcome Back", subtitle = "Login securely to ChamaSmart" }) => {
@@ -213,7 +214,7 @@ const AuthFlow = ({ title = "Welcome Back", subtitle = "Login securely to ChamaS
                   transition: "all 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
                 }}
               >
-                <img src="/google-icon.svg" alt="" style={{ width: "20px", height: "20px" }} />
+                <img src={googleLogo} alt="Google" style={{ width: "20px", height: "20px" }} />
                 Continue with Google
               </button>
             </form>

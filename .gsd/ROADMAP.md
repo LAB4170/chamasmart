@@ -25,3 +25,9 @@
 - **Goal**: Implement a dynamic AI advisor using Groq/Gemini to analyze Chama financial health from real-time data.
 - **Status**: Completed & Verified (Backend)
 - **Type**: AI Integration
+
+### Phase 29: Dashboard Analytics Revamp
+- **Goal**: Upgrade dashboard charts to be structurally accurate, high-contrast, and insight-driven.
+- **Status**: In Progress
+- **Type**: UI/UX Enhancement
+
