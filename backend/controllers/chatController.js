@@ -1,7 +1,7 @@
 const pool = require("../config/db");
 const logger = require("../utils/logger");
 const { getIo } = require("../socket");
-const { handleIncomingSupportMessage } = require("../services/aiSupportService");
+const { handleIncomingSupportMessage, shouldBotIntervene } = require("../services/aiSupportService");
 
 // Get all channels for a specific chama
 const getChannels = async (req, res) => {
@@ -87,18 +87,24 @@ const sendMessage = async (req, res) => {
     // Emit to socket room
     getIo().to(`chat_${channelId}`).emit('new_message', broadcastData);
 
-    // --- AI SUPPORT BOT TRIGGER ---
-    const channelRes = await pool.query("SELECT type, chamas.chama_name FROM chat_channels JOIN chamas ON chat_channels.chama_id = chamas.chama_id WHERE channel_id = $1", [channelId]);
-    if (channelRes.rows[0]?.type === 'support' && messageType === 'text') {
-       // Fire and forget (runs asynchronously)
+    // --- AI BOT TRIGGER ---
+    // Bot responds if: channel is 'support' type OR user mentions @bot in any channel
+    const channelRes = await pool.query(
+      "SELECT type, chamas.chama_name FROM chat_channels JOIN chamas ON chat_channels.chama_id = chamas.chama_id WHERE channel_id = $1",
+      [channelId]
+    );
+    const isSupport = channelRes.rows[0]?.type === 'support';
+    const isBotMentioned = shouldBotIntervene(content);
+
+    if (messageType === 'text' && (isSupport || isBotMentioned)) {
        handleIncomingSupportMessage(
-         channelId, 
-         content, 
-         userData?.first_name || 'Member', 
-         channelRes.rows[0].chama_name
+         channelId,
+         content,
+         userData?.first_name || 'Member',
+         channelRes.rows[0]?.chama_name || 'your Chama'
        );
     }
-    // ------------------------------
+    // ----------------------
 
     res.status(201).json({ success: true, data: broadcastData });
   } catch (error) {

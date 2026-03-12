@@ -4,7 +4,7 @@ const { createAdapter } = require('@socket.io/redis-adapter');
 const { createClient } = require('redis');
 const { socketCorsOptions } = require('./config/cors');
 const { sendTestNotification } = require('./services/safariTestService');
-const { handleIncomingSupportMessage } = require('./services/aiSupportService');
+const { handleIncomingSupportMessage, shouldBotIntervene } = require('./services/aiSupportService');
 const logger = require('./utils/logger');
 const { metrics } = require('./middleware/metrics');
 
@@ -208,18 +208,21 @@ module.exports = {
 
           io.to(`chat_${channelId}`).emit('new_message', broadcastData);
 
-          // --- AI SUPPORT BOT TRIGGER ---
+          // --- AI BOT TRIGGER ---
+          // Responds in support channels OR when user mentions @bot / !help
           const channelRes = await pool.query("SELECT type, chamas.chama_name FROM chat_channels JOIN chamas ON chat_channels.chama_id = chamas.chama_id WHERE channel_id = $1", [channelId]);
-          if (channelRes.rows[0]?.type === 'support' && messageType === 'text') {
-             // Fire and forget (runs asynchronously)
+          const isSupport = channelRes.rows[0]?.type === 'support';
+          const isBotMentioned = shouldBotIntervene(content);
+
+          if (messageType === 'text' && (isSupport || isBotMentioned)) {
              handleIncomingSupportMessage(
-               channelId, 
-               content, 
-               userData?.first_name || 'Member', 
-               channelRes.rows[0].chama_name
+               channelId,
+               content,
+               userData?.first_name || 'Member',
+               channelRes.rows[0]?.chama_name || 'your Chama'
              );
           }
-          // ------------------------------
+          // ---------------------
         } catch (error) {
           logger.error('Socket chat message error', { error: error.message });
         }
