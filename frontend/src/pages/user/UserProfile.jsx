@@ -1,7 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { userAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { toast } from "react-toastify";
+import { Camera, Loader2 } from "lucide-react";
+import { uploadMediaToFirebase } from "../../services/firebaseStorage";
+import { getImageUrl } from "../../utils/imageUtils";
 import "./UserProfile.css";
 
 const UserProfile = () => {
@@ -12,7 +15,8 @@ const UserProfile = () => {
         last_name: "",
         phone_number: "",
         email: "",
-        national_id: ""
+        national_id: "",
+        profile_picture_url: ""
     });
 
     // Password change state
@@ -24,6 +28,8 @@ const UserProfile = () => {
 
     const [updating, setUpdating] = useState(false);
     const [changingPassword, setChangingPassword] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const fileInputRef = useRef(null);
 
     useEffect(() => {
         fetchProfile();
@@ -38,13 +44,39 @@ const UserProfile = () => {
                 last_name: data.last_name,
                 phone_number: data.phone_number,
                 email: data.email,
-                national_id: data.national_id || ""
+                national_id: data.national_id || "",
+                profile_picture_url: data.profilePictureUrl || data.profile_picture_url || ""
             });
             setLoading(false);
         } catch (err) {
             console.error(err);
             toast.error("Failed to load profile");
             setLoading(false);
+        }
+    };
+
+    const handleImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            return toast.error("Please select an image file");
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            return toast.error("Image must be less than 5MB");
+        }
+
+        setUploadingImage(true);
+        try {
+            const downloadUrl = await uploadMediaToFirebase(file, 'avatars');
+            setProfile(prev => ({ ...prev, profile_picture_url: downloadUrl }));
+            toast.success("Profile picture uploaded. Click Save to apply.");
+        } catch (err) {
+            toast.error("Failed to upload image");
+            console.error(err);
+        } finally {
+            setUploadingImage(false);
+            if (fileInputRef.current) fileInputRef.current.value = "";
         }
     };
 
@@ -56,12 +88,14 @@ const UserProfile = () => {
                 firstName: profile.first_name,
                 lastName: profile.last_name,
                 phoneNumber: profile.phone_number,
-                nationalId: profile.national_id
+                nationalId: profile.national_id,
+                profilePictureUrl: profile.profile_picture_url
             };
+            console.log("SENDING UPDATE DATA:", updateData);
             await userAPI.updateProfile(updateData);
             toast.success("Profile updated successfully");
         } catch (err) {
-            console.error(err);
+            console.error("PROFILE UPDATE FAILED:", err.response?.data || err);
             toast.error(err.response?.data?.message || "Failed to update profile");
         } finally {
             setUpdating(false);
@@ -115,9 +149,32 @@ const UserProfile = () => {
                 </div>
 
                 <div className="profile-card">
-                    {/* Personal Information Section */}
                     <div className="profile-section">
                         <h3>Personal Information</h3>
+                        
+                        <div className="profile-picture-container">
+                            <div className="profile-picture-wrapper" onClick={() => fileInputRef.current?.click()}>
+                                {getImageUrl(profile.profile_picture_url) ? (
+                                    <img src={getImageUrl(profile.profile_picture_url)} alt="Profile" className="profile-picture" />
+                                ) : (
+                                    <div className="profile-picture-placeholder">
+                                        {(profile.first_name?.[0] || "") + (profile.last_name?.[0] || "") || "?"}
+                                    </div>
+                                )}
+                                <div className="profile-picture-overlay">
+                                    {uploadingImage ? <Loader2 className="spinner" size={24} /> : <Camera size={24} />}
+                                </div>
+                            </div>
+                                <input 
+                                    type="file" 
+                                    ref={fileInputRef} 
+                                    style={{ display: 'none' }} 
+                                    accept="image/png, image/jpeg, image/jpg, image/webp"
+                                    onChange={handleImageUpload}
+                                />
+                            <p className="profile-picture-hint">Click to change profile picture</p>
+                        </div>
+
                         <form onSubmit={handleProfileUpdate} className="profile-form">
                             <div className="form-row">
                                 <div className="form-group">

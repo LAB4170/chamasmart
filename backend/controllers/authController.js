@@ -676,6 +676,12 @@ async function firebaseSync(req, res) {
           updateValues.push(providerId);
         }
 
+        // Always sync email from Google/Firebase if the DB value is missing
+        if (email && !user.email) {
+          updateFields.push(`email = $${placeholderIndex++}`);
+          updateValues.push(email);
+        }
+
         if (picture && !user.profile_picture_url) {
           updateFields.push(`profile_picture_url = $${placeholderIndex++}`);
           updateValues.push(picture);
@@ -693,6 +699,9 @@ async function firebaseSync(req, res) {
             `UPDATE users SET ${updateFields.join(', ')} WHERE user_id = $${placeholderIndex}`,
             updateValues
           );
+          // Refresh user from DB after update
+          const refreshed = await client.query('SELECT * FROM users WHERE user_id = $1', [user.user_id]);
+          user = refreshed.rows[0];
         }
       } else {
         logger.debug(`FirebaseSync: User not found. Creating new user record for ${email}`);

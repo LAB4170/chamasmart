@@ -70,8 +70,8 @@
 }
 
 .chat-avatar {
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
 }
 
@@ -80,6 +80,7 @@
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
+  object-position: center;
 }
 
 .chat-avatar-placeholder {

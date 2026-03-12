@@ -3,7 +3,6 @@ const jwt = require('jsonwebtoken');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const { createClient } = require('redis');
 const { socketCorsOptions } = require('./config/cors');
-const { sendTestNotification } = require('./services/safariTestService');
 const { handleIncomingSupportMessage } = require('./services/aiSupportService');
 const logger = require('./utils/logger');
 const { metrics } = require('./middleware/metrics');

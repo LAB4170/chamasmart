@@ -47,10 +47,12 @@ const updateProfileSchema = Joi.object({
   phoneNumber: Joi.string()
     .pattern(/^(?:\+?254|0)?[17]\d{8}$/)
     .optional()
+    .allow(null, '')
     .messages({
       'string.pattern.base': 'Invalid Kenyan phone number',
     }),
-  nationalId: Joi.string().min(6).max(20).optional().allow(null, ''),
+  nationalId: Joi.string().min(0).max(20).optional().allow(null, ''),
+  profilePictureUrl: Joi.string().uri().optional().allow(null, ''),
 });
 
 const changePasswordSchema = Joi.object({

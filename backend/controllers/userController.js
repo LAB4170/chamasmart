@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
 const { logAuditEvent, EVENT_TYPES, SEVERITY } = require('../utils/auditLog');
+const { uploadToStorage } = require('../utils/storage');
 
 // @desc    Get current user profile
 // @route   GET /api/users/profile
@@ -10,7 +11,7 @@ const getProfile = async (req, res) => {
     const userId = req.user.id;
 
     const result = await pool.query(
-      `SELECT user_id, first_name, last_name, email, phone_number, national_id,
+      `SELECT user_id, first_name, last_name, email, phone_number, national_id, profile_picture_url,
                     role, is_active, email_verified, phone_verified, 
                     created_at, updated_at
              FROM users 
@@ -54,8 +55,9 @@ const getProfile = async (req, res) => {
 // @access  Private
 const updateProfile = async (req, res) => {
   try {
+    console.log("RECEIVED UPDATE BODY:", req.body);
     const userId = req.user.id;
-    const { firstName, lastName, email, phoneNumber, nationalId } = req.body;
+    const { firstName, lastName, email, phoneNumber, nationalId, profilePictureUrl } = req.body;
 
     // Validate input
     if (!firstName || !lastName) {
@@ -67,10 +69,10 @@ const updateProfile = async (req, res) => {
 
     const result = await pool.query(
       `UPDATE users 
-             SET first_name = $1, last_name = $2, email = $3, phone_number = $4, national_id = $5, updated_at = NOW()
-             WHERE user_id = $6
-             RETURNING user_id, first_name, last_name, email, phone_number, national_id, updated_at`,
-      [firstName, lastName, email || null, phoneNumber, nationalId, userId],
+             SET first_name = $1, last_name = $2, email = $3, phone_number = $4, national_id = $5, profile_picture_url = $6, updated_at = NOW()
+             WHERE user_id = $7
+             RETURNING user_id, first_name, last_name, email, phone_number, national_id, profile_picture_url as "profilePictureUrl", updated_at`,
+      [firstName, lastName, email || null, phoneNumber, nationalId, profilePictureUrl || null, userId],
     );
 
     if (result.rows.length === 0) {
@@ -270,10 +272,53 @@ const searchUser = async (req, res) => {
   }
 };
 
+// @desc    Upload profile picture
+// @route   POST /api/users/profile-picture
+// @access  Private
+const uploadProfilePicture = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const uploadedFile = req.file || (req.files && req.files[0]) || (req.uploadedFiles && req.uploadedFiles[0]);
+
+    if (!uploadedFile) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded',
+      });
+    }
+
+    // Upload to storage (GCS or Local Fallback)
+    const profilePictureUrl = await uploadToStorage(uploadedFile, `avatars/${userId}`);
+
+    // Log the event
+    await logAuditEvent({
+      eventType: EVENT_TYPES.USER_PROFILE_UPDATED,
+      userId,
+      action: 'Uploaded profile picture',
+      entityType: 'user',
+      entityId: userId,
+      severity: SEVERITY.MEDIUM,
+    });
+
+    res.json({
+      success: true,
+      message: 'Profile picture uploaded successfully',
+      data: { profilePictureUrl },
+    });
+  } catch (error) {
+    console.error('Upload profile picture error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error uploading profile picture',
+    });
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
   changePassword,
   deactivateAccount,
   searchUser,
+  uploadProfilePicture,
 };

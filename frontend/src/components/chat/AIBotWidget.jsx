@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { X, Send, Loader2, Minimize2, Maximize2, Bot } from "lucide-react";
 import chatbotIcon from "../../assets/images/chatbot-icon.png";
+import api from "../../services/axios";
 import "./AIBotWidget.css";
 
 const CHAMASMART_CONTEXT = `
@@ -91,19 +92,12 @@ export default function AIBotWidget() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/chat/ai-support", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
-        },
-        body: JSON.stringify({
-          message: userMsg.content,
-          history: messages.slice(-6).map(m => ({ role: m.role, content: m.content }))
-        })
+      const response = await api.post("/chat/ai-support", {
+        message: userMsg.content,
+        history: messages.slice(-6).map(m => ({ role: m.role, content: m.content }))
       });
 
-      const data = await response.json();
+      const data = response.data;
       const botMsg = {
         role: "assistant",
         content: data.reply || "I'm sorry, I had trouble processing that. Please try again.",

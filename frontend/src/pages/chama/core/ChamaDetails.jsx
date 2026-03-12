@@ -345,7 +345,7 @@ const DeadlineAlerts = memo(({ repayments, formatDate, formatCurrency, isOfficia
 const ChamaDetails = () => {
   const { id } = useParams();
   const { user } = useAuth();
-  const socket = useSocket();
+  const { socket } = useSocket();
   const navigate = useNavigate();
 
   const [chama, setChama] = useState(null);

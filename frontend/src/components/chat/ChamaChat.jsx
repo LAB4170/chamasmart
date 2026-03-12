@@ -4,6 +4,7 @@ import { chatAPI } from "../../services/api";
 import { useSocket } from "../../context/SocketContext";
 import { useAuth } from "../../context/AuthContext";
 import { uploadMediaToFirebase } from "../../services/firebaseStorage";
+import { getImageUrl } from "../../utils/imageUtils";
 import "./ChamaChat.css";
 
 export default function ChamaChat({ chamaId }) {
@@ -156,11 +157,11 @@ export default function ChamaChat({ chamaId }) {
               <div key={msg.message_id || index} className={`chat-bubble-wrapper ${isMe ? 'message-mine' : 'message-theirs'}`}>
                 {!isMe && (
                   <div className="chat-avatar">
-                   {msg.profile_picture_url ? (
-                      <img src={msg.profile_picture_url} alt={`${msg.first_name}`} />
+                   {getImageUrl(msg.profile_picture_url) ? (
+                      <img src={getImageUrl(msg.profile_picture_url)} alt={`${msg.first_name}`} />
                    ) : (
-                      <div className="chat-avatar-placeholder">
-                        {msg.first_name?.[0] || '?'}
+                      <div className="chat-avatar-placeholder" title={`${msg.first_name || ''} ${msg.last_name || ''}`}>
+                        {((msg.first_name?.[0] || '') + (msg.last_name?.[0] || '')).toUpperCase() || '?'}
                       </div>
                    )}
                   </div>
@@ -169,7 +170,7 @@ export default function ChamaChat({ chamaId }) {
                   {!isMe && <div className="chat-sender-name">{msg.first_name} {msg.last_name}</div>}
                   
                   {msg.message_type === 'image' && msg.media_url && (
-                    <img src={msg.media_url} alt="Shared image" className="chat-media-image" />
+                    <img src={getImageUrl(msg.media_url)} alt="Shared image" className="chat-media-image" />
                   )}
                   {msg.message_type === 'video' && msg.media_url && (
                     <video src={msg.media_url} controls className="chat-media-video" />

@@ -1,11 +1,33 @@
 // c:\Users\Eobord\Desktop\chamasmart\frontend\src\services\firebaseStorage.js
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import app from "../config/firebase";
+import api from "./axios";
 
 const storage = getStorage(app);
 
 export const uploadMediaToFirebase = async (file, pathPrefix = 'chat_media') => {
   if (!file) return null;
+
+  // Use Backend Proxy for avatars to bypass CORS issues
+  if (pathPrefix === 'avatars') {
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const response = await api.post('/users/profile-picture', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      if (response.data.success) {
+        return response.data.data.profilePictureUrl;
+      }
+    } catch (error) {
+      console.error("Backend upload proxy failed, falling back to direct Firebase:", error);
+      // Fallback to direct Firebase SDK if backend fails
+    }
+  }
 
   return new Promise((resolve, reject) => {
     // Generate unique filename

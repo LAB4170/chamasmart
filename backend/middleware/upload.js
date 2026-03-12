@@ -13,6 +13,7 @@ const fileFilter = (req, file, cb) => {
     'image/jpeg', // JPEG images
     'image/png', // PNG images
     'image/jpg', // JPG images
+    'image/webp', // WEBP images
     'application/msword', // DOC
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // DOCX
   ];

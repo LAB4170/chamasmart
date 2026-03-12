@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 
 const NotificationBell = () => {
     const { isAuthenticated, user } = useAuth();
-    const socket = useSocket();
+    const { socket } = useSocket();
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [showDropdown, setShowDropdown] = useState(false);
