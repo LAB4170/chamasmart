@@ -409,6 +409,14 @@ function AppContent() {
                                 }
                             />
                             <Route
+                                path="/join-chama"
+                                element={
+                                    <ProtectedRoute>
+                                        <PageTransition><JoinChama /></PageTransition>
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
                                 path="/chamas/:id/rosca"
                                 element={
                                     <ProtectedRoute>

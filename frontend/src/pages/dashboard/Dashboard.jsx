@@ -212,9 +212,14 @@ const Dashboard = () => {
                 <p className="page-subtitle">Your financial portfolio overview across all groups.</p>
               </div>
             </div>
-            <Link to="/chamas/create" className="btn-action-primary">
-              <Plus size={18} /><span>Create New Chama</span>
-            </Link>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <Link to="/join-chama" className="btn-action-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Users size={16} /><span>Join with Code</span>
+              </Link>
+              <Link to="/chamas/create" className="btn-action-primary">
+                <Plus size={18} /><span>Create New Chama</span>
+              </Link>
+            </div>
           </div>
 
           {error && <div className="alert alert-error">{error}</div>}
@@ -338,22 +343,22 @@ const Dashboard = () => {
                           name: c.chama_name?.length > 10 ? c.chama_name.substring(0, 10) + "…" : c.chama_name, 
                           total: parseFloat(['ASCA', 'TABLE_BANKING'].includes(c.chama_type) ? (c.current_fund || 0) : (c.total_contributions || 0)) 
                         })).sort((a,b) => b.total - a.total)}
-                        layout="vertical"
-                        margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
+                        margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
+                        barCategoryGap="30%"
                       >
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} opacity={0.5} />
-                        <XAxis type="number" tick={{ fontSize: 10, fontWeight: 700 }} tickFormatter={(val) => {
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.5} />
+                        <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 10, fontWeight: 700 }} tickFormatter={(val) => {
                           if(val >= 1000000) return (val/1000000).toFixed(1) + 'M';
                           if(val >= 1000) return (val/1000).toFixed(0) + 'K';
                           return val;
                         }} axisLine={false} tickLine={false} />
-                        <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} width={80}/>
                         <Tooltip 
                           formatter={(v) => formatCurrency(v)} 
                           cursor={{ fill: "var(--surface)", opacity: 0.5 }} 
                           contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", background: "var(--bg-surface-glass)", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }} 
                         />
-                        <Bar dataKey="total" name="Net Worth / Saved" fill="#10b981" radius={[0, 4, 4, 0]} barSize={20} />
+                        <Bar dataKey="total" name="Net Worth / Saved" fill="#10b981" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -371,8 +376,8 @@ const Dashboard = () => {
                       <BarChart 
                         data={chamas.slice(0, 6).map((c) => {
                           const contributions = parseFloat(c.total_contributions || 0);
-                          const target = parseFloat(c.contribution_amount || 0) * 12; // Annualized baseline target
-                          const validTarget = target > 0 ? target : 10000; // prevent zero division
+                          const target = parseFloat(c.contribution_amount || 0) * 12;
+                          const validTarget = target > 0 ? target : 10000;
                           const pct = Math.min(100, Math.round((contributions / validTarget) * 100));
                           return {
                             name: c.chama_name?.length > 10 ? c.chama_name.substring(0, 10) + "…" : c.chama_name,
@@ -382,6 +387,8 @@ const Dashboard = () => {
                           };
                         })} 
                         margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
+                        barCategoryGap="25%"
+                        barGap={4}
                       >
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.5} />
                         <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} />
@@ -390,21 +397,19 @@ const Dashboard = () => {
                           if(val >= 1000) return (val/1000).toFixed(0) + 'K';
                           return val;
                         }} axisLine={false} tickLine={false} />
-                        
-                        {/* Custom Tooltip for Percentage Insight */}
                         <Tooltip 
                           cursor={{ fill: "rgba(59,130,246,0.05)" }} 
                           contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", background: "var(--bg-surface-glass)", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }} 
                           content={({ active, payload, label }) => {
                             if (active && payload && payload.length) {
-                              const data = payload[0].payload;
+                              const d = payload[0]?.payload;
                               return (
                                 <div style={{ background: "var(--surface)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border)" }}>
                                   <p style={{ margin: "0 0 8px 0", fontWeight: 'bold' }}>{label}</p>
-                                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Annual Target: <strong style={{color: 'var(--text-primary)'}}>{formatCurrency(data.target)}</strong></div>
-                                  <div style={{ color: '#3b82f6', fontSize: '0.85rem' }}>Accumulated: <strong>{formatCurrency(data.contributions)}</strong></div>
-                                  <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border)', fontWeight: 'bold', color: data.pct >= 100 ? '#10b981' : 'inherit' }}>
-                                    {data.pct}% Achieved
+                                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Annual Target: <strong style={{color: 'var(--text-primary)'}}>{formatCurrency(d?.target)}</strong></div>
+                                  <div style={{ color: '#3b82f6', fontSize: '0.85rem' }}>Accumulated: <strong>{formatCurrency(d?.contributions)}</strong></div>
+                                  <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border)', fontWeight: 'bold', color: d?.pct >= 100 ? '#10b981' : 'inherit' }}>
+                                    {d?.pct}% Achieved
                                   </div>
                                 </div>
                               );
@@ -413,10 +418,8 @@ const Dashboard = () => {
                           }}
                         />
                         <Legend wrapperStyle={{ fontSize: "10px", fontWeight: 900, textTransform: "uppercase" }} />
-                        
-                        {/* Overlapping Bars: Background first (Target), Foreground second (Contributions) */}
                         <Bar dataKey="target" name="Annual Benchmark" fill="#dbeafe" radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="contributions" name="Accumulated" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={24} style={{ transform: 'translateX(-50%)', transformOrigin: 'bottom' }} />
+                        <Bar dataKey="contributions" name="Accumulated" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
