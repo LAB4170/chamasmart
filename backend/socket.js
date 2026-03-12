@@ -171,6 +171,46 @@ module.exports = {
         });
       });
 
+      // --- Chat Messaging Events ---
+      socket.on('join_chat_channel', channelId => {
+        socket.join(`chat_${channelId}`);
+        logger.debug('Client joined chat channel', { socketId: socket.id, channelId });
+      });
+
+      socket.on('leave_chat_channel', channelId => {
+        socket.leave(`chat_${channelId}`);
+        logger.debug('Client left chat channel', { socketId: socket.id, channelId });
+      });
+
+      socket.on('send_chat_message', async (data) => {
+        if (!userId) return; // Must be authenticated
+        try {
+          const pool = require('./config/db'); // lazy load
+          const { channelId, messageType, content, mediaUrl } = data;
+          
+          const result = await pool.query(
+            `INSERT INTO chat_messages (channel_id, user_id, message_type, content, media_url) 
+             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+             [channelId, userId, messageType, content, mediaUrl]
+          );
+          
+          const userRes = await pool.query("SELECT first_name, last_name, profile_picture_url FROM users WHERE user_id = $1", [userId]);
+          const userData = userRes.rows[0];
+
+          const broadcastData = {
+            ...result.rows[0],
+            first_name: userData?.first_name,
+            last_name: userData?.last_name,
+            profile_picture_url: userData?.profile_picture_url
+          };
+
+          io.to(`chat_${channelId}`).emit('new_message', broadcastData);
+        } catch (error) {
+          logger.error('Socket chat message error', { error: error.message });
+        }
+      });
+      // -----------------------------
+
       // Handle disconnect
       socket.on('disconnect', () => {
         // Update metrics

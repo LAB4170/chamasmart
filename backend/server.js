@@ -83,6 +83,7 @@ app.use("/api/dividends", require("./routes/dividendRoutes"));
 app.use("/api/reports", require("./routes/reportRoutes"));
 app.use("/api/audit", require("./routes/auditRoutes"));
 app.use("/api/sessions", require("./routes/sessions"));
+app.use("/api/chat", require("./routes/chat"));
 
 
 // Serve static assets
