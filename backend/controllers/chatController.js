@@ -1,7 +1,7 @@
 const pool = require("../config/db");
 const logger = require("../utils/logger");
 const { getIo } = require("../socket");
-const { handleIncomingSupportMessage, shouldBotIntervene } = require("../services/aiSupportService");
+const { handleIncomingSupportMessage } = require("../services/aiSupportService");
 
 // Get all channels for a specific chama
 const getChannels = async (req, res) => {
@@ -87,25 +87,6 @@ const sendMessage = async (req, res) => {
     // Emit to socket room
     getIo().to(`chat_${channelId}`).emit('new_message', broadcastData);
 
-    // --- AI BOT TRIGGER ---
-    // Bot responds if: channel is 'support' type OR user mentions @bot in any channel
-    const channelRes = await pool.query(
-      "SELECT type, chamas.chama_name FROM chat_channels JOIN chamas ON chat_channels.chama_id = chamas.chama_id WHERE channel_id = $1",
-      [channelId]
-    );
-    const isSupport = channelRes.rows[0]?.type === 'support';
-    const isBotMentioned = shouldBotIntervene(content);
-
-    if (messageType === 'text' && (isSupport || isBotMentioned)) {
-       handleIncomingSupportMessage(
-         channelId,
-         content,
-         userData?.first_name || 'Member',
-         channelRes.rows[0]?.chama_name || 'your Chama'
-       );
-    }
-    // ----------------------
-
     res.status(201).json({ success: true, data: broadcastData });
   } catch (error) {
     logger.error("Error sending message", { error: error.message });
@@ -113,8 +94,56 @@ const sendMessage = async (req, res) => {
   }
 };
 
+// Dedicated endpoint for the global floating AI Support widget
+const aiSupportChat = async (req, res) => {
+  try {
+    const { message, history } = req.body;
+    const userId = req.user.user_id;
+
+    // We don't need a specific Chama context here since it's global,
+    // but we can pass the user's name for personalization
+    const userRes = await pool.query("SELECT first_name FROM users WHERE user_id = $1", [userId]);
+    const userName = userRes.rows[0]?.first_name || 'User';
+
+    // The logic inside handleIncomingSupportMessage sends a socket emit,
+    // but for the global widget we just want a standard REST response.
+    // So we'll call the groq completion directly or create a helper in aiSupportService.
+    const Groq = require("groq-sdk");
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    
+    // Minimal system prompt for the global widget
+    const SYSTEM_PROMPT = `
+You are ChamaSmart AI Support — a knowledgeable, friendly 24/7 customer service assistant for the ChamaSmart platform. 
+You help users navigate the app, understand features, and troubleshoot problems.
+Keep your responses concise, warm, and professional. Use markdown formatting.
+    `;
+
+    // Construct message payload
+    const messages = [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...(history || []),
+      { role: "user", content: message }
+    ];
+
+    const chatCompletion = await groq.chat.completions.create({
+      messages,
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.45,
+      max_tokens: 400,
+    });
+
+    const reply = chatCompletion.choices[0]?.message?.content || "I'm having a moment of difficulty. Please try again shortly!";
+
+    res.status(200).json({ success: true, reply });
+  } catch (error) {
+    logger.error("Error in AI Support Chat endpoint", { error: error.message });
+    res.status(500).json({ success: false, message: "Error communicating with AI support" });
+  }
+};
+
 module.exports = {
   getChannels,
   getMessages,
-  sendMessage
+  sendMessage,
+  aiSupportChat
 };

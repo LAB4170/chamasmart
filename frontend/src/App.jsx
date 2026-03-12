@@ -12,6 +12,7 @@ import { SocketProvider } from "./context/SocketContext";
 import Navbar from "./components/layout/Navbar";
 import ErrorBoundary from "./components/ErrorBoundary";
 import RoleRoute from "./components/auth/RoleRoute";
+import AIBotWidget from "./components/chat/AIBotWidget";
 import {
     ArrowRight, TrendingUp, Users, BarChart3, Shield, Wallet, RefreshCw,
     PiggyBank, HeartHandshake, Landmark, CheckCircle, Zap, Clock, Globe
@@ -314,10 +315,12 @@ const Home = () => {
 
 function AppContent() {
     const location = useLocation();
+    const { isAuthenticated } = useAuth();
 
     return (
         <div className="app">
             <Navbar />
+            {isAuthenticated && <AIBotWidget />}
             <ToastContainer position="top-right" autoClose={3000} />
             <ErrorBoundary>
                 <Suspense fallback={<LoadingSpinner />}>

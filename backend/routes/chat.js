@@ -13,8 +13,13 @@ router.get('/chamas/:chamaId/channels', protect, chatController.getChannels);
 // GET /api/chat/channels/:channelId/messages
 router.get('/channels/:channelId/messages', protect, chatController.getMessages);
 
-// Send message to a channel
+// Send message to a channel (Member group chat)
 // POST /api/chat/channels/:channelId/messages
 router.post('/channels/:channelId/messages', protect, chatController.sendMessage);
 
+// Global AI Support Bot endpoint (used by the floating widget — NOT the group chat)
+// POST /api/chat/ai-support
+router.post('/ai-support', protect, chatController.aiSupportChat);
+
 module.exports = router;
+
