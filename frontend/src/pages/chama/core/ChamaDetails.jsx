@@ -28,6 +28,8 @@ import {
 import ContributionMatrix from "../../../components/rosca/ContributionMatrix";
 import ChamaCreditScore from "./ChamaCreditScore";
 import HealthAlerts from "./HealthAlerts";
+import ChamaChat from "../../../components/chat/ChamaChat";
+import { MessageCircle } from 'lucide-react';
 
 // --- Memoized Sub-components ---
 
@@ -983,6 +985,12 @@ const ChamaDetails = () => {
               onClick={() => setActiveTab("contributions")}
             >
               <DollarSign size={18} className="tab-icon" aria-hidden="true" /> Payments
+            </button>
+            <button
+              className={`tab-modern ${activeTab === "chat" ? "active" : ""}`}
+              onClick={() => setActiveTab("chat")}
+            >
+              <MessageCircle size={18} className="tab-icon" aria-hidden="true" /> Chat
             </button>
             <button
               className={`tab-modern ${activeTab === "meetings" ? "active" : ""}`}
@@ -2058,6 +2066,12 @@ const ChamaDetails = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {activeTab === "chat" && (
+              <div style={{ padding: '0 1rem', marginBottom: '1.5rem' }}>
+                <ChamaChat chamaId={chama.chama_id} />
               </div>
             )}
 
