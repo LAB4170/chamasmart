@@ -1051,7 +1051,7 @@ const ChamaDetails = () => {
                   const step1Done = !!chama.payment_methods;
                   const step2Done = members.length > 1;
                   const step3Done = cycles.length > 0;
-                  const completedCount = [step1Done, step2Done, isROSCA ? step3Done : true].filter(Boolean).length;
+                  const completedCount = (isROSCA ? [step1Done, step2Done, step3Done] : [step1Done, step2Done]).filter(Boolean).length;
                   const totalSteps = isROSCA ? 3 : 2;
                   const allDone = completedCount >= totalSteps;
 
