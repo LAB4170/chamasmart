@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { meetingAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import { toast } from "react-toastify";
-import { Calendar, MapPin, Clock, Video, Users, ArrowLeft, Save, Trash2, Globe } from "lucide-react";
+import { Calendar, MapPin, Clock, Video, Users, ArrowLeft, Save, Trash2, Globe, FileText, ClipboardList } from "lucide-react";
 import "./Meetings.css";
 
 const MeetingDetails = () => {
@@ -121,7 +121,31 @@ const MeetingDetails = () => {
                             <p className="meetings-subtitle">Edit details for: <strong>{meeting.title}</strong></p>
                         )}
                     </div>
+                    <div className="flex gap-3">
+                        {meeting?.status !== 'COMPLETED' && (
+                            <button 
+                                onClick={() => navigate(`/chamas/${chamaId}/meetings/${meetingId}/minutes`)} 
+                                className="btn-emerald"
+                            >
+                                <FileText size={18} /> Record Minutes
+                            </button>
+                        )}
+                    </div>
                 </div>
+
+                {meeting?.status === 'COMPLETED' && (
+                    <div className="minutes-vault-section mb-6">
+                        <div className="vault-card shadow-sm">
+                            <div className="vault-header">
+                                <ClipboardList size={22} />
+                                <h2 className="font-bold text-lg">Official Minutes Vault</h2>
+                            </div>
+                            <div className="vault-content">
+                                {meeting.description || "No official minutes were recorded for this meeting."}
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <div className="card-modern">
                     <form onSubmit={handleSave} className="meeting-form">

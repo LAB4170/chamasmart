@@ -513,6 +513,78 @@ const deleteMeeting = async (req, res, next) => {
 };
 
 // ============================================================================
+// PUBLISH MINUTES
+// ============================================================================
+
+const publishMinutes = async (req, res, next) => {
+  try {
+    const { chamaId, meetingId } = req.params;
+
+    // Verify meeting exists and is in a state that can be published
+    const meetingRes = await pool.query(
+      'SELECT title, status FROM meetings WHERE chama_id = $1 AND meeting_id = $2',
+      [chamaId, meetingId]
+    );
+
+    if (meetingRes.rows.length === 0) {
+      throw new AppError('Meeting not found', 404, 'MEETING_NOT_FOUND');
+    }
+
+    if (meetingRes.rows[0].status === 'COMPLETED') {
+      throw new AppError('Minutes already published for this meeting', 400, 'ALREADY_PUBLISHED');
+    }
+
+    // Update meeting status and official minutes flag
+    const result = await pool.query(
+      `UPDATE meetings 
+       SET status = 'COMPLETED', updated_at = NOW()
+       WHERE chama_id = $1 AND meeting_id = $2
+       RETURNING *`,
+      [chamaId, meetingId]
+    );
+
+    const meeting = result.rows[0];
+
+    // Notify all active members
+    try {
+      const membersRes = await pool.query(
+        'SELECT user_id FROM chama_members WHERE chama_id = $1 AND is_active = true',
+        [chamaId]
+      );
+      
+      const notifications = membersRes.rows.map(member => ({
+        userId: member.user_id,
+        type: 'MINUTES_PUBLISHED',
+        title: `Minutes Published: ${meeting.title}`,
+        message: `Official minutes are now available in the Minutes Vault.`,
+        entityType: 'MEETING',
+        entityId: meetingId
+      }));
+
+      if (notifications.length > 0) {
+        await createBulkNotifications(null, notifications);
+      }
+    } catch (notifErr) {
+      logger.error('Failed to send minutes notifications', { error: notifErr.message, chamaId });
+    }
+
+    logger.info('Minutes published', {
+      meetingId,
+      chamaId,
+      by: req.user.user_id,
+    });
+
+    res.json({
+      success: true,
+      message: 'Minutes published successfully and members notified',
+      data: meeting,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================================
 // EXPORTS
 // ============================================================================
 
@@ -522,5 +594,6 @@ module.exports = {
   getMeetingById,
   updateMeeting,
   recordAttendance,
+  publishMinutes,
   deleteMeeting,
 };

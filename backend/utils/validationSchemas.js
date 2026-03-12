@@ -43,6 +43,7 @@ const loginPasswordSchema = Joi.object({
 const updateProfileSchema = Joi.object({
   firstName: Joi.string().min(2).max(50).required(),
   lastName: Joi.string().min(2).max(50).required(),
+  email: Joi.string().email().optional().allow(null, ''),
   phoneNumber: Joi.string()
     .pattern(/^(?:\+?254|0)?[17]\d{8}$/)
     .optional()

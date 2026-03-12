@@ -182,6 +182,35 @@ const isTreasurer = async (req, res, next) => {
   }
 };
 
+// Check if user is secretary (OR CHAIRPERSON as Super Admin)
+const isSecretary = async (req, res, next) => {
+  try {
+    const { chamaId } = req.params;
+    const userId = req.user.user_id;
+
+    const result = await pool.query(
+      'SELECT role FROM chama_members WHERE chama_id = $1 AND user_id = $2 AND is_active = true',
+      [chamaId, userId],
+    );
+
+    // Allow CHAIRPERSON to act as Secretary
+    if (result.rows.length === 0 || (!['SECRETARY', 'CHAIRPERSON'].includes(result.rows[0].role))) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the secretary or chairperson can perform this action',
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Authorization error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking authorization',
+    });
+  }
+};
+
 module.exports = {
-  protect, isOfficial, isTreasurer, authorize,
+  protect, isOfficial, isTreasurer, isSecretary, authorize,
 };

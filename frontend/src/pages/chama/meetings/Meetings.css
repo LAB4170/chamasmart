@@ -464,3 +464,249 @@
         justify-content: center;
     }
 }
+/* ========================================
+   Secretary HUD & Minutes Vault
+   ======================================== */
+
+.secretary-hud-grid {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 100px);
+    gap: 1.5rem;
+    padding: 1.5rem;
+}
+
+.hud-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 1.25rem 2rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.hud-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.hud-subtitle {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.hud-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.hud-status-badge {
+    padding: 0.4rem 0.8rem;
+    background: #f1f5f9;
+    color: #475569;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.hud-content {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 1.5rem;
+    flex: 1;
+    min-height: 0;
+}
+
+.hud-panel {
+    background: white;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--border);
+}
+
+.panel-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.panel-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.count-tag {
+    background: #ecfdf5;
+    color: #059669;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+/* Minutes Editor */
+.minutes-editor-container {
+    flex: 1;
+    padding: 1.5rem;
+}
+
+.minutes-textarea {
+    width: 100%;
+    height: 100%;
+    border: none;
+    resize: none;
+    font-size: 1.05rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+    outline: none;
+}
+
+.minutes-textarea::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.6;
+}
+
+/* Attendance List Compact */
+.attendance-list-compact {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.attendance-item-compact {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.attendance-item-compact:hover {
+    background: #f8fafc;
+}
+
+.attendance-item-compact.is-present {
+    background: #f0fdf4;
+}
+
+.member-avatar-small {
+    width: 32px;
+    height: 32px;
+    background: #e2e8f0;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #475569;
+}
+
+.member-info-compact {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.member-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.member-role-v-small {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.checkbox-empty {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #cbd5e1;
+    border-radius: 4px;
+}
+
+/* Utility Buttons */
+.btn-emerald {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-emerald:hover:not(:disabled) {
+    background: #059669;
+    transform: translateY(-1px);
+}
+
+.btn-sm {
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
+}
+
+/* Minutes Vault Section in Details */
+.minutes-vault-section {
+    margin-top: 2rem;
+}
+
+.vault-card {
+    background: #f0fdf4;
+    border: 1px solid #d1fae5;
+    border-radius: 16px;
+    padding: 1.5rem;
+}
+
+.vault-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    color: #065f46;
+}
+
+.vault-content {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid #d1fae5;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+}
+
+@media (max-width: 1024px) {
+    .hud-content {
+        grid-template-columns: 1fr;
+    }
+    
+    .attendance-panel {
+        max-height: 300px;
+    }
+}

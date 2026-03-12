@@ -8,7 +8,7 @@ const {
   getMemberContributions,
   getMemberDetails,
 } = require('../controllers/memberController');
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize, isSecretary, isOfficial } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 
 const { applyRateLimiting } = require('../middleware/rateLimiting');
@@ -23,23 +23,23 @@ router.use(protect);
 // MEMBER MANAGEMENT (Officials only)
 // ============================================================================
 
-// Add new member to chama
+// Add new member to chama (Secretaries & Chairs)
 router.post(
   '/:chamaId/add',
-  authorize('admin', 'treasurer', 'chairperson'),
+  isSecretary,
   applyRateLimiting,
   addMember,
 );
 
-// Update member's role
+// Update member's role (Secretaries & Chairs)
 router.put(
   '/:chamaId/role/:userId',
-  authorize('admin', 'chairperson'),
+  isSecretary,
   updateMemberRole,
 );
 
-// Remove member permanently (admin only for safety)
-router.delete('/:chamaId/remove/:userId', authorize('admin'), removeMember);
+// Remove member (Secretaries & Chairs)
+router.delete('/:chamaId/remove/:userId', isSecretary, removeMember);
 
 // ============================================================================
 // MEMBER INFORMATION (All members can view)

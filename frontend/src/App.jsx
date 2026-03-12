@@ -21,6 +21,7 @@ import {
 const Login = lazy(() => import("./pages/auth/Login"));
 const Register = lazy(() => import("./pages/auth/Register"));
 const VerifyEmailPhone = lazy(() => import("./pages/auth/VerifyEmailPhone"));
+const CompleteProfile = lazy(() => import("./pages/auth/CompleteProfile"));
 const Dashboard = lazy(() => import("./pages/dashboard/Dashboard"));
 const CreateChama = lazy(() => import("./pages/chama/core/CreateChama"));
 const ChamaDetails = lazy(() => import("./pages/chama/core/ChamaDetails"));
@@ -53,6 +54,7 @@ const UserProfile = lazy(() => import("./pages/user/UserProfile"));
 const MeetingList = lazy(() => import("./pages/chama/meetings/MeetingList"));
 const CreateMeeting = lazy(() => import("./pages/chama/meetings/CreateMeeting"));
 const MeetingDetails = lazy(() => import("./pages/chama/meetings/MeetingDetails"));
+const MeetingMinutesHUD = lazy(() => import("./pages/chama/meetings/MeetingMinutesHUD"));
 const RoscaDashboard = lazy(() => import("./pages/chama/rosca/RoscaDashboard"));
 const CreateCycle = lazy(() => import("./pages/chama/rosca/CreateCycle"));
 const RoscaDetails = lazy(() => import("./pages/chama/rosca/RoscaDetails"));
@@ -325,6 +327,11 @@ function AppContent() {
                             <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
                             <Route path="/register" element={<PageTransition><Register /></PageTransition>} />
                             <Route path="/verify-account" element={<PageTransition><VerifyEmailPhone /></PageTransition>} />
+                            <Route path="/complete-profile" element={
+                                <ProtectedRoute>
+                                    <PageTransition><CompleteProfile /></PageTransition>
+                                </ProtectedRoute>
+                            } />
                             <Route
                                 path="/dashboard"
                                 element={

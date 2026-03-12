@@ -312,12 +312,12 @@ const updateMemberRole = async (req, res, next) => {
       req.user.user_id,
     );
 
-    // Only CHAIRPERSON can assign CHAIRPERSON role
-    if (normalizedRole === "CHAIRPERSON" && requesterRole !== "CHAIRPERSON") {
+    // Only CHAIRPERSON can assign CHAIRPERSON or TREASURER role
+    if (['CHAIRPERSON', 'TREASURER'].includes(normalizedRole) && requesterRole !== 'CHAIRPERSON') {
       throw new AppError(
-        "Only the current chairperson can assign chairperson role",
+        `Only the current chairperson can assign the ${normalizedRole} role`,
         403,
-        "CHAIRPERSON_ONLY",
+        'CHAIRPERSON_ONLY',
       );
     }
 
@@ -451,8 +451,19 @@ const removeMember = async (req, res, next) => {
       );
     }
 
+    const targetRole = memberCheck.rows[0].role;
+
+    // Only CHAIRPERSON can remove other officials (Treasurer/Secretary)
+    if (['TREASURER', 'SECRETARY'].includes(targetRole) && requesterRole !== 'CHAIRPERSON') {
+      throw new AppError(
+        "Only the chairperson can remove other officials",
+        403,
+        "CHAIRPERSON_ONLY"
+      );
+    }
+
     // Prevent removing the last chairperson
-    if (memberCheck.rows[0].role === "CHAIRPERSON") {
+    if (targetRole === "CHAIRPERSON") {
       const chairpersonCount = await client.query(
         "SELECT COUNT(*) as count FROM chama_members WHERE chama_id = $1 AND role = $2 AND is_active = true",
         [chamaId, "CHAIRPERSON"],

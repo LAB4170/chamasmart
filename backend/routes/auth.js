@@ -8,6 +8,8 @@ const {
   refreshTokens,
   logout,
   firebaseSync,
+  requestPasswordlessOTP,
+  verifyPasswordlessOTP,
 } = require("../controllers/authController");
 const { protect } = require("../middleware/auth");
 const validate = require("../middleware/validate");
@@ -25,6 +27,8 @@ router.post("/register", applyAuthRateLimiting, validate(registerPasswordSchema)
 router.post("/login", applyAuthRateLimiting, validate(loginPasswordSchema), login);
 router.post("/refresh", applyAuthRateLimiting, refreshTokens);
 router.post("/firebase-sync", applyAuthRateLimiting, firebaseSync);
+router.post("/passwordless/request", applyAuthRateLimiting, requestPasswordlessOTP);
+router.post("/passwordless/verify", applyAuthRateLimiting, verifyPasswordlessOTP);
 
 // ============================================================================
 // PROTECTED ROUTES

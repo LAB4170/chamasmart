@@ -8,8 +8,9 @@ const {
   updateMeeting,
   recordAttendance,
   deleteMeeting,
+  publishMinutes,
 } = require('../controllers/meetingController');
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize, isSecretary, isTreasurer, isOfficial } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const {
   createMeetingSchema,
@@ -28,10 +29,10 @@ router.use(protect);
 // MEETING MANAGEMENT (Officials can create/update/delete)
 // ============================================================================
 
-// Create new meeting (officials only)
+// Create new meeting (Secretaries & Chairs only)
 router.post(
   '/:chamaId',
-  authorize('ADMIN', 'TREASURER', 'CHAIRPERSON'),
+  isSecretary,
   applyRateLimiting,
   validate(createMeetingSchema),
   createMeeting,
@@ -51,20 +52,27 @@ router.get(
   getMeetingById,
 );
 
-// Update meeting details (officials only)
+// Update meeting details (Secretaries & Chairs only)
 router.put(
   '/:chamaId/:meetingId',
-  authorize('ADMIN', 'TREASURER', 'CHAIRPERSON'),
+  isSecretary,
   validate(updateMeetingSchema),
   updateMeeting,
 );
 
-// Record attendance for a meeting (officials only)
+// Record attendance for a meeting (Secretaries & Chairs only)
 router.post(
   '/:chamaId/:meetingId/attendance',
-  authorize('ADMIN', 'TREASURER', 'CHAIRPERSON'),
+  isSecretary,
   validate(recordAttendanceSchema),
   recordAttendance,
+);
+
+// Publish meeting minutes (Secretaries & Chairs only)
+router.post(
+  '/:chamaId/:meetingId/publish',
+  isSecretary,
+  publishMinutes,
 );
 
 // Delete meeting (chairperson only)

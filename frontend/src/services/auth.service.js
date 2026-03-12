@@ -41,6 +41,6 @@ export const authAPI = {
 
     // Resend phone verification
     resendPhoneVerification: () =>
-        api.post("/auth/resend-phone-verification"),
+        api.post("/auth/resend-phone-verification")
 };
 

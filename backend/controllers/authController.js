@@ -1640,6 +1640,180 @@ const firebaseSync_unused = async (req, res) => {
 };
 
 // ============================================================================
+// PASSWORDLESS OTP ENDPOINTS
+// ============================================================================
+
+/**
+ * Request OTP for Passwordless Authentication (Login or Register)
+ */
+const requestPasswordlessOTP = async (req, res) => {
+  const { phone } = req.body;
+
+  if (!phone) {
+    return res.status(400).json({ success: false, message: 'Phone number is required' });
+  }
+
+  // Normalize phone number (to international format or desired DB format)
+  // Assuming a utility normalizePhone exists, or just use as is for now.
+  let normalizedPhone = phone; 
+  if (normalizedPhone.startsWith('0')) {
+    normalizedPhone = '+254' + normalizedPhone.substring(1);
+  }
+
+  try {
+    // Generate 6-digit OTP
+    const otp = OTPService.generate(6);
+    
+    // Store in Redis against the phone number, specifying 'phone' type
+    const { resendCount, maxResend } = await OTPService.store(normalizedPhone, otp, 'phone');
+
+    // Simulate sending OTP SMS
+    await sendPhoneVerification(normalizedPhone, otp);
+
+    return res.status(200).json({
+      success: true,
+      message: 'OTP sent successfully',
+      data: {
+        phone: normalizedPhone,
+        resendCount,
+        maxResend
+      }
+    });
+
+  } catch (error) {
+    logger.logError(error, { context: 'requestPasswordlessOTP', phone: normalizedPhone });
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Error generating OTP'
+    });
+  }
+};
+
+/**
+ * Verify OTP and issue JWT tokens for Passwordless Auth
+ * Auto-registers the user if they don't exist
+ */
+const verifyPasswordlessOTP = async (req, res) => {
+  const { phone, otp } = req.body;
+
+  if (!phone || !otp) {
+    return res.status(400).json({ success: false, message: 'Phone and OTP are required' });
+  }
+
+  let normalizedPhone = phone;
+  if (normalizedPhone.startsWith('0')) {
+    normalizedPhone = '+254' + normalizedPhone.substring(1);
+  }
+
+  try {
+    // 1. Verify OTP against Redis 
+    await OTPService.verify(normalizedPhone, otp, 'phone');
+    // If it doesn't throw, it's valid.
+
+    // 2. Check if user exists, if not, create them (auto-register)
+    const client = await pool.connect();
+    let user;
+    let isNewUser = false;
+
+    try {
+      await client.query('BEGIN');
+      const userResult = await client.query('SELECT * FROM users WHERE phone_number = $1 OR phone_number = $2', [normalizedPhone, phone]);
+
+      if (userResult.rows.length > 0) {
+        user = userResult.rows[0];
+        // Ensure phone is marked verified
+        if (!user.phone_verified) {
+          await client.query('UPDATE users SET phone_verified = true WHERE user_id = $1', [user.user_id]);
+        }
+      } else {
+        isNewUser = true;
+        
+        // Auto-Registration
+        const insertResult = await client.query(
+          `INSERT INTO users (
+            phone_number, 
+            phone_verified, 
+            is_active, 
+            created_at, 
+            updated_at
+          ) VALUES ($1, true, true, NOW(), NOW())
+          RETURNING *`,
+          [normalizedPhone]
+        );
+        user = insertResult.rows[0];
+
+        await logAuditEvent({
+          eventType: EVENT_TYPES.AUTH_REGISTER,
+          userId: user.user_id,
+          action: 'Passwordless OTP Registration',
+          entityType: 'user',
+          entityId: user.user_id,
+          severity: SEVERITY.INFO,
+        });
+      }
+
+      // Generate JWT tokens
+      const accessToken = TokenService.generateAccessToken(user);
+      const refreshToken = TokenService.generateRefreshToken(user);
+
+      // Store refresh token
+      await client.query(
+        `INSERT INTO refresh_tokens (user_id, token, expires_at, created_at)
+         VALUES ($1, $2, NOW() + INTERVAL '7 days', NOW())`,
+        [user.user_id, refreshToken]
+      );
+
+      await client.query('COMMIT');
+
+      // Log successful login
+      await logAuditEvent({
+        eventType: EVENT_TYPES.AUTH_LOGIN,
+        userId: user.user_id,
+        action: 'Passwordless OTP Login',
+        entityType: 'user',
+        entityId: user.user_id,
+        ipAddress: req.ip,
+        severity: SEVERITY.LOW,
+      });
+
+      return res.status(isNewUser ? 201 : 200).json({
+        success: true,
+        message: isNewUser ? 'User registered successfully' : 'Login successful',
+        data: {
+          user: {
+            id: user.user_id,
+            email: user.email,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            phoneNumber: user.phone_number,
+            role: user.role,
+            isNewUser: isNewUser // Frontend will use this trigger the Progressive Naming screen
+          },
+          tokens: {
+            accessToken,
+            refreshToken,
+            expiresIn: SECURITY_CONFIG.JWT.ACCESS_TOKEN_EXPIRY,
+          },
+        },
+      });
+
+    } catch (dbError) {
+      await client.query('ROLLBACK');
+      throw dbError;
+    } finally {
+      client.release();
+    }
+
+  } catch (error) {
+    logger.logError(error, { context: 'verifyPasswordlessOTP', phone: normalizedPhone });
+    return res.status(401).json({
+      success: false,
+      message: error.message || 'Invalid or expired OTP',
+    });
+  }
+};
+
+// ============================================================================
 // EXPORTS
 // ============================================================================
 
@@ -1651,6 +1825,8 @@ module.exports = {
   firebaseSync,
   verifyEmail,
   verifyPhone,
+  requestPasswordlessOTP,
+  verifyPasswordlessOTP,
   // Export services for use in other controllers
   RateLimiter,
   OTPService,

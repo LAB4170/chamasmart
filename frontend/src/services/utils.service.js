@@ -16,6 +16,8 @@ export const meetingAPI = {
     getById: (chamaId, id) => api.get(`/meetings/${chamaId}/${id}`),
     update: (chamaId, id, meetingData) => api.put(`/meetings/${chamaId}/${id}`, meetingData),
     recordAttendance: (chamaId, id, attendanceData) => api.post(`/meetings/${chamaId}/${id}/attendance`, attendanceData),
+    publishMinutes: (chamaId, id) => api.post(`/meetings/${chamaId}/${id}/publish`),
+    delete: (chamaId, id) => api.delete(`/meetings/${chamaId}/${id}`),
 };
 
 // Audit API calls

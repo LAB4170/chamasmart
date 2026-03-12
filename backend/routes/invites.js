@@ -8,7 +8,7 @@ const {
   deactivateInvite,
   sendInvite,
 } = require('../controllers/inviteController');
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize, isSecretary } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const {
   generateInviteSchema,
@@ -30,7 +30,7 @@ router.use(protect);
 // Generate new invite code
 router.post(
   '/:chamaId/generate',
-  authorize('admin', 'treasurer', 'chairperson'),
+  isSecretary,
   applyRateLimiting,
   validate(generateInviteSchema),
   generateInvite,
@@ -39,7 +39,7 @@ router.post(
 // Send invite via email/SMS
 router.post(
   '/:chamaId/send',
-  authorize('admin', 'treasurer', 'chairperson'),
+  isSecretary,
   applyRateLimiting,
   validate(sendInviteSchema),
   sendInvite,
@@ -48,14 +48,14 @@ router.post(
 // Get all invites for a chama
 router.get(
   '/:chamaId',
-  authorize('admin', 'treasurer', 'chairperson'),
+  isSecretary,
   getChamaInvites,
 );
 
 // Deactivate/revoke an invite
 router.delete(
   '/:inviteId',
-  authorize('admin', 'treasurer', 'chairperson'),
+  isSecretary,
   deactivateInvite,
 );
 

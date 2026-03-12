@@ -55,7 +55,7 @@ const getProfile = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { firstName, lastName, phoneNumber, nationalId } = req.body;
+    const { firstName, lastName, email, phoneNumber, nationalId } = req.body;
 
     // Validate input
     if (!firstName || !lastName) {
@@ -67,10 +67,10 @@ const updateProfile = async (req, res) => {
 
     const result = await pool.query(
       `UPDATE users 
-             SET first_name = $1, last_name = $2, phone_number = $3, national_id = $4, updated_at = NOW()
-             WHERE user_id = $5
+             SET first_name = $1, last_name = $2, email = $3, phone_number = $4, national_id = $5, updated_at = NOW()
+             WHERE user_id = $6
              RETURNING user_id, first_name, last_name, email, phone_number, national_id, updated_at`,
-      [firstName, lastName, phoneNumber, nationalId, userId],
+      [firstName, lastName, email || null, phoneNumber, nationalId, userId],
     );
 
     if (result.rows.length === 0) {
@@ -86,7 +86,7 @@ const updateProfile = async (req, res) => {
       action: 'Updated user profile',
       entityType: 'user',
       entityId: userId,
-      metadata: { firstName, lastName, phoneNumber },
+      metadata: { firstName, lastName, email, phoneNumber },
       severity: SEVERITY.MEDIUM,
     });
 

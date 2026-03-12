@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useRef } from "react";
 import { authAPI } from "../services/api";
 import { auth } from "../config/firebase";
 import {
@@ -8,7 +8,9 @@ import {
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signOut as firebaseSignOut
+  signOut as firebaseSignOut,
+  RecaptchaVerifier,
+  signInWithPhoneNumber
 } from "firebase/auth";
 
 const AuthContext = createContext();
@@ -25,6 +27,8 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Stores the Firebase confirmationResult after sendOTP — needed to confirm OTP
+  const confirmationResultRef = useRef(null);
 
   // Check if user is logged in on mount
   useEffect(() => {
@@ -250,6 +254,101 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // ============================================================================
+  // FIREBASE PHONE AUTH
+  // ============================================================================
+
+  /**
+   * Step 1: Send OTP via Firebase Phone Auth
+   * @param {string} phone - Phone number in international format (+254...)
+   * @param {string} buttonElementId - ID of the DOM button to attach reCAPTCHA to
+   */
+  const loginWithPhone = async (phone, buttonElementId = "phone-submit-btn") => {
+    try {
+      setError(null);
+
+      // Reset any existing reCAPTCHA to prevent "reCAPTCHA has already been rendered" errors
+      if (window.recaptchaVerifier) {
+        try { window.recaptchaVerifier.clear(); } catch (e) { /* ignore */ }
+        window.recaptchaVerifier = null;
+      }
+
+      // Invisible reCAPTCHA attached to the phone submit button
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, buttonElementId, {
+        size: "invisible",
+        callback: () => {
+          console.log("reCAPTCHA solved");
+        },
+        "expired-callback": () => {
+          console.warn("reCAPTCHA expired");
+          window.recaptchaVerifier = null;
+        },
+      });
+
+      const confirmationResult = await signInWithPhoneNumber(
+        auth,
+        phone,
+        window.recaptchaVerifier
+      );
+
+      // Store so verifyPhoneOTP can use it
+      confirmationResultRef.current = confirmationResult;
+
+      return { success: true };
+    } catch (err) {
+      console.error("Firebase Phone Auth error:", err);
+      // Clean up reCAPTCHA on error
+      if (window.recaptchaVerifier) {
+        try { window.recaptchaVerifier.clear(); } catch (e) { /* ignore */ }
+        window.recaptchaVerifier = null;
+      }
+      const message = err.message || "Failed to send OTP. Please try again.";
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  /**
+   * Step 2: Verify OTP entered by user, then sync with our backend
+   * @param {string} otp - The 6-digit OTP from Firebase SMS
+   */
+  const verifyPhoneOTP = async (otp) => {
+    try {
+      setError(null);
+
+      if (!confirmationResultRef.current) {
+        throw new Error("No OTP session found. Please request a new code.");
+      }
+
+      // Confirm OTP with Firebase
+      const result = await confirmationResultRef.current.confirm(otp);
+      const firebaseUser = result.user;
+
+      // Get idToken and sync with our backend — same as Google sign-in
+      const idToken = await firebaseUser.getIdToken();
+      const response = await authAPI.firebaseSync(idToken);
+      const { user: syncedUser, tokens } = response.data.data;
+
+      localStorage.setItem("token", tokens.accessToken);
+      localStorage.setItem("user", JSON.stringify(syncedUser));
+      setUser(syncedUser);
+
+      // Clean up reCAPTCHA
+      if (window.recaptchaVerifier) {
+        try { window.recaptchaVerifier.clear(); } catch (e) { /* ignore */ }
+        window.recaptchaVerifier = null;
+      }
+      confirmationResultRef.current = null;
+
+      return { success: true, isNewUser: result._tokenResponse?.isNewUser ?? false };
+    } catch (err) {
+      console.error("Verify OTP error:", err);
+      const message = err.response?.data?.message || err.message || "Invalid OTP. Please try again.";
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -262,6 +361,8 @@ export const AuthProvider = ({ children }) => {
     verifyPhone,
     resendEmailVerification,
     resendPhoneVerification,
+    loginWithPhone,
+    verifyPhoneOTP,
     isAuthenticated: !!user,
   };
 
