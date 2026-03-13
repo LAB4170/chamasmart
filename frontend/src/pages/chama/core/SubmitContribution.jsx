@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { chamaAPI, contributionAPI } from "../../../services/api";
 import LoadingSkeleton from "../../../components/LoadingSkeleton";
 import { useSocket } from "../../../context/SocketContext";
+import { useAuth } from "../../../context/AuthContext";
 
 const SubmitContribution = () => {
   const { id } = useParams();
@@ -20,6 +21,7 @@ const SubmitContribution = () => {
   const [success, setSuccess] = useState("");
 
   const { socket } = useSocket();
+  const { user } = useAuth();
   const [paymentStage, setPaymentStage] = useState("idle"); // idle, initiating, waiting, confirmed, failed
 
   useEffect(() => {
@@ -65,8 +67,12 @@ const SubmitContribution = () => {
     if (!socket) return;
 
     const handleSuccess = (data) => {
-      // Check if it's our payment (approximate check since we don't have txId in the event yet)
-      // Ideally we'd match the checkoutRequestId
+      // Verify this payment belongs to the current user
+      const currentUserId = user?.user_id || user?.id;
+      if (data.userId && currentUserId && parseInt(data.userId) !== parseInt(currentUserId)) {
+        return;
+      }
+
       setPaymentStage("confirmed");
       setSuccess(`Payment of KES ${data.amount} received successfully!`);
       
@@ -76,10 +82,19 @@ const SubmitContribution = () => {
     };
 
     const handleFailure = (data) => {
+      // Verify this failure belongs to the current user (if payload includes it)
+      const currentUserId = user?.user_id || user?.id;
+      if (data.userId && currentUserId && parseInt(data.userId) !== parseInt(currentUserId)) {
+        return;
+      }
+      
       setPaymentStage("failed");
       setError(`Payment failed: ${data.message}`);
       setLoading(false);
     };
+
+    // Join the room to receive real-time updates for this chama
+    socket.emit("join_chama", id);
 
     socket.on("contribution_recorded", handleSuccess);
     socket.on("payment_failed", handleFailure);
