@@ -207,8 +207,8 @@ const UserProfile = () => {
                                         type="email"
                                         className="form-input"
                                         value={profile.email || ""}
-                                        disabled
-                                        title="Email cannot be changed"
+                                        onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                                        placeholder="Enter Email Address"
                                     />
                                 </div>
                                 <div className="form-group">
