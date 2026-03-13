@@ -6,7 +6,7 @@ import { Clock, CheckCircle, XCircle, FileText } from 'lucide-react';
 
 const MyJoinRequests = () => {
     const navigate = useNavigate();
-    const socket = useSocket();
+    const { socket } = useSocket();
 
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);

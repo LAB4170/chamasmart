@@ -30,6 +30,7 @@ import ChamaCreditScore from "./ChamaCreditScore";
 import HealthAlerts from "./HealthAlerts";
 import ChamaChat from "../../../components/chat/ChamaChat";
 import { MessageCircle } from 'lucide-react';
+import InvestmentProposals from "../asca/InvestmentProposals";
 
 // --- Memoized Sub-components ---
 
@@ -1053,6 +1054,15 @@ const ChamaDetails = () => {
                 onClick={() => setActiveTab("loans")}
               >
                 <Landmark size={18} className="tab-icon" aria-hidden="true" /> Loans
+              </button>
+            )}
+
+            {chama.chama_type === "ASCA" && (
+              <button
+                className={`tab-modern ${activeTab === "investments" ? "active" : ""}`}
+                onClick={() => setActiveTab("investments")}
+              >
+                <TrendingUp size={18} className="tab-icon" aria-hidden="true" /> Investments
               </button>
             )}
 
@@ -2676,6 +2686,10 @@ const ChamaDetails = () => {
                   </div>
                 )}
               </div>
+            )}
+
+            {activeTab === "investments" && chama.chama_type === "ASCA" && (
+              <InvestmentProposals />
             )}
 
             {activeTab === "welfare" && (

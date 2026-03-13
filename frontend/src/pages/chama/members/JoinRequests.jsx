@@ -15,7 +15,7 @@ import "./MemberManagement.css";
 const JoinRequests = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const socket = useSocket();
+    const { socket } = useSocket() || {}; // Guard against undefined context
 
     const [chama, setChama] = useState(null);
     const [requests, setRequests] = useState([]);
@@ -37,8 +37,10 @@ const JoinRequests = () => {
     });
 
     const fetchData = async () => {
+        if (!id) return;
         try {
             setLoading(true);
+            setError(""); // Clear previous errors
             const [chamaRes, requestsRes] = await Promise.all([
                 chamaAPI.getById(id),
                 joinRequestAPI.getAll(id),
@@ -46,8 +48,17 @@ const JoinRequests = () => {
             setChama(chamaRes.data.data);
             setRequests(requestsRes.data.data);
         } catch (err) {
-            setError("Failed to load join requests");
-            console.error(err);
+            console.error("Fetch data error:", err);
+            const status = err.response?.status;
+            if (status === 404) {
+                setError("Chama not found. It may have been deleted or the ID is incorrect.");
+            } else if (status === 403) {
+                setError("Access Denied: You must be an official (Chairperson, Treasurer, or Secretary) to manage join requests.");
+            } else if (status === 401) {
+                setError("Session expired. Please log in again.");
+            } else {
+                setError("An unexpected error occurred while loading data. Please try again.");
+            }
         } finally {
             setLoading(false);
         }
@@ -58,22 +69,25 @@ const JoinRequests = () => {
     }, [id]);
 
     useEffect(() => {
-        if (socket && id) {
-            socket.emit("join_chama", id);
+        if (!socket || !id || typeof socket.emit !== 'function') return;
 
-            const handleNewRequest = (data) => {
-                if (data.chamaId === id || data.chamaId == id) {
-                    fetchData();
-                }
-            };
+        console.log("Setting up join request socket listeners for chama:", id);
+        socket.emit("join_chama", id);
 
-            socket.on("join_request_created", handleNewRequest);
+        const handleNewRequest = (data) => {
+            if (data.chamaId == id) {
+                fetchData();
+            }
+        };
 
-            return () => {
+        socket.on("join_request_created", handleNewRequest);
+
+        return () => {
+            if (typeof socket.emit === 'function') {
                 socket.emit("leave_chama", id);
-                socket.off("join_request_created", handleNewRequest);
-            };
-        }
+            }
+            socket.off("join_request_created", handleNewRequest);
+        };
     }, [socket, id]);
 
     const openConfirmDialog = (requestId, status, requesterName) => {
