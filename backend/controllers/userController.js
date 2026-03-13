@@ -69,7 +69,7 @@ const updateProfile = async (req, res) => {
 
     const result = await pool.query(
       `UPDATE users 
-             SET first_name = $1, last_name = $2, email = $3, phone_number = $4, national_id = $5, profile_picture_url = $6, updated_at = NOW()
+             SET first_name = $1, last_name = $2, email = COALESCE(NULLIF($3, ''), email), phone_number = $4, national_id = $5, profile_picture_url = $6, updated_at = NOW()
              WHERE user_id = $7
              RETURNING user_id, first_name, last_name, email, phone_number, national_id, profile_picture_url as "profilePictureUrl", updated_at`,
       [firstName, lastName, email || null, phoneNumber, nationalId, profilePictureUrl || null, userId],

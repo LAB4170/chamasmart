@@ -87,6 +87,7 @@ const UserProfile = () => {
             const updateData = {
                 firstName: profile.first_name,
                 lastName: profile.last_name,
+                email: profile.email,
                 phoneNumber: profile.phone_number,
                 nationalId: profile.national_id,
                 profilePictureUrl: profile.profile_picture_url
