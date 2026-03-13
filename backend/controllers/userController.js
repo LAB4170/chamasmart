@@ -99,6 +99,15 @@ const updateProfile = async (req, res) => {
     });
   } catch (error) {
     console.error('Update profile error:', error);
+    
+    // Handle specific database errors (like unique constraint violations)
+    if (error.code === '23505') {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number or email is already in use by another account',
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Error updating user profile',
