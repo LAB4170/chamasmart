@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const pool = require('../config/db');
 const { redis } = require('../config/redis');
+const { getKeyManager } = require('../security/modules/key-management');
 const logger = require('../utils/logger');
 const { logAuditEvent, EVENT_TYPES, SEVERITY } = require('../utils/auditLog');
 const { sanitizeMetadata } = require('../utils/auditLog');
@@ -470,10 +471,11 @@ class TokenService {
       type: 'access',
     };
 
-    return jwt.sign(payload, process.env.JWT_SECRET, {
+    const keyManager = getKeyManager();
+    const key = keyManager.getActiveKey();
+    logger.info(`[AUTH DEBUG] Signing token with KeyManager key (first 5): ${key.substring(0, 5)}...`);
+    return jwt.sign(payload, key, {
       expiresIn: SECURITY_CONFIG.JWT.ACCESS_TOKEN_EXPIRY,
-      issuer: SECURITY_CONFIG.JWT.ISSUER,
-      audience: SECURITY_CONFIG.JWT.AUDIENCE,
       jwtid: crypto.randomUUID(), // Unique token ID
     });
   }
@@ -487,7 +489,8 @@ class TokenService {
       type: 'refresh',
     };
 
-    return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+    const keyManager = getKeyManager();
+    return jwt.sign(payload, keyManager.getActiveKey(), {
       expiresIn: SECURITY_CONFIG.JWT.REFRESH_TOKEN_EXPIRY,
       issuer: SECURITY_CONFIG.JWT.ISSUER,
       audience: SECURITY_CONFIG.JWT.AUDIENCE,
@@ -499,9 +502,10 @@ class TokenService {
    * Verify and decode token
    */
   static verify(token, type = 'access') {
-    const secret = type === 'access'
-      ? process.env.JWT_SECRET
-      : process.env.JWT_REFRESH_SECRET;
+    const keyManager = getKeyManager();
+    const activeKey = keyManager.getActiveKey();
+    logger.info(`[AUTH DEBUG] Verifying with key: ${activeKey.substring(0, 5)}...`);
+    const secret = activeKey;
 
     try {
       const decoded = jwt.verify(token, secret, {
@@ -570,7 +574,8 @@ class TokenService {
       userId: email, // Will be updated when we have user ID
     };
 
-    return jwt.sign(payload, process.env.JWT_SECRET, {
+    const keyManager = getKeyManager();
+    return jwt.sign(payload, keyManager.getActiveKey(), {
       expiresIn: '24h',
       issuer: SECURITY_CONFIG.JWT.ISSUER,
       audience: SECURITY_CONFIG.JWT.AUDIENCE,
@@ -588,7 +593,8 @@ class TokenService {
       phone,
     };
 
-    return jwt.sign(payload, process.env.JWT_SECRET, {
+    const keyManager = getKeyManager();
+    return jwt.sign(payload, keyManager.getActiveKey(), {
       expiresIn: '1h',
       issuer: SECURITY_CONFIG.JWT.ISSUER,
       audience: SECURITY_CONFIG.JWT.AUDIENCE,

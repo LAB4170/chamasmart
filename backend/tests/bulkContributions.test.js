@@ -31,6 +31,9 @@ jest.mock('../middleware/auth', () => ({
     if (roles.includes(currRole)) return next();
     res.status(403).json({ success: false, message: 'Forbidden' });
   },
+  isSecretary: (req, res, next) => next(),
+  isTreasurer: (req, res, next) => next(),
+  isOfficial: (req, res, next) => next(),
 }));
 
 // Unmock core services

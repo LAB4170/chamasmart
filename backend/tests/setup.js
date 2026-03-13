@@ -1,17 +1,55 @@
 // Test setup file
 // Note: jest is globally available in Jest environment
 
-// Set test environment variables
-process.env.NODE_ENV = "test";
-process.env.JWT_SECRET =
-  "test_jwt_secret_8113dd7319b6769718fa08b1f1c589cb8e230528cb32186ab6293a64fcf8137cfe964abb869a0fa999f62fa621afdf80f824dd31445cff3cf7f93916ecc2db493";
-process.env.DATABASE_URL =
-  "postgresql://test:test@localhost:5432/chamasmart_test";
-process.env.FIREBASE_PROJECT_ID = "test-project";
-process.env.FIREBASE_CLIENT_EMAIL = "test@example.com";
-process.env.FIREBASE_PRIVATE_KEY = "test-private-key";
-process.env.JWT_REFRESH_SECRET = 'test-refresh-secret';
+// Set test environment variables - Must be at least 32 chars for KeyManager
+process.env.JWT_SECRET = 'test-secret-32-chars-long-for-jwt-security';
+process.env.JWT_SECRET_V1 = 'test-secret-32-chars-long-for-jwt-security';
+process.env.JWT_KEY_VERSION = '1';
+process.env.JWT_EXPIRE = '1h';
+process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-32-chars-long';
 process.env.REQUIRE_VERIFIED_EMAIL = 'false';
+
+// CRITICAL: Mock key-management BEFORE any module loads to bypass singleton timing issue.
+// The real KeyManager reads from .env at construction time (before our env overrides).
+// jest.mock is hoisted by Jest before imports, guaranteeing both signing and verifying use the same key.
+jest.mock('../security/modules/key-management', () => {
+  const secret = 'test-secret-32-chars-long-for-jwt-security';
+  const mockKeyManager = {
+    getActiveKey: () => secret,
+    getActiveKeyVersion: () => 1,
+    getKeyForVerification: () => secret,
+    keys: { 1: secret },
+    activeKeyVersion: 1,
+    validateKeys: () => [],
+    getTokenSigningParams: () => ({ key: secret, algorithm: 'HS256', keyid: '1' }),
+    isKeyInRotation: () => false,
+  };
+  return {
+    getKeyManager: () => mockKeyManager,
+    resetKeyManager: () => mockKeyManager,
+    JWTKeyManager: jest.fn(() => mockKeyManager),
+  };
+});
+
+// Also mock the legacy keyManagement path (used by tokenManager.js)
+jest.mock('../security/keyManagement', () => {
+  const secret = 'test-secret-32-chars-long-for-jwt-security';
+  const mockKeyManager = {
+    getActiveKey: () => secret,
+    getActiveKeyVersion: () => 1,
+    getKeyForVerification: () => secret,
+    keys: { 1: secret },
+    activeKeyVersion: 1,
+    validateKeys: () => [],
+    getTokenSigningParams: () => ({ key: secret, algorithm: 'HS256', keyid: '1' }),
+    isKeyInRotation: () => false,
+  };
+  return {
+    getKeyManager: () => mockKeyManager,
+    resetKeyManager: () => mockKeyManager,
+    JWTKeyManager: jest.fn(() => mockKeyManager),
+  };
+}, { virtual: true });
 
 // Mock Firebase Admin
 jest.mock("firebase-admin", () => ({
@@ -38,19 +76,32 @@ jest.mock('bcryptjs', () => ({
 // Stateful Database Mock
 const usersStore = [];
 const refreshTokensStore = [];
+const chamasStore = []; // Added for the new count mock
 let userIdCounter = 1;
 
 const handleQuery = (text, params) => {
+  if (!text) return Promise.resolve({ rows: [] });
   const query = text.trim().toLowerCase();
+  console.debug(`[SQL Mock Query]: ${query}`);
+
+  // Handle COUNT for chamas
+  if (query.includes('count(*)') && query.includes('from chamas')) {
+    return Promise.resolve({ rows: [{ count: chamasStore.length.toString() }], rowCount: 1 });
+  }
 
   // Handle DELETE (cleanup)
   if (query.startsWith("delete from users")) {
-    const emailPattern = params[0].replace(/%/g, "");
     const initialLength = usersStore.length;
-    for (let i = usersStore.length - 1; i >= 0; i--) {
-      if (usersStore[i].email.includes(emailPattern)) {
-        usersStore.splice(i, 1);
+    if (typeof params[0] === 'string') {
+      const emailPattern = params[0].replace(/%/g, "");
+      for (let i = usersStore.length - 1; i >= 0; i--) {
+        if (usersStore[i].email.includes(emailPattern)) {
+          usersStore.splice(i, 1);
+        }
       }
+    } else {
+      const index = usersStore.findIndex(u => u.user_id === params[0] || u.user_id === parseInt(params[0]));
+      if (index !== -1) usersStore.splice(index, 1);
     }
     return Promise.resolve({ rowCount: initialLength - usersStore.length });
   }
@@ -80,6 +131,7 @@ const handleQuery = (text, params) => {
       first_name,
       last_name,
       phone_number,
+      is_active: true,   // Required for auth.js protect middleware
       created_at: new Date()
     };
     usersStore.push(newUser);
@@ -114,6 +166,57 @@ const handleQuery = (text, params) => {
     return Promise.resolve({ rowCount: index !== -1 ? 1 : 0 });
   }
 
+  // Handle INSERT chamas
+  if (query.match(/insert into chamas/i)) {
+    const [chama_name, chama_type, description, contribution_amount, contribution_frequency, meeting_day, meeting_time, created_by, visibility] = params;
+    const newChama = {
+      chama_id: chamasStore.length + 1,
+      chama_name,
+      chama_type,
+      description,
+      contribution_amount: parseFloat(contribution_amount),
+      contribution_frequency,
+      meeting_day,
+      meeting_time,
+      created_by,
+      visibility,
+      is_active: true,
+      total_members: 1,
+      created_at: new Date()
+    };
+    chamasStore.push(newChama);
+    return Promise.resolve({ rows: [newChama] });
+  }
+
+  // Handle SELECT chamas (all or by ID) - supports multi-line
+  if (query.match(/select[\s\S]*from chamas/i)) {
+    if (query.includes('chama_id = $1') || query.includes('c.chama_id = $1')) {
+      const chama = chamasStore.find(c => c.chama_id === parseInt(params[0]));
+      return Promise.resolve({ rows: chama ? [chama] : [] });
+    }
+    // Search search functionality
+    if (query.includes('chama_name ilike')) {
+      const search = params[0].replace(/%/g, '').toLowerCase();
+      const results = chamasStore.filter(c => c.chama_name.toLowerCase().includes(search) || (c.description && c.description.toLowerCase().includes(search)));
+      return Promise.resolve({ rows: results });
+    }
+    return Promise.resolve({ rows: chamasStore });
+  }
+
+  // Handle UPDATE chamas
+  if (query.match(/update chamas[\s\S]*where[\s\S]*chama_id = \$/i)) {
+    return Promise.resolve({ rows: [chamasStore[0]], rowCount: 1 }); // Mock simple update success
+  }
+
+  // Handle DELETE (soft) chamas
+  if (query.includes('update chamas set is_active = false') || query.includes('deleted_at = now()')) {
+    return Promise.resolve({ rowCount: 1 });
+  }
+
+  // Handle chama_members checks
+  if (query.includes('from chama_members')) {
+    return Promise.resolve({ rows: [{ role: 'CHAIRPERSON', count: '1' }] });
+  }
 
   // Handle Transactions
   if (query === "begin" || query === "commit" || query === "rollback") {
@@ -200,17 +303,19 @@ jest.mock("../utils/auditLog", () => ({
   sanitizeMetadata: (m) => m,
 }));
 
-// Mock Logger
+// Ensure KeyManager is initialized with the test secrets (already done above)
+
+// Mock Logger - actually log for debugging
 jest.mock("../utils/logger", () => ({
-  info: jest.fn(),
-  error: jest.fn(),
-  warn: jest.fn(),
-  debug: jest.fn(),
+  info: (msg, meta) => console.log(`[LOGGER INFO] ${msg}`, meta || ''),
+  error: (msg, meta) => console.error(`[LOGGER ERROR] ${msg}`, meta || ''),
+  warn: (msg, meta) => console.warn(`[LOGGER WARN] ${msg}`, meta || ''),
+  debug: (msg, meta) => console.log(`[LOGGER DEBUG] ${msg}`, meta || ''),
   logAudit: jest.fn(),
-  logSecurityEvent: jest.fn(),
-  logError: jest.fn(),
-  logWarning: jest.fn(),
-  logInfo: jest.fn(),
+  logSecurityEvent: (msg, meta) => console.log(`[SEC EVENT] ${msg}`, meta || ''),
+  logError: (err, meta) => console.error(`[LOGGER ERR] ${err.message}`, meta || ''),
+  logWarning: (msg, meta) => console.warn(`[LOGGER WARN] ${msg}`, meta || ''),
+  logInfo: (msg, meta) => console.log(`[LOGGER INFO] ${msg}`, meta || ''),
   requestId: (req, res, next) => {
     req.id = 'test-request-id';
     next();
@@ -221,6 +326,17 @@ jest.mock("../utils/logger", () => ({
 jest.mock("../middleware/enhancedRequestLogger", () => ({
   requestLogger: (req, res, next) => next(),
   detailedRequestLogger: (req, res, next) => next(),
+}));
+
+// Mock Enhanced Rate Limiting globally to prevent Redis evaluation errors
+jest.mock("../security/enhancedRateLimiting", () => ({
+  apiLimiter: (req, res, next) => next(),
+  loginLimiter: (req, res, next) => next(),
+  registerLimiter: (req, res, next) => next(),
+  paymentLimiter: (req, res, next) => next(),
+  checkLoginRateLimit: jest.fn().mockResolvedValue(false),
+  checkOtpRateLimit: jest.fn().mockResolvedValue(false),
+  checkPasswordResetRateLimit: jest.fn().mockResolvedValue(false),
 }));
 
 // Mock external services
@@ -277,9 +393,10 @@ jest.mock("../utils/notifications", () => ({
 }));
 
 // Global test setup
-beforeEach(() => {
+beforeAll(() => {
   jest.clearAllMocks();
   usersStore.length = 0;
+  chamasStore.length = 0;
   mockRedisStore.clear();
   userIdCounter = 1;
 });

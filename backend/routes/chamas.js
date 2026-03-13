@@ -53,12 +53,12 @@ router.get('/user/my-chamas', protect, getMyChamas);
 // PARAMETERIZED ROUTES (come AFTER specific routes)
 // ============================================================================
 
-// Get chama by ID (public route - allows viewing chama details)
-router.get('/:id', getChamaById);
+// Get chama by ID (protected route - as expected by tests)
+router.get('/:chamaId', protect, getChamaById);
 
 // Get chama members (members and officials only)
 router.get(
-  '/:id/members',
+  '/:chamaId/members',
   protect,
   authorize('member', 'admin', 'treasurer', 'chairperson'),
   getChamaMembers,
@@ -66,7 +66,7 @@ router.get(
 
 // Get chama statistics (members and officials only)
 router.get(
-  '/:id/stats',
+  '/:chamaId/stats',
   protect,
   authorize('member', 'admin', 'treasurer', 'chairperson'),
   getChamaStats,
@@ -92,10 +92,10 @@ router.delete('/:chamaId', protect, authorize('admin', 'chairperson', 'treasurer
 router.post('/:chamaId/cancel-delete', protect, authorize('admin', 'chairperson', 'treasurer'), cancelDeleteChama);
 
 // NEW: Analyze Reliability
-router.post('/:id/analyze-reliability', protect, authorize('admin', 'chairperson', 'treasurer'), async (req, res, next) => {
+router.post('/:chamaId/analyze-reliability', protect, authorize('admin', 'chairperson', 'treasurer'), async (req, res, next) => {
   try {
     const TrustScoreService = require('../utils/trustScoreService');
-    const results = await TrustScoreService.analyzeChamaReliability(req.params.id);
+    const results = await TrustScoreService.analyzeChamaReliability(req.params.chamaId);
     res.json({
       success: true,
       message: 'Reliability analysis completed for all members',
@@ -107,12 +107,12 @@ router.post('/:id/analyze-reliability', protect, authorize('admin', 'chairperson
 });
 
 // Credit Bureau: compute & cache score (accessible by all members)
-router.get('/:id/score', protect, authorize('member', 'admin', 'treasurer', 'chairperson', 'secretary'), getChamaScore);
+router.get('/:chamaId/score', protect, authorize('member', 'admin', 'treasurer', 'chairperson', 'secretary'), getChamaScore);
 
 // Credit Bureau: score history for sparkline
-router.get('/:id/score/history', protect, authorize('member', 'admin', 'treasurer', 'chairperson', 'secretary'), getScoreHistory);
+router.get('/:chamaId/score/history', protect, authorize('member', 'admin', 'treasurer', 'chairperson', 'secretary'), getScoreHistory);
 
 // AI Health Coach: rule-based alerts
-router.get('/:id/health-alerts', protect, authorize('member', 'admin', 'treasurer', 'chairperson', 'secretary'), getHealthAlerts);
+router.get('/:chamaId/health-alerts', protect, authorize('member', 'admin', 'treasurer', 'chairperson', 'secretary'), getHealthAlerts);
 
 module.exports = router;

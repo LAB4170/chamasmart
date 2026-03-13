@@ -35,7 +35,7 @@ class ErrorBoundary extends React.Component {
                     >
                         Reload Page
                     </button>
-                    {process.env.NODE_ENV === 'development' && (
+                    {import.meta.env.MODE === 'development' && (
                         <pre style={{
                             marginTop: '1.5rem',
                             padding: '1rem',

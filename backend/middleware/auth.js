@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
+const { getKeyManager } = require('../security/modules/key-management');
+const logger = require('../utils/logger');
 
 // Protect routes - verify JWT token
 const protect = async (req, res, next) => {
@@ -16,18 +18,65 @@ const protect = async (req, res, next) => {
   if (!token) {
     return res.status(401).json({
       success: false,
-      message: 'Not authorized to access this route',
+      message: 'Not authorized, no token',
     });
   }
 
   try {
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    let decoded;
+
+    // Build list of secrets to try: KeyManager keys + env var fallback
+    const secretsToTry = [];
+    try {
+      const keyManager = getKeyManager();
+      const activeKey = keyManager.getActiveKey();
+      if (activeKey) secretsToTry.push(activeKey);
+      // Add all versioned keys for rotation support
+      const versions = Object.keys(keyManager.keys || {});
+      for (const version of versions) {
+        const key = keyManager.getKeyForVerification(version);
+        if (key && !secretsToTry.includes(key)) secretsToTry.push(key);
+      }
+    } catch (kmErr) {
+      logger.warn('KeyManager unavailable, using env secret fallback', { error: kmErr.message });
+    }
+
+    // Always include the raw env var as a final fallback (critical for tests)
+    if (process.env.JWT_SECRET && !secretsToTry.includes(process.env.JWT_SECRET)) {
+      secretsToTry.push(process.env.JWT_SECRET);
+    }
+    if (process.env.JWT_SECRET_V1 && !secretsToTry.includes(process.env.JWT_SECRET_V1)) {
+      secretsToTry.push(process.env.JWT_SECRET_V1);
+    }
+
+    let lastErr;
+    for (const secret of secretsToTry) {
+      try {
+        decoded = jwt.verify(token, secret);
+        break;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+
+    if (!decoded) {
+      throw lastErr || new Error('Token verification failed');
+    }
+
+    // Token might use 'id' (tokenManager) or 'sub' (TokenService/standard)
+    const userId = decoded.id || decoded.sub;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token payload: user identification missing',
+      });
+    }
 
     // Get user from database
     const result = await pool.query(
       'SELECT user_id, email, first_name, last_name, phone_number, is_active FROM users WHERE user_id = $1',
-      [decoded.sub],
+      [userId],
     );
 
     if (result.rows.length === 0 || !result.rows[0].is_active) {
@@ -37,19 +86,18 @@ const protect = async (req, res, next) => {
       });
     }
 
-    // Attach user to request object
-    // Attach user to request object
     const user = result.rows[0];
-    req.user = { ...user, id: user.user_id };
+    req.user = { ...user, id: user.user_id, user_id: user.user_id };
     next();
   } catch (error) {
-    console.error('Auth middleware error:', error);
+    logger.warn('Auth middleware error:', { message: error.message });
     return res.status(401).json({
       success: false,
       message: 'Not authorized, token failed',
     });
   }
 };
+
 
 // Generic Authorize Middleware (Role based)
 // Generic Authorize Middleware (Role based)

@@ -124,25 +124,21 @@ const closeSession = async (req, res, next) => {
     const expected_cash = parseFloat(opening_cash) + parseFloat(total_collections) - parseFloat(total_disbursements);
     const physical = parseFloat(physical_cash_count);
     const discrepancy = Math.abs(physical - expected_cash);
-    const tolerance = expected_cash * 0.005; // 0.5% margin
+
+    if (discrepancy > 0.01) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: 'Reconciliation Failed: Physical cash does not equal the digital ledger perfectly. You must reconcile missing or excess cash before closing the session.',
+        data: {
+          expected_cash: expected_cash.toFixed(2),
+          physical_cash_count: physical.toFixed(2),
+          discrepancy_amount: discrepancy.toFixed(2),
+        }
+      });
+    }
 
     let reconciliation_status = 'MATCHED';
-
-    if (discrepancy > tolerance) {
-      if (!discrepancy_note || !discrepancy_note.trim()) {
-        await client.query('ROLLBACK');
-        return res.status(422).json({
-          success: false,
-          message: 'Cash mismatch exceeds 0.5%. Please enter a discrepancy note to proceed.',
-          data: {
-            expected_cash: expected_cash.toFixed(2),
-            physical_cash_count: physical.toFixed(2),
-            discrepancy_amount: discrepancy.toFixed(2),
-          }
-        });
-      }
-      reconciliation_status = 'DISCREPANCY';
-    }
 
     // Commit the session closure
     const meetingRes = await client.query(

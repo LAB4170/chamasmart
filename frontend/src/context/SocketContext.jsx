@@ -112,7 +112,7 @@ export const SocketProvider = ({ children }) => {
     }
 
     // We only want to run this effect when the user changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [user]);
 
   return (

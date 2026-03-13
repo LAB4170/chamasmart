@@ -10,6 +10,7 @@ jest.mock('../middleware/auth', () => ({
   authorize: () => (req, res, next) => next(),
   isOfficial: (req, res, next) => next(),
   isTreasurer: (req, res, next) => next(),
+  isSecretary: (req, res, next) => next(),
 }));
 
 jest.mock('../middleware/rateLimiting', () => ({

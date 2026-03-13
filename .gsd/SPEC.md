@@ -47,3 +47,7 @@ To transform ChamaSmart into a production-ready, highly reliable financial manag
 - **Real-Time Group Chat**: Implement a WhatsApp-like real-time messaging platform within every Chama for seamless member communication.
 - **Media Support**: Support secure photo and video attachments within the chat via resilient cloud storage.
 - **AI Customer Service**: Deploy a 24/7 intelligent chatbot integrated into the platform to handle member FAQs, customer service, and platform navigation.
+## Phase 35 Goals (New)
+- **Automated ROSCA Cashouts**: Disburse funds via M-Pesa B2C immediately upon receiving the final cycle contribution (no Treasurer gate).
+- **Table Banking Cash-Locks**: Block physical meeting closure if the cash on the table does not mathematically equal `opening + contributions - loans`.
+- **Developer Operations**: Restore the Jest test suite to a 100% pass rate by rewriting outdated Auth & RBAC mocks, and format the entire codebase to silence 28,000 OS line-break lint warnings.

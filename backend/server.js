@@ -27,7 +27,11 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5005;
 
-// Apply security middleware FIRST (before all routes)
+// === PRIMARY MIDDLEWARE (Applied FIRST to ensure body parsing) ===
+app.use(express.json({ limit: "10kb" }));
+app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+
+// Apply security middleware (now it will have access to parsed body)
 securityMiddleware(app);
 
 // Trust proxy
@@ -35,8 +39,6 @@ app.set("trust proxy", 1);
 
 // Middleware
 app.use(cors(corsOptions));
-app.use(express.json({ limit: "10kb" }));
-app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 
 // Request logging
 app.use(requestLogger);

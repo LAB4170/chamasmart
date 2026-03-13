@@ -6,7 +6,7 @@
  */
 
 const crypto = require('crypto');
-const logger = require('../utils/logger');
+const logger = require('../../utils/logger');
 
 class JWTKeyManager {
   constructor() {
@@ -145,7 +145,13 @@ function getKeyManager() {
   return instance;
 }
 
+function resetKeyManager() {
+  instance = null;
+  return getKeyManager();
+}
+
 module.exports = {
   getKeyManager,
+  resetKeyManager,
   JWTKeyManager,
 };

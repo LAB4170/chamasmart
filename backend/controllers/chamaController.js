@@ -68,8 +68,8 @@ const getAllChamas = async (req, res) => {
 // @access  Public
 const getChamaById = async (req, res) => {
   try {
-    const { id } = req.params;
-    const cacheKey = `chama_${id}`;
+    const { chamaId } = req.params;
+    const cacheKey = `chama_${chamaId}`;
     const cachedData = cache.get(cacheKey);
     if (cachedData) {
       return res.json({ success: true, data: cachedData, cached: true });
@@ -84,7 +84,7 @@ const getChamaById = async (req, res) => {
        FROM chamas c
        LEFT JOIN users u ON c.created_by = u.user_id
        WHERE c.chama_id = $1`,
-      [id],
+      [chamaId],
     );
 
     if (result.rows.length === 0) {
