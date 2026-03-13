@@ -26,29 +26,37 @@ const getNotifications = async (req, res) => {
     );
 
     const notifications = result.rows.map(n => {
-      let link = '#';
+      // Prioritize link from database, otherwise default to '#'
+      let link = n.link || '#';
       const metadata = n.metadata || {};
       
-      switch (n.type) {
-        case 'LOAN_GUARANTEE_REQUEST':
-          link = '/my-guarantees';
-          break;
-        case 'LOAN_GUARANTEE_REJECTED':
-          // If we had a loan-specific page, we'd link there. For now, general dashboard or my-loans.
-          link = '/dashboard'; 
-          break;
-        case 'JOIN_REQUEST':
-          if (n.entity_id) link = `/chamas/${n.entity_id}/join-requests`;
-          break;
-        case 'JOIN_APPROVED':
-        case 'JOIN_REJECTED':
-          if (n.entity_id) link = `/chamas/${n.entity_id}`;
-          break;
-        case 'LOAN_APPROVED':
-        case 'LOAN_REJECTED':
-        case 'LOAN_PAYMENT_DUE':
-          link = '/dashboard';
-          break;
+      // Only generate fallback links if no link is provided in the database
+      if (!n.link || n.link === '#') {
+        switch (n.type) {
+          case 'LOAN_GUARANTEE_REQUEST':
+            link = '/my-guarantees';
+            break;
+          case 'LOAN_GUARANTEE_REJECTED':
+            link = '/dashboard'; 
+            break;
+          case 'JOIN_REQUEST':
+            // Logic moved to joinRequestController for more accuracy, but preserving fallback if needed
+            if (n.entity_id && n.entity_type === 'CHAMA') {
+              link = `/chamas/${n.entity_id}/join-requests`;
+            }
+            break;
+          case 'JOIN_APPROVED':
+          case 'JOIN_REJECTED':
+            if (n.entity_id && n.entity_type === 'CHAMA') {
+              link = `/chamas/${n.entity_id}`;
+            }
+            break;
+          case 'LOAN_APPROVED':
+          case 'LOAN_REJECTED':
+          case 'LOAN_PAYMENT_DUE':
+            link = '/dashboard';
+            break;
+        }
       }
       
       return { ...n, link };
