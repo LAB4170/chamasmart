@@ -167,7 +167,7 @@ const getUserNotifications = async (userId, options = {}) => {
 const markAsRead = async (notificationId, userId) => {
   try {
     const result = await pool.query(
-      'UPDATE notifications SET read_at = NOW() WHERE id = $1 AND user_id = $2',
+      'UPDATE notifications SET is_read = true, read_at = NOW() WHERE notification_id = $1 AND user_id = $2',
       [notificationId, userId],
     );
 
@@ -186,7 +186,7 @@ const markAsRead = async (notificationId, userId) => {
 const markAllAsRead = async userId => {
   try {
     const result = await pool.query(
-      'UPDATE notifications SET read_at = NOW() WHERE user_id = $1 AND read_at IS NULL',
+      'UPDATE notifications SET is_read = true, read_at = NOW() WHERE user_id = $1 AND is_read = false',
       [userId],
     );
 
@@ -205,7 +205,7 @@ const markAllAsRead = async userId => {
 const getUnreadCount = async userId => {
   try {
     const result = await pool.query(
-      'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND read_at IS NULL',
+      'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND is_read = false',
       [userId],
     );
 

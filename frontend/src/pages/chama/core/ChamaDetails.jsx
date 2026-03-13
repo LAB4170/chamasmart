@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { chamaAPI, contributionAPI, ascaAPI, memberAPI } from "../../../services/api";
 import { roscaAPI, welfareAPI } from "../../../services/api";
-import { meetingAPI, loanAPI, auditAPI } from "../../../services/api";
+import { meetingAPI, loanAPI, auditAPI, chatAPI } from "../../../services/api";
 
 
 import { useAuth } from "../../../context/AuthContext";
@@ -356,6 +356,8 @@ const ChamaDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeUsers, setActiveUsers] = useState([]);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const [generalChannelId, setGeneralChannelId] = useState(null);
 
   const [cycles, setCycles] = useState([]);
   const [activeCycle, setActiveCycle] = useState(null);
@@ -430,28 +432,50 @@ const ChamaDetails = () => {
     if (socket && id) {
       socket.emit("join_chama", id);
 
+      // Fetch and join the general chat channel for unread notifications
+      chatAPI.getChannels(id).then(res => {
+        if (res.data?.data?.length > 0) {
+          const channelId = res.data.data[0].channel_id;
+          setGeneralChannelId(channelId);
+          socket.emit("join_chat_channel", channelId);
+        }
+      }).catch(err => console.error("Error joining chat channel for notifications:", err));
+
       const handleUpdate = () => {
         fetchChamaData();
+      };
+
+      const handleNewChatMessage = (msg) => {
+        // Increment unread count if we are NOT on the chat tab and it's not our own message
+        const currentUserId = user?.user_id || user?.id;
+        if (activeTab !== "chat" && msg.user_id !== currentUserId) {
+          setUnreadChatCount(prev => prev + 1);
+        }
       };
 
       socket.on("contribution_recorded", handleUpdate);
       socket.on("contribution_deleted", handleUpdate);
       socket.on("member_added", handleUpdate);
       socket.on("member_removed", handleUpdate);
+      socket.on("new_message", handleNewChatMessage);
       socket.on("presence_update", (users) => {
         setActiveUsers(Array.isArray(users) ? users : []);
       });
 
       return () => {
         socket.emit("leave_chama", id);
+        if (generalChannelId) {
+          socket.emit("leave_chat_channel", generalChannelId);
+        }
         socket.off("contribution_recorded", handleUpdate);
         socket.off("contribution_deleted", handleUpdate);
         socket.off("member_added", handleUpdate);
         socket.off("member_removed", handleUpdate);
+        socket.off("new_message", handleNewChatMessage);
         socket.off("presence_update");
       };
     }
-  }, [id, socket]);
+  }, [id, socket, activeTab, generalChannelId, user]);
 
   // Fetch meetings, loans, or welfare when tab changes
   useEffect(() => {
@@ -988,9 +1012,33 @@ const ChamaDetails = () => {
             </button>
             <button
               className={`tab-modern ${activeTab === "chat" ? "active" : ""}`}
-              onClick={() => setActiveTab("chat")}
+              onClick={() => {
+                setActiveTab("chat");
+                setUnreadChatCount(0);
+              }}
+              style={{ position: 'relative' }}
             >
               <MessageCircle size={18} className="tab-icon" aria-hidden="true" /> Chat
+              {unreadChatCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '0.25rem',
+                  right: '0.5rem',
+                  background: '#ef4444',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: '18px',
+                  height: '18px',
+                  fontSize: '0.65rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  boxShadow: '0 0 0 2px var(--card-bg)'
+                }}>
+                  {unreadChatCount > 9 ? '9+' : unreadChatCount}
+                </span>
+              )}
             </button>
             <button
               className={`tab-modern ${activeTab === "meetings" ? "active" : ""}`}

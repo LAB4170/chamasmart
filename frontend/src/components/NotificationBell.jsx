@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { Bell } from "lucide-react";
 import { notificationAPI } from "../services/api";
 import { useSocket } from "../context/SocketContext";
 import { useAuth } from "../context/AuthContext";
@@ -116,40 +117,52 @@ const NotificationBell = () => {
 
     return (
         <div style={{ position: "relative" }}>
-            <button
-                onClick={handleBellClick}
+        <button
+            onClick={handleBellClick}
+            aria-label="Notifications"
+            style={{
+                position: "relative",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "0.5rem",
+                color: unreadCount > 0 ? "var(--primary, #4f46e5)" : "var(--text-secondary, #6b7280)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "color 0.2s",
+            }}
+        >
+            <Bell
+                size={22}
                 style={{
-                    position: "relative",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: "1.5rem",
-                    padding: "0.5rem",
+                    animation: unreadCount > 0 ? "bell-ring 0.5s ease-in-out" : "none",
                 }}
-            >
-                🔔
-                {unreadCount > 0 && (
-                    <span
-                        style={{
-                            position: "absolute",
-                            top: "0",
-                            right: "0",
-                            backgroundColor: "#ef4444",
-                            color: "white",
-                            borderRadius: "50%",
-                            width: "20px",
-                            height: "20px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "0.75rem",
-                            fontWeight: "bold",
-                        }}
-                    >
-                        {unreadCount > 9 ? "9+" : unreadCount}
-                    </span>
-                )}
-            </button>
+            />
+            {unreadCount > 0 && (
+                <span
+                    style={{
+                        position: "absolute",
+                        top: "2px",
+                        right: "2px",
+                        backgroundColor: "#ef4444",
+                        color: "white",
+                        borderRadius: "50%",
+                        minWidth: "18px",
+                        height: "18px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "0.65rem",
+                        fontWeight: "bold",
+                        padding: "0 3px",
+                        boxShadow: "0 0 0 2px var(--card-bg, white)",
+                    }}
+                >
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+            )}
+        </button>
 
             {showDropdown && (
                 <>
@@ -170,12 +183,12 @@ const NotificationBell = () => {
                             top: "100%",
                             right: 0,
                             marginTop: "0.5rem",
-                            backgroundColor: "white",
-                            border: "1px solid #e5e7eb",
-                            borderRadius: "0.5rem",
-                            boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-                            width: "350px",
-                            maxHeight: "500px",
+                            backgroundColor: "var(--card-bg, white)",
+                            border: "1px solid var(--border, #e5e7eb)",
+                            borderRadius: "0.75rem",
+                            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+                            width: "370px",
+                            maxHeight: "520px",
                             overflowY: "auto",
                             zIndex: 1000,
                         }}

@@ -19,7 +19,7 @@ const SubmitContribution = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const socket = useSocket();
+  const { socket } = useSocket();
   const [paymentStage, setPaymentStage] = useState("idle"); // idle, initiating, waiting, confirmed, failed
 
   useEffect(() => {

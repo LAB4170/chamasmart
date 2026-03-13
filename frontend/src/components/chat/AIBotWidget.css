@@ -58,7 +58,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid white;
+  box-shadow: 0 0 0 2px var(--card-bg, white);
 }
 
 /* Chat window */
@@ -127,7 +127,7 @@
   height: 10px;
   background: #22c55e;
   border-radius: 50%;
-  border: 2px solid white;
+  border: 2px solid var(--card-bg, white);
 }
 
 .ai-bot-name {
@@ -175,6 +175,11 @@
   background: var(--surface-1, #f8fafc);
 }
 
+/* Dark mode: soften the messages backdrop so bot bubbles pop */
+[data-theme='dark'] .ai-bot-messages {
+  background: var(--surface-1, #0f172a);
+}
+
 .ai-bot-message {
   display: flex;
   align-items: flex-end;
@@ -207,11 +212,21 @@
   gap: 0.2rem;
 }
 
+.ai-bot-bubble p {
+  color: inherit !important;
+  margin: 0 !important;
+}
+
+.ai-bot-bubble strong {
+  color: inherit !important;
+}
+
 .bot-bubble {
-  background: white;
+  background: var(--card-bg, white);
   color: var(--text-primary, #1e293b);
   border-bottom-left-radius: 4px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  border: 1px solid var(--border, #e2e8f0);
 }
 
 .user-bubble {
@@ -231,7 +246,7 @@
 .ai-bot-typing span {
   width: 7px;
   height: 7px;
-  background: #94a3b8;
+  background: var(--text-secondary, #94a3b8);
   border-radius: 50%;
   animation: typing-bounce 1.2s ease-in-out infinite;
 }
@@ -255,8 +270,8 @@
 
 .ai-bot-suggestion-chip {
   background: none;
-  border: 1.5px solid #2563eb;
-  color: #2563eb;
+  border: 1.5px solid var(--primary, #2563eb);
+  color: var(--primary, #2563eb);
   border-radius: 20px;
   padding: 0.3rem 0.7rem;
   font-size: 0.78rem;
@@ -266,7 +281,7 @@
 }
 
 .ai-bot-suggestion-chip:hover {
-  background: #2563eb;
+  background: var(--primary, #2563eb);
   color: white;
 }
 
@@ -276,7 +291,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: white;
+  background: var(--card-bg, white);
   border-top: 1px solid var(--border, #e2e8f0);
   flex-shrink: 0;
 }
@@ -287,13 +302,18 @@
   border-radius: 12px;
   padding: 0.6rem 0.85rem;
   font-size: 0.9rem;
-  color: var(--text-primary, #1e293b);
-  background: var(--surface-1, #f8fafc);
+  color: var(--input-text, #1e293b);
+  background: var(--input-bg, #f8fafc);
   resize: none;
   outline: none;
   font-family: inherit;
   line-height: 1.4;
   transition: border-color 0.15s;
+}
+
+.ai-bot-input::placeholder {
+  color: var(--text-secondary, #94a3b8);
+  opacity: 1;
 }
 
 .ai-bot-input:focus {
