@@ -158,7 +158,7 @@ async function scoreWelfareSolvency(client, chamaId) {
 
 // ─── Main: Compute & Cache Score ─────────────────────────────────────────────
 const getChamaScore = async (req, res, next) => {
-  const { id: chamaId } = req.params;
+  const { chamaId } = req.params;
   const client = await pool.connect();
   try {
     // Run all 5 dimensions in parallel
@@ -230,7 +230,7 @@ const getChamaScore = async (req, res, next) => {
 
 // ─── Score History (sparkline data) ──────────────────────────────────────────
 const getScoreHistory = async (req, res, next) => {
-  const { id: chamaId } = req.params;
+  const { chamaId } = req.params;
   try {
     const { rows } = await pool.query(`
       SELECT snapshot_date, composite_score, tier

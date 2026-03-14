@@ -63,7 +63,7 @@ const pool = require('../config/db');
 const logger = require('../utils/logger');
 
 const getHealthAlerts = async (req, res, next) => {
-  const { id: chamaId } = req.params;
+  const { chamaId } = req.params;
 
   try {
     // 1. Ensure cache table exists (using pool.query for auto-client management)

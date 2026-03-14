@@ -750,6 +750,9 @@ const applyForLoan = async (req, res) => {
 
     // === CALCULATE LOAN ELIGIBILITY ===
     const maxLoan = chama.chama_type === 'ASCA' ? savings * 3 : savings * loanConfig.loan_multiplier;
+    const amountValue = parseFloat(amount);
+    const maxLoanCents = toCents(maxLoan);
+    const savingsCents = toCents(savings);
 
     // Check outstanding loans
     const outstandingRes = await client.query(
