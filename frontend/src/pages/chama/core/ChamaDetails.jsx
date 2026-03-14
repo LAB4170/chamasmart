@@ -1350,11 +1350,11 @@ const ChamaDetails = () => {
                           <div className="equity-grid">
                             <div className="equity-card">
                               <div className="equity-label">Total Shares</div>
-                              <div className="equity-value">{ascaEquity.totalShares.toFixed(2)}</div>
+                              <div className="equity-value">{(ascaEquity.shares || 0).toFixed(2)}</div>
                             </div>
                             <div className="equity-card">
                               <div className="equity-label">Current Value</div>
-                              <div className="equity-value highlight">{formatCurrency(ascaEquity.estimatedValue || 0)}</div>
+                              <div className="equity-value highlight">{formatCurrency(ascaEquity.value || 0)}</div>
                             </div>
                           </div>
                         </div>

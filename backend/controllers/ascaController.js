@@ -203,7 +203,7 @@ const getMyEquity = async (req, res, next) => {
     const { total_amount, total_shares } = userAgg.rows[0];
 
     // Chama-wide totals and assets
-    const [chamaRow, sharesAgg, assetsAgg] = await Promise.all([
+    const [chamaRow, sharesAgg, assetsAgg, loansAgg] = await Promise.all([
       pool.query(
         'SELECT current_fund, share_price FROM chamas WHERE chama_id = $1',
         [chamaId],
@@ -220,6 +220,12 @@ const getMyEquity = async (req, res, next) => {
          WHERE chama_id = $1`,
         [chamaId],
       ),
+      pool.query(
+        `SELECT COALESCE(SUM(balance), 0) AS active_loans
+         FROM loans
+         WHERE chama_id = $1 AND status IN ('DISBURSED', 'ACTIVE', 'DEFAULTED')`,
+        [chamaId],
+      ),
     ]);
 
     if (chamaRow.rows.length === 0) {
@@ -230,8 +236,10 @@ const getMyEquity = async (req, res, next) => {
     const configuredSharePrice = parseFloat(chamaRow.rows[0].share_price || 0);
     const totalSharesChama = parseFloat(sharesAgg.rows[0].total_shares || 0);
     const assetsValue = parseFloat(assetsAgg.rows[0].total_assets || 0);
+    const loansValue = parseFloat(loansAgg.rows[0].active_loans || 0);
 
-    const totalAssets = currentFund + assetsValue;
+    // Total assets = Cash in hand + Asset registry + Outstanding loans (debt is an asset to the group)
+    const totalAssets = currentFund + assetsValue + loansValue;
 
     let currentSharePrice;
     if (totalSharesChama > 0) {
@@ -240,16 +248,19 @@ const getMyEquity = async (req, res, next) => {
       currentSharePrice = configuredSharePrice || 0;
     }
 
-    const estimatedValue = parseFloat(total_shares || 0) * currentSharePrice;
+    const shares = parseFloat(total_shares || 0);
+    const value = shares * currentSharePrice;
+    const percentage = totalSharesChama > 0 ? (shares / totalSharesChama) * 100 : 0;
 
     return res.json({
       success: true,
       data: {
-        totalAmount: parseFloat(total_amount || 0),
-        totalShares: parseFloat(total_shares || 0),
-        currentSharePrice,
-        estimatedValue,
-        totalAssets,
+        shares,
+        value,
+        percentage: parseFloat(percentage.toFixed(2)),
+        currentSharePrice: parseFloat(currentSharePrice.toFixed(2)),
+        totalAssets: parseFloat(totalAssets.toFixed(2)),
+        totalChamaShares: totalSharesChama,
       },
     });
   } catch (err) {

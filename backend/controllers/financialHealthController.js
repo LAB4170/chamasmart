@@ -3,10 +3,10 @@
  * Used when Gemini API is unavailable or key is missing.
  */
 const generateRuleBasedAlerts = (context) => {
-  const { cb, overdueLoans, claims, welfareBal } = context;
+  const { cb, overdueLoans, claims, welfareBal, stats, liquidityRatio, activeLoansTotal } = context;
   const alerts = [];
 
-  // 1. Critical: Loan Health
+  // 1. Critical: Loan Health & Solvency
   if (cb.loan_score < 40 || overdueLoans[0].count > 0) {
     alerts.push({
       id: "LOAN_RECOVERY",
@@ -31,27 +31,27 @@ const generateRuleBasedAlerts = (context) => {
     });
   }
 
-  // 3. Tip: Fund Growth
-  if (cb.fund_growth_score < 60) {
+  // 3. Tip: Idle Capital (Over-liquidity)
+  if (liquidityRatio > 0.6 && stats.total_members > 5) {
     alerts.push({
-      id: "GROWTH_TIP",
+      id: "IDLE_CAPITAL",
       severity: "TIP",
-      icon: "📈",
-      title: "Boost Fund Velocity",
-      detail: "Your fund growth has plateaued recently compared to member count.",
-      action: "Encourage higher individual savings or introduce a short-term ROSCA cycle to boost activity."
+      icon: "💰",
+      title: "Optimize Idle Capital",
+      detail: `Over ${(liquidityRatio * 100).toFixed(0)}% of your fund is sitting idle in the bank.`,
+      action: "Encourage members to take more loans or seek low-risk investment opportunities to grow the fund."
     });
   }
 
-  // 4. Tip: Attendance
-  if (cb.attendance_score < 70) {
+  // 4. Growth: Interest Earnings
+  if (parseFloat(stats.total_interest_earned) === 0 && activeLoansTotal > 0) {
     alerts.push({
-      id: "ATTENDANCE_ADVICE",
+      id: "INTEREST_VELOCITY",
       severity: "TIP",
-      icon: "🤝",
-      title: "Engagement Gap",
-      detail: "Meeting attendance is dipping, which affects transparency and trust.",
-      action: "Enable digital minutes broadcast to keep absent members informed and engaged."
+      icon: "📈",
+      title: "Interest Yield Alert",
+      detail: "Your loans are active but haven't generated interest income yet.",
+      action: "Review your interest rate settings or ensure loan repayments are being recorded correctly."
     });
   }
 
@@ -97,6 +97,17 @@ const getHealthAlerts = async (req, res, next) => {
     if (!chamaInfo.length) return res.status(404).json({ success: false, message: 'Chama not found' });
     const { chama_name, chama_type, current_fund } = chamaInfo[0];
 
+    // Rich Stats from existing logic
+    const { rows: statsRows } = await pool.query(
+      `SELECT 
+         (SELECT COUNT(*) FROM chama_members WHERE chama_id = $1 AND is_active = true) as total_members,
+         (SELECT COALESCE(SUM(amount), 0) FROM contributions WHERE chama_id = $1 AND status = 'COMPLETED') as total_savings,
+         (SELECT COALESCE(SUM(lr.interest_component), 0) FROM loan_repayments lr JOIN loans l ON lr.loan_id = l.loan_id WHERE l.chama_id = $1) as total_interest_earned,
+         (SELECT COALESCE(SUM(balance), 0) FROM loans WHERE chama_id = $1 AND status IN ('DISBURSED', 'ACTIVE', 'DEFAULTED')) as active_loans_total`,
+      [chamaId]
+    );
+    const stats = statsRows[0];
+
     const { rows: scoreRows } = await pool.query(
       "SELECT * FROM chama_score_cache WHERE chama_id = $1",
       [chamaId]
@@ -117,20 +128,46 @@ const getHealthAlerts = async (req, res, next) => {
     );
 
     const { rows: welfareFund } = await pool.query(
-      "SELECT balance FROM welfare_fund WHERE chama_id = $1", 
+      "SELECT COALESCE(balance, 0) as balance FROM welfare_fund WHERE chama_id = $1", 
       [chamaId]
     );
     const welfareBal = welfareFund[0]?.balance || 0;
 
-    const context = { chama_name, chama_type, current_fund, cb, overdueLoans, claims, welfareBal };
+    // Derived Ratios
+    const liquidityRatio = stats.total_savings > 0 ? (current_fund / stats.total_savings) : 0;
+    const loanUtilization = (stats.total_savings + stats.total_interest_earned) > 0 
+        ? (stats.active_loans_total / (stats.total_savings + stats.total_interest_earned)) 
+        : 0;
 
-    // 4. Try Groq
+    const context = { 
+        chama_name, chama_type, current_fund, cb, overdueLoans, claims, welfareBal, stats,
+        liquidityRatio, loanUtilization, activeLoansTotal: stats.active_loans_total
+    };
+
+    // 4. Try AI Engine (Enhanced Prompt)
     if (process.env.GROQ_API_KEY) {
       try {
         const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-        const prompt = `Return a JSON array of 3 actionable financial health alerts for Chama "${chama_name}".
-          Context: Score ${cb.composite_score}, Overdue: ${overdueLoans[0].count}, Welfare Bal: ${welfareBal} vs Claims: ${claims[0].total_pending}.
-          Format: [{id, severity, icon, title, detail, action}]`;
+        const persona = `You are a Senior Financial Advisor for "ChamaSmart", an app for micro-savings groups (Chamas). 
+        Analyze the following technical data and provide 3 HIGHLY ACCURATE, ARCHETYPAL alerts.`;
+
+        const prompt = `${persona}
+          Chama: ${chama_name} (${chama_type})
+          Members: ${stats.total_members}
+          Cash in Hand: KES ${current_fund}
+          Total Member Savings: KES ${stats.total_savings}
+          Liquidity Ratio: ${(liquidityRatio * 100).toFixed(1)}% (Target 20-40%)
+          Interest Earned to Date: KES ${stats.total_interest_earned}
+          Outstanding Loans: KES ${stats.active_loans_total} (${(loanUtilization * 100).toFixed(1)}% utilization)
+          Overdue Loans: ${overdueLoans[0].count} (totaling KES ${overdueLoans[0].total})
+          Welfare: Bal KES ${welfareBal} vs Pending Claims KES ${claims[0].total_pending}
+          Group Score: ${cb.composite_score}/100
+
+          REQUIREMENTS:
+          - Return exactly 3 alerts.
+          - 1 "CRITICAL" (if urgent risk exists), 1 "WARNING" (medium risk), 1 "TIP" (opportunity for growth/efficiency).
+          - Use professional yet encouraging tone.
+          - Format: JSON array of objects with fields: {id, severity, icon, title, detail, action}`;
 
         const completion = await groq.chat.completions.create({
           messages: [{ role: "user", content: prompt }],
