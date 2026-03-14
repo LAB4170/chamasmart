@@ -253,6 +253,7 @@ const recordContribution = async (req, res, next) => {
       notes,
       contributionDate,
       verificationStatus = "VERIFIED",
+      meetingId,
     } = req.body;
 
     // Check authorization
@@ -340,9 +341,9 @@ const recordContribution = async (req, res, next) => {
       const contributionResult = await client.query(
         `INSERT INTO contributions 
          (chama_id, user_id, amount, payment_method, receipt_number, payment_proof, 
-          recorded_by, notes, contribution_date, idempotency_key, verification_status, status, cycle_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-         RETURNING contribution_id, chama_id, user_id, amount, cycle_id,
+          recorded_by, notes, contribution_date, idempotency_key, verification_status, status, cycle_id, meeting_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+         RETURNING contribution_id, chama_id, user_id, amount, cycle_id, meeting_id,
                    payment_method, receipt_number, payment_proof, contribution_date, 
                    verification_status, status, created_at`,
         [
@@ -359,6 +360,7 @@ const recordContribution = async (req, res, next) => {
           verificationStatus,
           technicalStatus,
           cycleId,
+          meetingId || null,
         ],
       );
 
@@ -378,6 +380,14 @@ const recordContribution = async (req, res, next) => {
           [amount, chamaId],
         );
         newChamaBalance = updateChamaResult.rows[0].current_fund;
+
+        // NEW: If part of a live meeting session, update meeting total collections
+        if (meetingId) {
+          await client.query(
+            "UPDATE meetings SET total_collections = total_collections + $1 WHERE meeting_id = $2",
+            [amount, meetingId]
+          );
+        }
 
         const updateMemberResult = await client.query(
           `UPDATE chama_members 
@@ -514,7 +524,7 @@ const bulkRecordContributions = async (req, res, next) => {
     }
 
     const { chamaId } = req.params;
-    const { contributions } = req.body;
+    const { contributions, meetingId } = req.body;
 
     // Authorization check
     await checkChamaAuthorization(client, chamaId, req.user.user_id, [
@@ -602,11 +612,11 @@ const bulkRecordContributions = async (req, res, next) => {
       const contribRes = await client.query(
         `INSERT INTO contributions 
          (chama_id, user_id, amount, payment_method, receipt_number, payment_proof, 
-          recorded_by, notes, contribution_date, verification_status, status, cycle_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-         RETURNING contribution_id, amount, cycle_id`,
+          recorded_by, notes, contribution_date, verification_status, status, cycle_id, meeting_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         RETURNING contribution_id, amount, cycle_id, meeting_id`,
         [chamaId, userId, amount, paymentMethod, receiptNumber || null, paymentProof || null, 
-         req.user.user_id, notes || null, contributionDate || new Date(), verificationStatus, technicalStatus, cycleId]
+         req.user.user_id, notes || null, contributionDate || new Date(), verificationStatus, technicalStatus, cycleId, meetingId || null]
       );
 
       const contributionId = contribRes.rows[0].contribution_id;
@@ -633,6 +643,18 @@ const bulkRecordContributions = async (req, res, next) => {
       "UPDATE chamas SET current_fund = $1, updated_at = NOW() WHERE chama_id = $2",
       [updatedChamaFund, chamaId]
     );
+
+    // NEW: Bulk update meeting totals if session is active
+    if (meetingId && verifiedUsers.length > 0) {
+      const totalBulkAmount = contributions
+        .filter(c => c.verificationStatus === 'VERIFIED' || !c.verificationStatus)
+        .reduce((sum, c) => sum + parseFloat(c.amount), 0);
+
+      await client.query(
+        "UPDATE meetings SET total_collections = total_collections + $1 WHERE meeting_id = $2",
+        [totalBulkAmount, meetingId]
+      );
+    }
 
     await client.query("COMMIT");
 

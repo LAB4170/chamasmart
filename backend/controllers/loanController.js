@@ -1438,7 +1438,7 @@ const makeRepayment = async (req, res) => {
 
     const chamaId = parseInt(req.params.chamaId, 10);
     const loanId = parseInt(req.params.loanId, 10);
-    const { amount, paymentMethod = 'cash', notes } = req.body;
+    const { amount, paymentMethod = 'cash', notes, meetingId } = req.body;
     const userId = req.user.user_id;
 
     if (isNaN(chamaId) || isNaN(loanId)) {
@@ -1540,10 +1540,18 @@ const makeRepayment = async (req, res) => {
     // Record repayment - explicitly track the payer
     await client.query(
       `INSERT INTO loan_repayments 
-       (loan_id, payer_id, amount, payment_method, notes, payment_date)
-       VALUES ($1::INTEGER, $2::INTEGER, $3::NUMERIC, $4, $5, NOW())`,
-      [loanId, userId, fromCents(repaymentAmountCents), paymentMethod, notes || (isGuarantor && !isBorrower ? 'Repayment by Guarantor' : null)],
+       (loan_id, payer_id, amount, payment_method, notes, payment_date, meeting_id)
+       VALUES ($1::INTEGER, $2::INTEGER, $3::NUMERIC, $4, $5, NOW(), $6)`,
+      [loanId, userId, fromCents(repaymentAmountCents), paymentMethod, notes || (isGuarantor && !isBorrower ? 'Repayment by Guarantor' : null), meetingId || null],
     );
+
+    // If part of a live meeting session, update meeting total collections
+    if (meetingId) {
+      await client.query(
+        "UPDATE meetings SET total_collections = total_collections + $1 WHERE meeting_id = $2",
+        [fromCents(repaymentAmountCents), meetingId]
+      );
+    }
 
     // If the chama uses a revolving fund (ASCA or TABLE_BANKING), return the repayment to the fund
     const chamaTypeResult = await client.query(

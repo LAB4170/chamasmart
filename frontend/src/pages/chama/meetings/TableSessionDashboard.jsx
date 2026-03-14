@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { sessionAPI, chamaAPI, meetingAPI, contributionAPI, loanAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
+import { useSocket } from "../../../context/SocketContext";
 import { toast } from "react-toastify";
 import { 
     Calendar, Users, ArrowLeft, Play, Lock, CheckCircle2, 
@@ -34,6 +35,26 @@ const TableSessionDashboard = () => {
     // Inline edit states
     const [editingMember, setEditingMember] = useState(null);
     const [editValues, setEditValues] = useState({ contribution: "", repayment: "" });
+
+    const { socket, isConnected } = useSocket();
+
+    // Socket.io Real-Time Listeners for Table Banking Sync
+    useEffect(() => {
+        if (!socket || !isConnected || !chamaId) return;
+
+        socket.emit("join_chama", chamaId);
+
+        socket.on("contribution_recorded", fetchSessionSync);
+        socket.on("loan_updated", fetchSessionSync);
+        socket.on("session_updated", fetchSessionSync);
+
+        return () => {
+            socket.off("contribution_recorded", fetchSessionSync);
+            socket.off("loan_updated", fetchSessionSync);
+            socket.off("session_updated", fetchSessionSync);
+            socket.emit("leave_chama", chamaId);
+        };
+    }, [socket, isConnected, chamaId]);
 
     useEffect(() => {
         fetchSessionSync();
@@ -143,9 +164,24 @@ const TableSessionDashboard = () => {
                 }));
             }
             if (editValues.repayment && parseFloat(editValues.repayment) > 0) {
-                // Simplified repayment for session
-                // In a full impl, we'd need to pick which loan, but for Table Banking 
-                // we often assume the active loan.
+                try {
+                    // Fetch loans to find the active one for this member
+                    const loansRes = await loanAPI.getChamaLoans(chamaId);
+                    const userLoans = loansRes.data.data.filter(l => l.borrower_id === userId && l.status === 'APPROVED');
+                    
+                    if (userLoans.length > 0) {
+                        const activeLoan = userLoans[0]; // Apply to the first active loan found
+                        promises.push(loanAPI.repay(chamaId, activeLoan.loan_id, {
+                            amount: parseFloat(editValues.repayment),
+                            paymentMethod: 'CASH',
+                            notes: `Live meeting session payment`
+                        }));
+                    } else {
+                        toast.warning("Member has no active loans. Repayment skipped.");
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch loans", err);
+                }
             }
 
             if (promises.length > 0) {

@@ -123,6 +123,7 @@ const contributionSchema = Joi.object({
   contributionDate: Joi.date().iso().optional(),
   status: Joi.string().valid('PENDING', 'COMPLETED', 'FAILED').default('PENDING'),
   verificationStatus: Joi.string().valid('PENDING', 'VERIFIED', 'REJECTED').default('PENDING'),
+  meetingId: Joi.number().integer().optional().allow(null),
 });
 
 const bulkContributionSchema = Joi.object({

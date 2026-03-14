@@ -542,8 +542,8 @@ const getMyChamas = async (req, res) => {
 // @access  Private
 const getChamaMembers = async (req, res) => {
   try {
-    const { id } = req.params;
-    const cacheKey = `chama_members_${id}`;
+    const { chamaId } = req.params;
+    const cacheKey = `chama_members_${chamaId}`;
     const cachedData = cache.get(cacheKey);
     if (cachedData) {
       return res.json({
@@ -568,7 +568,7 @@ const getChamaMembers = async (req, res) => {
            ELSE 4
          END,
          cm.join_date ASC`,
-      [id],
+      [chamaId],
     );
 
     cache.set(cacheKey, result.rows);
@@ -592,8 +592,8 @@ const getChamaMembers = async (req, res) => {
 // @access  Private
 const getChamaStats = async (req, res) => {
   try {
-    const { id } = req.params;
-    const cacheKey = `chama_stats_${id}`;
+    const { chamaId } = req.params;
+    const cacheKey = `chama_stats_${chamaId}`;
     const cachedData = cache.get(cacheKey);
     if (cachedData) {
       return res.json({ success: true, data: cachedData, cached: true });
@@ -632,7 +632,7 @@ const getChamaStats = async (req, res) => {
          LEFT JOIN member_stats ms ON ch.chama_id = ms.chama_id
          LEFT JOIN contribution_stats cs ON ch.chama_id = cs.chama_id
          WHERE ch.chama_id = $1`,
-        [id],
+        [chamaId],
       )
     ]);
 
