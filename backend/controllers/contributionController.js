@@ -13,6 +13,7 @@ const { body, validationResult } = require("express-validator");
 const TrustScoreService = require("../utils/trustScoreService");
 const { clearChamaCache } = require('../utils/cache');
 const Money = require('../utils/money');
+const ShareSync = require('../utils/shareSync');
 
 
 // ============================================================================
@@ -419,6 +420,21 @@ const recordContribution = async (req, res, next) => {
         } catch (err) {
           logger.error('Failed to update trust score', { error: err.message, userId });
         }
+
+        // Auto-actualize shares for ASCA and TABLE_BANKING chamas
+        if (['ASCA', 'TABLE_BANKING'].includes(chamaType)) {
+          const shareClient = await pool.connect();
+          try {
+            await shareClient.query('BEGIN');
+            await ShareSync.syncContributionToShares(shareClient, contribution.contribution_id);
+            await shareClient.query('COMMIT');
+          } catch (syncErr) {
+            await shareClient.query('ROLLBACK');
+            logger.error('Share sync failed (non-fatal)', { error: syncErr.message, contributionId: contribution.contribution_id });
+          } finally {
+            shareClient.release();
+          }
+        }
       }
 
       // Prepare response
@@ -540,6 +556,7 @@ const bulkRecordContributions = async (req, res, next) => {
 
     const successes = [];
     const verifiedUsers = [];
+    const verifiedContributionIds = []; // for share sync
     
     // Verify chama
     const chamaRes = await client.query(
@@ -634,6 +651,7 @@ const bulkRecordContributions = async (req, res, next) => {
       successes.push({ contributionId, userId, amount });
       if (verificationStatus === 'VERIFIED') {
         verifiedUsers.push(userId);
+        verifiedContributionIds.push(contributionId);
       }
     }
 
@@ -664,6 +682,23 @@ const bulkRecordContributions = async (req, res, next) => {
         await TrustScoreService.updateMemberTrustScore(chamaId, verifiedUserId);
       } catch (err) {
         logger.error('Bulk TrustScore Update Error', { error: err.message, userId: verifiedUserId });
+      }
+    }
+
+    // Auto-actualize shares for ASCA and TABLE_BANKING chamas
+    if (['ASCA', 'TABLE_BANKING'].includes(chamaRes.rows[0].chama_type) && verifiedContributionIds.length > 0) {
+      for (const cId of verifiedContributionIds) {
+        const shareClient = await pool.connect();
+        try {
+          await shareClient.query('BEGIN');
+          await ShareSync.syncContributionToShares(shareClient, cId);
+          await shareClient.query('COMMIT');
+        } catch (syncErr) {
+          await shareClient.query('ROLLBACK');
+          logger.error('Bulk share sync failed (non-fatal)', { error: syncErr.message, contributionId: cId });
+        } finally {
+          shareClient.release();
+        }
       }
     }
 

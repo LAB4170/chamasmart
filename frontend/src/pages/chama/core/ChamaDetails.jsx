@@ -1340,23 +1340,34 @@ const ChamaDetails = () => {
 
                   {["ASCA", "TABLE_BANKING"].includes(chama.chama_type) && (
                     <div className="grid grid-1 md:grid-2 gap-4 mt-4">
-                      {/* Original Equity Card */}
+                      {/* Equity Card — shown for all ASCA/TABLE_BANKING */}
                       {ascaEquity && (
                         <div className="card-modern">
                           <h4 className="flex items-center gap-2 mb-4">
                             <TrendingUp size={18} className="text-success" />
-                            My Equity Shares
+                            {chama.chama_type === 'TABLE_BANKING' ? 'My Capital' : 'My Equity Shares'}
                           </h4>
                           <div className="equity-grid">
                             <div className="equity-card">
-                              <div className="equity-label">Total Shares</div>
-                              <div className="equity-value">{(ascaEquity.shares || 0).toFixed(2)}</div>
+                              <div className="equity-label">
+                                {chama.chama_type === 'TABLE_BANKING' ? 'Total Contributed' : 'Total Shares'}
+                              </div>
+                              <div className="equity-value">
+                                {chama.chama_type === 'TABLE_BANKING'
+                                  ? formatCurrency(ascaEquity.investedAmount || ascaEquity.shares || 0)
+                                  : (ascaEquity.shares || 0).toFixed(2)}
+                              </div>
                             </div>
                             <div className="equity-card">
-                              <div className="equity-label">Current Value</div>
+                              <div className="equity-label">Equity Value</div>
                               <div className="equity-value highlight">{formatCurrency(ascaEquity.value || 0)}</div>
                             </div>
                           </div>
+                          {ascaEquity.percentage > 0 && (
+                            <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                              Ownership: <strong style={{ color: 'var(--primary)' }}>{ascaEquity.percentage.toFixed(1)}%</strong> of group capital
+                            </div>
+                          )}
                         </div>
                       )}
 

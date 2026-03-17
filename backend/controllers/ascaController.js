@@ -190,7 +190,7 @@ const getMyEquity = async (req, res, next) => {
 
     await getAscaChama(chamaId); // validates chama and type
 
-    // User totals
+    // User totals from share ledger
     const userAgg = await pool.query(
       `SELECT 
          COALESCE(SUM(amount), 0) AS total_amount,
@@ -200,7 +200,22 @@ const getMyEquity = async (req, res, next) => {
       [chamaId, userId],
     );
 
-    const { total_amount, total_shares } = userAgg.rows[0];
+    let { total_amount, total_shares } = userAgg.rows[0];
+
+    // FALLBACK: If no share ledger data, use chama_members.total_contributions
+    // This handles Table Banking chamas where members pay regular contributions
+    // but have never explicitly "bought shares"
+    if (parseFloat(total_shares) === 0 && parseFloat(total_amount) === 0) {
+      const memberFallback = await pool.query(
+        `SELECT COALESCE(total_contributions, 0) AS total_amount
+         FROM chama_members WHERE chama_id = $1 AND user_id = $2`,
+        [chamaId, userId]
+      );
+      if (memberFallback.rowCount > 0) {
+        total_amount = memberFallback.rows[0].total_amount;
+        total_shares = total_amount; // treat each KES as 1 share when no share price set
+      }
+    }
 
     // Chama-wide totals and assets
     const [chamaRow, sharesAgg, assetsAgg, loansAgg] = await Promise.all([
@@ -234,9 +249,18 @@ const getMyEquity = async (req, res, next) => {
 
     const currentFund = parseFloat(chamaRow.rows[0].current_fund || 0);
     const configuredSharePrice = parseFloat(chamaRow.rows[0].share_price || 0);
-    const totalSharesChama = parseFloat(sharesAgg.rows[0].total_shares || 0);
+    let totalSharesChama = parseFloat(sharesAgg.rows[0].total_shares || 0);
     const assetsValue = parseFloat(assetsAgg.rows[0].total_assets || 0);
     const loansValue = parseFloat(loansAgg.rows[0].active_loans || 0);
+
+    // FALLBACK for chama-wide total when no share ledger entries
+    if (totalSharesChama === 0) {
+      const chamamembersAgg = await pool.query(
+        `SELECT COALESCE(SUM(total_contributions), 0) AS total FROM chama_members WHERE chama_id = $1`,
+        [chamaId]
+      );
+      totalSharesChama = parseFloat(chamamembersAgg.rows[0].total || 0);
+    }
 
     // Total assets = Cash in hand + Asset registry + Outstanding loans (debt is an asset to the group)
     const totalAssets = currentFund + assetsValue + loansValue;
@@ -245,22 +269,27 @@ const getMyEquity = async (req, res, next) => {
     if (totalSharesChama > 0) {
       currentSharePrice = totalAssets / totalSharesChama;
     } else {
-      currentSharePrice = configuredSharePrice || 0;
+      currentSharePrice = configuredSharePrice || 1;
     }
 
     const shares = parseFloat(total_shares || 0);
-    const value = shares * currentSharePrice;
-    const percentage = totalSharesChama > 0 ? (shares / totalSharesChama) * 100 : 0;
+    const investedAmount = parseFloat(total_amount || 0);
+    // Value = proportional share of total assets
+    const value = totalSharesChama > 0 
+      ? (investedAmount / Math.max(totalSharesChama, investedAmount)) * totalAssets
+      : investedAmount;
+    const percentage = totalSharesChama > 0 ? (investedAmount / totalSharesChama) * 100 : 0;
 
     return res.json({
       success: true,
       data: {
         shares,
-        value,
+        value: parseFloat(value.toFixed(2)),
         percentage: parseFloat(percentage.toFixed(2)),
         currentSharePrice: parseFloat(currentSharePrice.toFixed(2)),
         totalAssets: parseFloat(totalAssets.toFixed(2)),
         totalChamaShares: totalSharesChama,
+        investedAmount: parseFloat(investedAmount.toFixed(2)),
       },
     });
   } catch (err) {
@@ -738,15 +767,59 @@ const getMemberEquityStatement = async (req, res, next) => {
       );
 
       if (cycleRes.rows.length === 0) {
+        // For TABLE_BANKING (and ASCA without a cycle), fall back to total_contributions
+        const memberEquityFallback = await client.query(
+          `SELECT 
+             COALESCE(cm.total_contributions, 0) AS total_equity,
+             (SELECT COALESCE(SUM(l.balance), 0) FROM loans l WHERE l.chama_id = $1 AND l.borrower_id = $2 AND l.status IN ('ACTIVE','DEFAULTED')) AS total_debt,
+             (SELECT COALESCE(SUM(lg.guarantee_amount), 0) FROM loan_guarantors lg JOIN loans l ON lg.loan_id = l.loan_id WHERE lg.guarantor_user_id = $2 AND lg.status = 'APPROVED' AND l.status = 'ACTIVE') AS total_guaranteed
+           FROM chama_members cm
+           WHERE cm.chama_id = $1 AND cm.user_id = $2`,
+          [chamaId, userId]
+        );
+
+        if (memberEquityFallback.rowCount === 0 || parseFloat(memberEquityFallback.rows[0].total_equity) === 0) {
+          return res.status(200).json({
+            success: true,
+            data: {
+              hasActiveCycle: false,
+              totalShares: 0,
+              equityValue: 0,
+              loanLimit: 0,
+              outstandingDebt: 0,
+              availableCredit: 0
+            }
+          });
+        }
+
+        const fallback = memberEquityFallback.rows[0];
+        const equityValue = parseFloat(fallback.total_equity);
+        const loanLimit = equityValue * 3;
+        const outstandingDebt = parseFloat(fallback.total_debt);
+        const guaranteedAmount = parseFloat(fallback.total_guaranteed);
+
+        const upcomingRepaymentsFallback = await client.query(
+          `SELECT ls.total_amount as amount_due, ls.due_date as next_repayment_date
+           FROM loan_schedules ls
+           JOIN loans l ON ls.loan_id = l.loan_id
+           WHERE l.borrower_id = $1 AND l.chama_id = $2
+             AND ls.status = 'PENDING'
+             AND ls.due_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days')
+           ORDER BY ls.due_date ASC LIMIT 3`,
+          [userId, chamaId]
+        );
+
         return res.status(200).json({
           success: true,
           data: {
             hasActiveCycle: false,
-            totalShares: 0,
-            equityValue: 0,
-            loanLimit: 0,
-            outstandingDebt: 0,
-            availableCredit: 0
+            totalShares: equityValue, // 1 KES = 1 "share" in fallback
+            equityValue,
+            loanLimit,
+            outstandingDebt,
+            guaranteedAmount,
+            availableCredit: Math.max(0, loanLimit - outstandingDebt),
+            upcomingRepayments: upcomingRepaymentsFallback.rows
           }
         });
       }
