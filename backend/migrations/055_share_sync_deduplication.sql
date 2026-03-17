@@ -43,4 +43,7 @@ UPDATE chamas
     WHERE chama_type = 'TABLE_BANKING'
       AND (share_price IS NULL OR share_price = 0);
 
-RAISE NOTICE 'Migration 055 completed: share sync deduplication and TABLE_BANKING share_price defaults applied.';
+DO $$
+BEGIN
+  RAISE NOTICE 'Migration 055 completed: share sync deduplication and TABLE_BANKING share_price defaults applied.';
+END $$;
