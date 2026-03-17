@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/backend/server.js"
+    },
+    {
+      "source": "/(?!api)(.*)",
+      "destination": "/frontend/$1"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/process",
+      "schedule": "0 * * * *"
+    }
+  ]
+}
