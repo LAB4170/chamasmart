@@ -4,4 +4,5 @@
     <string name="title_activity_main">ChamaSmart</string>
     <string name="package_name">com.chamasmart.app</string>
     <string name="custom_url_scheme">com.chamasmart.app</string>
+    <string name="google_client_id">475835064239-ub2i24pujvujb2u0un7u6un4v6un4v6u.apps.googleusercontent.com</string>
 </resources>

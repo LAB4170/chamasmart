@@ -1,5 +1,18 @@
 {
   "appId": "com.chamasmart.app",
   "appName": "ChamaSmart",
-  "webDir": "dist"
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": [
+      "localhost:5005",
+      "10.0.2.2:5005"
+    ]
+  },
+  "plugins": {
+    "GoogleSignIn": {
+      "clientId": "475835064239-ub2i24pujvujb2u0un7u6un4v6un4v6u.apps.googleusercontent.com"
+    }
+  }
 }

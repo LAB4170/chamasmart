@@ -1,7 +1,17 @@
 import axios from "axios";
+import { Capacitor } from "@capacitor/core";
 
 // Use environment variable or default to localhost:5005 for development
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5005/api";
+let API_URL = import.meta.env.VITE_API_URL || "http://localhost:5005/api";
+
+// Adjust API_URL for mobile devices in development
+if (Capacitor.isNativePlatform() && !import.meta.env.VITE_API_URL) {
+    // If on Android Emulator, localhost is 10.0.2.2
+    // If on a real device, you need to use your machine's local IP (e.g., 192.168.x.x)
+    // We'll default to the emulator IP for now, but allow easy override
+    API_URL = "http://10.0.2.2:5005/api";
+    console.log("Axios: Native platform detected, using mobile API URL:", API_URL);
+}
 
 // Track pending requests for cancellation
 const pendingRequests = new Map();

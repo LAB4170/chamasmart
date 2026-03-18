@@ -10,8 +10,11 @@ import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   RecaptchaVerifier,
-  signInWithPhoneNumber
+  signInWithPhoneNumber,
+  signInWithCredential
 } from "firebase/auth";
+import { Capacitor } from "@capacitor/core";
+import { GoogleSignIn } from "@capawesome/capacitor-google-sign-in";
 
 const AuthContext = createContext();
 
@@ -136,6 +139,29 @@ export const AuthProvider = ({ children }) => {
   const loginWithGoogle = async () => {
     try {
       setError(null);
+      
+      // Native Mobile Flow
+      if (Capacitor.isNativePlatform()) {
+        console.log("LoginWithGoogle: Native platform detected");
+        const result = await GoogleSignIn.signIn();
+        
+        if (result.idToken) {
+          const credential = GoogleAuthProvider.credential(result.idToken);
+          const userCredential = await signInWithCredential(auth, credential);
+          
+          console.log("LoginWithGoogle: Native login successful, syncing...");
+          const idToken = await userCredential.user.getIdToken();
+          const response = await authAPI.firebaseSync(idToken);
+          const { user: syncedUser, tokens } = response.data.data;
+
+          localStorage.setItem("token", tokens.accessToken);
+          localStorage.setItem("user", JSON.stringify(syncedUser));
+          setUser(syncedUser);
+          return { success: true, user: syncedUser };
+        }
+      }
+
+      // Web/Browser Flow
       const provider = new GoogleAuthProvider();
       // Use popup for immediate feedback and better local development persistence
       const result = await signInWithPopup(auth, provider);
