@@ -246,4 +246,4 @@ function generateRequestId() {
   return Math.random().toString(36).substring(2, 11);
 }
 
-module.exports;
+// module.exports; // Removed stray line
