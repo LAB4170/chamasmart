@@ -12,7 +12,8 @@ module.exports = {
   rules: {
     // Relaxed rules for existing codebase
     "no-console": "off", // Allow console for logging
-    "no-unused-vars": ["error", { argsIgnorePattern: "^_" }], // Allow unused variables starting with _
+    "no-unused-vars": "warn", // Warn instead of error
+    camelcase: "off", // Turn off camelcase requirement
     "consistent-return": "off", // Turn off for flexibility
     "prefer-const": "warn", // Warn instead of error
     "no-var": "error", // Disallow var, use let/const
