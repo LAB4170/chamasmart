@@ -108,3 +108,5 @@ credentials/
 *.bundle
 *.bak
 *.backup
+.env.backup
+.env.*.backup
