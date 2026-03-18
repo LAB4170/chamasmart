@@ -20,7 +20,7 @@ const helmetConfig = helmet({
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       imgSrc: ["'self'", 'data:', 'https:'],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://va.vercel-scripts.com"],
       connectSrc: [
         "'self'",
         'https://*.googleapis.com',
@@ -29,6 +29,8 @@ const helmetConfig = helmet({
         'wss://*.firebaseio.com',
         'ws://localhost:*',
         'wss://localhost:*',
+        'https://va.vercel-scripts.com',
+        'https://vitals.vercel-insights.com',
       ],
       frameSrc: ["'self'", 'https://*.firebaseapp.com'],
       objectSrc: ["'none'"],
