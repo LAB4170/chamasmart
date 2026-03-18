@@ -37,6 +37,17 @@ securityMiddleware(app);
 // Trust proxy
 app.set("trust proxy", 1);
 
+// Serve static assets (Earlier to bypass global CORS/Auth)
+const distPath = path.join(__dirname, "../frontend/dist");
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath, {
+    maxAge: '1h',
+    setHeaders: (res, path) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+    }
+  }));
+}
+
 // Middleware
 app.use(cors(corsOptions));
 
@@ -88,11 +99,6 @@ app.use("/api/sessions", require("./routes/sessions"));
 app.use("/api/chat", require("./routes/chat"));
 
 
-// Serve static assets
-const distPath = path.join(__dirname, "../frontend/dist");
-if (fs.existsSync(distPath)) {
-  app.use(express.static(distPath));
-}
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
