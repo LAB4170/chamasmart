@@ -115,8 +115,8 @@ CREATE TABLE chamas (
     penalty_rate DECIMAL(5,2) DEFAULT 0
 );
 
--- Memberships table (proper bridge table)
-CREATE TABLE memberships (
+-- Chama Members table (proper bridge table)
+CREATE TABLE chama_members (
     membership_id SERIAL PRIMARY KEY,
     chama_id INTEGER NOT NULL REFERENCES chamas(chama_id) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
@@ -560,15 +560,15 @@ CREATE INDEX idx_chamas_created_at ON chamas(created_at);
 CREATE INDEX idx_chamas_active_type ON chamas(is_active, chama_type) WHERE is_active = true;
 CREATE INDEX idx_chamas_search ON chamas(is_active, chama_name) WHERE is_active = true;
 
--- Memberships table indexes
-CREATE INDEX idx_memberships_user_id ON memberships(user_id);
-CREATE INDEX idx_memberships_chama_id ON memberships(chama_id);
-CREATE INDEX idx_memberships_status ON memberships(status);
-CREATE INDEX idx_memberships_role ON memberships(role);
-CREATE INDEX idx_memberships_user_chama ON memberships(user_id, chama_id);
-CREATE INDEX idx_memberships_chama_active ON memberships(chama_id, status) WHERE status = 'ACTIVE';
-CREATE INDEX idx_memberships_user_active ON memberships(user_id, status) WHERE status = 'ACTIVE';
-CREATE INDEX idx_memberships_officials ON memberships(chama_id, role) WHERE role IN ('CHAIRPERSON', 'TREASURER', 'SECRETARY', 'ADMIN');
+-- Chama Members table indexes
+CREATE INDEX idx_chama_members_user_id ON chama_members(user_id);
+CREATE INDEX idx_chama_members_chama_id ON chama_members(chama_id);
+CREATE INDEX idx_chama_members_status ON chama_members(status);
+CREATE INDEX idx_chama_members_role ON chama_members(role);
+CREATE INDEX idx_chama_members_user_chama ON chama_members(user_id, chama_id);
+CREATE INDEX idx_chama_members_chama_active ON chama_members(chama_id, status) WHERE status = 'ACTIVE';
+CREATE INDEX idx_chama_members_user_active ON chama_members(user_id, status) WHERE status = 'ACTIVE';
+CREATE INDEX idx_chama_members_officials ON chama_members(chama_id, role) WHERE role IN ('CHAIRPERSON', 'TREASURER', 'SECRETARY', 'ADMIN');
 
 -- Contributions indexes
 CREATE INDEX idx_contributions_chama_id ON contributions(chama_id);
@@ -697,7 +697,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trigger_update_chama_member_count
-    AFTER INSERT OR DELETE ON memberships
+    AFTER INSERT OR DELETE ON chama_members
     FOR EACH ROW
     EXECUTE FUNCTION update_chama_member_count();
 
@@ -732,7 +732,7 @@ SELECT
     SUM(m.total_contributions) as total_contributions_all_chamas,
     MAX(m.last_contribution_date) as last_contribution_date
 FROM users u
-LEFT JOIN memberships m ON u.user_id = m.user_id AND m.is_active = true
+LEFT JOIN chama_members m ON u.user_id = m.user_id AND m.is_active = true
 GROUP BY u.user_id, u.first_name, u.last_name, u.email, u.phone_number;
 
 -- Chama detailed summary view
@@ -755,7 +755,7 @@ SELECT
     SUM(l.balance) FILTER (WHERE l.status IN ('APPROVED', 'DISBURSED')) as outstanding_loans
 FROM chamas c
 LEFT JOIN users u ON c.created_by = u.user_id
-LEFT JOIN memberships m ON c.chama_id = m.chama_id AND m.is_active = true
+LEFT JOIN chama_members m ON c.chama_id = m.chama_id AND m.is_active = true
 LEFT JOIN loans l ON c.chama_id = l.chama_id AND l.status IN ('APPROVED', 'DISBURSED')
 WHERE c.is_active = true
 GROUP BY c.chama_id, c.chama_name, c.chama_type, c.contribution_amount, c.contribution_frequency, c.current_fund, c.total_members, c.visibility, c.created_at, u.first_name, u.last_name;
@@ -767,7 +767,7 @@ GROUP BY c.chama_id, c.chama_name, c.chama_type, c.contribution_amount, c.contri
 -- Update table statistics
 ANALYZE users;
 ANALYZE chamas;
-ANALYZE memberships;
+ANALYZE chama_members;
 ANALYZE contributions;
 ANALYZE loans;
 ANALYZE loan_schedules;

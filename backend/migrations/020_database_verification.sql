@@ -13,7 +13,7 @@ SELECT
 FROM information_schema.columns 
 WHERE table_schema = 'public' 
     AND table_name IN (
-        'users', 'chamas', 'memberships', 'contributions', 'loans', 
+        'users', 'chamas', 'chama_members', 'contributions', 'loans', 
         'loan_schedules', 'loan_repayments', 'welfare_claims', 'meetings',
         'notifications', 'join_requests', 'invites', 'refresh_tokens',
         'audit_logs', 'financial_audit_logs'
@@ -84,7 +84,7 @@ SELECT
 EXPLAIN (ANALYZE, BUFFERS) 
 SELECT u.user_id, u.first_name, u.last_name, c.chama_name, m.role
 FROM users u
-JOIN memberships m ON u.user_id = m.user_id
+JOIN chama_members m ON u.user_id = m.user_id
 JOIN chamas c ON m.chama_id = c.chama_id
 WHERE u.is_active = true 
     AND m.is_active = true 

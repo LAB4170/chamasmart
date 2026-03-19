@@ -11,7 +11,7 @@
 DO $$
 DECLARE
     required_tables TEXT[] := ARRAY[
-        'users', 'chamas', 'memberships', 'contributions', 'loans', 
+        'users', 'chamas', 'chama_members', 'contributions', 'loans', 
         'loan_schedules', 'loan_repayments', 'loan_guarantors', 'payouts',
         'rosca_cycles', 'rosca_roster', 'rosca_swap_requests',
         'asca_cycles', 'asca_members',
@@ -196,7 +196,7 @@ WHERE email = 'test@example.com' AND is_active = true;
 EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
 SELECT u.user_id, u.first_name, u.last_name, c.chama_name, m.role
 FROM users u
-JOIN memberships m ON u.user_id = m.user_id
+JOIN chama_members m ON u.user_id = m.user_id
 JOIN chamas c ON m.chama_id = c.chama_id
 WHERE u.is_active = true AND m.is_active = true AND c.is_active = true
 LIMIT 10;
