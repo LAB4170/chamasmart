@@ -95,7 +95,7 @@ ON payouts(chama_id, status, payout_date);
 
 -- Meetings by date
 CREATE INDEX IF NOT EXISTS idx_meetings_date 
-ON meetings(chama_id, meeting_date DESC);
+ON meetings(chama_id, scheduled_date DESC);
 
 -- ============================================================================
 -- MATERIALIZED VIEWS FOR DASHBOARD QUERIES
@@ -122,7 +122,7 @@ SELECT
     COALESCE(SUM(l.total_repayable - l.amount_paid), 0) as outstanding_loans,
     COALESCE(SUM(p.amount), 0) as total_payouts,
     COUNT(DISTINCT m.meeting_id) as total_meetings,
-    MAX(m.meeting_date) as last_meeting_date,
+    MAX(m.scheduled_date) as last_meeting_date,
     c.current_fund
 FROM chamas c
 LEFT JOIN chama_members cm ON c.chama_id = cm.chama_id
