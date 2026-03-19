@@ -145,6 +145,16 @@ const getAllowedOrigins = () => {
     origins = envOrigins.split(",").map((origin) => origin.trim());
   }
 
+  // Auto-detect Render deployment URL
+  if (process.env.RENDER_EXTERNAL_URL) {
+    origins.push(process.env.RENDER_EXTERNAL_URL);
+  }
+  
+  // Auto-detect any dynamic Vercel/Render frontend URLs if passed standardly
+  if (process.env.FRONTEND_URL && !origins.includes(process.env.FRONTEND_URL)) {
+    origins.push(process.env.FRONTEND_URL);
+  }
+
   // In development, always include accessible defaults
   if (process.env.NODE_ENV !== "production") {
     logger.info("Merging development CORS defaults");
@@ -257,6 +267,16 @@ const corsOptions = {
       return callback(null, true);
     }
 
+    // Since we host the frontend and backend together on Render, allow same-origin requests naturally
+    // Just blindly allow the exact host if it matches the current environment
+    const isSameOrigin = 
+        (process.env.RENDER_EXTERNAL_URL && origin === process.env.RENDER_EXTERNAL_URL) || 
+        (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL);
+
+    if (isSameOrigin) {
+        return callback(null, origin);
+    }
+
     // Check if origin is allowed
     const allowed = allowedOrigins.find(o => isOriginAllowed(origin, o));
     if (allowed) {
@@ -311,6 +331,15 @@ const socketCorsOptions = {
         return callback(new Error("Origin required for WebSocket"));
       }
       return callback(null, true);
+    }
+
+    // Dynamic bypass for same-domain deployments (like Render)
+    const isSameOrigin = 
+        (process.env.RENDER_EXTERNAL_URL && origin === process.env.RENDER_EXTERNAL_URL) || 
+        (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL);
+
+    if (isSameOrigin) {
+        return callback(null, true);
     }
 
     // Fix: Iterate over allowedOrigins array instead of passing it as a single pattern
