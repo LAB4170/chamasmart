@@ -51,6 +51,20 @@ CREATE INDEX IF NOT EXISTS idx_chama_members_covering
 ON chama_members(chama_id, user_id) 
 INCLUDE (role, join_date, total_contributions, is_active);
 
+-- Ensure meeting columns exist (Heal schema if 000_base_schema was skipped)
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='meetings' AND column_name='recorded_by') THEN
+        ALTER TABLE meetings ADD COLUMN recorded_by INTEGER REFERENCES users(user_id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='meetings' AND column_name='total_collected') THEN
+        ALTER TABLE meetings ADD COLUMN total_collected DECIMAL(15,2) DEFAULT 0;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='meetings' AND column_name='meeting_link') THEN
+        ALTER TABLE meetings ADD COLUMN meeting_link TEXT;
+    END IF;
+END $$;
+
 -- Meetings with total collected (for dashboard queries)
 CREATE INDEX IF NOT EXISTS idx_meetings_covering 
 ON meetings(chama_id, scheduled_date DESC) 
