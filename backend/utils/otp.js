@@ -88,20 +88,36 @@ class EmailOTP {
 // ============================================================================
 
 class SMSOTP {
-  constructor(provider = 'twilio') {
+  constructor(provider = process.env.SMS_PROVIDER || 'twilio') {
     this.provider = provider;
 
     if (provider === 'twilio') {
       this.accountSid = process.env.TWILIO_ACCOUNT_SID;
       this.authToken = process.env.TWILIO_AUTH_TOKEN;
       this.fromNumber = process.env.TWILIO_PHONE_NUMBER;
-      // In production, initialize Twilio client
-      // this.twilioClient = require('twilio')(this.accountSid, this.authToken);
+      
+      if (this.accountSid && this.authToken) {
+        try {
+          this.twilioClient = require('twilio')(this.accountSid, this.authToken);
+        } catch (error) {
+          logger.error('Failed to initialize Twilio client', error);
+        }
+      }
     } else if (provider === 'africas_talking') {
       this.apiKey = process.env.AFRICAS_TALKING_API_KEY;
       this.username = process.env.AFRICAS_TALKING_USERNAME;
-      // In production, initialize Africa's Talking client
-      // this.client = require('africastalking')({ apiKey: this.apiKey, username: this.username });
+      
+      if (this.apiKey && this.username) {
+        try {
+          this.atClient = require('africastalking')({
+            apiKey: this.apiKey,
+            username: this.username,
+          });
+          this.sms = this.atClient.SMS;
+        } catch (error) {
+          logger.error('Failed to initialize Africa\'s Talking client', error);
+        }
+      }
     }
   }
 
@@ -150,19 +166,68 @@ class SMSOTP {
   }
 
   async sendViaTwilio(phone, message, otp) {
-    // TODO: Implement Twilio integration
-    logger.warn('⚠️ Twilio SMS OTP not yet configured', {
-      phone: this.maskPhone(phone),
-    });
-    return { success: false, error: 'Twilio not configured' };
+    if (!this.twilioClient) {
+      logger.warn('⚠️ Twilio client not initialized', {
+        phone: this.maskPhone(phone),
+      });
+      return { success: false, error: 'Twilio not configured' };
+    }
+
+    try {
+      const result = await this.twilioClient.messages.create({
+        body: message,
+        from: this.fromNumber,
+        to: phone,
+      });
+
+      logger.info('📱 SMS OTP sent via Twilio', {
+        phone: this.maskPhone(phone),
+        sid: result.sid,
+      });
+
+      return { success: true, sid: result.sid };
+    } catch (error) {
+      logger.error('Failed to send SMS via Twilio', {
+        error: error.message,
+        phone: this.maskPhone(phone),
+      });
+      return { success: false, error: error.message };
+    }
   }
 
   async sendViaAfricasTalking(phone, message, otp) {
-    // TODO: Implement Africa's Talking integration
-    logger.warn('⚠️ Africa\'s Talking SMS OTP not yet configured', {
-      phone: this.maskPhone(phone),
-    });
-    return { success: false, error: 'Africa\'s Talking not configured' };
+    if (!this.sms) {
+      logger.warn('⚠️ Africa\'s Talking client not initialized', {
+        phone: this.maskPhone(phone),
+      });
+      return { success: false, error: 'Africa\'s Talking not configured' };
+    }
+
+    try {
+      const options = {
+        to: [phone],
+        message: message,
+        // from: 'SHORTCODE_OR_ALPHANUMERIC', // Optional
+      };
+
+      const result = await this.sms.send(options);
+
+      logger.info('📱 SMS OTP sent via Africa\'s Talking', {
+        phone: this.maskPhone(phone),
+        status: result.SMSMessageData.Recipients[0].status,
+      });
+
+      return {
+        success: result.SMSMessageData.Recipients[0].status === 'Success',
+        data: result,
+      };
+    } catch (error) {
+      logger.error('Failed to send SMS via Africa\'s Talking', {
+        error: error.message,
+        phone: this.maskPhone(phone),
+      });
+      return { success: false, error: error.message };
+    }
   }
 }
 
