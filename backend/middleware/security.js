@@ -20,19 +20,40 @@ const helmetConfig = helmet({
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       imgSrc: ["'self'", 'data:', 'https:'],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://va.vercel-scripts.com", "https://apis.google.com", "https://www.gstatic.com"],
+      scriptSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        "'unsafe-eval'",
+        // Firebase Phone Auth & reCAPTCHA (REQUIRED for SMS OTP)
+        "https://www.google.com",
+        "https://www.gstatic.com",
+        "https://recaptcha.net",
+        "https://apis.google.com",
+        // Vercel analytics
+        "https://va.vercel-scripts.com",
+      ],
       connectSrc: [
         "'self'",
         'https://*.googleapis.com',
         'https://*.firebaseio.com',
         'https://*.firebase.com',
         'wss://*.firebaseio.com',
+        // Firebase Identity Toolkit (phone auth verification)
+        'https://identitytoolkit.googleapis.com',
+        'https://securetoken.googleapis.com',
         'ws://localhost:*',
         'wss://localhost:*',
         'https://va.vercel-scripts.com',
         'https://vitals.vercel-insights.com',
       ],
-      frameSrc: ["'self'", 'https://*.firebaseapp.com', 'https://accounts.google.com'],
+      frameSrc: [
+        "'self'",
+        'https://*.firebaseapp.com',
+        'https://accounts.google.com',
+        // reCAPTCHA iframe (REQUIRED for Firebase Phone Auth)
+        'https://www.google.com',
+        'https://recaptcha.net',
+      ],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
       manifestSrc: ["'self'"],
