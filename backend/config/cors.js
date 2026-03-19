@@ -324,12 +324,8 @@ const corsOptions = {
  */
 const socketCorsOptions = {
   origin: (origin, callback) => {
-    // WebSocket connections should have origin
+    // WebSocket connections from mobile apps or same-origin polling may not have an origin
     if (!origin) {
-      if (process.env.NODE_ENV === "production") {
-        logger.warn("WebSocket connection with no origin");
-        return callback(new Error("Origin required for WebSocket"));
-      }
       return callback(null, true);
     }
 
