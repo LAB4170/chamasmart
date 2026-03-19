@@ -246,7 +246,7 @@ CREATE TABLE payouts (
 );
 
 -- ============================================================================
--- STEP 4: ROSCA MODULE
+-- STEP 5: ROSCA MODULE
 -- ============================================================================
 
 -- ROSCA cycles
@@ -394,39 +394,7 @@ CREATE TABLE welfare_claim_approvals (
     UNIQUE(claim_id, approver_id)
 );
 
--- ============================================================================
--- STEP 7: MEETINGS AND PROPOSALS
--- ============================================================================
 
--- Meetings table
-CREATE TABLE meetings (
-    meeting_id SERIAL PRIMARY KEY,
-    chama_id INTEGER NOT NULL REFERENCES chamas(chama_id) ON DELETE CASCADE,
-    title VARCHAR(255) NOT NULL,
-    description TEXT,
-    scheduled_date TIMESTAMP WITH TIME ZONE NOT NULL,
-    location VARCHAR(255),
-    meeting_type VARCHAR(50) DEFAULT 'REGULAR',
-    status VARCHAR(20) DEFAULT 'SCHEDULED' CHECK (status IN ('SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')),
-    created_by INTEGER NOT NULL REFERENCES users(user_id),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    agenda JSONB DEFAULT '[]'::jsonb,
-    minutes TEXT
-);
-
--- Proposals table
-CREATE TABLE proposals (
-    proposal_id SERIAL PRIMARY KEY,
-    chama_id INTEGER NOT NULL REFERENCES chamas(chama_id) ON DELETE CASCADE,
-    proposer_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    title VARCHAR(255) NOT NULL,
-    description TEXT NOT NULL,
-    proposal_type VARCHAR(50) NOT NULL,
-    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'IMPLEMENTED')),
-    voting_deadline TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
 
 -- ============================================================================
 -- STEP 8: NOTIFICATIONS AND INVITATIONS
