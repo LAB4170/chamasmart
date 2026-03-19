@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { userAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { toast } from "react-toastify";
@@ -9,6 +10,7 @@ import "./UserProfile.css";
 
 const UserProfile = () => {
     const { logout } = useAuth();
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [profile, setProfile] = useState({
         first_name: "",
@@ -134,6 +136,7 @@ const UserProfile = () => {
             await userAPI.deleteAccount();
             toast.success("Account deleted successfully");
             logout();
+            navigate("/");
         } catch (err) {
             console.error(err);
             toast.error("Failed to delete account");
