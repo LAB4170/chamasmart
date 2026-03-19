@@ -51,9 +51,10 @@ CREATE INDEX IF NOT EXISTS idx_chama_members_covering
 ON chama_members(chama_id, user_id) 
 INCLUDE (role, join_date, total_contributions, is_active);
 
--- Ensure meeting columns exist (Heal schema if 000_base_schema was skipped)
+-- Ensure all required columns exist before creating indexes (self-healing)
 DO $$ 
 BEGIN 
+    -- meetings table
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='meetings' AND column_name='recorded_by') THEN
         ALTER TABLE meetings ADD COLUMN recorded_by INTEGER REFERENCES users(user_id);
     END IF;
@@ -62,6 +63,14 @@ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='meetings' AND column_name='meeting_link') THEN
         ALTER TABLE meetings ADD COLUMN meeting_link TEXT;
+    END IF;
+    -- contributions table
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='contributions' AND column_name='recorded_by') THEN
+        ALTER TABLE contributions ADD COLUMN recorded_by INTEGER REFERENCES users(user_id);
+    END IF;
+    -- loan_repayments table
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='loan_repayments' AND column_name='recorded_by') THEN
+        ALTER TABLE loan_repayments ADD COLUMN recorded_by INTEGER REFERENCES users(user_id);
     END IF;
 END $$;
 
