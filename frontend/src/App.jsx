@@ -13,7 +13,6 @@ import Navbar from "./components/layout/Navbar";
 import ErrorBoundary from "./components/ErrorBoundary";
 import RoleRoute from "./components/auth/RoleRoute";
 import AIBotWidget from "./components/chat/AIBotWidget";
-import { SpeedInsights } from "@vercel/speed-insights/react";
 import {
     ArrowRight, TrendingUp, Users, BarChart3, Shield, Wallet, RefreshCw,
     PiggyBank, HeartHandshake, Landmark, CheckCircle, Zap, Clock, Globe
@@ -641,7 +640,6 @@ function App() {
             <AuthProvider>
                 <SocketProvider>
                     <AppContent />
-                    <SpeedInsights />
                 </SocketProvider>
             </AuthProvider>
         </Router>

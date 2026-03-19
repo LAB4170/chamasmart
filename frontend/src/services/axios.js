@@ -1,8 +1,8 @@
 import axios from "axios";
 import { Capacitor } from "@capacitor/core";
 
-// Use environment variable or default to localhost:5005 for development
-let API_URL = import.meta.env.VITE_API_URL || "http://localhost:5005/api";
+// Use environment variable, production relative path, or default to localhost:5005 for development
+let API_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '/api' : 'http://localhost:5005/api');
 
 // Adjust API_URL for mobile devices in development
 if (Capacitor.isNativePlatform() && !import.meta.env.VITE_API_URL) {
