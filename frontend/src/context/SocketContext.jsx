@@ -44,7 +44,7 @@ export const SocketProvider = ({ children }) => {
 
       // Align with axios.js logic: Use env var or default to /api for production, localhost:5005 for dev
       // We must strip '/api' because socket.io connects to the root
-      const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '/api' : 'http://localhost:5005/api');
+      const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '/api' : 'http://127.0.0.1:5005/api');
       const baseUrl = apiUrl.replace(/\/api\/?$/, "");
 
       console.log("Creating new socket connection to:", baseUrl);

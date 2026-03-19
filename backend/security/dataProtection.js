@@ -77,7 +77,13 @@ exports.enhancedSecurityHeadersMiddleware = (req, res, next) => {
   // CSP: Strict content security policy
   res.set(
     'Content-Security-Policy',
-    'default-src \'self\'; script-src \'self\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' data: https:; font-src \'self\'; connect-src \'self\'',
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://apis.google.com https://va.vercel-scripts.com; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "img-src 'self' data: https:; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
+    "frame-src 'self' https://www.google.com/recaptcha/ https://recaptcha.google.com; " +
+    "connect-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://firebaseinstallations.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com",
   );
 
   next();

@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { ArrowRight, MessageSquare, ShieldCheck } from "lucide-react";
 import googleLogo from "../../assets/images/google-logo.png";
+import "./Auth.css";
 
 // Shared frictionless auth UI for both Login and Register
 const AuthFlow = ({ title = "Welcome Back", subtitle = "Login securely to ChamaSmart" }) => {
@@ -111,38 +112,22 @@ const AuthFlow = ({ title = "Welcome Back", subtitle = "Login securely to ChamaS
   };
 
   return (
-    <div style={{
-      background: "linear-gradient(135deg, #f0fdf4 0%, #d1fae5 50%, #f0fdf4 100%)",
-      minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px"
-    }}>
-      <div style={{ width: "100%", maxWidth: "420px" }}>
+    <div className="auth-page-wrapper">
+      <div className="auth-container">
 
         {/* Brand Header */}
-        <div style={{ textAlign: "center", marginBottom: "28px" }}>
-          <div style={{
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
-            width: "68px", height: "68px",
-            background: "linear-gradient(135deg, #10b981, #059669)",
-            borderRadius: "22px", color: "white", marginBottom: "16px",
-            boxShadow: "0 12px 28px rgba(16, 185, 129, 0.4)"
-          }}>
+        <div className="auth-brand-header">
+          <div className="auth-brand-icon">
             <ShieldCheck size={34} />
           </div>
-          <h1 style={{ fontSize: "26px", fontWeight: "800", color: "#064e3b", letterSpacing: "-0.3px", margin: 0 }}>{title}</h1>
-          <p style={{ color: "#6b7280", marginTop: "8px", fontSize: "15px" }}>{subtitle}</p>
+          <h1 className="auth-title">{title}</h1>
+          <p className="auth-subtitle">{subtitle}</p>
         </div>
 
         {/* Card */}
-        <div style={{
-          background: "white", borderRadius: "24px", padding: "36px 32px",
-          boxShadow: "0 20px 50px rgba(16, 185, 129, 0.08), 0 0 0 1px rgba(16, 185, 129, 0.06)"
-        }}>
+        <div className="auth-card">
           {error && (
-            <div style={{
-              background: "#fef2f2", color: "#dc2626", padding: "12px 16px",
-              borderRadius: "12px", fontSize: "14px", marginBottom: "20px",
-              fontWeight: "500", border: "1px solid #fee2e2"
-            }}>
+            <div className="auth-error">
               {error}
             </div>
           )}
@@ -150,26 +135,23 @@ const AuthFlow = ({ title = "Welcome Back", subtitle = "Login securely to ChamaS
           {step === "PHONE" ? (
             <form onSubmit={handleRequestOTP}>
               <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#374151", marginBottom: "8px" }}>
+                <label className="form-label-auth">
                   Phone Number
                 </label>
-                <div style={{ display: "flex", alignItems: "center", gap: "0", background: "#f9fafb", border: "1.5px solid #e5e7eb", borderRadius: "14px", overflow: "hidden", transition: "border-color 0.2s" }}>
-                  <span style={{ padding: "0 14px", fontSize: "16px", fontWeight: "700", color: "#10b981", borderRight: "1.5px solid #e5e7eb", lineHeight: "54px", background: "#ecfdf5" }}>
+                <div className="phone-input-container">
+                  <span className="phone-prefix">
                     🇰🇪 +254
                   </span>
                   <input
                     type="tel"
+                    className="phone-input"
                     value={phone.replace(/^\+254/, "").replace(/^0/, "")}
                     onChange={(e) => { setError(""); setPhone(e.target.value); }}
                     placeholder="7XX XXX XXX"
-                    style={{
-                      flex: 1, padding: "15px 16px", fontSize: "17px", fontWeight: "600",
-                      background: "transparent", border: "none", outline: "none", color: "#111827"
-                    }}
                     autoFocus
                   />
                 </div>
-                <p style={{ fontSize: "12px", color: "#9ca3af", marginTop: "6px" }}>
+                <p className="phone-hint">
                   We'll send a 6-digit code via SMS
                 </p>
               </div>
@@ -178,63 +160,49 @@ const AuthFlow = ({ title = "Welcome Back", subtitle = "Login securely to ChamaS
                 <button
                 id="phone-submit-btn"
                 type="submit"
+                className="btn-auth-submit"
                 disabled={loading || !phone}
-                style={{
-                  width: "100%", padding: "15px", fontSize: "16px", fontWeight: "700",
-                  background: loading || !phone ? "#a7f3d0" : "linear-gradient(135deg, #10b981, #059669)",
-                  color: "white", border: "none", borderRadius: "14px",
-                  cursor: loading || !phone ? "not-allowed" : "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-                  boxShadow: loading || !phone ? "none" : "0 8px 20px rgba(16, 185, 129, 0.35)",
-                  transition: "all 0.25s"
-                }}
               >
                 {loading ? (
-                  <><span className="spinner" style={{ width: "18px", height: "18px", borderWidth: "2px" }} /><span>Sending code...</span></>
+                  <><span className="spinner" style={{ width: "18px", height: "18px", borderWidth: "2px", margin: "0" }} /><span>Sending code...</span></>
                 ) : (
                   <><span>Send Code</span><ArrowRight size={18} /></>
                 )}
               </button>
 
-              <div style={{ display: "flex", alignItems: "center", margin: "28px 0", gap: "12px" }}>
-                <div style={{ flex: 1, height: "1px", background: "#e5e7eb" }} />
-                <span style={{ fontSize: "12px", fontWeight: "600", color: "#9ca3af", letterSpacing: "0.5px" }}>OR CONTINUE WITH</span>
-                <div style={{ flex: 1, height: "1px", background: "#e5e7eb" }} />
+              <div className="auth-divider">
+                <div className="divider-line" />
+                <span className="divider-text">OR CONTINUE WITH</span>
+                <div className="divider-line" />
               </div>
 
               <button
                 type="button"
+                className="btn-google-auth"
                 onClick={handleGoogleLogin}
                 disabled={loading}
-                style={{
-                  width: "100%", padding: "15px", fontSize: "15px", fontWeight: "600",
-                  background: "white", border: "1.5px solid #e5e7eb", color: "#374151",
-                  borderRadius: "14px", cursor: loading ? "not-allowed" : "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
-                  transition: "all 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
-                }}
               >
-                <img src={googleLogo} alt="Google" style={{ width: "20px", height: "20px" }} />
+                <img src={googleLogo} alt="Google" />
                 Continue with Google
               </button>
             </form>
           ) : (
             <div style={{ textAlign: "center" }}>
               <div style={{
-                width: "60px", height: "60px", background: "#d1fae5", borderRadius: "50%",
+                width: "60px", height: "60px", background: "var(--bg-primary-light)", borderRadius: "50%",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                margin: "0 auto 20px auto", color: "#059669"
+                margin: "0 auto 20px auto", color: "var(--secondary)"
               }}>
                 <MessageSquare size={26} />
               </div>
-              <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#064e3b", marginBottom: "8px" }}>Check your messages</h2>
-              <p style={{ color: "#6b7280", marginBottom: "28px", fontSize: "14px", lineHeight: "1.6" }}>
-                We sent a 6-digit code to <strong style={{ color: "#111827" }}>{phone}</strong>
+              <h2 style={{ fontSize: "20px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "8px" }}>Check your messages</h2>
+              <p style={{ color: "var(--text-secondary)", marginBottom: "28px", fontSize: "14px", lineHeight: "1.6" }}>
+                We sent a 6-digit code to <strong style={{ color: "var(--text-primary)" }}>{phone}</strong>
               </p>
 
               {/* 6-box OTP input */}
               <form onSubmit={handleVerifyOTP}>
-                <div style={{ display: "flex", gap: "8px", justifyContent: "center", marginBottom: "24px" }} onPaste={handleOtpPaste}>
+                <div className="otp-box-container" onPaste={handleOtpPaste}>
                   {otp.map((digit, i) => (
                     <input
                       key={i}
@@ -242,33 +210,19 @@ const AuthFlow = ({ title = "Welcome Back", subtitle = "Login securely to ChamaS
                       type="text"
                       inputMode="numeric"
                       maxLength={1}
+                      className={`otp-box ${digit ? "filled" : ""}`}
                       value={digit}
                       onChange={(e) => handleOtpChange(i, e.target.value)}
                       onKeyDown={(e) => handleOtpKeyDown(i, e)}
                       autoFocus={i === 0}
-                      style={{
-                        width: "48px", height: "56px", fontSize: "24px", fontWeight: "700",
-                        textAlign: "center", fontFamily: "monospace",
-                        background: digit ? "#d1fae5" : "#f9fafb",
-                        border: `2px solid ${digit ? "#10b981" : "#e5e7eb"}`,
-                        borderRadius: "12px", color: "#064e3b", outline: "none",
-                        transition: "all 0.15s"
-                      }}
                     />
                   ))}
                 </div>
 
                 <button
                   type="submit"
+                  className="btn-auth-submit"
                   disabled={loading || otp.join("").length !== 6}
-                  style={{
-                    width: "100%", padding: "15px", fontSize: "16px", fontWeight: "700",
-                    background: loading || otp.join("").length !== 6 ? "#a7f3d0" : "linear-gradient(135deg, #10b981, #059669)",
-                    color: "white", border: "none", borderRadius: "14px",
-                    cursor: loading || otp.join("").length !== 6 ? "not-allowed" : "pointer",
-                    boxShadow: loading || otp.join("").length !== 6 ? "none" : "0 8px 20px rgba(16, 185, 129, 0.35)",
-                    transition: "all 0.25s"
-                  }}
                 >
                   {loading ? "Verifying..." : "Verify & Sign In"}
                 </button>
@@ -278,7 +232,7 @@ const AuthFlow = ({ title = "Welcome Back", subtitle = "Login securely to ChamaS
                   onClick={() => { setStep("PHONE"); setOtp(["","","","","",""]); setError(""); }}
                   style={{
                     marginTop: "16px", background: "none", border: "none",
-                    color: "#10b981", fontWeight: "600", fontSize: "14px", cursor: "pointer"
+                    color: "var(--secondary)", fontWeight: "600", fontSize: "14px", cursor: "pointer"
                   }}
                 >
                   ← Change number / Resend code
@@ -288,11 +242,11 @@ const AuthFlow = ({ title = "Welcome Back", subtitle = "Login securely to ChamaS
           )}
         </div>
 
-        <p style={{ textAlign: "center", marginTop: "24px", color: "#9ca3af", fontSize: "13px" }}>
+        <p className="auth-footer">
           By continuing, you agree to our{" "}
-          <a href="#" style={{ color: "#10b981", fontWeight: "500", textDecoration: "none" }}>Terms</a>{" "}
+          <Link to="/terms">Terms</Link>{" "}
           and{" "}
-          <a href="#" style={{ color: "#10b981", fontWeight: "500", textDecoration: "none" }}>Privacy Policy</a>
+          <Link to="/privacy">Privacy Policy</Link>
         </p>
       </div>
     </div>
