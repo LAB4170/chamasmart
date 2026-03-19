@@ -132,7 +132,41 @@ CREATE TABLE chama_members (
 );
 
 -- ============================================================================
--- STEP 3: FINANCIAL MODULES
+-- STEP 3: MEETINGS AND PROPOSALS (Restored and moved up for dependencies)
+-- ============================================================================
+
+-- Meetings table
+CREATE TABLE meetings (
+    meeting_id SERIAL PRIMARY KEY,
+    chama_id INTEGER NOT NULL REFERENCES chamas(chama_id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    scheduled_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    location VARCHAR(255),
+    meeting_type VARCHAR(50) DEFAULT 'REGULAR',
+    status VARCHAR(20) DEFAULT 'SCHEDULED' CHECK (status IN ('SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')),
+    created_by INTEGER NOT NULL REFERENCES users(user_id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    agenda JSONB DEFAULT '[]'::jsonb,
+    minutes TEXT
+);
+
+-- Proposals table
+CREATE TABLE proposals (
+    proposal_id SERIAL PRIMARY KEY,
+    chama_id INTEGER NOT NULL REFERENCES chamas(chama_id) ON DELETE CASCADE,
+    proposer_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    proposal_type VARCHAR(50) NOT NULL,
+    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'IMPLEMENTED')),
+    voting_deadline TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ============================================================================
+-- STEP 4: FINANCIAL MODULES
 -- ============================================================================
 
 -- Contributions table with proper structure
