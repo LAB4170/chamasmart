@@ -147,8 +147,14 @@ CREATE TABLE meetings (
     status VARCHAR(20) DEFAULT 'SCHEDULED' CHECK (status IN ('SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')),
     created_by INTEGER NOT NULL REFERENCES users(user_id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     agenda JSONB DEFAULT '[]'::jsonb,
-    minutes TEXT
+    minutes TEXT,
+    
+    -- Additional fields for consistency with migrations
+    total_collected DECIMAL(15,2) DEFAULT 0,
+    recorded_by INTEGER REFERENCES users(user_id),
+    meeting_link TEXT
 );
 
 -- Proposals table

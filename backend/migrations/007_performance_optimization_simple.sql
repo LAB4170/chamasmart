@@ -53,7 +53,7 @@ INCLUDE (role, join_date, total_contributions, is_active);
 
 -- Meetings with total collected (for dashboard queries)
 CREATE INDEX IF NOT EXISTS idx_meetings_covering 
-ON meetings(chama_id, meeting_date DESC) 
+ON meetings(chama_id, scheduled_date DESC) 
 INCLUDE (total_collected, recorded_by);
 
 -- ============================================================================
