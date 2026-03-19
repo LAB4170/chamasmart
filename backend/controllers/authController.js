@@ -756,6 +756,7 @@ async function firebaseSync(req, res) {
             firstName: user.first_name,
             lastName: user.last_name,
             role: user.role,
+            phoneNumber: user.phone_number,
             profilePictureUrl: user.profile_picture_url,
           },
           tokens: {

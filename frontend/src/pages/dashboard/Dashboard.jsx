@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { chamaAPI, loanAPI } from "../../services/api";
 import LoadingSkeleton from "../../components/LoadingSkeleton";
@@ -150,6 +150,7 @@ const DashboardChamaCard = memo(({ chama, getChamaTypeLabel, formatCurrency }) =
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [chamas, setChamas] = useState([]);
   const [loanSummary, setLoanSummary] = useState({
     borrowed: [], guaranteed: [], summary: { totalBorrowed: 0, totalGuaranteed: 0 }
@@ -158,6 +159,18 @@ const Dashboard = () => {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    // Redirect to complete profile if name is missing or placeholder
+    const isPlaceholderName = (name) => {
+      if (!name) return true;
+      const placeholders = ["antigravityagent", "antigravity agent", "user", "chamasmarter"];
+      return placeholders.includes(name.toLowerCase().trim());
+    };
+
+    if (user && isPlaceholderName(user.firstName || user.first_name)) {
+      navigate("/complete-profile");
+      return;
+    }
+
     let isMounted = true;
     const fetchDashboardData = async () => {
       try {
@@ -208,7 +221,11 @@ const Dashboard = () => {
                 <LayoutDashboard size={28} />
               </div>
               <div>
-                <h1>Welcome back, {user?.firstName || user?.first_name}!</h1>
+                <h1>
+                  {(user?.firstName || user?.first_name) && !["antigravityagent", "antigravity agent", "user"].includes((user?.firstName || user?.first_name).toLowerCase().trim())
+                    ? `Welcome back, ${user.firstName || user.first_name}!`
+                    : "Welcome to ChamaSmart!"}
+                </h1>
                 <p className="page-subtitle">Your financial portfolio overview across all groups.</p>
               </div>
             </div>

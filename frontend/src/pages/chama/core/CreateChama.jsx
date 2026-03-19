@@ -122,7 +122,7 @@ const CreateChama = () => {
 
   return (
     <div className="page">
-      <div className="container" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) 1fr', gap: '3rem', alignItems: 'start' }}>
+      <div className="container create-chama-layout">
 
         {/* Left Side: Form Wizard */}
         <div>

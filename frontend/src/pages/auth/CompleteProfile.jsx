@@ -2,17 +2,35 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { userAPI } from "../../services/api";
-import { User, Sparkles, ArrowRight, Mail } from "lucide-react";
+import { User, Sparkles, ArrowRight, Mail, Phone } from "lucide-react";
+import { useEffect } from "react";
 
 const CompleteProfile = () => {
+  const { user, isAuthenticated, updateUser } = useAuth();
+  const navigate = useNavigate();
+
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const { user, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
+  useEffect(() => {
+    if (user) {
+      const isPlaceholder = (val) => {
+        if (!val) return true;
+        const s = val.toLowerCase().trim();
+        // Ignore generic words OR if the value looks like an email address
+        return ["antigravityagent", "antigravity agent", "user", "chamasmarter"].includes(s) || s.includes("@");
+      };
+
+      setFirstName(isPlaceholder(user.firstName || user.first_name) ? "" : (user.firstName || user.first_name || ""));
+      setLastName(isPlaceholder(user.lastName || user.last_name) ? "" : (user.lastName || user.last_name || ""));
+      setEmail(user.email || "");
+      setPhoneNumber(user.phoneNumber || user.phone_number || "");
+    }
+  }, [user]);
 
   // If not authenticated, go to login
   if (!isAuthenticated) {
@@ -35,14 +53,14 @@ const CompleteProfile = () => {
         email: email.trim() || undefined 
       });
 
-      // Update local storage user object with the new names and email
-      const savedUser = JSON.parse(localStorage.getItem("user") || "{}");
-      savedUser.first_name = firstName.trim();
-      savedUser.last_name = lastName.trim();
-      if (email.trim()) {
-        savedUser.email = email.trim();
-      }
-      localStorage.setItem("user", JSON.stringify(savedUser));
+      // Update local storage and context state with the new names and email
+      updateUser({
+        firstName: firstName.trim(),
+        first_name: firstName.trim(), // keeping both for compatibility
+        lastName: lastName.trim(),
+        last_name: lastName.trim(),
+        email: email.trim() || user?.email
+      });
 
       navigate("/dashboard");
     } catch (err) {
@@ -238,7 +256,7 @@ const CompleteProfile = () => {
             </div>
 
             {/* Email */}
-            <div style={{ marginBottom: "32px" }}>
+            <div style={{ marginBottom: "20px" }}>
               <label
                 style={{
                   display: "block",
@@ -279,6 +297,51 @@ const CompleteProfile = () => {
                     color: "white",
                     transition: "all 0.2s",
                     outline: "none",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Phone Number (Read-only since it's verified) */}
+            <div style={{ marginBottom: "32px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  color: "#94a3b8",
+                  marginBottom: "8px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                }}
+              >
+                Verified Phone
+              </label>
+              <div style={{ position: "relative" }}>
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "16px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "#10b981", // Green for verified item
+                  }}
+                >
+                  <Phone size={18} />
+                </div>
+                <input
+                  type="text"
+                  value={phoneNumber}
+                  disabled
+                  style={{
+                    width: "100%",
+                    padding: "16px 16px 16px 48px",
+                    fontSize: "16px",
+                    background: "rgba(16, 185, 129, 0.05)",
+                    border: "1.5px solid rgba(16, 185, 129, 0.2)",
+                    borderRadius: "14px",
+                    color: "#34d399",
+                    cursor: "not-allowed",
                   }}
                 />
               </div>

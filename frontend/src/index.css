@@ -7025,3 +7025,23 @@ button:focus,
 
 /* Force tailwind recompile */
 
+
+/* Create Chama Responsive Layout */
+.create-chama-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) 1fr;
+  gap: 3rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .create-chama-layout {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  
+  .create-chama-layout > div:last-child {
+    position: static !important;
+    margin-top: 2rem;
+  }
+}

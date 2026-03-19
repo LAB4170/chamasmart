@@ -224,6 +224,13 @@ export const AuthProvider = ({ children }) => {
     setError(null);
   };
 
+  // Sync profile updates with state and localStorage
+  const updateUser = (updatedUserData) => {
+    const freshUser = { ...user, ...updatedUserData };
+    localStorage.setItem("user", JSON.stringify(freshUser));
+    setUser(freshUser);
+  };
+
   // Verify Email
   const verifyEmail = async (token) => {
     try {
@@ -389,6 +396,7 @@ export const AuthProvider = ({ children }) => {
     resendPhoneVerification,
     loginWithPhone,
     verifyPhoneOTP,
+    updateUser,
     isAuthenticated: !!user,
   };
 
