@@ -182,7 +182,8 @@ CREATE TABLE loans (
     -- Loan configuration
     guarantor_required BOOLEAN DEFAULT false,
     collateral_description TEXT,
-    monthly_payment DECIMAL(15,2)
+    monthly_payment DECIMAL(15,2),
+    due_date DATE
 );
 
 -- Loan guarantors table
@@ -230,11 +231,14 @@ CREATE TABLE loan_repayments (
 CREATE TABLE payouts (
     payout_id SERIAL PRIMARY KEY,
     chama_id INTEGER NOT NULL REFERENCES chamas(chama_id) ON DELETE CASCADE,
-    member_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     amount DECIMAL(15,2) NOT NULL,
     payout_type VARCHAR(50) NOT NULL,
     description TEXT,
+    meeting_id INTEGER REFERENCES meetings(meeting_id) ON DELETE SET NULL,
+    notes TEXT,
     status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'COMPLETED')),
+    payout_date DATE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     processed_at TIMESTAMP WITH TIME ZONE,
     processed_by INTEGER REFERENCES users(user_id),
