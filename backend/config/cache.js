@@ -1,6 +1,6 @@
 const Redis = require("ioredis");
 const crypto = require("crypto");
-const LRU = require("lru-cache");
+const { LRUCache } = require("lru-cache");
 const logger = require("../utils/logger");
 const { metrics } = require("../middleware/metrics");
 
@@ -58,7 +58,7 @@ class CacheManager {
     };
 
     // Initialize LRU cache with configuration
-    this.memoryCache = new LRU({
+    this.memoryCache = new LRUCache({
       max: parseInt(
         process.env.MAX_MEMORY_CACHE_ITEMS || CACHE_CONFIG.MEMORY.MAX_ITEMS,
       ),
