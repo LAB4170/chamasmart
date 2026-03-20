@@ -76,6 +76,7 @@ class MockRedis {
 }
 
 const redisOptions = {
+  family: 0, // Force IPv4/IPv6 dual-stack resolution to fix Render internal DNS
   maxRetriesPerRequest: 1, // Fail fast
   lazyConnect: true,
   connectTimeout: 5000,
