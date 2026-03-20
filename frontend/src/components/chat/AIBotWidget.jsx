@@ -194,7 +194,7 @@ export default function AIBotWidget() {
                   >
                     {msg.role === 'assistant' && (
                       <div className="ai-bot-msg-avatar">
-                        <Bot size={14} />
+                        <img src={chatbotIcon} alt="Bot" style={{ width: '100%', height: '100%', borderRadius: '50%' }} />
                       </div>
                     )}
                     <div className={`ai-bot-bubble ${msg.role === 'user' ? 'user-bubble' : 'bot-bubble'}`}>
@@ -208,7 +208,9 @@ export default function AIBotWidget() {
                 ))}
                 {isLoading && (
                   <div className="ai-bot-message bot-msg">
-                    <div className="ai-bot-msg-avatar"><Bot size={14} /></div>
+                    <div className="ai-bot-msg-avatar">
+                      <img src={chatbotIcon} alt="Bot" style={{ width: '100%', height: '100%', borderRadius: '50%' }} />
+                    </div>
                     <div className="ai-bot-bubble bot-bubble ai-bot-typing">
                       <span /><span /><span />
                     </div>
