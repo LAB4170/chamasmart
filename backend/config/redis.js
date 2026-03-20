@@ -75,18 +75,27 @@ class MockRedis {
   }
 }
 
-const redisConfig = {
-  host: process.env.REDIS_HOST,
-  port: parseInt(process.env.REDIS_PORT) || 6379,
-  password: process.env.REDIS_PASSWORD || undefined,
-  db: parseInt(process.env.REDIS_DB) || 0,
+const redisOptions = {
   maxRetriesPerRequest: 1, // Fail fast
   lazyConnect: true,
-  connectTimeout: 2000,
-  commandTimeout: 2000,
+  connectTimeout: 5000,
+  commandTimeout: 5000,
   enableOfflineQueue: false, // Critical to prevent hangs
   retryStrategy: (times) => null, // Don't retry automatically, let initializeRedis handle it
 };
+
+let redisConfig;
+if (process.env.REDIS_URL) {
+  redisConfig = process.env.REDIS_URL;
+} else if (process.env.REDIS_HOST) {
+  redisConfig = {
+    host: process.env.REDIS_HOST,
+    port: parseInt(process.env.REDIS_PORT) || 6379,
+    password: process.env.REDIS_PASSWORD || undefined,
+    db: parseInt(process.env.REDIS_DB) || 0,
+    ...redisOptions
+  };
+}
 
 let redis = new MockRedis();
 let redisAvailable = false;
@@ -95,23 +104,25 @@ const circuitBreaker = new CircuitBreaker();
 function getRedisClient() { return redis; }
 
 const initializeRedis = async () => {
-  if (!process.env.REDIS_HOST) {
-    logger.info("Redis host not configured, using mock store");
+  if (!process.env.REDIS_URL && !process.env.REDIS_HOST) {
+    logger.info("Redis host or URL not configured, using mock store");
     return false;
   }
 
   try {
-    logger.info(`Attempting to connect to Redis at ${process.env.REDIS_HOST}:${redisConfig.port}...`);
+    logger.info("Attempting to connect to Redis...");
     
     // Create client but don't let it hang the process
-    const redisClient = new Redis(redisConfig);
+    const redisClient = typeof redisConfig === 'string'
+      ? new Redis(redisConfig, redisOptions)
+      : new Redis(redisConfig);
 
     // Promise that resolves when connected or rejects on error/timeout
     const connectionPromise = new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         redisClient.disconnect();
-        reject(new Error("Redis connection timeout (2s)"));
-      }, 2000);
+        reject(new Error("Redis connection timeout (5s)"));
+      }, 5000);
 
       redisClient.once("connect", () => {
         clearTimeout(timeout);
