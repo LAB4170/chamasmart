@@ -25,6 +25,8 @@ const pool = new Pool({
   max: parseInt(process.env.DB_POOL_MAX) || 20,
   idleTimeoutMillis: 10000,
   connectionTimeoutMillis: 15000,
+  maxUses: 7500, // Forces connections to reconnect periodically, preventing memory leaks
+  allowExitOnIdle: true,
   ssl:
     process.env.NODE_ENV === "production"
       ? { rejectUnauthorized: false }

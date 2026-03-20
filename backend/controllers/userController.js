@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
 const { logAuditEvent, EVENT_TYPES, SEVERITY } = require('../utils/auditLog');
 const { uploadToStorage } = require('../utils/storage');
+const cacheManager = require('../config/cache');
 
 // @desc    Get current user profile
 // @route   GET /api/users/profile
@@ -10,23 +11,26 @@ const getProfile = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const result = await pool.query(
-      `SELECT user_id, first_name, last_name, email, phone_number, national_id, profile_picture_url,
-                    role, is_active, email_verified, phone_verified, 
-                    created_at, updated_at
-             FROM users 
-             WHERE user_id = $1`,
-      [userId],
-    );
+    const cacheKey = `user_profile_v1:${userId}`;
+    const user = await cacheManager.getOrSet(cacheKey, async () => {
+      const result = await pool.query(
+        `SELECT user_id, first_name, last_name, email, phone_number, national_id, profile_picture_url,
+                      role, is_active, email_verified, phone_verified, 
+                      created_at, updated_at
+               FROM users 
+               WHERE user_id = $1`,
+        [userId],
+      );
+      if (result.rows.length === 0) return null;
+      return result.rows[0];
+    }, 600); // Cache for 10 minutes
 
-    if (result.rows.length === 0) {
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found',
       });
     }
-
-    const user = result.rows[0];
 
     await logAuditEvent({
       eventType: EVENT_TYPES.USER_PROFILE_VIEWED,
@@ -91,6 +95,8 @@ const updateProfile = async (req, res) => {
       metadata: { firstName, lastName, email, phoneNumber },
       severity: SEVERITY.MEDIUM,
     });
+
+    await cacheManager.del(`user_profile_v1:${userId}`);
 
     res.json({
       success: true,
@@ -308,6 +314,8 @@ const uploadProfilePicture = async (req, res) => {
       entityId: userId,
       severity: SEVERITY.MEDIUM,
     });
+
+    await cacheManager.del(`user_profile_v1:${userId}`);
 
     res.json({
       success: true,

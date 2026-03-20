@@ -11,6 +11,7 @@ const {
 } = require('../utils/pagination');
 
 const { cache, clearChamaCache } = require('../utils/cache');
+const cacheManager = require('../config/cache');
 
 // @desc    Get all chamas
 // @route   GET /api/chamas
@@ -491,38 +492,42 @@ const getMyChamas = async (req, res) => {
     } = parsePagination(page, limit);
     const userId = req.user.user_id;
 
-    // Get total count
-    const totalResult = await pool.query(
-      `SELECT COUNT(*) as count FROM chamas c
-       INNER JOIN chama_members cm ON c.chama_id = cm.chama_id
-       WHERE cm.user_id = $1 AND cm.is_active = true AND c.is_active = true`,
-      [userId],
-    );
-    const total = parseInt(totalResult.rows[0].count);
+    // Use Advanced Redis Cache with a short TTL (30s) to protect against DB stampedes on dashboard load
+    const cacheKey = `my_chamas_v1:${userId}:p${validPage}:l${validLimit}`;
+    const paginatedData = await cacheManager.getOrSet(cacheKey, async () => {
+      // Get total count
+      const totalResult = await pool.query(
+        `SELECT COUNT(*) as count FROM chamas c
+         INNER JOIN chama_members cm ON c.chama_id = cm.chama_id
+         WHERE cm.user_id = $1 AND cm.is_active = true AND c.is_active = true`,
+        [userId],
+      );
+      const total = parseInt(totalResult.rows[0].count);
 
-    // Get paginated results
-    const result = await pool.query(
-      `SELECT c.chama_id, c.chama_name, c.chama_type, c.contribution_amount, 
-              c.contribution_frequency, c.total_members, c.current_fund,
-              cm.role, cm.join_date, cm.total_contributions,
-              (SELECT COALESCE(SUM(ls.interest_amount), 0)
-               FROM loan_schedules ls
-               JOIN loans l2 ON ls.loan_id = l2.loan_id
-               WHERE l2.chama_id = c.chama_id AND ls.status = 'PAID') as total_interest_earned
-       FROM chamas c
-       INNER JOIN chama_members cm ON c.chama_id = cm.chama_id
-       WHERE cm.user_id = $1 AND cm.is_active = true AND c.is_active = true
-       ORDER BY c.created_at DESC
-       LIMIT $2 OFFSET $3`,
-      [userId, validLimit, offset],
-    );
+      // Get paginated results
+      const result = await pool.query(
+        `SELECT c.chama_id, c.chama_name, c.chama_type, c.contribution_amount, 
+                c.contribution_frequency, c.total_members, c.current_fund,
+                cm.role, cm.join_date, cm.total_contributions,
+                (SELECT COALESCE(SUM(ls.interest_amount), 0)
+                 FROM loan_schedules ls
+                 JOIN loans l2 ON ls.loan_id = l2.loan_id
+                 WHERE l2.chama_id = c.chama_id AND ls.status = 'PAID') as total_interest_earned
+         FROM chamas c
+         INNER JOIN chama_members cm ON c.chama_id = cm.chama_id
+         WHERE cm.user_id = $1 AND cm.is_active = true AND c.is_active = true
+         ORDER BY c.created_at DESC
+         LIMIT $2 OFFSET $3`,
+        [userId, validLimit, offset],
+      );
 
-    const paginatedData = formatPaginationMeta(
-      result.rows,
-      total,
-      validPage,
-      validLimit,
-    );
+      return formatPaginationMeta(
+        result.rows,
+        total,
+        validPage,
+        validLimit,
+      );
+    }, 30); // 30 seconds TTL
 
     res.paginated(
       paginatedData.data,
