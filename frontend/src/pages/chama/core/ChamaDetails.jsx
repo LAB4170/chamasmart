@@ -14,6 +14,8 @@ import SwapRequestModal from "../../../components/SwapRequestModal";
 import PayoutConfirmationModal from "../../../components/PayoutConfirmationModal";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import LoanConfigCard from "../../../components/LoanConfigCard";
+import ManualPaymentModal from "../../../components/payments/ManualPaymentModal";
+import PendingContributions from "../../../components/payments/PendingContributions";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -370,6 +372,8 @@ const ChamaDetails = () => {
   const [swapRequests, setSwapRequests] = useState({ incoming: [], outgoing: [] });
   const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [payoutRecipient, setPayoutRecipient] = useState(null);
+  const [showManualPaymentModal, setShowManualPaymentModal] = useState(false);
+  const [showPendingContributionsModal, setShowPendingContributionsModal] = useState(false);
   // Constitution State
   const [constitutionForm, setConstitutionForm] = useState({
     late_payment: { enabled: false, amount: 0, grace_period_days: 1 }
@@ -1338,6 +1342,44 @@ const ChamaDetails = () => {
                     <HealthAlerts chamaId={id} />
                   </div>
 
+                  {/* Manual Payment Information Section for Members */}
+                  {chama.accepts_manual_payment && chama.payment_methods && (
+                    <div className="card-modern" style={{ marginTop: '1rem', marginBottom: '1rem', background: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)', border: '1px solid #bae6fd' }}>
+                      <h4 className="flex items-center gap-2 mb-4 text-slate-800">
+                        <Smartphone size={18} className="text-blue-500" />
+                        Manual Payment Options
+                      </h4>
+                      <p className="text-sm text-slate-600 mb-4">You can manually contribute to this chama using the details below. After paying, submit your receipt code in the Payments tab.</p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {chama.payment_methods.type === 'PAYBILL' && (
+                          <>
+                            <div className="p-3 bg-white rounded-lg border border-blue-100 shadow-sm flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-400 uppercase">Paybill Number</span>
+                              <span className="font-mono font-bold text-lg text-slate-800">{chama.payment_methods.businessNumber}</span>
+                            </div>
+                            <div className="p-3 bg-white rounded-lg border border-blue-100 shadow-sm flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-400 uppercase">Account Number</span>
+                              <span className="font-mono font-bold text-lg text-slate-800">{chama.payment_methods.accountNumber || "Wait for Admin instruction"}</span>
+                            </div>
+                          </>
+                        )}
+                        {chama.payment_methods.type === 'BUY_GOODS' && (
+                          <div className="p-3 bg-white rounded-lg border border-blue-100 shadow-sm flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-400 uppercase">Till Number (Buy Goods)</span>
+                            <span className="font-mono font-bold text-lg text-slate-800">{chama.payment_methods.tillNumber}</span>
+                          </div>
+                        )}
+                        {chama.payment_methods.type === 'POCHI' && (
+                          <div className="p-3 bg-white rounded-lg border border-blue-100 shadow-sm flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-400 uppercase">Phone Number (Pochi)</span>
+                            <span className="font-mono font-bold text-lg text-slate-800">{chama.payment_methods.phoneNumber}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {["ASCA", "TABLE_BANKING"].includes(chama.chama_type) && (
                     <div className="grid grid-1 md:grid-2 gap-4 mt-4">
                       {/* Equity Card — shown for all ASCA/TABLE_BANKING */}
@@ -1781,6 +1823,14 @@ const ChamaDetails = () => {
                 <div className="card-header flex-between" style={{ flexShrink: 0 }}>
                   <h3>Contributions ({contributions.length})</h3>
                   <div className="flex-gap">
+                    {officialStatus && (
+                      <button 
+                        className="btn btn-sm btn-outline flex items-center gap-1 border-amber-200 text-amber-600 hover:bg-amber-50"
+                        onClick={() => setShowPendingContributionsModal(true)}
+                      >
+                        <Shield size={16} /> Verify Manual Payments
+                      </button>
+                    )}
                     {userRole === "TREASURER" && (
                       <button className="btn btn-sm btn-primary" onClick={() => navigate(`/chamas/${id}/record-contribution`)}>
                         + Record Contribution
@@ -1792,6 +1842,14 @@ const ChamaDetails = () => {
                     >
                       <Smartphone size={16} /> Pay via M-Pesa
                     </button>
+                    {chama.accepts_manual_payment && (
+                      <button 
+                        className="btn btn-sm btn-outline flex items-center gap-1 border-blue-200 text-blue-600 hover:bg-blue-50"
+                        onClick={() => setShowManualPaymentModal(true)}
+                      >
+                        <FileText size={16} /> Submit Receipt
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -2929,6 +2987,31 @@ const ChamaDetails = () => {
           onClose={() => setShowCreateCycleModal(false)}
           onSuccess={() => {
             fetchChamaData();
+          }}
+        />
+      )}
+
+      {showManualPaymentModal && (
+        <ManualPaymentModal
+          chamaId={chama.chama_id}
+          userId={user?.user_id || user?.id}
+          expectedAmount={chama.contribution_amount}
+          onClose={() => setShowManualPaymentModal(false)}
+          onSuccess={() => {
+            setShowManualPaymentModal(false);
+            fetchContributions();
+          }}
+        />
+      )}
+
+      {showPendingContributionsModal && (
+        <PendingContributions
+          chamaId={chama.chama_id}
+          onClose={() => setShowPendingContributionsModal(false)}
+          onVerifySuccess={() => {
+             // We can refresh the contributions list after verifying
+             fetchContributions();
+             if (stats) fetchChamaData();
           }}
         />
       )}

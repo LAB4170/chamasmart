@@ -1130,10 +1130,12 @@ const verifyContribution = async (req, res, next) => {
       UPDATE contributions 
       SET verification_status = $1, 
           status = $2,
-          notes = COALESCE(notes, '') || '\nVerification Note: ' || $3,
-          recorded_by = $4
+          verified_by = $3,
+          verified_at = NOW(),
+          rejection_reason = $4,
+          recorded_by = $3
       WHERE contribution_id = $5
-    `, [status, technicalStatus, verificationNotes || 'Verified by Official', req.user.user_id, id]);
+    `, [status, technicalStatus, req.user.user_id, status === 'REJECTED' ? (verificationNotes || 'Rejected by official') : null, id]);
 
     // 4. If VERIFIED, update balances
     if (status === 'VERIFIED') {
@@ -1197,6 +1199,41 @@ const verifyContribution = async (req, res, next) => {
 };
 
 // ============================================================================
+// GET PENDING CONTRIBUTIONS (Admin view for manual payment verification)
+// ============================================================================
+
+const getPendingContributions = async (req, res, next) => {
+  const { chamaId } = req.params;
+  try {
+    // Must be a treasurer or chairperson
+    const client = await pool.connect();
+    try {
+      await checkChamaAuthorization(client, chamaId, req.user.user_id, ['TREASURER', 'CHAIRPERSON', 'ADMIN']);
+    } finally {
+      client.release();
+    }
+
+    const result = await pool.query(
+      `SELECT c.contribution_id, c.user_id, c.amount, c.payment_method,
+              c.receipt_number, c.payment_proof, c.notes, c.created_at,
+              u.first_name, u.last_name, u.phone_number
+       FROM contributions c
+       JOIN users u ON u.user_id = c.user_id
+       WHERE c.chama_id = $1 AND c.verification_status = 'PENDING'
+       ORDER BY c.created_at DESC`,
+      [chamaId]
+    );
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================================
 // EXPORTS
 // ============================================================================
 
@@ -1207,6 +1244,7 @@ module.exports = {
   deleteContribution,
   submitContribution: [contributionValidation, submitContribution],
   verifyContribution,
+  getPendingContributions,
   // Export utilities for testing
   Money,
   IdempotencyService,

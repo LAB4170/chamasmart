@@ -6,6 +6,12 @@ export const contributionAPI = {
         api.post(`/contributions/${chamaId}/record`, contributionData),
     bulkRecord: (chamaId, bulkData) =>
         api.post(`/contributions/${chamaId}/bulk-record`, bulkData),
+    submit: (chamaId, contributionData) =>
+        api.post(`/contributions/${chamaId}/submit`, contributionData),
+    verify: (chamaId, contributionId, verificationData) =>
+        api.post(`/contributions/${chamaId}/verify/${contributionId}`, verificationData),
+    getPending: (chamaId) => 
+        api.get(`/contributions/${chamaId}/pending`),
     initiateMpesaPayment: (paymentData) =>
         api.post('/payments/mpesa/stk-push', paymentData),
     delete: (chamaId, id) => api.delete(`/contributions/${chamaId}/${id}`),

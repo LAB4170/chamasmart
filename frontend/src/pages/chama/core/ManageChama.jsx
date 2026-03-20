@@ -16,10 +16,10 @@ const ManageChama = () => {
     const [formData, setFormData] = useState({
         name: "",
         description: "",
-        type: "",
         contributionAmount: "",
         contributionFrequency: "MONTHLY",
         visibility: "PRIVATE",
+        acceptsManualPayment: false,
         paymentMethods: {
             type: "PAYBILL",
             businessNumber: "",
@@ -67,6 +67,7 @@ const ManageChama = () => {
                 contributionAmount: chama.contribution_amount || "",
                 contributionFrequency: chama.contribution_frequency || "MONTHLY",
                 visibility: chama.visibility || "PRIVATE",
+                acceptsManualPayment: !!chama.accepts_manual_payment,
                 paymentMethods: {
                     type: chama.payment_methods?.type || "PAYBILL",
                     businessNumber: chama.payment_methods?.businessNumber || "",
@@ -142,6 +143,8 @@ const ManageChama = () => {
             if (formData.contributionAmount) updateData.contributionAmount = Number(formData.contributionAmount);
             if (formData.contributionFrequency) updateData.contributionFrequency = formData.contributionFrequency;
             if (formData.visibility) updateData.visibility = formData.visibility;
+            
+            updateData.acceptsManualPayment = formData.acceptsManualPayment;
 
             const pm = formData.paymentMethods;
             updateData.paymentMethods = {
@@ -357,6 +360,32 @@ const ManageChama = () => {
                             <div className="p-1 px-3 rounded-full bg-blue-50 text-blue-600 text-xs font-bold border border-blue-100 flex items-center gap-1">
                                 <Smartphone size={12} /> Mobile Money Ready
                             </div>
+                        </div>
+
+                        <div className="form-group mb-8 p-4 rounded-xl border border-blue-100 bg-blue-50/50 flex align-center justify-between">
+                            <div>
+                                <label className="form-label mb-1 block" style={{ fontSize: '1rem', color: '#1e3a8a' }}>Allow Manual M-Pesa Payments</label>
+                                <p className="text-xs text-blue-600/80 m-0">If enabled, members can pay manually and submit their M-Pesa receipt for verification. If disabled, only automatic STK Push is allowed.</p>
+                            </div>
+                            <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '50px', height: '26px' }}>
+                                <input 
+                                    type="checkbox" 
+                                    name="acceptsManualPayment"
+                                    checked={formData.acceptsManualPayment}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, acceptsManualPayment: e.target.checked }))}
+                                    style={{ opacity: 0, width: 0, height: 0 }} 
+                                />
+                                <span className="slider round" style={{ 
+                                    position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, 
+                                    backgroundColor: formData.acceptsManualPayment ? '#2563eb' : '#cbd5e1', 
+                                    transition: '.4s', borderRadius: '34px' 
+                                }}>
+                                    <span style={{
+                                        position: 'absolute', height: '18px', width: '18px', left: formData.acceptsManualPayment ? '28px' : '4px', top: '4px',
+                                        backgroundColor: 'white', transition: '.4s', borderRadius: '50%'
+                                    }}></span>
+                                </span>
+                            </label>
                         </div>
 
                         <div className="grid grid-3 gap-4 mb-8">

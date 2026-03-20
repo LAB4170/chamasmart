@@ -1,127 +1,101 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { ArrowRight, MessageSquare, ShieldCheck } from "lucide-react";
+import { ArrowRight, Mail, Lock, ShieldCheck, User, Phone, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import googleLogo from "../../assets/images/google-logo.png";
 import "./Auth.css";
 
-// Shared frictionless auth UI for both Login and Register
-const AuthFlow = ({ title = "Create an Account", subtitle = "Join ChamaSmart securely" }) => {
-  const [step, setStep] = useState("PHONE"); // "PHONE" | "OTP"
-  const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]); // Array for individual digit inputs
+const Register = () => {
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phoneNumber: "",
+    password: "",
+    confirmPassword: ""
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const { loginWithPhone, verifyPhoneOTP, loginWithGoogle, isAuthenticated } = useAuth();
+  const { register, loginWithGoogle, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  const requirements = [
+    { label: "At least 8 characters", met: formData.password.length >= 8 },
+    { label: "At least one uppercase letter", met: /[A-Z]/.test(formData.password) },
+    { label: "At least one lowercase letter", met: /[a-z]/.test(formData.password) },
+    { label: "At least one number", met: /\d/.test(formData.password) },
+    { label: "At least one special character", met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password) }
+  ];
+
+  const allMet = requirements.every(r => r.met);
 
   useEffect(() => {
     if (isAuthenticated) navigate("/dashboard");
   }, [isAuthenticated, navigate]);
 
-  // Format Kenyan phone to international format
-  const formatPhone = (input) => {
-    let cleaned = input.replace(/\D/g, "");
-    if (cleaned.startsWith("0")) return `+254${cleaned.substring(1)}`;
-    if (cleaned.startsWith("254")) return `+${cleaned}`;
-    if (cleaned.startsWith("7") || cleaned.startsWith("1")) return `+254${cleaned}`;
-    return input;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setError("");
   };
 
-  const handleRequestOTP = async (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
-    if (!phone || phone.replace(/\D/g, "").length < 9) {
-      setError("Please enter a valid phone number");
+
+    // Basic validation
+    if (!allMet) {
+      setError("Please meet all password security requirements");
       return;
     }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
     setLoading(true);
-    const formattedPhone = formatPhone(phone);
-    // loginWithPhone attaches invisible reCAPTCHA to #register-submit-btn
-    const result = await loginWithPhone(formattedPhone, "register-submit-btn");
+    const result = await register({
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      phoneNumber: formData.phoneNumber,
+      password: formData.password
+    });
     setLoading(false);
 
     if (result.success) {
-      setPhone(formattedPhone);
-      setStep("OTP");
+      navigate("/dashboard");
     } else {
-      setError(result.error || "Failed to send OTP. Please try again.");
-    }
-  };
-
-  // OTP box input handler — auto-advance to next box
-  const handleOtpChange = (index, value) => {
-    if (!/^\d?$/.test(value)) return; // Only digits allowed
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-    setError("");
-
-    // Auto-advance focus
-    if (value && index < 5) {
-      document.getElementById(`otp-box-${index + 1}`)?.focus();
-    }
-  };
-
-  const handleOtpKeyDown = (index, e) => {
-    if (e.key === "Backspace" && !otp[index] && index > 0) {
-      document.getElementById(`otp-box-${index - 1}`)?.focus();
-    }
-  };
-
-  const handleOtpPaste = (e) => {
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").substring(0, 6);
-    if (pasted.length > 0) {
-      const newOtp = [...otp];
-      for (let i = 0; i < 6; i++) newOtp[i] = pasted[i] || "";
-      setOtp(newOtp);
-      // Focus the last filled box
-      const focusIdx = Math.min(pasted.length, 5);
-      if (focusIdx < 6) document.getElementById(`otp-box-${focusIdx}`)?.focus();
-    }
-    e.preventDefault();
-  };
-
-  const handleVerifyOTP = async (e) => {
-    e.preventDefault();
-    const otpCode = otp.join("");
-    setError("");
-    if (otpCode.length !== 6) {
-      setError("Please enter the complete 6-digit code");
-      return;
-    }
-    setLoading(true);
-    const result = await verifyPhoneOTP(otpCode);
-    setLoading(false);
-
-    if (result.success) {
-      navigate(result.isNewUser ? "/complete-profile" : "/dashboard");
-    } else {
-      setError(result.error || "Invalid code. Please try again.");
+      setError(result.error || "Registration failed. Please try again.");
     }
   };
 
   const handleGoogleLogin = async () => {
-    setError("");
     setLoading(true);
+    setError("");
     const result = await loginWithGoogle();
     setLoading(false);
-    if (result.success) navigate("/dashboard");
-    else setError(result.error || "Google sign-in failed. Please try again.");
+    if (result.success) {
+      navigate("/dashboard");
+    } else {
+      setError(result.error || "Google sign-in failed");
+    }
   };
 
   return (
     <div className="auth-page-wrapper">
-      <div className="auth-container">
-
+      <div className="auth-container" style={{ maxWidth: "480px" }}>
         {/* Brand Header */}
         <div className="auth-brand-header">
           <div className="auth-brand-icon">
             <ShieldCheck size={34} />
           </div>
-          <h1 className="auth-title">{title}</h1>
-          <p className="auth-subtitle">{subtitle}</p>
+          <h1 className="auth-title">Create Account</h1>
+          <p className="auth-subtitle">Join the modern way of managing Chamas</p>
         </div>
 
         {/* Card */}
@@ -132,118 +106,201 @@ const AuthFlow = ({ title = "Create an Account", subtitle = "Join ChamaSmart sec
             </div>
           )}
 
-          {step === "PHONE" ? (
-            <form onSubmit={handleRequestOTP}>
-              <div style={{ marginBottom: "20px" }}>
-                <label className="form-label-auth">
-                  Phone Number
-                </label>
-                <div className="phone-input-container">
-                  <span className="phone-prefix">
-                    🇰🇪 +254
-                  </span>
+          <form onSubmit={handleRegister}>
+            {/* Name Row */}
+            <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
+              <div style={{ flex: 1 }}>
+                <label className="form-label-auth">First Name</label>
+                <div className="auth-input-container">
+                  <div className="auth-input-icon">
+                    <User size={18} />
+                  </div>
                   <input
-                    type="tel"
-                    className="phone-input"
-                    value={phone.replace(/^\+254/, "").replace(/^0/, "")}
-                    onChange={(e) => { setError(""); setPhone(e.target.value); }}
-                    placeholder="7XX XXX XXX"
-                    autoFocus
+                    name="firstName"
+                    type="text"
+                    className="auth-input"
+                    placeholder="Jane"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    required
                   />
                 </div>
-                <p className="phone-hint">
-                  We'll send a 6-digit code via SMS
-                </p>
               </div>
-
-              {/* reCAPTCHA is invisibly attached to this button by Firebase */}
-                <button
-                id="register-submit-btn"
-                type="submit"
-                className="btn-auth-submit"
-                disabled={loading || !phone}
-              >
-                {loading ? (
-                  <><span className="spinner" style={{ width: "18px", height: "18px", borderWidth: "2px", margin: "0" }} /><span>Sending code...</span></>
-                ) : (
-                  <><span>Send Code</span><ArrowRight size={18} /></>
-                )}
-              </button>
-
-              <div className="auth-divider">
-                <div className="divider-line" />
-                <span className="divider-text">OR CONTINUE WITH</span>
-                <div className="divider-line" />
-              </div>
-
-              <button
-                type="button"
-                className="btn-google-auth"
-                onClick={handleGoogleLogin}
-                disabled={loading}
-              >
-                <img src={googleLogo} alt="Google" />
-                Continue with Google
-              </button>
-            </form>
-          ) : (
-            <div style={{ textAlign: "center" }}>
-              <div style={{
-                width: "60px", height: "60px", background: "var(--bg-primary-light)", borderRadius: "50%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                margin: "0 auto 20px auto", color: "var(--secondary)"
-              }}>
-                <MessageSquare size={26} />
-              </div>
-              <h2 style={{ fontSize: "20px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "8px" }}>Check your messages</h2>
-              <p style={{ color: "var(--text-secondary)", marginBottom: "28px", fontSize: "14px", lineHeight: "1.6" }}>
-                We sent a 6-digit code to <strong style={{ color: "var(--text-primary)" }}>{phone}</strong>
-              </p>
-
-              {/* 6-box OTP input */}
-              <form onSubmit={handleVerifyOTP}>
-                <div className="otp-box-container" onPaste={handleOtpPaste}>
-                  {otp.map((digit, i) => (
-                    <input
-                      key={i}
-                      id={`otp-box-${i}`}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      className={`otp-box ${digit ? "filled" : ""}`}
-                      value={digit}
-                      onChange={(e) => handleOtpChange(i, e.target.value)}
-                      onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                      autoFocus={i === 0}
-                    />
-                  ))}
+              <div style={{ flex: 1 }}>
+                <label className="form-label-auth">Last Name</label>
+                <div className="auth-input-container">
+                  <input
+                    name="lastName"
+                    type="text"
+                    className="auth-input"
+                    placeholder="Doe"
+                    style={{ paddingLeft: "16px" }}
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    required
+                  />
                 </div>
+              </div>
+            </div>
 
-                <button
-                  type="submit"
-                  className="btn-auth-submit"
-                  disabled={loading || otp.join("").length !== 6}
-                >
-                  {loading ? "Verifying..." : "Verify & Sign In"}
-                </button>
+            <div className="form-group-auth" style={{ marginBottom: "20px" }}>
+              <label className="form-label-auth">Email Address</label>
+              <div className="auth-input-container">
+                <div className="auth-input-icon">
+                  <Mail size={18} />
+                </div>
+                <input
+                  name="email"
+                  type="email"
+                  className="auth-input"
+                  placeholder="jane@example.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
 
+            <div className="form-group-auth" style={{ marginBottom: "20px" }}>
+              <label className="form-label-auth">Phone Number</label>
+              <div className="auth-input-container">
+                <div className="auth-input-icon">
+                  <Phone size={18} />
+                </div>
+                <input
+                  name="phoneNumber"
+                  type="tel"
+                  className="auth-input"
+                  placeholder="+2547XXXXXXXX"
+                  value={formData.phoneNumber}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-group-auth" style={{ marginBottom: "20px" }}>
+              <label className="form-label-auth">Password</label>
+              <div className="auth-input-container" style={{ marginBottom: "12px" }}>
+                <div className="auth-input-icon">
+                  <Lock size={18} />
+                </div>
+                <input
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  className="auth-input"
+                  placeholder="Create a secure password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                />
                 <button
                   type="button"
-                  onClick={() => { setStep("PHONE"); setOtp(["","","","","",""]); setError(""); }}
+                  onClick={() => setShowPassword(!showPassword)}
                   style={{
-                    marginTop: "16px", background: "none", border: "none",
-                    color: "var(--secondary)", fontWeight: "600", fontSize: "14px", cursor: "pointer"
+                    position: "absolute",
+                    right: "12px",
+                    background: "none",
+                    border: "none",
+                    color: "var(--text-secondary)",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "4px"
                   }}
                 >
-                  ← Change number / Resend code
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
-              </form>
+              </div>
+
+              {/* Password Requirements List */}
+              <div className="password-requirements">
+                {requirements.map((req, idx) => (
+                  <div key={idx} className={`requirement-item ${req.met ? "met" : ""}`}>
+                    <div className="dot" />
+                    {req.label}
+                  </div>
+                ))}
+              </div>
             </div>
-          )}
+
+            <div className="form-group-auth" style={{ marginBottom: "24px" }}>
+              <label className="form-label-auth">Confirm Password</label>
+              <div className="auth-input-container">
+                <div className="auth-input-icon">
+                  <CheckCircle2 size={18} />
+                </div>
+                <input
+                  name="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  className="auth-input"
+                  placeholder="Repeat password"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  style={{
+                    position: "absolute",
+                    right: "12px",
+                    background: "none",
+                    border: "none",
+                    color: "var(--text-secondary)",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "4px"
+                  }}
+                >
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="btn-auth-submit"
+              disabled={loading}
+            >
+              {loading ? (
+                <><span className="spinner" style={{ width: "18px", height: "18px", borderWidth: "2px", margin: "0 8px 0 0" }} /><span>Creating account...</span></>
+              ) : (
+                <><span>Get Started</span><ArrowRight size={18} /></>
+              )}
+            </button>
+
+            <div className="auth-divider" style={{ margin: "24px 0" }}>
+              <div className="divider-line" />
+              <span className="divider-text">OR CONTINUE WITH</span>
+              <div className="divider-line" />
+            </div>
+
+            <button
+              type="button"
+              className="btn-google-auth"
+              onClick={handleGoogleLogin}
+              disabled={loading}
+            >
+              <img src={googleLogo} alt="Google" />
+              Continue with Google
+            </button>
+          </form>
+
+          <div className="auth-divider" style={{ margin: "28px 0" }}>
+            <div className="divider-line" />
+            <span className="divider-text">ALREADY HAVE AN ACCOUNT?</span>
+            <div className="divider-line" />
+          </div>
+
+          <Link to="/login" className="btn-google-auth" style={{ textDecoration: "none", color: "inherit", background: "none", border: "1px solid rgba(255,255,255,0.1)" }}>
+            Sign In Instead
+          </Link>
         </div>
 
         <p className="auth-footer">
-          By continuing, you agree to our{" "}
+          By registering, you agree to our{" "}
           <Link to="/terms">Terms</Link>{" "}
           and{" "}
           <Link to="/privacy">Privacy Policy</Link>
@@ -253,5 +310,4 @@ const AuthFlow = ({ title = "Create an Account", subtitle = "Join ChamaSmart sec
   );
 };
 
-// Export as Register (default export keeps /register route working)
-export default AuthFlow;
+export default Register;

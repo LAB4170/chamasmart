@@ -150,7 +150,7 @@ const getAllowedOrigins = () => {
     origins.push(process.env.RENDER_EXTERNAL_URL);
   }
   
-  // Auto-detect any dynamic Vercel/Render frontend URLs if passed standardly
+  // Auto-detect dynamic frontend URLs
   if (process.env.FRONTEND_URL && !origins.includes(process.env.FRONTEND_URL)) {
     origins.push(process.env.FRONTEND_URL);
   }

@@ -138,12 +138,6 @@ const runRoscaPenaltyEngine = async () => {
 };
 
 const initScheduler = () => {
-    // Local development/Server fallback only
-    if (process.env.VERCEL) {
-        logger.info('Scheduler skipped in Vercel environment (Using Vercel Cron)');
-        return;
-    }
-
     cron.schedule('0 * * * *', runRoscaActivator);
     cron.schedule('0 0 * * *', runRoscaPenaltyEngine);
 

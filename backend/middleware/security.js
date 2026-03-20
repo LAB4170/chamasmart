@@ -29,8 +29,6 @@ const helmetConfig = helmet({
         "https://www.gstatic.com",
         "https://recaptcha.net",
         "https://apis.google.com",
-        // Vercel analytics
-        "https://va.vercel-scripts.com",
       ],
       connectSrc: [
         "'self'",
@@ -43,8 +41,10 @@ const helmetConfig = helmet({
         'https://securetoken.googleapis.com',
         'ws://localhost:*',
         'wss://localhost:*',
-        'https://va.vercel-scripts.com',
-        'https://vitals.vercel-insights.com',
+        // reCAPTCHA & Google API (REQUIRED for Phone Auth)
+        'https://www.google.com',
+        'https://www.gstatic.com',
+        'https://www.google-analytics.com',
       ],
       frameSrc: [
         "'self'",

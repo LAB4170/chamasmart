@@ -11,6 +11,7 @@ const {
   getContributions,
   submitContribution,
   verifyContribution,
+  getPendingContributions,
 } = require('../controllers/contributionController');
 const {
   contributionSchema,
@@ -28,7 +29,6 @@ router.use(protect);
 // CONTRIBUTION RECORDING (Treasurer/Admin only)
 // ============================================================================
 
-// Record new contribution (with rate limiting for financial ops)
 router.post(
   '/:chamaId/record',
   authorize('TREASURER', 'ADMIN'),
@@ -37,7 +37,6 @@ router.post(
   recordContribution,
 );
 
-// Bulk record contributions (Treasurer/Chairperson/Secretary/Admin)
 router.post(
   '/:chamaId/bulk-record',
   authorize('TREASURER', 'CHAIRPERSON', 'SECRETARY', 'ADMIN'),
@@ -46,7 +45,7 @@ router.post(
   bulkRecordContributions,
 );
 
-// Submit new contribution (Member self-service)
+// Submit manual contribution (Member self-service — submits receipt after paying)
 router.post(
   '/:chamaId/submit',
   applyFinancialRateLimiting,
@@ -59,6 +58,13 @@ router.post(
   '/:chamaId/verify/:id',
   authorize('TREASURER', 'CHAIRPERSON'),
   verifyContribution,
+);
+
+// Get all pending manual contributions (Admin/Treasurer)
+router.get(
+  '/:chamaId/pending',
+  authorize('TREASURER', 'CHAIRPERSON', 'ADMIN'),
+  getPendingContributions,
 );
 
 // Get contributions

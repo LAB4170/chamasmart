@@ -38,7 +38,7 @@ const SECURITY_CONFIG = {
   },
 
   PASSWORD: {
-    MIN_LENGTH: 12,
+    MIN_LENGTH: 8,
     REQUIRE_UPPERCASE: true,
     REQUIRE_LOWERCASE: true,
     REQUIRE_NUMBER: true,
@@ -812,7 +812,7 @@ const register = async (req, res) => {
       userId: null,
       action: 'Registration attempt',
       entityType: 'user',
-      entityId: req.body.email,
+      entityId: null, // email is in metadata
       metadata: auditContext.metadata,
       ipAddress: auditContext.ipAddress,
       userAgent: auditContext.userAgent,
@@ -897,7 +897,7 @@ const register = async (req, res) => {
           userId: null,
           action: 'Duplicate registration attempt',
           entityType: 'user',
-          entityId: req.body.email,
+          entityId: null, // email is in metadata
           metadata: {
             ...auditContext.metadata,
             reason: 'Email already exists',
@@ -1062,7 +1062,7 @@ const login = async (req, res) => {
       userId: null,
       action: 'Login attempt',
       entityType: 'user',
-      entityId: email,
+      entityId: null, // entityId is an integer in DB, email should be in metadata
       metadata: auditContext.metadata,
       ipAddress: auditContext.ipAddress,
       userAgent: auditContext.userAgent,
@@ -1117,6 +1117,19 @@ const login = async (req, res) => {
     const user = result.rows[0];
 
     // === VERIFY PASSWORD ===
+    if (!user.password_hash) {
+      logger.logSecurityEvent('Failed login - social login account', {
+        email,
+        ip: clientIP,
+      });
+
+      return res.status(401).json({
+        success: false,
+        message: 'This account was created with Google. Please sign in with Google.',
+        attemptsRemaining: rateLimit.remaining - 1,
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password_hash);
 
     if (!isMatch) {
@@ -1208,7 +1221,7 @@ const login = async (req, res) => {
       userId: null,
       action: 'Login error',
       entityType: 'user',
-      entityId: req.body?.email,
+      entityId: null, // email is in metadata
       metadata: {
         error: error.message,
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,

@@ -147,28 +147,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Custom Vercel Cron Endpoint
-app.get('/api/cron/process', async (req, res) => {
-  // Security check: Only allow if x-vercel-cron header is present or in development
-  const isVercelCron = req.headers['x-vercel-cron'] === '1';
-  const isDev = process.env.NODE_ENV !== 'production';
-
-  if (!isVercelCron && !isDev) {
-    logger.warn('Unauthorized cron attempt', { headers: req.headers });
-    return res.status(401).json({ success: false, message: 'Unauthorized' });
-  }
-
-  logger.info('Processing Vercel Cron...');
-  try {
-    const { runRoscaActivator, runRoscaPenaltyEngine } = require('./utils/scheduler');
-    await Promise.all([runRoscaActivator(), runRoscaPenaltyEngine()]);
-    res.json({ success: true, message: 'Cron jobs processed successfully' });
-  } catch (error) {
-    logger.error('Cron processing failed', { error: error.message });
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
 // Start server
 server.on("error", (err) => {
   logger.error("SERVER FATAL ERROR", { code: err.code, message: err.message });
@@ -192,13 +170,9 @@ if (require.main === module) {
       }
     }
 
-    // Initialize Background Scheduler (Conditional)
-    if (!process.env.VERCEL) {
-        const { initScheduler } = require('./utils/scheduler');
-        initScheduler();
-    } else {
-        logger.info('Background scheduler skipped: VERCEL environment detected');
-    }
+    // Initialize Background Scheduler
+    const { initScheduler } = require('./utils/scheduler');
+    initScheduler();
   });
 }
 
