@@ -108,8 +108,8 @@ const Register = () => {
 
           <form onSubmit={handleRegister}>
             {/* Name Row */}
-            <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
-              <div style={{ flex: 1 }}>
+            <div className="auth-name-row">
+              <div className="auth-name-col">
                 <label className="form-label-auth">First Name</label>
                 <div className="auth-input-container">
                   <div className="auth-input-icon">
@@ -126,15 +126,14 @@ const Register = () => {
                   />
                 </div>
               </div>
-              <div style={{ flex: 1 }}>
+              <div className="auth-name-col">
                 <label className="form-label-auth">Last Name</label>
                 <div className="auth-input-container">
                   <input
                     name="lastName"
                     type="text"
-                    className="auth-input"
+                    className="auth-input auth-input-no-icon"
                     placeholder="Doe"
-                    style={{ paddingLeft: "16px" }}
                     value={formData.lastName}
                     onChange={handleChange}
                     required

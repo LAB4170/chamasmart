@@ -345,8 +345,27 @@
   background: var(--secondary);
 }
 
+.auth-name-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.auth-name-col {
+  flex: 1;
+}
+
+.auth-input-no-icon {
+  padding-left: 16px !important;
+}
+
 /* Responsive adjustments */
 @media (max-width: 480px) {
+  .auth-name-row {
+    flex-direction: column;
+    gap: 16px;
+  }
+
   .auth-card {
     padding: 24px 20px;
   }
