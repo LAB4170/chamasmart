@@ -17,8 +17,9 @@ import LoanConfigCard from "../../../components/LoanConfigCard";
 import ManualPaymentModal from "../../../components/payments/ManualPaymentModal";
 import PendingContributions from "../../../components/payments/PendingContributions";
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import html2canvas from 'html2canvas';
 import { FixedSizeList as List } from "react-window";
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import {
@@ -812,122 +813,300 @@ const ChamaDetails = () => {
     return "WAITING";
   }, [isROSCA, roster]);
 
-  const handleExportPDF = () => {
-    const doc = new jsPDF();
-    doc.text(`${chama.chama_name} - Financial Report`, 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 22);
+  const handleExportPDF = async () => {
+    console.log("DEBUG: Antigravity handleExportPDF version 3 (functional autoTable)");
+    try {
+      // 1. Show processing toast
+      const toastId = toast.loading("Generating professional PDF report...");
+      
+      const doc = new jsPDF();
+      
+      // 2. Header Styling
+      doc.setFillColor(79, 70, 229); // Primary Indigo
+      doc.rect(0, 0, 210, 25, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${chama.chama_name} - Financial Report`, 14, 16);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 22);
+      
+      let currentY = 35;
+      doc.setTextColor(0, 0, 0);
 
-    let currentY = 30;
-
-    if ((chama.chama_type === "ASCA" || chama.chama_type === "TABLE_BANKING") && ascaReports) {
-      doc.setFontSize(12);
-      doc.text("Financial Summary", 14, currentY);
-      const summaryData = [
-        ["Total Savings", formatCurrency(ascaReports.stats?.totalSavings || 0)],
-        ["Interest Collected", formatCurrency(ascaReports.stats?.interestCollected || 0)],
-        ["Dividends Distributed", formatCurrency(ascaReports.stats?.totalDividends || 0)],
-        ["Outstanding Loans", formatCurrency(ascaReports.stats?.outstandingBalance || 0)],
-        ["Liquid Cash", formatCurrency(ascaReports.readiness?.liquidCash || 0)]
+      // 3. Chama Details
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Group Information", 14, currentY);
+      currentY += 8;
+      
+      const infoData = [
+        ["Type:", getChamaTypeLabel(chama.chama_type), "Total Members:", members?.length?.toString() || "0"],
+        ["Contribution:", formatCurrency(chama.contribution_amount), "Frequency:", chama.contribution_frequency],
+        ["Total Collected:", formatCurrency(stats?.total_contributions || 0), "Current Fund:", formatCurrency(stats?.current_fund || 0)]
       ];
-      if (typeof doc.autoTable === 'function') {
-        doc.autoTable({
+      
+      autoTable(doc, {
+        startY: currentY,
+        body: infoData,
+        theme: 'plain',
+        styles: { fontSize: 10, cellPadding: 2, font: "helvetica" },
+        columnStyles: {
+          0: { fontStyle: 'bold', textColor: [100, 100, 100] },
+          2: { fontStyle: 'bold', textColor: [100, 100, 100] }
+        }
+      });
+      currentY = doc.lastAutoTable.finalY + 15;
+
+      // 4. ASCA/Table Banking Financial Summary
+      if ((chama.chama_type === "ASCA" || chama.chama_type === "TABLE_BANKING") && ascaReports) {
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("Financial Summary", 14, currentY);
+        
+        const summaryData = [
+          ["Total Savings", formatCurrency(ascaReports.stats?.totalSavings || 0)],
+          ["Interest Collected", formatCurrency(ascaReports.stats?.interestCollected || 0)],
+          ["Dividends Distributed", formatCurrency(ascaReports.stats?.totalDividends || 0)],
+          ["Outstanding Loans", formatCurrency(ascaReports.stats?.outstandingBalance || 0)],
+          ["Liquid Cash", formatCurrency(ascaReports.readiness?.liquidCash || 0)]
+        ];
+        
+        autoTable(doc, {
           startY: currentY + 5,
           body: summaryData,
-          theme: 'grid'
+          theme: 'grid',
+          headStyles: { fillColor: [243, 244, 246], textColor: [0, 0, 0] },
+          styles: { font: 'helvetica' }
         });
         currentY = doc.lastAutoTable.finalY + 15;
-      } else {
-        console.error("jsPDF-AutoTable not initialized correctly");
-        currentY += 40; // fallback spacing
       }
-    }
 
-    const tableData = contributions.map(c => [
-      formatDate(c.contribution_date),
-      c.contributor_name,
-      formatCurrency(c.amount),
-      c.payment_method
-    ]);
+      // 5. Incorporate Charts (Snapshot)
+      const chartsDiv = document.getElementById('finance-reports-charts');
+      if (chartsDiv) {
+        try {
+          // Temporarily hide actions for the screenshot
+          const actions = chartsDiv.querySelector('.report-actions');
+          if (actions) actions.style.display = 'none';
 
-    doc.setFontSize(12);
-    doc.text("Recent Contributions", 14, currentY);
-    if (typeof doc.autoTable === 'function') {
-      doc.autoTable({
+          const canvas = await html2canvas(chartsDiv, { 
+            scale: 1.5, 
+            useCORS: true, 
+            logging: false,
+            backgroundColor: '#ffffff'
+          });
+
+          if (actions) actions.style.display = 'flex';
+          
+          const imgData = canvas.toDataURL('image/png');
+          
+          if (currentY > 160) {
+             doc.addPage();
+             currentY = 20;
+          }
+          
+          doc.setFontSize(14);
+          doc.setFont("helvetica", "bold");
+          doc.text("Analytics & Trends Dashboard", 14, currentY);
+          
+          const imgWidth = 180;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          
+          doc.addImage(imgData, 'PNG', 15, currentY + 5, imgWidth, imgHeight);
+          currentY += imgHeight + 20;
+          
+        } catch(htmlErr) {
+          console.error("Chart capture failed", htmlErr);
+        }
+      }
+
+      // 6. Member Balances
+      if (currentY > 240) { doc.addPage(); currentY = 20; }
+      
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Member Balances", 14, currentY);
+      
+      const memberData = members.map(m => [
+        `${m.first_name} ${m.last_name}`,
+        m.role || 'MEMBER',
+        formatCurrency(m.total_contributions || 0)
+      ]);
+      
+      autoTable(doc, {
+        startY: currentY + 5,
+        head: [['Member Name', 'Role', 'Total Contributed']],
+        body: memberData,
+        theme: 'striped',
+        headStyles: { fillColor: [79, 70, 229] }
+      });
+      currentY = doc.lastAutoTable.finalY + 15;
+
+      // 7. Active Loans (if applicable)
+      if (["ASCA", "TABLE_BANKING"].includes(chama.chama_type)) {
+        let loansToExport = loans;
+        if (loansToExport.length === 0 && !loading) {
+          try {
+             const res = await loanAPI.getChamaLoans(id);
+             loansToExport = res.data?.data?.loans || res.data?.loans || res.data?.data || res.data || [];
+          } catch(e) {
+             console.error("Failed fetching loans for export", e);
+          }
+        }
+        
+        if (loansToExport.length > 0) {
+          if (currentY > 250) { doc.addPage(); currentY = 20; }
+          doc.setFontSize(14);
+          doc.setFont("helvetica", "bold");
+          doc.text("Loan Portfolio", 14, currentY);
+          
+          const loanData = loansToExport.map(l => [
+            l.borrower_name,
+            formatCurrency(l.loan_amount),
+            formatCurrency(l.balance || 0),
+            l.status,
+            formatDate(l.created_at)
+          ]);
+          
+          autoTable(doc, {
+            startY: currentY + 5,
+            head: [['Borrower', 'Principal', 'Balance', 'Status', 'Date']],
+            body: loanData,
+            theme: 'striped',
+            headStyles: { fillColor: [16, 185, 129] } // Emerald
+          });
+          currentY = doc.lastAutoTable.finalY + 15;
+        }
+      }
+
+      // 8. Recent Contributions
+      if (currentY > 250) { doc.addPage(); currentY = 20; }
+      const contribTableData = contributions.slice(0, 50).map(c => [
+        formatDate(c.contribution_date),
+        c.contributor_name,
+        formatCurrency(c.amount),
+        c.payment_method || 'MANUAL'
+      ]);
+
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Contributions History (Last 50 transactions)", 14, currentY);
+      autoTable(doc, {
         startY: currentY + 5,
         head: [['Date', 'Member', 'Amount', 'Method']],
-        body: tableData,
+        body: contribTableData,
+        theme: 'striped',
+        headStyles: { fillColor: [79, 70, 229] }
       });
-    }
 
-    doc.save(`${chama.chama_name}_Report.pdf`);
-  };
+      // 9. Add Footer with page numbers
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`ChamaSmart Financial Report - Page ${i} of ${pageCount}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+      }
 
-  const handleUpdateConstitution = async (e) => {
-    e.preventDefault();
-    try {
-      await chamaAPI.update(id, {
-        constitution_config: constitutionForm,
-        description: constitutionText
-      });
-      alert("Constitution updated successfully!");
-      fetchChamaData();
+      doc.save(`${chama.chama_name.replace(/\s+/g, '_')}_Financial_Report.pdf`);
+      toast.update(toastId, { render: "PDF Report generated successfully", type: "success", isLoading: false, autoClose: 3000 });
     } catch (err) {
       console.error(err);
-      alert("Failed to update constitution");
+      toast.dismiss();
+      toast.error("Failed to generate PDF. Please try again.");
     }
   };
 
-  const handleActivateCycle = async (cycleId) => {
+  const handleExportExcel = async () => {
     try {
-      await roscaAPI.activateCycle(cycleId);
-      toast.success("Cycle activated successfully!");
-      fetchChamaData();
-    } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Failed to activate cycle");
-    }
-  };
-
-  const handleSwapResponse = async (requestId, action) => {
-    try {
-      await roscaAPI.respondToSwap(requestId, action);
-      alert(`Swap request ${action.toLowerCase()}ed`);
-      fetchChamaData(); // Refresh to see new order
-    } catch (err) {
-      console.error(err);
-      alert("Failed to process request");
-    }
-  };
-
-  const handleExportExcel = () => {
-    const wb = XLSX.utils.book_new();
-
-    // Sheet 1: Contributions
-    const contribData = contributions.map(c => ({
-      Date: formatDate(c.contribution_date),
-      Member: c.contributor_name,
-      Amount: c.amount,
-      Method: c.payment_method,
-      Notes: c.notes || ''
-    }));
-    const wsContrib = XLSX.utils.json_to_sheet(contribData);
-    XLSX.utils.book_append_sheet(wb, wsContrib, "Contributions");
-
-    // Sheet 2: Summary (If applicable)
-    if ((chama.chama_type === "ASCA" || chama.chama_type === "TABLE_BANKING") && ascaReports) {
-      const summaryData = [
-        { Metric: "Total Savings", Value: ascaReports.stats?.totalSavings || 0 },
-        { Metric: "Interest Collected", Value: ascaReports.stats?.interestCollected || 0 },
-        { Metric: "Dividends Distributed", Value: ascaReports.stats?.totalDividends || 0 },
-        { Metric: "Outstanding Loans", Value: ascaReports.stats?.outstandingBalance || 0 },
-        { Metric: "Liquid Cash", Value: ascaReports.readiness?.liquidCash || 0 }
+      const toastId = toast.loading("Generating comprehensive Excel workbook...");
+      const wb = XLSX.utils.book_new();
+      
+      // 1. Dashboard / Summary Sheet
+      const summarySheetData = [
+        ["Chama Name", chama.chama_name],
+        ["Type", getChamaTypeLabel(chama.chama_type)],
+        ["Date Generated", new Date().toLocaleString()],
+        [""],
+        ["--- FUND SUMMARY ---", ""],
+        ["Total Members", members?.length || 0],
+        ["Total Collected", stats?.total_contributions || 0],
+        ["Current Fund", stats?.current_fund || 0]
       ];
-      const wsSummary = XLSX.utils.json_to_sheet(summaryData);
-      XLSX.utils.book_append_sheet(wb, wsSummary, "Financial Summary");
-    }
+      
+      if ((chama.chama_type === "ASCA" || chama.chama_type === "TABLE_BANKING") && ascaReports) {
+        summarySheetData.push([""]);
+        summarySheetData.push(["--- FINANCIAL METRICS ---", ""]);
+        summarySheetData.push(["Total Savings", ascaReports.stats?.totalSavings || 0]);
+        summarySheetData.push(["Interest Collected", ascaReports.stats?.interestCollected || 0]);
+        summarySheetData.push(["Dividends Distributed", ascaReports.stats?.totalDividends || 0]);
+        summarySheetData.push(["Outstanding Loans", ascaReports.stats?.outstandingBalance || 0]);
+        summarySheetData.push(["Liquid Cash", ascaReports.readiness?.liquidCash || 0]);
+      }
+      
+      const wsSummary = XLSX.utils.aoa_to_sheet(summarySheetData);
+      wsSummary['!cols'] = [{ wch: 25 }, { wch: 30 }];
+      XLSX.utils.book_append_sheet(wb, wsSummary, "Overview Summary");
 
-    XLSX.writeFile(wb, `${chama.chama_name}_Report.xlsx`);
+      // 2. Member Balances
+      const memberSheetData = members.map(m => ({
+        "Member Name": `${m.first_name} ${m.last_name}`,
+        "Role": m.role || 'MEMBER',
+        "Phone": m.phone_number || '',
+        "Status": m.is_active ? 'Active' : 'Inactive',
+        "Total Contributed": m.total_contributions || 0
+      }));
+      const wsMembers = XLSX.utils.json_to_sheet(memberSheetData);
+      wsMembers['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 10 }, { wch: 20 }];
+      XLSX.utils.book_append_sheet(wb, wsMembers, "Member Balances");
+
+      // 3. Loans (if applicable)
+      if (["ASCA", "TABLE_BANKING"].includes(chama.chama_type)) {
+        let loansToExport = loans;
+        if (loansToExport.length === 0 && !loading) {
+           try {
+             const res = await loanAPI.getChamaLoans(id);
+             loansToExport = res.data?.data?.loans || res.data?.loans || res.data?.data || res.data || [];
+           } catch(e) {}
+        }
+        
+        if (loansToExport.length > 0) {
+          const loanSheetData = loansToExport.map(l => ({
+            "Borrower": l.borrower_name,
+            "Principal Amount": l.loan_amount,
+            "Total Repayable": l.total_repayable || 0,
+            "Balance": l.balance || 0,
+            "Status": l.status,
+            "Date Applied": formatDate(l.created_at)
+          }));
+          const wsLoans = XLSX.utils.json_to_sheet(loanSheetData);
+          wsLoans['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 20 }];
+          XLSX.utils.book_append_sheet(wb, wsLoans, "Loan Portfolio");
+        }
+      }
+
+      // 4. Contributions History
+      const contribSheetData = contributions.map(c => ({
+        "Date": formatDate(c.contribution_date),
+        "Member Name": c.contributor_name,
+        "Amount": c.amount,
+        "Method": c.payment_method || 'MANUAL',
+        "Transaction Ref": c.transaction_reference || '',
+        "Notes": c.notes || ''
+      }));
+      const wsContrib = XLSX.utils.json_to_sheet(contribSheetData);
+      wsContrib['!cols'] = [{ wch: 20 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 25 }, { wch: 35 }];
+      XLSX.utils.book_append_sheet(wb, wsContrib, "Contributions Ledger");
+
+      XLSX.writeFile(wb, `${chama.chama_name.replace(/\s+/g, '_')}_Financial_Report.xlsx`);
+      toast.update(toastId, { render: "Excel Report generated successfully", type: "success", isLoading: false, autoClose: 3000 });
+    } catch(err) {
+      console.error(err);
+      toast.dismiss();
+      toast.error("Failed to generate Excel report");
+    }
   };
 
   const handleUpdateRole = (userId, newRole) => {
@@ -2203,9 +2382,9 @@ const ChamaDetails = () => {
             )}
 
             {activeTab === "reports" && (
-              <div className="card">
-                <div className="card-header flex-between">
-                  <h3>Chama Reports & Analytics</h3>
+              <div className="card border-0 shadow-sm" id="finance-reports-charts">
+                <div className="card-header flex-between border-b pb-4 mb-4">
+                  <h3 className="card-title-premium m-0 text-xl font-bold flex items-center gap-2">Chama Reports & Analytics</h3>
                   <div className="report-actions">
                     <button className="btn btn-sm btn-outline" onClick={handleExportPDF} aria-label="Export PDF report">
                       <FileText size={16} /> Export PDF

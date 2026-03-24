@@ -8,7 +8,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 
 export default function LoanAnalyticsDashboard({ chamaId }) {
@@ -62,7 +62,7 @@ export default function LoanAnalyticsDashboard({ chamaId }) {
       doc.setTextColor(33, 37, 41);
       doc.text("Financial Summary", 14, 45);
 
-      doc.autoTable({
+      autoTable(doc, {
         startY: 50,
         head: [['Metric', 'Value']],
         body: [
@@ -82,7 +82,7 @@ export default function LoanAnalyticsDashboard({ chamaId }) {
       doc.setFontSize(14);
       doc.text("Upcoming Repayments (Next 30 Days)", 14, nextY);
 
-      doc.autoTable({
+      autoTable(doc, {
         startY: nextY + 5,
         head: [['Borrower', 'Amount Due', 'Due Date']],
         body: data.upcomingRepayments.map(r => [

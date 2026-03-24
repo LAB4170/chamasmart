@@ -25,6 +25,7 @@
     "axios": "1.13.6",
     "firebase": "^12.8.0",
     "framer-motion": "^12.29.2",
+    "html2canvas": "^1.4.1",
     "jspdf": "4.2.1",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.564.0",
