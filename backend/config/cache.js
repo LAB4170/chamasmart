@@ -223,7 +223,7 @@ class CacheManager {
   async get(key, options = {}) {
     const start = Date.now();
     const versionedKey = this.versionKey(key);
-    const customTTL = options.ttl || this.memoryCache.options.ttl;
+    const customTTL = options.ttl || this.memoryCache.ttl || 60000;
 
     try {
       // Layer 1: Memory cache
