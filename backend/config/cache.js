@@ -121,11 +121,7 @@ class CacheManager {
           nodes: redisConfig.nodes.length,
         });
       } else {
-        this.redis = new Redis({
-          host: redisConfig.host,
-          port: redisConfig.port,
-          password: redisConfig.password,
-          db: 0,
+        const connectionOptions = {
           retryStrategy: (times) => {
             if (times > 10) {
               logger.error("Redis max retries exceeded");
@@ -136,11 +132,25 @@ class CacheManager {
           maxRetriesPerRequest: 3,
           enableReadyCheck: true,
           lazyConnect: false,
-        });
-        logger.info("Redis client initialized", {
-          host: redisConfig.host,
-          port: redisConfig.port,
-        });
+          tls: redisConfig.url && redisConfig.url.startsWith("rediss://") ? {} : undefined,
+        };
+
+        if (redisConfig.url) {
+          this.redis = new Redis(redisConfig.url, connectionOptions);
+          logger.info("Redis client initialized from URL");
+        } else {
+          this.redis = new Redis({
+            host: redisConfig.host,
+            port: redisConfig.port,
+            password: redisConfig.password,
+            db: 0,
+            ...connectionOptions,
+          });
+          logger.info("Redis client initialized from host/port", {
+            host: redisConfig.host,
+            port: redisConfig.port,
+          });
+        }
       }
 
       this.setupRedisEventHandlers();
@@ -208,6 +218,7 @@ class CacheManager {
         host: process.env.REDIS_HOST || "localhost",
         port: parseInt(process.env.REDIS_PORT) || 6379,
         password: process.env.REDIS_PASSWORD,
+        url: process.env.REDIS_URL,
       };
     }
 

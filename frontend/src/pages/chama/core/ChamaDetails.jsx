@@ -814,7 +814,6 @@ const ChamaDetails = () => {
   }, [isROSCA, roster]);
 
   const handleExportPDF = async () => {
-    console.log("DEBUG: Antigravity handleExportPDF version 3 (functional autoTable)");
     try {
       // 1. Show processing toast
       const toastId = toast.loading("Generating professional PDF report...");
