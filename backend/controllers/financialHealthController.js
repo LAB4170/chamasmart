@@ -147,12 +147,17 @@ const getHealthAlerts = async (req, res, next) => {
     );
 
     const { rows: recentLogs } = await pool.query(
-      `SELECT event_type, severity, created_at FROM audit_logs 
-       WHERE entity_id = $1 AND entity_type = 'chama'
+      `SELECT action as event_type, severity, created_at FROM audit_logs 
+       WHERE ((entity_id::text = $1 AND entity_type = 'chama') 
+          OR (metadata->>'chamaId' = $1))
        AND created_at > NOW() - interval '7 days'
        ORDER BY created_at DESC LIMIT 5`,
-      [chamaId]
+      [chamaId.toString()]
     );
+
+    const totalFund = parseFloat(current_fund) + parseFloat(stats.active_loans_total);
+    const liquidityRatio = totalFund > 0 ? (parseFloat(current_fund) / totalFund) : 0;
+    const loanUtilization = totalFund > 0 ? (parseFloat(stats.active_loans_total) / totalFund) : 0;
 
     const context = { 
         chama_name, chama_type, current_fund, cb, overdueLoans, claims, welfareBal, stats,
