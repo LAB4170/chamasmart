@@ -79,7 +79,7 @@ const getChamaById = async (req, res) => {
     const result = await pool.query(
       `SELECT c.chama_id, c.chama_name, c.chama_type, c.description, c.contribution_amount, 
               c.contribution_frequency, c.meeting_day, c.meeting_time, c.current_fund, 
-              c.total_members, c.visibility, c.created_at, c.constitution_config,
+              c.total_members, c.visibility, c.is_verified, c.created_at, c.constitution_config,
               c.payment_methods,
               u.first_name || ' ' || u.last_name as creator_name
        FROM chamas c
@@ -95,11 +95,32 @@ const getChamaById = async (req, res) => {
       });
     }
 
-    cache.set(cacheKey, result.rows[0]);
+    // Auto-Verification Logic: Check if chama meets high-trust criteria
+    const chama = result.rows[0];
+    if (!chama.is_verified) {
+      const { rows: statsRes } = await pool.query(
+        `SELECT 
+          (SELECT COUNT(*) FROM loans WHERE chama_id = $1 AND status = 'DEFAULTED') as default_count,
+          (SELECT COUNT(*) FROM contributions WHERE chama_id = $1 AND status = 'COMPLETED') as contribution_count
+         FROM chamas WHERE chama_id = $1`,
+        [chamaId]
+      );
+      
+      const stats = statsRes[0];
+      const ageInDays = (new Date() - new Date(chama.created_at)) / (1000 * 60 * 60 * 24);
+      
+      // If chama is >30 days old, has >10 completed contributions, and 0 defaults, mark verified
+      if (ageInDays > 30 && stats.contribution_count > 10 && stats.default_count == 0) {
+        await pool.query('UPDATE chamas SET is_verified = true WHERE chama_id = $1', [chamaId]);
+        chama.is_verified = true;
+      }
+    }
+
+    cache.set(cacheKey, chama);
 
     res.json({
       success: true,
-      data: result.rows[0],
+      data: chama,
     });
   } catch (error) {
     console.error('Get chama error:', error);
@@ -687,6 +708,7 @@ const getPublicChamas = async (req, res) => {
         c.contribution_amount, 
         c.contribution_frequency, 
         c.total_members, 
+        c.is_verified,
         c.created_at,
         u.first_name || ' ' || u.last_name as creator_name
       FROM chamas c

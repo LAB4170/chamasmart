@@ -9,7 +9,7 @@ import {
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Plus, Search, TrendingUp, Users, Wallet, ArrowRight,
-  PieChart, Activity, DollarSign, ShieldCheck, BarChart3
+  PieChart, Activity, DollarSign, ShieldCheck, BarChart3, CheckCircle2
 } from "lucide-react";
 
 // ─── StatCard ───────────────────────────────────────────────────────────────
@@ -105,7 +105,12 @@ const DashboardChamaCard = memo(({ chama, getChamaTypeLabel, formatCurrency }) =
   <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
     <Link to={`/chamas/${chama.chama_id}`} className="cycle-card-modern group" style={{ textDecoration: "none" }}>
       <div className="cycle-card-top">
-        <div className="cycle-card-name">{chama.chama_name}</div>
+        <div className="cycle-card-name" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          {chama.chama_name}
+          {chama.is_verified && (
+            <CheckCircle2 size={14} style={{ color: '#3b82f6', fill: 'rgba(59, 130, 246, 0.1)' }} />
+          )}
+        </div>
         <span className={`cycle-badge ${chama.chama_type === "ROSCA" ? "badge-completed" : "badge-active"}`}>
           {getChamaTypeLabel(chama.chama_type)}
         </span>

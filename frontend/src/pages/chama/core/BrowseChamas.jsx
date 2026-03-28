@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { chamaAPI, joinRequestAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import LoadingSkeleton from "../../../components/LoadingSkeleton";
+import { CheckCircle2 } from "lucide-react";
 
 // Memoized Chama card component to prevent unnecessary re-renders
 const ChamaCard = memo(({ chama, onDetails, onRequest, requestingId, formatCurrency, getChamaTypeColor, isRequested }) => {
@@ -10,7 +11,12 @@ const ChamaCard = memo(({ chama, onDetails, onRequest, requestingId, formatCurre
         <div className="card" style={{ cursor: "pointer" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: "1rem" }}>
                 <div>
-                    <h3 style={{ marginBottom: "0.5rem" }}>{chama.chama_name}</h3>
+                    <h3 style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.5rem" }}>
+                        {chama.chama_name}
+                        {chama.is_verified && (
+                            <CheckCircle2 size={16} style={{ color: "#3b82f6", fill: "rgba(59, 130, 246, 0.1)" }} />
+                        )}
+                    </h3>
                     <span
                         className="badge"
                         style={{ backgroundColor: getChamaTypeColor(chama.chama_type), color: "white" }}

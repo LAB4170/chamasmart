@@ -133,23 +133,45 @@ const getHealthAlerts = async (req, res, next) => {
     );
     const welfareBal = welfareFund[0]?.balance || 0;
 
-    // Derived Ratios
-    const liquidityRatio = stats.total_savings > 0 ? (current_fund / stats.total_savings) : 0;
-    const loanUtilization = (stats.total_savings + stats.total_interest_earned) > 0 
-        ? (stats.active_loans_total / (stats.total_savings + stats.total_interest_earned)) 
-        : 0;
+    // 4. Gather Deep Context (Participation Trends & Audit Anomalies)
+    const { rows: trendRows } = await pool.query(
+      `SELECT 
+         date_trunc('month', contribution_date) as month,
+         COUNT(DISTINCT user_id) as active_contributors,
+         SUM(amount) as total_amount
+       FROM contributions 
+       WHERE chama_id = $1 AND status = 'COMPLETED'
+       AND contribution_date > NOW() - interval '3 months'
+       GROUP BY 1 ORDER BY 1 DESC`,
+      [chamaId]
+    );
+
+    const { rows: recentLogs } = await pool.query(
+      `SELECT event_type, severity, created_at FROM audit_logs 
+       WHERE entity_id = $1 AND entity_type = 'chama'
+       AND created_at > NOW() - interval '7 days'
+       ORDER BY created_at DESC LIMIT 5`,
+      [chamaId]
+    );
 
     const context = { 
         chama_name, chama_type, current_fund, cb, overdueLoans, claims, welfareBal, stats,
-        liquidityRatio, loanUtilization, activeLoansTotal: stats.active_loans_total
+        liquidityRatio, loanUtilization, activeLoansTotal: stats.active_loans_total,
+        trends: trendRows,
+        recentActivity: recentLogs
     };
 
-    // 4. Try AI Engine (Enhanced Prompt)
+    // 5. Try AI Engine (Enhanced Prompt with Deep Context)
     if (process.env.GROQ_API_KEY) {
       try {
         const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
         const persona = `You are a Senior Financial Advisor for "ChamaSmart", an app for micro-savings groups (Chamas). 
-        Analyze the following technical data and provide 3 HIGHLY ACCURATE, ARCHETYPAL alerts.`;
+        Analyze the following technical data and provide 3 HIGHLY ACCURATE, ARCHETYPAL alerts.
+        
+        CRITICAL: Analyze TRENDS, not just current state. Look for:
+        1. "Ghosting": Are fewer members contributing each month? (Churn risk)
+        2. "Liquidity Drag": Is the cash-in-hand too high vs active loans? (Growth risk)
+        3. "Operational Risk": Are there many HIGH severity audit logs recently?`;
 
         const prompt = `${persona}
           Chama: ${chama_name} (${chama_type})
@@ -157,16 +179,18 @@ const getHealthAlerts = async (req, res, next) => {
           Cash in Hand: KES ${current_fund}
           Total Member Savings: KES ${stats.total_savings}
           Liquidity Ratio: ${(liquidityRatio * 100).toFixed(1)}% (Target 20-40%)
-          Interest Earned to Date: KES ${stats.total_interest_earned}
-          Outstanding Loans: KES ${stats.active_loans_total} (${(loanUtilization * 100).toFixed(1)}% utilization)
-          Overdue Loans: ${overdueLoans[0].count} (totaling KES ${overdueLoans[0].total})
-          Welfare: Bal KES ${welfareBal} vs Pending Claims KES ${claims[0].total_pending}
-          Group Score: ${cb.composite_score}/100
+          Interest Earned: KES ${stats.total_interest_earned}
+          Active Loans: KES ${stats.active_loans_total} (${(loanUtilization * 100).toFixed(1)}% utilization)
+          Overdue: ${overdueLoans[0].count} (KES ${overdueLoans[0].total})
+          Welfare: Bal KES ${welfareBal} vs Pending KES ${claims[0].total_pending}
+          Score: ${cb.composite_score}/100
+          
+          RECENT AUDIT LOGS: ${JSON.stringify(recentLogs)}
+          3-MONTH TRENDS: ${JSON.stringify(trendRows)}
 
           REQUIREMENTS:
           - Return exactly 3 alerts.
-          - 1 "CRITICAL" (if urgent risk exists), 1 "WARNING" (medium risk), 1 "TIP" (opportunity for growth/efficiency).
-          - Use professional yet encouraging tone.
+          - Use professional, context-aware Kenyan financial terminology (e.g. mention 'pot', 'dividends').
           - Format: JSON array of objects with fields: {id, severity, icon, title, detail, action}`;
 
         const completion = await groq.chat.completions.create({

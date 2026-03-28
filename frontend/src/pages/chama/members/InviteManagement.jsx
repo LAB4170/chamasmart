@@ -18,6 +18,9 @@ const InviteManagement = () => {
     const [generating, setGenerating] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [bulkEmails, setBulkEmails] = useState('');
+
+    const emailsCount = bulkEmails.split(',').map(e => e.trim()).filter(e => e).length;
 
     const fetchData = async () => {
         try {
@@ -101,7 +104,7 @@ const InviteManagement = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
                     <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.5rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                        <div style={{ padding: '0.5rem', background: 'rgba(37, 99, 235, 0.1)', borderRadius: '10px', color: 'var(--primary)' }}>
+                        <div style={{ padding: '0.5rem', background: 'var(--bg-primary-light)', borderRadius: '10px', color: 'var(--primary)' }}>
                             <Share2 size={24} />
                         </div>
                         Invite Management
@@ -135,20 +138,101 @@ const InviteManagement = () => {
                 </div>
             )}
 
-            {/* Quick Action Card - Premium Gradient */}
+            {/* Bulk Email Invitations - NEW */}
             <div style={{
-                background: 'linear-gradient(135deg, var(--primary), #1e40af)', // Fallback to blue if var fails, but roughly correct
+                background: 'var(--card-bg)',
                 borderRadius: '16px',
-                padding: '2rem',
+                padding: '1.5rem',
+                border: '1px solid var(--border)',
+                marginBottom: '2rem',
+                boxShadow: 'var(--shadow)'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <div style={{ padding: '0.5rem', background: 'var(--bg-primary-light)', borderRadius: '8px', color: 'var(--primary)' }}>
+                        <Plus size={20} />
+                    </div>
+                    <div>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0 }}>Invite via Email</h3>
+                        <p style={{ color: 'var(--gray)', fontSize: '0.85rem', margin: 0 }}>Send professional invitations powered by Resend</p>
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', width: '100%' }}>
+                    <div style={{ flex: '1 1 250px', minWidth: '200px' }}>
+                        <textarea
+                            placeholder="Enter emails separated by commas (e.g. member1@gmail.com, member2@gmail.com)"
+                            style={{
+                                width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)',
+                                background: 'transparent', color: 'var(--text-primary)', minHeight: '80px',
+                                resize: 'none', fontSize: '0.9rem'
+                            }}
+                            value={bulkEmails}
+                            onChange={(e) => setBulkEmails(e.target.value)}
+                        />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.50rem' }}>
+                      <button
+                          onClick={async () => {
+                              const emails = bulkEmails.split(',').map(e => e.trim()).filter(e => e);
+                              if (emails.length === 0) return setError('Please enter at least one email');
+                              
+                              setGenerating(true);
+                              setError('');
+                              setSuccess('');
+                              
+                              let successCount = 0;
+                              let failCount = 0;
+
+                              for (const email of emails) {
+                                  try {
+                                      await inviteAPI.send(id, email);
+                                      successCount++;
+                                  } catch (err) {
+                                      console.error(`Failed to invite ${email}`, err);
+                                      failCount++;
+                                  }
+                              }
+
+                              setGenerating(false);
+                              if (successCount > 0) {
+                                  setSuccess(`Successfully sent ${successCount} invitation(s). ${failCount > 0 ? `${failCount} failed.` : ''}`);
+                                  setBulkEmails('');
+                                  fetchData();
+                              } else if (failCount > 0) {
+                                  setError(`Failed to send invitations. Ensure emails are valid and API is connected.`);
+                              }
+                          }}
+                          disabled={generating}
+                          style={{
+                              padding: '0.75rem 1.5rem', background: 'var(--primary)',
+                              color: 'white', border: 'none', borderRadius: '10px',
+                              fontWeight: 600, cursor: generating ? 'not-allowed' : 'pointer',
+                              display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem'
+                          }}
+                      >
+                          {generating ? <RefreshCw size={16} className="animate-spin" /> : <Plus size={16} />}
+                          {generating ? 'Sending...' : 'Send Invites'}
+                      </button>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--gray)', textAlign: 'center' }}>
+                         {emailsCount || 0} emails detected
+                      </p>
+                    </div>
+                </div>
+            </div>
+
+            <div style={{
+                background: 'var(--primary)', 
+                borderRadius: '16px',
+                padding: '1.5rem',
                 color: 'white',
                 marginBottom: '2rem',
-                boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.2)'
+                boxShadow: 'var(--shadow-md)'
             }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                     <div>
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem', color: 'white' }}>Generate Quick Invite</h2>
-                        <p style={{ color: 'rgba(255, 255, 255, 0.9)', margin: 0, fontSize: '0.95rem', maxWidth: '400px' }}>
-                            Create a single-use invite code valid for 7 days. Ideally used for sharing directly with a new member.
+                        <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem', color: 'white' }}>Generate Quick Invite Link</h2>
+                        <p style={{ color: 'rgba(255, 255, 255, 0.9)', margin: 0, fontSize: '0.85rem', maxWidth: '400px' }}>
+                            Create a single-use code for manual sharing.
                         </p>
                     </div>
                     <button
@@ -156,14 +240,14 @@ const InviteManagement = () => {
                         disabled={generating}
                         style={{
                             display: 'flex', alignItems: 'center', gap: '0.5rem',
-                            padding: '0.75rem 1.5rem', background: 'white',
+                            padding: '0.6rem 1.25rem', background: 'white',
                             color: 'var(--primary)', border: 'none', borderRadius: '10px',
                             fontWeight: 600, cursor: generating ? 'not-allowed' : 'pointer',
-                            boxShadow: '0 4px 6px rgba(0,0,0,0.1)', opacity: generating ? 0.8 : 1
+                            fontSize: '0.9rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
                         }}
                     >
-                        {generating ? <Loader size={18} className="animate-spin" /> : <Plus size={18} />}
-                        {generating ? 'Creating...' : 'Create Code'}
+                        {generating ? <Loader size={16} className="animate-spin" /> : <LinkIcon size={16} />}
+                        Create Code
                     </button>
                 </div>
             </div>

@@ -72,8 +72,15 @@ const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavig
         </button>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: 0 }}>
-          <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {chama.chama_name}
+            {chama.is_verified && (
+              <CheckCircle2 
+                size={18} 
+                style={{ color: '#3b82f6', fill: 'rgba(59, 130, 246, 0.1)', flexShrink: 0 }} 
+                title="Verified Chama"
+              />
+            )}
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             {/* Chama type badge â€” uses theme primary color */}
