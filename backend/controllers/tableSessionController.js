@@ -97,50 +97,63 @@ const getSessionData = async (req, res, next) => {
   }
 };
 
-// 3. CLOSE SESSION (Phase 21: Hard-Lock Reconciliation)
+// 3. CLOSE SESSION (Hard-Lock Reconciliation Enforcement)
 const closeSession = async (req, res, next) => {
   const { chamaId, meetingId } = req.params;
   const { physical_cash_count, discrepancy_note } = req.body;
 
   if (physical_cash_count === undefined || physical_cash_count === null) {
-    return res.status(400).json({ success: false, message: 'physical_cash_count is required to close a session.' });
+    return res.status(400).json({ success: false, message: "Physical cash count is required to close a session." });
   }
 
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
+    await client.query("BEGIN");
 
-    // Lock meeting row
+    // Lock meeting row for reconciliation calculation
     const sessionRes = await client.query(
-      `SELECT m.opening_cash, m.total_collections, m.total_disbursements, m.session_status
-       FROM meetings m WHERE m.meeting_id = $1 AND m.chama_id = $2 FOR UPDATE`,
+      `SELECT m.opening_cash, m.total_collections, m.total_disbursements, m.session_status, m.title
+       FROM meetings m 
+       WHERE m.meeting_id = $1 AND m.chama_id = $2 
+       FOR UPDATE`,
       [meetingId, chamaId]
     );
 
-    if (sessionRes.rows.length === 0) throw new AppError('Meeting not found', 404);
-    if (sessionRes.rows[0].session_status !== 'OPEN') throw new AppError('Session is not currently open', 400);
+    if (sessionRes.rows.length === 0) throw new AppError("Meeting not found", 404);
+    if (sessionRes.rows[0].session_status !== "OPEN") throw new AppError("Session is not currently open and cannot be closed", 400);
 
-    const { opening_cash, total_collections, total_disbursements } = sessionRes.rows[0];
+    const { opening_cash, total_collections, total_disbursements, title } = sessionRes.rows[0];
+    
+    // Formula: Opening + All Collected In-Session - All Disbursed In-Session
     const expected_cash = parseFloat(opening_cash) + parseFloat(total_collections) - parseFloat(total_disbursements);
     const physical = parseFloat(physical_cash_count);
     const discrepancy = Math.abs(physical - expected_cash);
 
-    if (discrepancy > 0.01) {
-      await client.query('ROLLBACK');
+    // ZERO TOLERANCE: Any discrepancy > 0.00 prevents closure
+    if (discrepancy > 0.00) {
+      await client.query("ROLLBACK");
+      logger.warn("Reconciliation failed: session closure blocked", { 
+        meetingId, chamaId, expected: expected_cash, physical, discrepancy 
+      });
+      
       return res.status(400).json({
         success: false,
-        message: 'Reconciliation Failed: Physical cash does not equal the digital ledger perfectly. You must reconcile missing or excess cash before closing the session.',
+        message: "RECONCILIATION FAILED: Physical cash does not equal the system ledger. Treasurer must reconcile all missing or excess cash before the session can be closed.",
+        error_code: "HARD_LOCK_RECONCILIATION_FAILED",
         data: {
           expected_cash: expected_cash.toFixed(2),
           physical_cash_count: physical.toFixed(2),
           discrepancy_amount: discrepancy.toFixed(2),
+          breakdown: {
+            opening_cash: parseFloat(opening_cash).toFixed(2),
+            total_collections: parseFloat(total_collections).toFixed(2),
+            total_disbursements: parseFloat(total_disbursements).toFixed(2)
+          }
         }
       });
     }
 
-    let reconciliation_status = 'MATCHED';
-
-    // Commit the session closure
+    // If reconciled, set status to CLOSED
     const meetingRes = await client.query(
       `UPDATE meetings 
        SET session_status = 'CLOSED',
@@ -149,22 +162,27 @@ const closeSession = async (req, res, next) => {
            closed_by = $2,
            physical_cash_count = $3,
            expected_cash = $4,
-           discrepancy_amount = $5,
-           discrepancy_note = $6,
-           reconciliation_status = $7
-       WHERE meeting_id = $8 AND chama_id = $9
+           discrepancy_amount = 0,
+           discrepancy_note = $5,
+           reconciliation_status = 'MATCHED'
+       WHERE meeting_id = $6 AND chama_id = $7
        RETURNING *`,
-      [physical, req.user.user_id, physical, expected_cash, discrepancy, discrepancy_note || null, reconciliation_status, meetingId, chamaId]
+      [physical, req.user.user_id, physical, expected_cash, discrepancy_note || null, meetingId, chamaId]
     );
 
-    await client.query('COMMIT');
+    await client.query("COMMIT");
+    
+    logger.info("Session closed successfully - reconciled ✅", { 
+      meetingId, chamaId, closedBy: req.user.user_id, finalCash: physical 
+    });
+
     res.status(200).json({
       success: true,
-      message: `Session closed — ${reconciliation_status === 'MATCHED' ? 'Cash balanced ✅' : 'Discrepancy noted ⚠️'}`,
+      message: `Session for "${title}" successfully closed and reconciled. ✅`,
       data: meetingRes.rows[0]
     });
   } catch (err) {
-    await client.query('ROLLBACK');
+    await client.query("ROLLBACK");
     next(err);
   } finally {
     client.release();

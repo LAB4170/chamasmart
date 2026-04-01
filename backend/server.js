@@ -105,15 +105,19 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Final Catch-all Middleware (Replaces app.get('*'))
 app.use((req, res, next) => {
-  // If API route not found
-  if (req.originalUrl.startsWith("/api")) {
+  const url = req.originalUrl;
+  const isApi = url.startsWith("/api");
+  const isAsset = url.includes(".") || url.startsWith("/assets");
+
+  // If API route not found OR it's an asset that express.static missed
+  if (isApi || isAsset) {
     return res.status(404).json({
       success: false,
-      message: `API endpoint ${req.originalUrl} not found`,
+      message: `${isApi ? "API endpoint" : "Asset"} ${url} not found`,
     });
   }
 
-  // If Static file not found, fallback to index.html (SPA)
+  // If Static page request not found, fallback to index.html (SPA)
   if (fs.existsSync(distPath)) {
     return res.sendFile(path.join(distPath, "index.html"));
   }

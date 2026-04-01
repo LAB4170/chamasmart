@@ -7,5 +7,5 @@
 - [ ] Synchronize Joi schemas in `validationSchemas.js`.
 
 ## General Improvements
-- [ ] Remove `authController.backup.js`.
+- [x] Remove `authController.backup.js`.
 - [ ] Implement unit tests for TrustScore weight calculation.

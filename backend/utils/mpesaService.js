@@ -52,26 +52,31 @@ class MpesaService {
 
   /**
    * Initiate STK Push (Lipa Na M-Pesa Online)
+   * Supports Multi-Tenant Routing via configOverride
    */
-  async initiateStkPush(phoneNumber, amount, accountReference, transactionDesc) {
+  async initiateStkPush(phoneNumber, amount, accountReference, transactionDesc, configOverride = {}) {
     try {
+      // Resolve tenant-specific credentials or fallback to platform defaults
+      const shortCode = configOverride.shortCode || this.shortCode;
+      const passkey = configOverride.passKey || this.passkey;
+
       const token = await this.getAccessToken();
-      const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
-      const password = Buffer.from(`${this.shortCode}${this.passkey}${timestamp}`).toString('base64');
+      const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
+      const password = Buffer.from(`${shortCode}${passkey}${timestamp}`).toString("base64");
 
       // Normalize phone number to 2547XXXXXXXX
-      let formattedPhone = phoneNumber.replace(/\+/g, '');
-      if (formattedPhone.startsWith('0')) formattedPhone = '254' + formattedPhone.slice(1);
-      if (formattedPhone.startsWith('7') || formattedPhone.startsWith('1')) formattedPhone = '254' + formattedPhone;
+      let formattedPhone = phoneNumber.replace(/\+/g, "");
+      if (formattedPhone.startsWith("0")) formattedPhone = "254" + formattedPhone.slice(1);
+      if (formattedPhone.startsWith("7") || formattedPhone.startsWith("1")) formattedPhone = "254" + formattedPhone;
 
       const payload = {
-        BusinessShortCode: this.shortCode,
+        BusinessShortCode: shortCode,
         Password: password,
         Timestamp: timestamp,
-        TransactionType: 'CustomerPayBillOnline',
+        TransactionType: "CustomerPayBillOnline",
         Amount: Math.round(amount),
         PartyA: formattedPhone,
-        PartyB: this.shortCode,
+        PartyB: shortCode,
         PhoneNumber: formattedPhone,
         CallBackURL: this.callbackUrl,
         AccountReference: accountReference.substring(0, 12),
@@ -150,26 +155,77 @@ class MpesaService {
   }
 
   /**
+   * Initiate B2C Payout (Disbursement to Member)
+   */
+  async initiateB2CPayout(phoneNumber, amount, remarks = "ChamaSmart Payout", occasion = "Cycle Complete") {
+    try {
+      const token = await this.getAccessToken();
+      
+      // Normalize phone number to 2547XXXXXXXX
+      let formattedPhone = phoneNumber.replace(/\+/g, "");
+      if (formattedPhone.startsWith("0")) formattedPhone = "254" + formattedPhone.slice(1);
+      if (formattedPhone.startsWith("7") || formattedPhone.startsWith("1")) formattedPhone = "254" + formattedPhone;
+
+      const payload = {
+        InitiatorName: process.env.MPESA_INITIATOR_NAME || "ChamaSmartAPI",
+        SecurityCredential: process.env.MPESA_SECURITY_CREDENTIAL || "mock_credential",
+        CommandID: "BusinessPayment",
+        Amount: Math.round(amount),
+        PartyA: this.shortCode,
+        PartyB: formattedPhone,
+        Remarks: remarks.substring(0, 100),
+        QueueTimeOutURL: this.callbackUrl + "/timeout",
+        ResultURL: this.callbackUrl + "/result",
+        Occasion: occasion.substring(0, 100)
+      };
+
+      if (this.isMock) {
+        logger.info("M-Pesa Mock: Initiating B2C Payout", { phoneNumber, amount, remarks });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return {
+          ConversationID: "mock_conv_" + Date.now(),
+          OriginatorConversationID: "mock_orig_" + Date.now(),
+          ResponseCode: "0",
+          ResponseDescription: "Accept the service request successfully.",
+          isMock: true
+        };
+      }
+
+      const response = await axios.post(`${this.baseUrl}/mpesa/b2c/v1/paymentrequest`, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        timeout: 15000
+      });
+
+      return response.data;
+    } catch (error) {
+      logger.error("B2C Payout initiation failed", { error: error.response?.data || error.message });
+      throw error;
+    }
+  }
+
+  /**
    * Simulate an M-Pesa callback payload for mock mode testing.
    * Enables full E2E dev testing without a live Safaricom connection.
    */
   async simulateMockCallback(checkoutRequestId, amount, phoneNumber) {
-    if (!this.isMock) throw new Error('simulateMockCallback is only available in mock mode');
-    logger.info('M-Pesa Mock: Simulating Safaricom callback', { checkoutRequestId });
+    if (!this.isMock) throw new Error("simulateMockCallback is only available in mock mode");
+    logger.info("M-Pesa Mock: Simulating Safaricom callback", { checkoutRequestId });
     await new Promise(r => setTimeout(r, 500)); // Simulate async timing
     return {
       Body: {
         stkCallback: {
-          MerchantRequestID: 'mock_merchant_' + Date.now(),
+          MerchantRequestID: "mock_merchant_" + Date.now(),
           CheckoutRequestID: checkoutRequestId,
           ResultCode: 0,
-          ResultDesc: 'The service request is processed successfully.',
+          ResultDesc: "The service request is processed successfully.",
           CallbackMetadata: {
             Item: [
-              { Name: 'Amount', Value: parseFloat(amount) },
-              { Name: 'MpesaReceiptNumber', Value: 'MOCK' + Date.now() },
-              { Name: 'TransactionDate', Value: Date.now() },
-              { Name: 'PhoneNumber', Value: phoneNumber }
+              { Name: "Amount", Value: parseFloat(amount) },
+              { Name: "MpesaReceiptNumber", Value: "MOCK" + Date.now() },
+              { Name: "TransactionDate", Value: Date.now() },
+              { Name: "PhoneNumber", Value: phoneNumber }
             ]
           }
         }

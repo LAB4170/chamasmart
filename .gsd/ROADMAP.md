@@ -37,6 +37,10 @@
 - **Type**: Major Feature Addition
 ### Phase 35: The 10/10 Evolution (Audit Resolution)
 - **Goal**: Resolve all architectural gaps identified in the comprehensive system audit. This includes automated ROSCA M-Pesa disbursements, Table Banking physical cash locks, and 100% Jest test coverage restoration.
-- **Status**: Planning Complete
+- **Status**: Completed & Verified
 - **Type**: Architectural Perfection
 
+### Phase 37: Multi-Tenant M-Pesa Routing
+- **Goal**: Transition from a centralized platform account to decentralized Chama-specific Paybills/Till numbers for all STK pushes.
+- **Status**: Completed & Verified
+- **Type**: Multi-Tenant Hardening

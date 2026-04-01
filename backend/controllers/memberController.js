@@ -10,7 +10,7 @@ const { body, param, validationResult } = require("express-validator");
 const { logAuditEvent, EVENT_TYPES, SEVERITY } = require("../utils/auditLog");
 const { createNotification, createBulkNotifications } = require('../utils/notificationService');
 const { clearChamaCache } = require('../utils/cache');
-const { getIo } = require("../socket");
+
 
 // ============================================================================
 // VALIDATION MIDDLEWARE
@@ -163,6 +163,7 @@ const addMember = async (req, res, next) => {
 
         // Emit socket event for real-time update
         try {
+          const { getIo } = require("../socket");
           const io = getIo();
           io.to(`chama_${chamaId}`).emit("member_added", { chamaId, userId, role });
         } catch (socketErr) {
@@ -261,6 +262,7 @@ const addMember = async (req, res, next) => {
 
     // Emit socket event for real-time update
     try {
+      const { getIo } = require("../socket");
       const io = getIo();
       io.to(`chama_${chamaId}`).emit("member_added", { chamaId, userId, role });
     } catch (socketErr) {
@@ -549,6 +551,7 @@ const removeMember = async (req, res, next) => {
 
     // Emit socket event for real-time update
     try {
+      const { getIo } = require("../socket");
       const io = getIo();
       io.to(`chama_${chamaId}`).emit("member_removed", { chamaId, userId: parseInt(userId) });
     } catch (socketErr) {
@@ -788,6 +791,7 @@ const bulkAddMembers = async (req, res, next) => {
     // Emit socket event for real-time update
     if (results.added.length > 0) {
       try {
+        const { getIo } = require("../socket");
         const io = getIo();
         io.to(`chama_${chamaId}`).emit("member_added", { chamaId, count: results.added.length });
       } catch (socketErr) {

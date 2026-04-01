@@ -1,0 +1,12 @@
+- [x] **Task 1: Table Banking Hard-Lock**
+    - [x] Modify `tableSessionController.js` (Harden closeSession)
+    - [x] Verify block on mismatched cash
+- [x] **Task 2: M-Pesa B2C Protocol**
+    - [x] Add `initiateB2CPayout` to `mpesaService.js`
+    - [x] Add mock support for B2C
+- [x] **Task 3: Automated ROSCA Payouts**
+    - [x] Create `triggerAutoPayout` in `roscaController.js`
+    - [x] Hook into `contributionController.js` (single & bulk)
+- [x] **Task 4: Trust-Score Roster Optimization**
+    - [x] Update `createCycle` roster query
+    - [x] Update `getNextCycleRosterPreview`

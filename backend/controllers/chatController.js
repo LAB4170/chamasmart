@@ -1,6 +1,6 @@
 const pool = require("../config/db");
 const logger = require("../utils/logger");
-const { getIo } = require("../socket");
+
 const { handleIncomingSupportMessage } = require("../services/aiSupportService");
 
 // Get all channels for a specific chama
@@ -85,6 +85,7 @@ const sendMessage = async (req, res) => {
     };
 
     // Emit to socket room
+    const { getIo } = require("../socket");
     getIo().to(`chat_${channelId}`).emit('new_message', broadcastData);
 
     res.status(201).json({ success: true, data: broadcastData });

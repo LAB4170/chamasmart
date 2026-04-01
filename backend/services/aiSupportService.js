@@ -1,7 +1,7 @@
 const Groq = require("groq-sdk");
 const logger = require("../utils/logger");
 const pool = require("../config/db");
-const { getIo } = require("../socket");
+
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const AI_BOT_EMAIL = 'bot@chamasmart.com';
@@ -220,6 +220,8 @@ const handleIncomingSupportMessage = async (channelId, userMessage, userName, ch
     };
 
     // 5. Emit back to the room
+    // Lazy load socket to avoid circular dependency
+    const { getIo } = require("../socket");
     getIo().to(`chat_${channelId}`).emit('new_message', broadcastData);
 
   } catch (error) {

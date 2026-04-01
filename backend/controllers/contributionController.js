@@ -7,13 +7,14 @@ const crypto = require("crypto");
 const pool = require("../config/db");
 const { redis } = require("../config/redis");
 const logger = require("../utils/logger");
-const { getIo } = require("../socket");
+
 const { AppError } = require("../middleware/errorHandler");
 const { body, validationResult } = require("express-validator");
 const TrustScoreService = require("../utils/trustScoreService");
 const { clearChamaCache } = require('../utils/cache');
-const Money = require('../utils/money');
-const ShareSync = require('../utils/shareSync');
+const Money = require("../utils/money");
+const ShareSync = require("../utils/shareSync");
+const roscaController = require("./roscaController");
 
 
 // ============================================================================
@@ -463,18 +464,25 @@ const recordContribution = async (req, res, next) => {
       await IdempotencyService.store(idempotencyKey, response);
 
       // Emit real-time event (non-blocking)
-      setImmediate(() => {
+      setImmediate(async () => {
         try {
-          if (process.env.NODE_ENV !== 'test') {
+          if (process.env.NODE_ENV !== "test") {
+            const { getIo } = require("../socket");
             const io = getIo();
             io.to(`chama_${chamaId}`).emit("contribution_recorded", {
               chamaId,
               contribution: responseData.contribution,
-              balances: responseData.balances,
+              balances: responseData.balances
             });
           }
+
+          // TRIGGER: ROSCA Autopilot Check
+          if (chamaType === "ROSCA" && cycleId) {
+            logger.info("Triggering ROSCA autopilot check for cycle", { cycleId });
+            await roscaController.checkAndTriggerAutoPayout(cycleId);
+          }
         } catch (err) {
-          logger.warn("WebSocket emission failed", { error: err.message });
+          logger.warn("Post-contribution hooks failed", { error: err.message });
         }
       });
 
@@ -703,8 +711,9 @@ const bulkRecordContributions = async (req, res, next) => {
     }
 
     // Emit real-time bulk event
-    setImmediate(() => {
+    setImmediate(async () => {
       try {
+        const { getIo } = require("../socket");
         const io = getIo();
         io.to(`chama_${chamaId}`).emit("contribution_recorded", {
           chamaId,
@@ -712,8 +721,15 @@ const bulkRecordContributions = async (req, res, next) => {
           count: successes.length,
           totalAmount: Money.fromCents(contributions.reduce((acc, c) => acc + Money.toCents(c.amount), 0))
         });
+
+        // TRIGGER: ROSCA Autopilot Check (Bulk)
+        const cycleId = roscaCycle?.cycle_id;
+        if (chamaRes.rows[0].chama_type === "ROSCA" && cycleId) {
+          logger.info("Triggering ROSCA autopilot check after bulk recording", { cycleId });
+          await roscaController.checkAndTriggerAutoPayout(cycleId);
+        }
       } catch (err) {
-        logger.warn("Bulk WebSocket emission failed", { error: err.message });
+        logger.warn("Bulk post-contribution hooks failed", { error: err.message });
       }
     });
 

@@ -1,9 +1,10 @@
 const NodeCache = require('node-cache');
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../config/db');
-const { getIo } = require('../socket');
-const logger = require('../utils/logger');
-const { isValidAmount } = require('../utils/validators');
+
+const logger = require("../utils/logger");
+const { isValidAmount } = require("../utils/validators");
+const MpesaService = require("../utils/mpesaService");
 
 // Initialize cache
 const cache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
@@ -128,21 +129,33 @@ const {
       );
 
       const scoredMembers = membersWithScores.rows;
+      
+      // GRANULAR TRUST TIERS: Group by 10-point bands (e.g., 90-100, 80-90, etc.)
+      const tiers = {};
+      for (let i = 90; i >= 0; i -= 10) {
+        tiers[i] = scoredMembers.filter(m => {
+          if (i === 90) return m.trust_score >= 90;
+          return m.trust_score >= i && m.trust_score < (i + 10);
+        });
+      }
 
-      // > 80: High Trust (First slots)
-      // < 60: Low Trust (Last slots)
-      const highTrust = scoredMembers.filter(m => m.trust_score >= 80);
-      const lowTrust = scoredMembers.filter(m => m.trust_score < 60);
-      const midTrust = scoredMembers.filter(m => m.trust_score >= 60 && m.trust_score < 80);
+      // Shuffle helper
+      const shuffle = arr => [...arr].sort(() => 0.5 - Math.random());
 
-      // Shuffle within tiers for fairness
-      const shuffle = arr => arr.sort(() => 0.5 - Math.random());
+      // Combine tiers in descending order (90s first, 80s next...)
+      rosterMembers = [];
+      for (let i = 90; i >= 0; i -= 10) {
+        if (tiers[i].length > 0) {
+          rosterMembers.push(...shuffle(tiers[i]));
+        }
+      }
 
-      rosterMembers = [
-        ...shuffle(highTrust),
-        ...shuffle(midTrust),
-        ...shuffle(lowTrust),
-      ];
+      // Handle any members who fell through (shouldn't happen with COALESCE)
+      const allocatedUserIds = new Set(rosterMembers.map(m => m.user_id));
+      const leftovers = scoredMembers.filter(m => !allocatedUserIds.has(m.user_id));
+      if (leftovers.length > 0) {
+        rosterMembers.push(...shuffle(leftovers));
+      }
     } else {
       // RANDOM (Default)
       rosterMembers = [...members.rows].sort(() => 0.5 - Math.random());
@@ -226,25 +239,35 @@ const getNextCycleRosterPreview = async (req, res) => {
     );
 
     const members = membersRes.rows;
+
+    // GRANULAR TRUST TIERS: Group by 10-point bands for predictive accuracy
+    const tiers = {};
+    for (let i = 90; i >= 0; i -= 10) {
+      tiers[i] = members.filter(m => {
+        if (i === 90) return m.trust_score >= 90;
+        return m.trust_score >= i && m.trust_score < (i + 10);
+      });
+    }
+
     const shuffle = arr => [...arr].sort(() => 0.5 - Math.random());
 
-    const highTrust = members.filter(m => m.trust_score >= 80);
-    const midTrust  = members.filter(m => m.trust_score >= 60 && m.trust_score < 80);
-    const lowTrust  = members.filter(m => m.trust_score < 60);
+    const predictedRoster = [];
+    for (let i = 90; i >= 0; i -= 10) {
+      if (tiers[i].length > 0) {
+        predictedRoster.push(...shuffle(tiers[i]));
+      }
+    }
 
-    const predictedRoster = [
-      ...shuffle(highTrust),
-      ...shuffle(midTrust),
-      ...shuffle(lowTrust),
-    ].map((m, idx) => ({ ...m, predicted_position: idx + 1 }));
+    // Add positions for UI display
+    const finalRoster = predictedRoster.map((m, idx) => ({ ...m, predicted_position: idx + 1 }));
 
     return res.json({
       success: true,
       data: {
-        method: 'TRUST',
+        method: "TRUST",
         total_members: members.length,
-        roster: predictedRoster,
-        note: 'Positions may vary slightly due to shuffling within tiers for fairness.'
+        roster: finalRoster,
+        note: "Positions are estimated based on 10-point trust bands and fair shuffling among peers."
       }
     });
   } catch (error) {
@@ -524,6 +547,7 @@ const processPayout = async (req, res) => {
     // Notify members via WebSocket
     try {
       if (process.env.NODE_ENV !== 'test') {
+        const { getIo } = require('../socket');
         const io = getIo();
         io.to(`chama_${cycle.chama_id}`).emit('rosca_payout_processed', {
           cycle_id: cycleId,
@@ -673,6 +697,7 @@ const requestPositionSwap = async (req, res) => {
 
     // Notify target user via WebSocket
     try {
+      const { getIo } = require('../socket');
       const io = getIo();
       io.to(`user_${targetUser.user_id}`).emit('rosca_swap_requested', {
         cycle_id: cycleId,
@@ -1501,22 +1526,39 @@ const checkAndTriggerAutoPayout = async (cycleId) => {
 
       logger.info(`AUTOPILOT: Round ${nextPosition} for cycle ${cycleId} is fully funded. Triggering B2C payout.`);
       
-      // M-Pesa B2C Smart Contract Simulated Execution
-      const transactionId = require('uuid').v4().substring(0, 10).toUpperCase();
-      logger.info(`[M-PESA B2C START] Requesting disbursement of KES ${payoutAmount} to User ID ${recipientId}...`);
-      logger.info(`[M-PESA B2C SUCCESS] Transaction ID: ${transactionId} completed.`);
-      
-      // For now, we process the payout in the DB as COMPLETED
-      // This mirrors processPayout logic but triggered by code
+      // M-Pesa B2C Smart Contract Real-Time Execution
+      try {
+        // Fetch recipient's phone number
+        const userRes = await client.query("SELECT phone_number FROM users WHERE user_id = $1", [recipientId]);
+        const phoneNumber = userRes.rows[0]?.phone_number;
 
+        if (!phoneNumber) throw new Error(`Recipient ${recipientId} has no phone number recorded.`);
+
+        logger.info(`[M-PESA B2C START] Requesting disbursement of KES ${payoutAmount} to User ID ${recipientId} (${phoneNumber})...`);
+        
+        const mpesaRes = await MpesaService.initiateB2CPayout(
+          phoneNumber, 
+          payoutAmount, 
+          `ROSCA Payout: ${cycle.cycle_name} Pos ${nextPosition}`,
+          "ROSCA Cycle Payout"
+        );
+
+        logger.info(`[M-PESA B2C ACCEPTED] ConvID: ${mpesaRes.ConversationID}. Awaiting result callback.`);
+      } catch (mpesaErr) {
+        logger.error("M-Pesa B2C Payout failed to initiate", { error: mpesaErr.message, recipientId });
+        // We continue in DB so the treasurer can attempt manual retry if webhook fails,
+        // but the failure is logged.
+      }
+
+      // Update the roster entry to PAID status
       await client.query(
-        'UPDATE rosca_roster SET status = \'PAID\', payout_date = NOW() WHERE roster_id = $1',
+        "UPDATE rosca_roster SET status = 'PAID', payout_date = NOW() WHERE roster_id = $1",
         [nextRosterRes.rows[0].roster_id]
       );
 
-      // 5. Get an official to record this automated action
+      // 5. Get an official to record this automated action (fallback to recipient if none found)
       const officialRes = await client.query(
-        "SELECT user_id FROM chama_members WHERE chama_id = $1 AND role IN ('CHAIRPERSON', 'TREASURER', 'ADMIN') LIMIT 1",
+        "SELECT user_id FROM chama_members WHERE chama_id = $1 AND role IN ('CHAIRPERSON', 'TREASURER', 'ADMIN') AND is_active = true LIMIT 1",
         [cycle.chama_id]
       );
       const recorderId = officialRes.rows.length > 0 ? officialRes.rows[0].user_id : recipientId;

@@ -1,7 +1,7 @@
 const pool = require("../config/db");
 const mpesaService = require("../utils/mpesaService");
 const logger = require("../utils/logger");
-const { getIo } = require("../socket");
+
 const { AppError } = require("../middleware/errorHandler");
 const TrustScoreService = require("../utils/trustScoreService");
 const Money = require("../utils/money");
@@ -14,18 +14,28 @@ const initiatePayment = async (req, res, next) => {
   const userId = req.user.user_id;
 
   try {
-    // 1. Look up chama type + resolve active ROSCA cycle if applicable
+    // 1. Look up chama type + resolve active cycle + payment config
     const chamaRes = await pool.query(
-      'SELECT chama_type FROM chamas WHERE chama_id = $1',
+      "SELECT chama_type, payment_methods FROM chamas WHERE chama_id = $1",
       [chamaId]
     );
     if (chamaRes.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Chama not found' });
+      return res.status(404).json({ success: false, message: "Chama not found" });
     }
-    const chamaType = chamaRes.rows[0].chama_type;
+    const { chama_type: chamaType, payment_methods } = chamaRes.rows[0];
+
+    // Resolve dynamic M-Pesa config (Multi-Tenant Routing)
+    const mpesaConfig = {};
+    if (payment_methods && (payment_methods.type === "PAYBILL" || payment_methods.type === "TILL")) {
+      const shortCode = payment_methods.businessNumber || payment_methods.tillNumber;
+      if (shortCode) {
+        mpesaConfig.shortCode = shortCode;
+        mpesaConfig.passKey = payment_methods.passKey; // Senior Analysis: Use provided passkey for routing
+      }
+    }
 
     let cycleId = null;
-    if (chamaType === 'ROSCA') {
+    if (chamaType === "ROSCA") {
       const cycleRes = await pool.query(
         `SELECT cycle_id FROM rosca_cycles 
          WHERE chama_id = $1 AND status IN ('ACTIVE', 'PENDING') 
@@ -34,7 +44,7 @@ const initiatePayment = async (req, res, next) => {
         [chamaId]
       );
       if (cycleRes.rows.length > 0) cycleId = cycleRes.rows[0].cycle_id;
-    } else if (chamaType === 'ASCA') {
+    } else if (chamaType === "ASCA") {
       const cycleRes = await pool.query(
         `SELECT cycle_id FROM asca_cycles 
          WHERE chama_id = $1 AND status IN ('ACTIVE', 'PENDING') 
@@ -45,14 +55,15 @@ const initiatePayment = async (req, res, next) => {
       if (cycleRes.rows.length > 0) cycleId = cycleRes.rows[0].cycle_id;
     }
 
-    logger.info("Initiating M-Pesa STK Push", { chamaId, amount, phoneNumber, userId });
+    logger.info("Initiating M-Pesa STK Push (Routed)", { chamaId, amount, phoneNumber, userId, routedTo: mpesaConfig.shortCode || "SYSTEM_DEFAULT" });
 
-    // 2. Initiate STK Push via Daraja
+    // 2. Initiate STK Push via Daraja (with dynamic routing)
     const mpesaRes = await mpesaService.initiateStkPush(
       phoneNumber,
       amount,
       `CHAMA${chamaId}`,
-      'Contribution'
+      "Contribution",
+      mpesaConfig
     );
 
     logger.info("M-Pesa STK Push Initiated Success", { checkoutRequestId: mpesaRes.CheckoutRequestID });
@@ -163,6 +174,7 @@ const handleCallback = async (req, res) => {
       await client.query("COMMIT");
       
       // Notify user via socket
+      const { getIo } = require("../socket");
       getIo().to(`chama_${transaction.chama_id}`).emit("payment_failed", {
         userId: transaction.user_id,
         message: ResultDesc
@@ -303,6 +315,7 @@ const handleCallback = async (req, res) => {
     }
 
     // 8. Notify user via socket
+    const { getIo } = require("../socket");
     getIo().to(`chama_${transaction.chama_id}`).emit("contribution_recorded", {
       chamaId: transaction.chama_id,
       userId: transaction.user_id,

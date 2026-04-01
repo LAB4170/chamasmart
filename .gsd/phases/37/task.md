@@ -1,0 +1,11 @@
+- [x] **Task 1: [MODIFY] `mpesaService.js` Refactor**
+    - [x] Update `initiateStkPush` parameter signature
+    - [x] Add dynamic `configOverride` logic
+- [x] **Task 2: [MODIFY] `mpesaController.js` logic**
+    - [x] Fetch `payment_methods` in `initiatePayment`
+    - [x] Extract and pass `shortCode`/`passKey`
+- [x] **Task 3: [VERIFY] Chama Creation Logic**
+    - [x] Verify `createChama` in `chamaController.js` saves JSON correctly
+- [x] **Task 4: Verification**
+    - [x] Run mock STK push with override
+    - [x] Confirm fallback to global default

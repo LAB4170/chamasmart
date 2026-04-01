@@ -1,6 +1,6 @@
 const pool = require('../config/db');
 const { createNotification } = require('../utils/notificationService');
-const { getIo } = require('../socket');
+
 
 // @desc    Request to join a public chama
 // @route   POST /api/join-requests/:chamaId/request
@@ -119,6 +119,7 @@ const requestToJoin = async (req, res) => {
 
     // Emit to chama room for real-time UI updates (e.g. badge count)
     try {
+      const { getIo } = require('../socket');
       const io = getIo();
       io.to(`chama_${chamaId}`).emit('join_request_created', {
         chamaId,
