@@ -8,6 +8,7 @@ const logger = require('../utils/logger');
 const { logAuditEvent, EVENT_TYPES, SEVERITY } = require('../utils/auditLog');
 const TrustScoreService = require("../utils/trustScoreService");
 const { clearChamaCache } = require("../utils/cache");
+const ExpertSystem = require("../utils/expertSystem");
 
 // Money Utility (Decimal-aware)
 const toDecimal = (val) => parseFloat(val);
@@ -831,22 +832,64 @@ const applyForLoan = async (req, res) => {
       }
     }
 
+    // === FETCH UNIVERSAL TRUST SCORE FOR EXPERT SYSTEM ===
+    const trustResAll = await client.query(
+      'SELECT COALESCE(trust_score, 50) as trust_score FROM chama_members WHERE chama_id = $1 AND user_id = $2',
+      [chamaId, userId]
+    );
+    const globalTrustScore = trustResAll.rows[0]?.trust_score || 50;
+
+    // === START EXPERT SYSTEM (15 Production Rules, CF, Forward-Chaining) ===
+    const expert = new ExpertSystem();
+    const systemDecision = expert.evaluate({
+      chamaId,
+      userId,
+      requestedAmount: amountValue,
+      chamaType: chama.chama_type,
+      savings: savings,
+      defaultedCount: parseInt(defaultCheck.rows[0].count || 0, 10),
+      loanMultiplierConfig: loanConfig.loan_multiplier,
+      availableTreasury: availablePool,
+      treasuryTotal: availablePool + amountValue, // Mock total
+      trustScore: globalTrustScore,
+      guarantorCover: requiredGuarantee > 0 ? (guarantorArray.reduce((acc, g) => acc + g.amount, 0)) : amountValue,
+      activeLoansBalance: parseFloat(outstandingCents) / 100,
+      totalContributions: savings,
+      repaymentPeriod: term,
+      isActiveMember: true,
+      hasPendingLoans: false
+    });
+
+    if (!systemDecision.approved) {
+      await client.query('ROLLBACK');
+      
+      // Log explanation facility trace into audit system
+      try {
+        await client.query(
+          `INSERT INTO audit_logs (entity_type, entity_id, event_type, old_data, new_data) 
+           VALUES ('user', $1, 'EXPERT_SYSTEM_DENIAL', '{}', $2)`,
+           [userId, JSON.stringify(systemDecision)]
+        );
+      } catch (err) {}
+
+      return res.status(403).json({
+        success: false,
+        message: 'Loan Application Denied by Automated Expert System.',
+        expertData: systemDecision
+      });
+    }
+    // === END EXPERT SYSTEM ===
+
     // === PHASE 20: TIERED INTEREST RATES (Loyalty Pricing) ===
     let trustDiscountApplied = 0;
     let finalInterestRate = loanConfig.interest_rate;
     
     // Only apply loyalty pricing for ASCA
     if (chama.chama_type === 'ASCA') {
-      const trustRes = await client.query(
-        'SELECT COALESCE(trust_score, 50) as trust_score FROM chama_members WHERE chama_id = $1 AND user_id = $2',
-        [chamaId, userId]
-      );
-      const score = trustRes.rows[0]?.trust_score || 50;
-      
-      if (score >= 90) {
+      if (globalTrustScore >= 90) {
         trustDiscountApplied = -0.02; // 2% discount
         finalInterestRate = Math.max(0, loanConfig.interest_rate * 0.98); 
-      } else if (score < 70) {
+      } else if (globalTrustScore < 70) {
         trustDiscountApplied = +0.01; // 1% premium
         finalInterestRate = loanConfig.interest_rate * 1.01;
       }
@@ -891,6 +934,15 @@ const applyForLoan = async (req, res) => {
     );
 
     const loan = loanResult.rows[0];
+    
+    // Log Expert System Explanation Facility into audit_logs on approval
+    try {
+      await client.query(
+        `INSERT INTO audit_logs (entity_type, entity_id, event_type, old_data, new_data) 
+         VALUES ('loan', $1, 'EXPERT_SYSTEM_APPROVAL', '{}', $2)`,
+         [loan.loan_id, JSON.stringify(systemDecision)]
+      );
+    } catch (e) {}
 
     // === CREATE GUARANTOR RECORDS ===
     if (guarantorArray.length > 0) {

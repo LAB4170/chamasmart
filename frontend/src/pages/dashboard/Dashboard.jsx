@@ -1,6 +1,8 @@
 import { useState, useEffect, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useSocket } from "../../context/SocketContext";
+import { toast } from "react-toastify";
 import { chamaAPI, loanAPI } from "../../services/api";
 import LoadingSkeleton from "../../components/LoadingSkeleton";
 import {
@@ -155,6 +157,7 @@ const DashboardChamaCard = memo(({ chama, getChamaTypeLabel, formatCurrency }) =
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 const Dashboard = () => {
   const { user } = useAuth();
+  const { socket } = useSocket();
   const navigate = useNavigate();
   const [chamas, setChamas] = useState([]);
   const [loanSummary, setLoanSummary] = useState({
@@ -162,6 +165,27 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const fetchDashboardData = async (isMounted = true) => {
+    try {
+      if (isMounted) setLoading(true);
+      const [chamasRes, loansRes] = await Promise.all([
+        chamaAPI.getMyChamas(),
+        loanAPI.getUnifiedSummary()
+      ]);
+      if (isMounted) {
+        setChamas(Array.isArray(chamasRes.data?.data) ? chamasRes.data.data : []);
+        if (loansRes.data?.data) setLoanSummary(loansRes.data.data);
+      }
+    } catch (err) {
+      if (isMounted) {
+        setError("Failed to load dashboard data");
+        console.error(err);
+      }
+    } finally {
+      if (isMounted) setLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Redirect to complete profile if name is missing or placeholder
@@ -177,29 +201,28 @@ const Dashboard = () => {
     }
 
     let isMounted = true;
-    const fetchDashboardData = async () => {
-      try {
-        if (isMounted) setLoading(true);
-        const [chamasRes, loansRes] = await Promise.all([
-          chamaAPI.getMyChamas(),
-          loanAPI.getUnifiedSummary()
-        ]);
-        if (isMounted) {
-          setChamas(Array.isArray(chamasRes.data?.data) ? chamasRes.data.data : []);
-          if (loansRes.data?.data) setLoanSummary(loansRes.data.data);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError("Failed to load dashboard data");
-          console.error(err);
-        }
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-    fetchDashboardData();
+    fetchDashboardData(isMounted);
     return () => { isMounted = false; };
-  }, []);
+  }, [user]);
+
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleDashboardUpdate = (data) => {
+      if (data.type === 'MPESA_SUCCESS') {
+        const formatAmt = new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES" }).format(data.amount || 0);
+        toast.success(`M-Pesa payment of ${formatAmt} successfully processed! Portfolio updated.`);
+      }
+      // Silently re-fetch without mounting loaders if possible, or just refetch globally
+      fetchDashboardData(true);
+    };
+
+    socket.on("personal_dashboard_update", handleDashboardUpdate);
+    
+    return () => {
+      socket.off("personal_dashboard_update", handleDashboardUpdate);
+    };
+  }, [socket]);
 
   const getChamaTypeLabel = (type) => ({
     ROSCA: "Merry-Go-Round", ASCA: "Investment",

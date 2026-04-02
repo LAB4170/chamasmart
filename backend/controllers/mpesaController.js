@@ -14,6 +14,21 @@ const initiatePayment = async (req, res, next) => {
   const userId = req.user.user_id;
 
   try {
+    // 0. Enforce M-Pesa Prompting Laws (Active Session Ban)
+    const pendingRes = await pool.query(
+      `SELECT created_at FROM mpesa_transactions 
+       WHERE phone_number = $1 AND status = 'PENDING' 
+       AND created_at >= NOW() - INTERVAL '2 minutes'`,
+      [phoneNumber]
+    );
+
+    if (pendingRes.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "You already have an active M-Pesa prompt on your phone. Please enter your PIN or wait 2 minutes for it to expire before trying again."
+      });
+    }
+
     // 1. Look up chama type + resolve active cycle + payment config
     const chamaRes = await pool.query(
       "SELECT chama_type, payment_methods FROM chamas WHERE chama_id = $1",
@@ -164,6 +179,13 @@ const handleCallback = async (req, res) => {
     }
 
     const transaction = txRes.rows[0];
+
+    // 1.5. Idempotency Guard (Prevent duplicate processing from Safaricom retries)
+    if (transaction.status === 'COMPLETED' || transaction.status === 'FAILED') {
+      logger.info("Duplicate M-Pesa callback received. Ignored.", { CheckoutRequestID, status: transaction.status });
+      await client.query("ROLLBACK");
+      return res.status(200).send("Acknowledged duplicate");
+    }
 
     // 2. Handle failure
     if (ResultCode !== 0) {
@@ -320,6 +342,13 @@ const handleCallback = async (req, res) => {
       chamaId: transaction.chama_id,
       userId: transaction.user_id,
       amount: amount
+    });
+
+    // Notify user's personal room for global Dashboard updates
+    getIo().to(`user_${transaction.user_id}`).emit("personal_dashboard_update", {
+      chamaId: transaction.chama_id,
+      amount: amount,
+      type: 'MPESA_SUCCESS'
     });
 
     res.status(200).send("Success");
