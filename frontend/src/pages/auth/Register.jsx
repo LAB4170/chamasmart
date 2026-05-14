@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { ArrowRight, Mail, Lock, ShieldCheck, User, Phone, CheckCircle2, Eye, EyeOff } from "lucide-react";
@@ -18,6 +19,7 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
   const { register, loginWithGoogle, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -31,6 +33,7 @@ const Register = () => {
   ];
 
   const allMet = requirements.every(r => r.met);
+  const showRequirements = isPasswordFocused || (!allMet && formData.password.length > 0);
 
   useEffect(() => {
     if (isAuthenticated) navigate("/dashboard");
@@ -88,19 +91,25 @@ const Register = () => {
 
   return (
     <div className="auth-page-wrapper">
-      <div className="auth-container" style={{ maxWidth: "480px" }}>
-        {/* Brand Header */}
-        <div className="auth-brand-header">
-          <div className="auth-brand-icon">
-            <ShieldCheck size={34} />
-          </div>
-          <h1 className="auth-title">Create Account</h1>
-          <p className="auth-subtitle">Join the modern way of managing Chamas</p>
-        </div>
+      <div className="auth-container">
+        <motion.div 
+          className="auth-split-card"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        >
+          {/* Left: Form Side */}
+          <div className="auth-form-side">
+            {/* Brand Header */}
+            <div className="auth-brand-header">
+              <div className="auth-brand-icon">
+                <ShieldCheck size={32} strokeWidth={2} />
+              </div>
+              <h1 className="auth-title">Create Account</h1>
+              <p className="auth-subtitle">Join the modern way of managing Chamas</p>
+            </div>
 
-        {/* Card */}
-        <div className="auth-card">
-          {error && (
+            {error && (
             <div className="auth-error">
               {error}
             </div>
@@ -119,7 +128,7 @@ const Register = () => {
                     name="firstName"
                     type="text"
                     className="auth-input"
-                    placeholder="Jane"
+                    placeholder="First name"
                     value={formData.firstName}
                     onChange={handleChange}
                     required
@@ -133,7 +142,7 @@ const Register = () => {
                     name="lastName"
                     type="text"
                     className="auth-input auth-input-no-icon"
-                    placeholder="Doe"
+                    placeholder="Last name"
                     value={formData.lastName}
                     onChange={handleChange}
                     required
@@ -191,6 +200,8 @@ const Register = () => {
                   placeholder="Create a secure password"
                   value={formData.password}
                   onChange={handleChange}
+                  onFocus={() => setIsPasswordFocused(true)}
+                  onBlur={() => setIsPasswordFocused(false)}
                   required
                 />
                 <button
@@ -212,15 +223,25 @@ const Register = () => {
                 </button>
               </div>
 
-              {/* Password Requirements List */}
-              <div className="password-requirements">
-                {requirements.map((req, idx) => (
-                  <div key={idx} className={`requirement-item ${req.met ? "met" : ""}`}>
-                    <div className="dot" />
-                    {req.label}
-                  </div>
-                ))}
-              </div>
+              {/* Animated Password Requirements List */}
+              <AnimatePresence>
+                {showRequirements && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                    animate={{ opacity: 1, height: "auto", marginTop: "-12px" }}
+                    exit={{ opacity: 0, height: 0, marginTop: 0, overflow: "hidden" }}
+                    transition={{ duration: 0.2, ease: "easeInOut" }}
+                    className="password-requirements"
+                  >
+                    {requirements.map((req, idx) => (
+                      <div key={idx} className={`requirement-item ${req.met ? "met" : ""}`}>
+                        <div className="dot" />
+                        {req.label}
+                      </div>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <div className="form-group-auth" style={{ marginBottom: "24px" }}>
@@ -287,23 +308,36 @@ const Register = () => {
             </button>
           </form>
 
-          <div className="auth-divider" style={{ margin: "28px 0" }}>
-            <div className="divider-line" />
-            <span className="divider-text">ALREADY HAVE AN ACCOUNT?</span>
-            <div className="divider-line" />
+            <div className="auth-divider" style={{ margin: "24px 0" }}>
+              <div className="divider-line" />
+              <span className="divider-text">ALREADY HAVE AN ACCOUNT?</span>
+              <div className="divider-line" />
+            </div>
+
+            <Link to="/login" className="btn-google-auth" style={{ textDecoration: "none", color: "inherit", background: "transparent", border: "1.5px solid var(--border)" }}>
+              Sign In Instead
+            </Link>
+
+            <p className="auth-footer" style={{ marginTop: "24px", fontSize: "12px" }}>
+              By registering, you agree to our{" "}
+              <Link to="/terms">Terms</Link> and <Link to="/privacy">Privacy</Link>
+            </p>
           </div>
 
-          <Link to="/login" className="btn-google-auth" style={{ textDecoration: "none", color: "inherit", background: "none", border: "1px solid rgba(255,255,255,0.1)" }}>
-            Sign In Instead
-          </Link>
-        </div>
-
-        <p className="auth-footer">
-          By registering, you agree to our{" "}
-          <Link to="/terms">Terms</Link>{" "}
-          and{" "}
-          <Link to="/privacy">Privacy Policy</Link>
-        </p>
+          {/* Right: Visual Side */}
+          <div className="auth-visual-side">
+            <div className="auth-visual-inner">
+              <img src="https://images.unsplash.com/photo-1618044733300-9472054094ee?auto=format&fit=crop&w=1200&q=80" alt="Finance Future" />
+              <div className="auth-visual-overlay">
+                <h2 className="auth-quote">"The best investment you can make is in yourself and your community."</h2>
+                <div className="auth-author">
+                  <div style={{ width: "24px", height: "2px", background: "#D4AF37" }}></div>
+                  ChamaSmart Network
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </div>
     </div>
   );

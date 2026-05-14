@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { ArrowRight, Mail, Lock, ShieldCheck, Eye, EyeOff } from "lucide-react";
@@ -54,18 +55,24 @@ const Login = () => {
   return (
     <div className="auth-page-wrapper">
       <div className="auth-container">
-        {/* Brand Header */}
-        <div className="auth-brand-header">
-          <div className="auth-brand-icon">
-            <ShieldCheck size={34} />
-          </div>
-          <h1 className="auth-title">Welcome Back</h1>
-          <p className="auth-subtitle">Login securely to your ChamaSmart account</p>
-        </div>
+        <motion.div 
+          className="auth-split-card"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        >
+          {/* Left: Form Side */}
+          <div className="auth-form-side">
+            {/* Brand Header */}
+            <div className="auth-brand-header">
+              <div className="auth-brand-icon">
+                <ShieldCheck size={32} strokeWidth={2} />
+              </div>
+              <h1 className="auth-title">Welcome Back</h1>
+              <p className="auth-subtitle">Login securely to your ChamaSmart account</p>
+            </div>
 
-        {/* Card */}
-        <div className="auth-card">
-          {error && (
+            {error && (
             <div className="auth-error">
               {error}
             </div>
@@ -166,23 +173,36 @@ const Login = () => {
             </button>
           </form>
 
-          <div className="auth-divider" style={{ margin: "28px 0" }}>
-            <div className="divider-line" />
-            <span className="divider-text">NEW TO CHAMASMART?</span>
-            <div className="divider-line" />
+            <div className="auth-divider" style={{ margin: "24px 0" }}>
+              <div className="divider-line" />
+              <span className="divider-text">NEW TO CHAMASMART?</span>
+              <div className="divider-line" />
+            </div>
+
+            <Link to="/register" className="btn-google-auth" style={{ textDecoration: "none", color: "inherit", background: "transparent", border: "1.5px solid var(--border)" }}>
+              Create an Account
+            </Link>
+
+            <p className="auth-footer" style={{ marginTop: "24px", fontSize: "12px" }}>
+              By continuing, you agree to our{" "}
+              <Link to="/terms">Terms</Link> and <Link to="/privacy">Privacy</Link>
+            </p>
           </div>
 
-          <Link to="/register" className="btn-google-auth" style={{ textDecoration: "none", color: "inherit", background: "none", border: "1px solid rgba(255,255,255,0.1)" }}>
-            Create an Account
-          </Link>
-        </div>
-
-        <p className="auth-footer">
-          By continuing, you agree to our{" "}
-          <Link to="/terms">Terms</Link>{" "}
-          and{" "}
-          <Link to="/privacy">Privacy Policy</Link>
-        </p>
+          {/* Right: Visual Side */}
+          <div className="auth-visual-side">
+            <div className="auth-visual-inner">
+              <img src="https://images.unsplash.com/photo-1633158829585-23ba8f7c8caf?auto=format&fit=crop&w=1200&q=80" alt="Finance Dashboard" />
+              <div className="auth-visual-overlay">
+                <h2 className="auth-quote">"Wealth is the ability to fully experience life."</h2>
+                <div className="auth-author">
+                  <div style={{ width: "24px", height: "2px", background: "#D4AF37" }}></div>
+                  ChamaSmart Finance
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </div>
     </div>
   );
