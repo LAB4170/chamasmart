@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import { Camera, Loader2 } from "lucide-react";
 import { uploadMediaToFirebase } from "../../services/firebaseStorage";
 import { getImageUrl } from "../../utils/imageUtils";
+import { motion } from "framer-motion";
 import "./UserProfile.css";
 
 const UserProfile = () => {
@@ -147,9 +148,14 @@ const UserProfile = () => {
 
     return (
         <div className="page">
-            <div className="container profile-container">
-                <div className="profile-header">
-                    <h1>My Profile</h1>
+            <motion.div 
+                className="container profile-container"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+            >
+                <div className="profile-header" style={{ marginBottom: "3rem" }}>
+                    <h1 style={{ fontSize: "2.8rem", fontWeight: 900, letterSpacing: "-1.5px" }}>My Profile</h1>
                 </div>
 
                 <div className="profile-card">
@@ -239,8 +245,8 @@ const UserProfile = () => {
                                 </div>
                             </div>
 
-                            <button type="submit" className="btn btn-primary" disabled={updating}>
-                                {updating ? "Saving..." : "Save Changes"}
+                            <button type="submit" className="btn-action-primary" style={{ background: "var(--gold-gradient)", border: "none", color: "white", padding: "12px 28px", borderRadius: "14px", fontWeight: 700 }} disabled={updating}>
+                                {updating ? "Saving Changes..." : "Save Changes"}
                             </button>
                         </form>
                     </div>
@@ -298,7 +304,7 @@ const UserProfile = () => {
                         </button>
                     </div>
                 </div>
-            </div>
+            </motion.div>
         </div>
     );
 };

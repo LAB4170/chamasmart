@@ -2409,7 +2409,7 @@ const ChamaDetails = () => {
                   </div>
                   <div className="report-content">
                     <ResponsiveContainer width="100%" height={300}>
-                      <LineChart
+                      <AreaChart
                         data={(() => {
                           // Aggregate contributions by month
                           const monthlyData = {};
@@ -2427,33 +2427,80 @@ const ChamaDetails = () => {
 
                           return Object.values(monthlyData).sort((a, b) => a.month.localeCompare(b.month));
                         })()}
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                        margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                       >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
-                        <YAxis />
+                        <defs>
+                          <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                          </linearGradient>
+                          <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                        <XAxis 
+                          dataKey="month" 
+                          tick={{fontSize: 11, fontWeight: 700}} 
+                          axisLine={false} 
+                          tickLine={false} 
+                        />
+                        <YAxis 
+                          tick={{fontSize: 11, fontWeight: 700}} 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tickFormatter={(val) => val >= 1000 ? (val/1000).toFixed(0) + 'K' : val}
+                        />
                         <Tooltip
-                          formatter={(value, name) => {
-                            if (name === 'amount') return [formatCurrency(value), 'Total Amount'];
-                            return [value, 'Transactions'];
+                          content={({ active, payload, label }) => {
+                            if (active && payload && payload.length) {
+                              return (
+                                <div className="recharts-default-tooltip" style={{ minWidth: "200px" }}>
+                                  <p className="recharts-tooltip-label">{label}</p>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                      <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "6px" }}>
+                                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#6366f1" }} />
+                                        Revenue:
+                                      </span>
+                                      <span style={{ fontWeight: 800, color: "var(--text-primary)" }}>{formatCurrency(payload[0].value)}</span>
+                                    </div>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                      <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "6px" }}>
+                                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981" }} />
+                                        Activity:
+                                      </span>
+                                      <span style={{ fontWeight: 800, color: "var(--text-primary)" }}>{payload[1].value} tx</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return null;
                           }}
                         />
-                        <Legend />
-                        <Line
+                        <Area
                           type="monotone"
                           dataKey="amount"
-                          stroke="var(--primary, #4f46e5)"
-                          strokeWidth={2}
+                          stroke="#6366f1"
+                          strokeWidth={3}
+                          fillOpacity={1}
+                          fill="url(#colorAmount)"
                           name="Total Amount"
+                          animationDuration={1500}
                         />
-                        <Line
+                        <Area
                           type="monotone"
                           dataKey="count"
-                          stroke="var(--secondary, #10b981)"
+                          stroke="#10b981"
                           strokeWidth={2}
+                          fillOpacity={1}
+                          fill="url(#colorCount)"
                           name="Transactions"
+                          animationDuration={1500}
                         />
-                      </LineChart>
+                      </AreaChart>
                     </ResponsiveContainer>
                   </div>
                 </div>

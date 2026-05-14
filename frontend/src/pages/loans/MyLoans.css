@@ -1,0 +1,213 @@
+.loan-management-page {
+    padding-bottom: 4rem;
+}
+
+.mini-stat-card-lux {
+    background: var(--bg-surface-glass, rgba(255, 255, 255, 0.05));
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex: 1;
+    min-width: 250px;
+    transition: all 0.3s ease;
+}
+
+.mini-stat-card-lux:hover {
+    transform: translateY(-2px);
+    background: var(--bg-surface-glass-hover, rgba(255, 255, 255, 0.08));
+    border-color: var(--primary-light);
+}
+
+.stat-icon-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.stat-icon-circle.blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.stat-icon-circle.green { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.stat-icon-circle.amber { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+
+.stat-label { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem; font-weight: 500; }
+.stat-value { font-size: 1.35rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px; }
+.stat-sub-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem; }
+
+.loan-grid-lux {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 1.5rem;
+}
+
+@media (max-width: 600px) {
+    .loan-grid-lux { grid-template-columns: 1fr; }
+}
+
+.loan-card-lux {
+    background: var(--bg-surface-glass, rgba(255, 255, 255, 0.03));
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.loan-card-lux::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.05) 0%, transparent 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.loan-card-lux:hover {
+    transform: translateY(-6px);
+    border-color: var(--gold-soft);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+}
+
+.loan-card-lux:hover::before {
+    opacity: 1;
+}
+
+.loan-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    z-index: 1;
+}
+
+.loan-chama-info {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.loan-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--gold-gradient);
+    color: black;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--gold-glow-small);
+}
+
+.loan-chama-info h3 { font-size: 1.15rem; margin: 0; color: var(--text-primary); font-weight: 700; }
+.loan-purpose { font-size: 0.8rem; color: var(--text-secondary); }
+
+.loan-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 16px;
+    padding: 1.25rem;
+    z-index: 1;
+}
+
+.loan-stat-item { display: flex; flex-direction: column; gap: 0.35rem; }
+.loan-stat-item .label { font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em; font-weight: 600; }
+.loan-stat-item .value { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+.loan-stat-item .value.balance { color: #f87171; }
+.loan-stat-item .value.date { color: var(--text-secondary); }
+
+.loan-progress-area { display: flex; flex-direction: column; gap: 0.6rem; z-index: 1; }
+.progress-header { display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); }
+.progress-bar-bg { height: 8px; background: rgba(0,0,0,0.2); border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); }
+.progress-bar-fill { height: 100%; background: var(--gold-gradient); border-radius: 10px; box-shadow: 0 0 10px rgba(212, 175, 55, 0.3); }
+
+.loan-card-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    z-index: 1;
+}
+
+.btn-primary-lux {
+    flex: 1.5;
+    padding: 0.85rem;
+    background: var(--gold-gradient);
+    color: black !important;
+    border: none;
+    border-radius: 14px;
+    font-weight: 800;
+    text-align: center;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--gold-glow-small);
+}
+
+.btn-primary-lux:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--gold-glow);
+    filter: brightness(1.1);
+}
+
+.btn-secondary-lux {
+    flex: 1;
+    padding: 0.85rem;
+    background: rgba(255,255,255,0.05);
+    color: var(--text-primary);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary-lux:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: var(--text-muted);
+}
+
+.gm-badge {
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid transparent;
+}
+
+.gm-badge-warn { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border-color: rgba(245, 158, 11, 0.2); }
+.gm-badge-success { background: rgba(16, 185, 129, 0.1); color: #34d399; border-color: rgba(16, 185, 129, 0.2); }
+.gm-badge-error { background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.2); }
+.gm-badge-info { background: rgba(59, 130, 246, 0.1); color: #60a5fa; border-color: rgba(59, 130, 246, 0.2); }
+.gm-badge-primary { background: rgba(139, 92, 246, 0.1); color: #a78bfa; border-color: rgba(139, 92, 246, 0.2); }
+
+.loading-state-lux, .empty-state-lux {
+    padding: 5rem 2rem;
+    text-align: center;
+    background: var(--bg-surface-glass);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 32px;
+    margin: 2rem 0;
+}
+
+.empty-icon { color: var(--gold-soft); margin-bottom: 1.5rem; opacity: 0.4; }

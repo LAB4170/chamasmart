@@ -149,7 +149,7 @@ const MyGuarantees = () => {
                     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                         {filteredItems.map((g, idx) => (
                             <div
-                                key={g.loan_id || idx}
+                                key={`guarantee-${g.loan_id || idx}`}
                                 className={`card gm-card ${g.guarantee_status === "PENDING" ? "gm-card--pending" : ""}`}
                             >
                                 {/* Card Header */}

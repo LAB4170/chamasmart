@@ -153,20 +153,35 @@ const SecurityMonitor = () => {
                             </div>
                         </div>
                     </div>
-                    <div style={{ width: '100px', height: '100px' }}>
+                    <div style={{ width: '120px', height: '120px' }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
                                     data={chartData}
-                                    innerRadius={30}
-                                    outerRadius={40}
-                                    paddingAngle={5}
+                                    innerRadius={35}
+                                    outerRadius={45}
+                                    paddingAngle={10}
                                     dataKey="value"
+                                    stroke="none"
                                 >
                                     {chartData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={entry.color} />
                                     ))}
                                 </Pie>
+                                <RechartsTooltip 
+                                    content={({ active, payload }) => {
+                                        if (active && payload && payload.length) {
+                                            return (
+                                                <div className="recharts-default-tooltip" style={{ padding: "8px 12px" }}>
+                                                    <p style={{ margin: 0, fontSize: "0.75rem", fontWeight: 800, color: payload[0].payload.color }}>
+                                                        {payload[0].name}: {payload[0].value}
+                                                    </p>
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    }}
+                                />
                             </PieChart>
                         </ResponsiveContainer>
                     </div>

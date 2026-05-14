@@ -474,25 +474,34 @@ const RoscaDashboard = () => {
 
                                 <div className="card-premium chart-card-premium">
                                     <h3 className="card-title-premium">Status Dictionary</h3>
-                                    <div className="chart-wrapper">
+                                    <div className="chart-wrapper" style={{ marginTop: "1rem" }}>
                                         <ResponsiveContainer width="100%" height={240}>
                                             <PieChart>
                                                 <Pie
                                                     data={chartData}
-                                                    innerRadius={60}
-                                                    outerRadius={80}
-                                                    paddingAngle={5}
+                                                    innerRadius={70}
+                                                    outerRadius={90}
+                                                    paddingAngle={8}
                                                     dataKey="value"
+                                                    stroke="none"
                                                 >
                                                     {chartData.map((entry, index) => (
                                                         <Cell key={`cell-${index}`} fill={entry.color} />
                                                     ))}
                                                 </Pie>
-                                                <Tooltip
-                                                    contentStyle={{
-                                                        borderRadius: '12px',
-                                                        border: 'none',
-                                                        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'
+                                                <Tooltip 
+                                                    content={({ active, payload }) => {
+                                                        if (active && payload && payload.length) {
+                                                            return (
+                                                                <div className="recharts-default-tooltip">
+                                                                    <p className="recharts-tooltip-label" style={{ margin: 0, fontSize: "0.8rem" }}>{payload[0].name}</p>
+                                                                    <p style={{ fontWeight: 800, margin: "4px 0 0 0", color: payload[0].payload.color }}>
+                                                                        {payload[0].value} Cycles
+                                                                    </p>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return null;
                                                     }}
                                                 />
                                             </PieChart>

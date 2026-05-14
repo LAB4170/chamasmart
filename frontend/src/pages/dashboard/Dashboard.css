@@ -1,0 +1,392 @@
+/* ===== God Mode Dashboard Styles ===== */
+
+.dashboard-lux-wrapper {
+    position: relative;
+    padding-bottom: 40px;
+}
+
+/* Ambient Background Glows */
+.dashboard-lux-wrapper::before {
+    content: '';
+    position: absolute;
+    top: -100px;
+    right: -100px;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(212, 175, 55, 0.05) 0%, transparent 70%);
+    z-index: -1;
+    pointer-events: none;
+}
+
+.dashboard-lux-wrapper::after {
+    content: '';
+    position: absolute;
+    bottom: 20%;
+    left: -100px;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.03) 0%, transparent 70%);
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* Portfolio Blocks (Formerly Stat Cards) */
+.portfolio-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.portfolio-block {
+    background: var(--bg-surface-glass);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border-radius: 24px;
+    border: 1px solid var(--glass-border);
+    padding: 28px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.portfolio-block:hover {
+    transform: translateY(-5px);
+    border-color: rgba(212, 175, 55, 0.4);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* Visual Impact Stat Cards */
+.portfolio-block-visual {
+    position: relative;
+    height: 200px;
+    border-radius: 32px;
+    overflow: hidden;
+    background: #000;
+    border: 1px solid var(--glass-border);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.portfolio-block-visual:hover {
+    transform: translateY(-10px);
+    border-color: var(--gold-text);
+    box-shadow: 0 30px 60px rgba(0,0,0,0.3);
+}
+
+.portfolio-block-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.5;
+    transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.portfolio-block-visual:hover .portfolio-block-image {
+    transform: scale(1.15);
+}
+
+.portfolio-block-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, transparent 20%, rgba(15, 23, 42, 0.9) 90%);
+    z-index: 1;
+}
+
+.portfolio-block-content {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.portfolio-block-icon-lux {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+}
+
+.portfolio-block-value-lux {
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: -1.5px;
+    margin-bottom: 4px;
+}
+
+.portfolio-block-label-lux {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+/* User Hero Section */
+.user-hero-lux {
+    position: relative;
+    padding: 60px;
+    border-radius: 40px;
+    background: var(--bg-surface-glass);
+    backdrop-filter: blur(32px);
+    border: 1px solid var(--glass-border);
+    margin-bottom: 48px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    overflow: hidden;
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.2);
+}
+
+.user-hero-lux::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 45%;
+    height: 100%;
+    background: radial-gradient(circle at top right, rgba(212, 175, 55, 0.15), transparent 70%);
+    z-index: 0;
+}
+
+.user-hero-content {
+    position: relative;
+    z-index: 1;
+    max-width: 60%;
+}
+
+.user-hero-title {
+    font-size: 3.5rem;
+    font-weight: 900;
+    letter-spacing: -2px;
+    line-height: 1;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.user-hero-subtitle {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    max-width: 480px;
+}
+
+/* Chama Card Cover */
+.chama-card-lux {
+    padding: 0 !important;
+    overflow: hidden;
+}
+
+.chama-card-cover-lux {
+    height: 160px;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+.chama-cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.chama-cover-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, var(--bg-surface-glass), transparent);
+}
+
+.chama-card-body-lux {
+    padding: 24px;
+}
+
+/* Responsive Overrides */
+@media (max-width: 768px) {
+    .user-hero-lux {
+        padding: 32px 24px;
+        border-radius: 24px;
+        margin-bottom: 32px;
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .user-hero-content {
+        max-width: 100%;
+        margin-bottom: 24px;
+    }
+
+    .user-hero-title {
+        font-size: 2.2rem;
+        letter-spacing: -1px;
+    }
+
+    .user-hero-subtitle {
+        font-size: 1rem;
+        margin: 0 auto;
+    }
+
+    .user-hero-visual {
+        display: none;
+    }
+
+    .portfolio-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .portfolio-block-visual {
+        height: 160px;
+    }
+
+    .portfolio-block-value-lux {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .user-hero-lux {
+        padding: 24px 20px;
+    }
+
+    .user-hero-title {
+        font-size: 1.8rem;
+    }
+
+    .portfolio-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .btn-action-primary, .btn-action-secondary {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+.portfolio-block:hover .portfolio-block-icon {
+    transform: scale(1.1);
+}
+
+.portfolio-block-value {
+    font-size: 1.8rem;
+    font-weight: 900;
+    margin-bottom: 4px;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.portfolio-block-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+
+/* Glass Section Header */
+.section-header-lux {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.section-header-lux span {
+    width: 6px;
+    height: 24px;
+    background: var(--gold-gradient);
+    border-radius: 3px;
+    display: inline-block;
+    box-shadow: var(--gold-glow);
+}
+
+.section-header-lux h3 {
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+}
+
+/* Commitment Cards */
+.commitment-card-lux {
+    background: var(--bg-surface-glass);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border-radius: 20px;
+    border: 1px solid var(--glass-border);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: all 0.3s ease;
+}
+
+.commitment-card-lux:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(212, 175, 55, 0.2);
+}
+
+/* Charts Card */
+.report-card-lux {
+    background: var(--bg-surface-glass);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border-radius: 24px;
+    border: 1px solid var(--glass-border);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.report-card-header-lux {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--glass-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.report-card-header-lux h2 {
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Group Cards */
+.chama-card-lux {
+    background: var(--bg-surface-glass);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border-radius: 24px;
+    border: 1px solid var(--glass-border);
+    padding: 24px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.chama-card-lux:hover {
+    transform: translateY(-8px);
+    border-color: rgba(212, 175, 55, 0.4);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+}

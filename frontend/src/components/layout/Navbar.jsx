@@ -14,6 +14,7 @@ import {
   LogOut,
   User,
   ChevronDown,
+  Banknote,
 } from "lucide-react";
 import "./Navbar.css";
 
@@ -74,6 +75,10 @@ const Navbar = () => {
             <NavLink to="/chamas" className="navbar-nav-link" onClick={() => setMobileOpen(false)}>
               <Users size={18} />
               <span>My Chamas</span>
+            </NavLink>
+            <NavLink to="/loans" className="navbar-nav-link" onClick={() => setMobileOpen(false)}>
+              <Banknote size={18} />
+              <span>Loans</span>
             </NavLink>
             <NavLink to="/browse-chamas" className="navbar-nav-link" onClick={() => setMobileOpen(false)}>
               <Search size={18} />

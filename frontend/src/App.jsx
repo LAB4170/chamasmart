@@ -44,7 +44,8 @@ const JoinRequests = lazy(() => import("./pages/chama/members/JoinRequests"));
 const MyJoinRequests = lazy(() => import("./pages/chama/members/MyJoinRequests"));
 const ApplyChama = lazy(() => import("./pages/chama/members/ApplyChama"));
 
-const MyGuarantees = lazy(() => import("./pages/loans/MyGuarantees"));
+import MyGuarantees from "./pages/loans/MyGuarantees";
+import MyLoans from "./pages/loans/MyLoans";
 const WelfareDashboard = lazy(() => import("./pages/chama/welfare/WelfareDashboard"));
 const SubmitClaim = lazy(() => import("./pages/chama/welfare/SubmitClaim"));
 const WelfareAdmin = lazy(() => import("./pages/chama/welfare/WelfareAdmin"));
@@ -397,6 +398,14 @@ function AppContent() {
                                 element={
                                     <ProtectedRoute>
                                         <PageTransition><MyGuarantees /></PageTransition>
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/loans"
+                                element={
+                                    <ProtectedRoute>
+                                        <PageTransition><MyLoans /></PageTransition>
                                     </ProtectedRoute>
                                 }
                             />

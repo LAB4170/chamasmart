@@ -11,26 +11,35 @@ import {
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Plus, Search, TrendingUp, Users, Wallet, ArrowRight,
-  PieChart, Activity, DollarSign, ShieldCheck, BarChart3, CheckCircle2
+  PieChart, Activity, DollarSign, ShieldCheck, BarChart3, CheckCircle2, AlertCircle, Target
 } from "lucide-react";
+import "./Dashboard.css";
 
 // ─── StatCard ───────────────────────────────────────────────────────────────
-const StatCard = memo(({ icon: Icon, value, label, color }) => (
-  <motion.div
-    className="mini-stat-card group"
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.4, ease: "easeOut" }}
-  >
-    <div className={`mini-stat-icon ${color} group-hover:scale-110 transition-transform`}>
-      <Icon size={24} />
-    </div>
-    <div style={{ display: "flex", flexDirection: "column" }}>
-      <div className="mini-stat-value">{value}</div>
-      <div className="mini-stat-label">{label}</div>
-    </div>
-  </motion.div>
-));
+const StatCard = memo(({ icon: Icon, value, label, image }) => {
+  return (
+    <motion.div
+      className="portfolio-block-visual"
+      variants={{
+        hidden: { opacity: 0, y: 30, scale: 0.9 },
+        show: { opacity: 1, y: 0, scale: 1 }
+      }}
+      whileHover={{ y: -10, transition: { duration: 0.3 } }}
+    >
+      <img src={image} alt="" className="portfolio-block-image" />
+      <div className="portfolio-block-overlay" />
+      <div className="portfolio-block-content">
+        <div className="portfolio-block-icon-lux">
+          <Icon size={20} />
+        </div>
+        <div>
+          <div className="portfolio-block-value-lux">{value}</div>
+          <div className="portfolio-block-label-lux">{label}</div>
+        </div>
+      </div>
+    </motion.div>
+  );
+});
 
 // ─── LoanCommitmentCard ───────────────────────────────────────────────────────
 const LoanCommitmentCard = memo(({ loan, formatCurrency, formatDate }) => {
@@ -102,57 +111,93 @@ const LoanCommitmentCard = memo(({ loan, formatCurrency, formatDate }) => {
   );
 });
 
+// ─── Constants ──────────────────────────────────────────────────────────────
+const TYPE_IMAGES = {
+  'ROSCA': 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&q=80&w=800',
+  'MERRY_GO_ROUND': 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&q=80&w=800',
+  'ASCA': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800',
+  'INVESTMENT': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800',
+  'TABLE_BANKING': 'https://images.unsplash.com/photo-1553729459-efe14ef6055d?auto=format&fit=crop&q=80&w=800',
+  'WELFARE': 'https://images.unsplash.com/photo-1593113598332-cd288d649433?auto=format&fit=crop&q=80&w=800',
+  'DEFAULT': 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&q=80&w=800'
+};
+
+const getChamaCoverImage = (chama) => {
+  const type = (chama.chama_type || '').toUpperCase();
+  if (chama.logo_url && chama.logo_url.startsWith('http')) return chama.logo_url;
+  
+  if (type.includes('MERRY')) return TYPE_IMAGES['MERRY_GO_ROUND'];
+  if (type.includes('ROSCA')) return TYPE_IMAGES['ROSCA'];
+  if (type.includes('ASCA') || type.includes('INVEST')) return TYPE_IMAGES['ASCA'];
+  if (type.includes('TABLE')) return TYPE_IMAGES['TABLE_BANKING'];
+  if (type.includes('WELFARE')) return TYPE_IMAGES['WELFARE'];
+  
+  return TYPE_IMAGES['DEFAULT'];
+};
+
 // ─── DashboardChamaCard ───────────────────────────────────────────────────────
-const DashboardChamaCard = memo(({ chama, getChamaTypeLabel, formatCurrency }) => (
-  <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-    <Link to={`/chamas/${chama.chama_id}`} className="cycle-card-modern group" style={{ textDecoration: "none" }}>
-      <div className="cycle-card-top">
-        <div className="cycle-card-name" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-          {chama.chama_name}
-          {chama.is_verified && (
-            <CheckCircle2 size={14} style={{ color: '#3b82f6', fill: 'rgba(59, 130, 246, 0.1)' }} />
-          )}
+const DashboardChamaCard = memo(({ chama, getChamaTypeLabel, formatCurrency }) => {
+  const coverImage = getChamaCoverImage(chama);
+  const type = (chama.chama_type || '').toUpperCase();
+  const getFallback = () => {
+    if (type.includes('ASCA')) return TYPE_IMAGES['ASCA'];
+    if (type.includes('TABLE')) return TYPE_IMAGES['TABLE_BANKING'];
+    if (type.includes('WELFARE')) return TYPE_IMAGES['WELFARE'];
+    return TYPE_IMAGES['ROSCA'];
+  };
+
+  return (
+    <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, show: { opacity: 1, scale: 1 } }}>
+      <Link to={`/chamas/${chama.chama_id}`} className="chama-card-lux">
+        <div className="chama-card-cover-lux">
+          <img 
+            src={coverImage} 
+            alt={chama.chama_name} 
+            className="chama-cover-img" 
+            onError={(e) => {
+              e.target.onerror = null; 
+              e.target.src = getFallback();
+            }}
+          />
+          <div className="chama-cover-overlay" />
         </div>
-        <span className={`cycle-badge ${chama.chama_type === "ROSCA" ? "badge-completed" : "badge-active"}`}>
-          {getChamaTypeLabel(chama.chama_type)}
-        </span>
-      </div>
-      <div className="cycle-card-amount" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <div>
-          {formatCurrency(
-            ['ASCA', 'TABLE_BANKING'].includes(chama.chama_type) 
-              ? chama.current_fund || 0 
-              : chama.total_contributions || 0
-          )}
-          <span style={{ fontSize: "0.65rem", fontWeight: 900, textTransform: "uppercase", color: "#94a3b8", marginLeft: "0.5rem" }}>
-            {['ASCA', 'TABLE_BANKING'].includes(chama.chama_type) ? "Net Worth" : "Total Saved"}
-          </span>
-        </div>
-        
-        {['ASCA', 'TABLE_BANKING'].includes(chama.chama_type) && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginTop: '0.5rem', background: 'var(--surface)', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ color: '#94a3b8', fontSize: '0.6rem', textTransform: 'uppercase', fontWeight: 800 }}>Base Savings</span>
-              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formatCurrency(chama.total_contributions || 0)}</span>
+        <div className="chama-card-body-lux">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h4 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 800 }}>{chama.chama_name}</h4>
+              {chama.is_verified && <CheckCircle2 size={16} style={{ color: '#D4AF37' }} />}
             </div>
-            <div style={{ width: '1px', background: 'var(--border)' }}></div>
-            <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'right' }}>
-              <span style={{ color: '#94a3b8', fontSize: '0.6rem', textTransform: 'uppercase', fontWeight: 800 }}>Interest Earned</span>
-              <span style={{ fontWeight: 800, color: '#10b981' }}>+{formatCurrency(chama.total_interest_earned || 0)}</span>
+            <span className="chama-type-badge-lux" style={{ fontSize: "10px", padding: "4px 10px" }}>
+              {getChamaTypeLabel(chama.chama_type)}
+            </span>
+          </div>
+          
+          <div style={{ marginBottom: "20px" }}>
+            <div style={{ fontSize: "1.6rem", fontWeight: 900, color: "var(--text-primary)", letterSpacing: "-1px" }}>
+              {formatCurrency(
+                ['ASCA', 'TABLE_BANKING'].includes(chama.chama_type) 
+                  ? chama.current_fund || 0 
+                  : chama.total_contributions || 0
+              )}
+            </div>
+            <div className="info-label-lux" style={{ marginTop: "4px" }}>
+              {['ASCA', 'TABLE_BANKING'].includes(chama.chama_type) ? "Net Worth" : "Total Accumulated"}
             </div>
           </div>
-        )}
-      </div>
-      <div className="cycle-card-meta" style={{ marginTop: ['ASCA', 'TABLE_BANKING'].includes(chama.chama_type) ? '0.5rem' : 'auto' }}>
-        <span title="Your Role"><ShieldCheck size={14} /> {chama.role}</span>
-        <span title="Members"><Users size={14} /> {chama.total_members}</span>
-        <span title="Contribution" style={{ marginLeft: "auto" }}>
-          <Wallet size={14} /> {formatCurrency(chama.contribution_amount)}
-        </span>
-      </div>
-    </Link>
-  </motion.div>
-));
+
+          <div style={{ display: "flex", alignItems: "center", gap: "16px", paddingTop: "16px", borderTop: "1px solid var(--glass-border)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.8rem", fontWeight: 700 }}>
+              <Users size={14} color="#D4AF37" /> {chama.total_members}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.8rem", fontWeight: 700 }}>
+              <Wallet size={14} color="#D4AF37" /> {formatCurrency(chama.contribution_amount)}
+            </div>
+          </div>
+        </div>
+      </Link>
+    </motion.div>
+  );
+});
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 const Dashboard = () => {
@@ -239,33 +284,54 @@ const Dashboard = () => {
 
   return (
     <div className="page">
-      <div className="container">
-        <div className="dashboard-content-wrapper">
+      {/* Background Blobs */}
+      <div className="ambient-blob blob-gold" />
+      <div className="ambient-blob blob-blue" />
 
-          {/* Header */}
-          <div className="page-header-modern" style={{ border: "none", background: "transparent", padding: "0 0 2rem 0" }}>
-            <div className="page-header-info">
-              <div className="page-header-icon blue">
-                <LayoutDashboard size={28} />
-              </div>
-              <div>
-                <h1>
-                  {(user?.firstName || user?.first_name) && !["antigravityagent", "antigravity agent", "user"].includes((user?.firstName || user?.first_name).toLowerCase().trim())
+      <div className="container">
+        <motion.div 
+          className="dashboard-lux-wrapper"
+          initial="hidden"
+          animate="show"
+          variants={{
+            hidden: { opacity: 0 },
+            show: {
+              opacity: 1,
+              transition: {
+                staggerChildren: 0.15
+              }
+            }
+          }}
+        >
+
+          {/* Hero Section */}
+          <motion.div 
+            className="user-hero-lux"
+            variants={{ hidden: { opacity: 0, y: 50 }, show: { opacity: 1, y: 0 } }}
+          >
+            <div className="user-hero-content">
+              <h1 className="user-hero-title">
+                {(user?.firstName || user?.first_name) && !["antigravityagent", "antigravity agent", "user"].includes((user?.firstName || user?.first_name).toLowerCase().trim())
                     ? `Welcome back, ${user.firstName || user.first_name}!`
                     : "Welcome to ChamaSmart!"}
-                </h1>
-                <p className="page-subtitle">Your financial portfolio overview across all groups.</p>
+              </h1>
+              <p className="user-hero-subtitle">
+                Your high-end command center for collective prosperity. 
+                Track your chamas, manage debt, and watch your portfolio grow with precision.
+              </p>
+              <div style={{ display: 'flex', gap: '1.5rem', marginTop: '32px' }}>
+                <Link to="/join-chama" className="btn-action-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderRadius: "16px", padding: "14px 28px", fontWeight: 700 }}>
+                  <Users size={20} /><span>Join Group</span>
+                </Link>
+                <Link to="/chamas/create" className="btn-action-primary" style={{ background: "var(--gold-gradient)", border: "none", color: "white", borderRadius: "16px", padding: "14px 32px", fontWeight: 800, display: "flex", alignItems: "center", gap: "10px", boxShadow: "var(--gold-glow)" }}>
+                  <Plus size={22} /><span>Create New Chama</span>
+                </Link>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <Link to="/join-chama" className="btn-action-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Users size={16} /><span>Join with Code</span>
-              </Link>
-              <Link to="/chamas/create" className="btn-action-primary">
-                <Plus size={18} /><span>Create New Chama</span>
-              </Link>
+            <div className="user-hero-visual" style={{ position: 'relative', zIndex: 1 }}>
+               <Activity size={180} strokeWidth={0.5} style={{ opacity: 0.1, color: 'var(--gold-text)' }} />
             </div>
-          </div>
+          </motion.div>
 
           {error && <div className="alert alert-error">{error}</div>}
 
@@ -336,24 +402,39 @@ const Dashboard = () => {
               ))}
 
               {/* ── Stat Cards ── */}
-              <div className="stats-row" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-                <StatCard icon={PieChart} value={chamas.length} label="Active Chamas" color="blue" />
+              <div className="portfolio-grid">
+                <StatCard 
+                  icon={PieChart} 
+                  value={chamas.length} 
+                  label="Active Chamas" 
+                  image="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&q=80&w=800" 
+                />
                 <StatCard 
                   icon={TrendingUp} 
                   value={formatCurrency(chamas.reduce((sum, c) => sum + parseFloat(c.total_interest_earned || 0), 0))} 
-                  label="Total Interest Earned" 
-                  color="green" 
+                  label="Interest Earned" 
+                  image="https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&q=80&w=800" 
                 />
-                <StatCard icon={DollarSign} value={formatCurrency(loanSummary.summary.totalBorrowed)} label="Direct Debt" color="amber" />
-                <StatCard icon={ShieldCheck} value={formatCurrency(loanSummary.summary.totalGuaranteed)} label="Guarantee Risk" color="purple" />
+                <StatCard 
+                  icon={DollarSign} 
+                  value={formatCurrency(loanSummary.summary.totalBorrowed)} 
+                  label="Direct Debt" 
+                  image="https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=800" 
+                />
+                <StatCard 
+                  icon={ShieldCheck} 
+                  value={formatCurrency(loanSummary.summary.totalGuaranteed)} 
+                  label="Guarantee Risk" 
+                  image="https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&q=80&w=800" 
+                />
               </div>
 
               {/* ── Loan Commitments ── */}
-              <div className="dashboard-section" style={{ marginBottom: "2rem" }}>
-                <h3 style={{ fontWeight: 900, fontSize: "1.1rem", marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                  <span style={{ width: "6px", height: "24px", background: "#f59e0b", borderRadius: "3px", display: "inline-block" }} />
-                  Loan Commitments
-                </h3>
+              <motion.div className="dashboard-section" style={{ marginBottom: "3rem" }} variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+                <div className="section-header-lux">
+                  <span />
+                  <h3>Loan Commitments</h3>
+                </div>
                 {allLoans.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "2rem", opacity: 0.5, border: "2px dashed var(--border)", borderRadius: "var(--radius-lg)" }}>
                     <p style={{ margin: 0, fontWeight: 700, textTransform: "uppercase", fontSize: "0.8rem" }}>No Active Loan Commitments</p>
@@ -370,91 +451,64 @@ const Dashboard = () => {
                     ))}
                   </div>
                 )}
-              </div>
+              </motion.div>
 
               {/* ── Charts ── */}
+              {/* ── Cinematic Charts Overhaul ── */}
               <div className="dashboard-grid-wrapper">
-                {/* Portfolio Distribution */}
-                <div className="report-card" style={{ padding: 0, overflow: "hidden" }}>
-                  <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid var(--border)" }}>
+                {/* Portfolio Wealth Growth & Distribution */}
+                <div className="report-card" style={{ padding: 0, overflow: "hidden", background: "var(--bg-surface-glass)" }}>
+                  <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <h2 style={{ fontSize: "0.75rem", fontWeight: 900, textTransform: "uppercase", display: "flex", alignItems: "center", gap: "0.5rem", margin: 0, color: "var(--text-secondary)" }}>
-                      <PieChart size={16} style={{ color: "#10b981" }} /> Portfolio Distribution
+                      <Activity size={16} style={{ color: "var(--gold-soft)" }} /> Portfolio Wealth
                     </h2>
+                    <div style={{ fontSize: "0.65rem", fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase" }}>Contribution Density</div>
                   </div>
-                  <div style={{ padding: "1rem" }}>
+                  <div style={{ padding: "1.5rem 1rem 1rem 1rem" }}>
                     <ResponsiveContainer width="100%" height={280}>
-                      <BarChart 
+                      <AreaChart 
                         data={chamas.map((c) => ({ 
-                          name: c.chama_name?.length > 10 ? c.chama_name.substring(0, 10) + "…" : c.chama_name, 
+                          name: c.chama_name?.length > 8 ? c.chama_name.substring(0, 8) + "…" : c.chama_name, 
                           total: parseFloat(['ASCA', 'TABLE_BANKING'].includes(c.chama_type) ? (c.current_fund || 0) : (c.total_contributions || 0)) 
                         })).sort((a,b) => b.total - a.total)}
-                        margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
-                        barCategoryGap="30%"
+                        margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                       >
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.5} />
-                        <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 10, fontWeight: 700 }} tickFormatter={(val) => {
-                          if(val >= 1000000) return (val/1000000).toFixed(1) + 'M';
-                          if(val >= 1000) return (val/1000).toFixed(0) + 'K';
-                          return val;
-                        }} axisLine={false} tickLine={false} />
-                        <Tooltip 
-                          formatter={(v) => formatCurrency(v)} 
-                          cursor={{ fill: "var(--surface)", opacity: 0.5 }} 
-                          contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", background: "var(--bg-surface-glass)", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }} 
+                        <defs>
+                          <linearGradient id="wealthGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="var(--gold-soft)" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="var(--gold-soft)" stopOpacity={0}/>
+                          </linearGradient>
+                          <linearGradient id="wealthStroke" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stopColor="#D4AF37" />
+                            <stop offset="100%" stopColor="#F59E0B" />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                        <XAxis 
+                          dataKey="name" 
+                          tick={{ fontSize: 10, fontWeight: 700, fill: "var(--text-secondary)" }} 
+                          axisLine={false} 
+                          tickLine={false} 
+                          dy={10}
                         />
-                        <Bar dataKey="total" name="Net Worth / Saved" fill="#10b981" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* Target Alignment */}
-                <div className="report-card" style={{ padding: 0, overflow: "hidden" }}>
-                  <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid var(--border)" }}>
-                    <h2 style={{ fontSize: "0.75rem", fontWeight: 900, textTransform: "uppercase", display: "flex", alignItems: "center", gap: "0.5rem", margin: 0, color: "var(--text-secondary)" }}>
-                      <BarChart3 size={16} style={{ color: "var(--primary)" }} /> Target Alignment
-                    </h2>
-                  </div>
-                  <div style={{ padding: "1rem" }}>
-                    <ResponsiveContainer width="100%" height={280}>
-                      <BarChart 
-                        data={chamas.slice(0, 6).map((c) => {
-                          const contributions = parseFloat(c.total_contributions || 0);
-                          const target = parseFloat(c.contribution_amount || 0) * 12;
-                          const validTarget = target > 0 ? target : 10000;
-                          const pct = Math.min(100, Math.round((contributions / validTarget) * 100));
-                          return {
-                            name: c.chama_name?.length > 10 ? c.chama_name.substring(0, 10) + "…" : c.chama_name,
-                            contributions,
-                            target: validTarget,
-                            pct
-                          };
-                        })} 
-                        margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
-                        barCategoryGap="25%"
-                        barGap={4}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.5} />
-                        <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 10, fontWeight: 700 }} tickFormatter={(val) => {
-                          if(val >= 1000000) return (val/1000000).toFixed(1) + 'M';
-                          if(val >= 1000) return (val/1000).toFixed(0) + 'K';
-                          return val;
-                        }} axisLine={false} tickLine={false} />
+                        <YAxis 
+                          tick={{ fontSize: 10, fontWeight: 700, fill: "var(--text-secondary)" }} 
+                          tickFormatter={(val) => val >= 1000 ? (val/1000).toFixed(0) + 'K' : val} 
+                          axisLine={false} 
+                          tickLine={false} 
+                        />
                         <Tooltip 
-                          cursor={{ fill: "rgba(59,130,246,0.05)" }} 
-                          contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", background: "var(--bg-surface-glass)", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }} 
                           content={({ active, payload, label }) => {
                             if (active && payload && payload.length) {
-                              const d = payload[0]?.payload;
                               return (
-                                <div style={{ background: "var(--surface)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border)" }}>
-                                  <p style={{ margin: "0 0 8px 0", fontWeight: 'bold' }}>{label}</p>
-                                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Annual Target: <strong style={{color: 'var(--text-primary)'}}>{formatCurrency(d?.target)}</strong></div>
-                                  <div style={{ color: '#3b82f6', fontSize: '0.85rem' }}>Accumulated: <strong>{formatCurrency(d?.contributions)}</strong></div>
-                                  <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border)', fontWeight: 'bold', color: d?.pct >= 100 ? '#10b981' : 'inherit' }}>
-                                    {d?.pct}% Achieved
+                                <div className="recharts-default-tooltip" style={{ minWidth: "180px" }}>
+                                  <p className="recharts-tooltip-label">{label}</p>
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Net Stake:</span>
+                                    <span style={{ fontWeight: 800, color: "var(--gold-text)" }}>{formatCurrency(payload[0].value)}</span>
+                                  </div>
+                                  <div style={{ marginTop: "8px", height: "4px", background: "rgba(212,175,55,0.1)", borderRadius: "2px" }}>
+                                    <div style={{ width: "100%", height: "100%", background: "var(--gold-gradient)", borderRadius: "2px" }} />
                                   </div>
                                 </div>
                               );
@@ -462,23 +516,132 @@ const Dashboard = () => {
                             return null;
                           }}
                         />
-                        <Legend wrapperStyle={{ fontSize: "10px", fontWeight: 900, textTransform: "uppercase" }} />
-                        <Bar dataKey="target" name="Annual Benchmark" fill="#dbeafe" radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="contributions" name="Accumulated" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                      </BarChart>
+                        <Area 
+                          type="monotone" 
+                          dataKey="total" 
+                          stroke="url(#wealthStroke)" 
+                          strokeWidth={3} 
+                          fillOpacity={1} 
+                          fill="url(#wealthGradient)" 
+                          animationDuration={2000}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Target Alignment - Premium Bar Design */}
+                <div className="report-card" style={{ padding: 0, overflow: "hidden", background: "var(--bg-surface-glass)" }}>
+                  <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <h2 style={{ fontSize: "0.75rem", fontWeight: 900, textTransform: "uppercase", display: "flex", alignItems: "center", gap: "0.5rem", margin: 0, color: "var(--text-secondary)" }}>
+                      <Target size={16} style={{ color: "#3b82f6" }} /> Annual Targets
+                    </h2>
+                    <div style={{ fontSize: "0.65rem", fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase" }}>Benchmark vs Actual</div>
+                  </div>
+                  <div style={{ padding: "1.5rem 1rem 1rem 1rem" }}>
+                    <ResponsiveContainer width="100%" height={280}>
+                        <BarChart 
+                          data={chamas.slice(0, 6).map((c) => {
+                            const contributions = parseFloat(c.total_contributions || 0);
+                            const target = parseFloat(c.contribution_amount || 0) * 12;
+                            const validTarget = target > 0 ? target : 10000;
+                            const pct = Math.min(100, Math.round((contributions / validTarget) * 100));
+                            return {
+                              name: c.chama_name?.length > 8 ? c.chama_name.substring(0, 8) + "…" : c.chama_name,
+                              contributions,
+                              target: validTarget,
+                              pct
+                            };
+                          })} 
+                          margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                          barCategoryGap="20%"
+                          barGap={-32} // Overlays bars
+                        >
+                          <defs>
+                            <linearGradient id="barBlue" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#60a5fa" stopOpacity={1}/>
+                              <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                            </linearGradient>
+                            <filter id="glow">
+                              <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                              <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                              </feMerge>
+                            </filter>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                          <XAxis 
+                            dataKey="name" 
+                            tick={{ fontSize: 10, fontWeight: 700, fill: "var(--text-secondary)" }} 
+                            axisLine={false} 
+                            tickLine={false} 
+                            dy={10}
+                          />
+                          <YAxis 
+                            tick={{ fontSize: 10, fontWeight: 700, fill: "var(--text-secondary)" }} 
+                            tickFormatter={(val) => val >= 1000 ? (val/1000).toFixed(0) + 'K' : val}
+                            axisLine={false} 
+                            tickLine={false} 
+                          />
+                          <Tooltip 
+                            cursor={{ fill: "rgba(59, 130, 246, 0.05)" }} 
+                            content={({ active, payload, label }) => {
+                              if (active && payload && payload.length) {
+                                const d = payload[0]?.payload;
+                                return (
+                                  <div className="recharts-default-tooltip" style={{ minWidth: "200px" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                                      <p className="recharts-tooltip-label" style={{ margin: 0 }}>{label}</p>
+                                      <span style={{ fontSize: "0.7rem", fontWeight: 900, color: d?.pct >= 100 ? "#10b981" : "#3b82f6", background: "rgba(0,0,0,0.2)", padding: "2px 8px", borderRadius: "6px" }}>
+                                        {d?.pct}%
+                                      </span>
+                                    </div>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem" }}>
+                                        <span style={{ color: "var(--text-muted)" }}>Target:</span>
+                                        <span style={{ color: "var(--text-primary)", fontWeight: 700 }}>{formatCurrency(d?.target)}</span>
+                                      </div>
+                                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem" }}>
+                                        <span style={{ color: "var(--text-muted)" }}>Actual:</span>
+                                        <span style={{ color: "#3b82f6", fontWeight: 800 }}>{formatCurrency(d?.contributions)}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                          <Bar 
+                            dataKey="target" 
+                            name="Benchmark" 
+                            fill="rgba(255, 255, 255, 0.03)" 
+                            radius={[8, 8, 0, 0]} 
+                            barSize={32}
+                          />
+                          <Bar 
+                            dataKey="contributions" 
+                            name="Accumulated" 
+                            fill="url(#barBlue)" 
+                            radius={[6, 6, 0, 0]} 
+                            barSize={18}
+                            filter="url(#glow)"
+                          />
+                        </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
               </div>
 
               {/* ── Portfolio Groups ── */}
-              <div className="dashboard-section" style={{ marginTop: "2rem" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }}>
-                  <h3 style={{ fontWeight: 900, fontSize: "1.1rem", margin: 0, display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                    <span style={{ width: "6px", height: "24px", background: "var(--primary)", borderRadius: "3px", display: "inline-block" }} />
-                    Your Portfolio Groups
-                  </h3>
-                  <span style={{ fontSize: "0.65rem", fontWeight: 900, textTransform: "uppercase", background: "var(--surface-3)", color: "var(--text-secondary)", padding: "4px 10px", borderRadius: "999px" }}>
+              <motion.div className="dashboard-section" style={{ marginTop: "3rem" }} variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2rem" }}>
+                  <div className="section-header-lux">
+                    <span />
+                    <h3>Your Portfolio Groups</h3>
+                  </div>
+                  <span style={{ fontSize: "0.7rem", fontWeight: 800, textTransform: "uppercase", background: "rgba(212, 175, 55, 0.1)", color: "var(--gold-text)", padding: "6px 14px", borderRadius: "10px", border: "1px solid rgba(212, 175, 55, 0.2)" }}>
                     {chamas.length} groups active
                   </span>
                 </div>
@@ -492,11 +655,11 @@ const Dashboard = () => {
                     />
                   ))}
                 </div>
-              </div>
+              </motion.div>
             </>
           )}
 
-        </div>
+        </motion.div>
       </div>
     </div>
   );

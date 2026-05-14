@@ -37,8 +37,16 @@
   
   --radius: 12px;
   --radius-lg: 20px;
+  --radius-xl: 32px;
   --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-fast: all 0.15s ease;
+
+  /* God Mode Tokens */
+  --gold-gradient: linear-gradient(135deg, #D4AF37 0%, #FDB931 50%, #B8860B 100%);
+  --gold-text: #D4AF37;
+  --gold-glow: 0 10px 20px rgba(212, 175, 55, 0.2);
+  --glass-border-light: rgba(255, 255, 255, 0.15);
+  --glass-border-dark: rgba(255, 255, 255, 0.05);
 
   /* Modern Semantic Aliases */
   --primary-color: var(--primary);
@@ -91,17 +99,20 @@
   
   /* Deep Dark Layering */
   --bg-page: #0f172a;
-  --bg-page-gradient: radial-gradient(circle at top right, #1e293b 0%, #0f172a 100%);
+  --bg-page-foundation: radial-gradient(circle at 0% 0%, rgba(212, 175, 55, 0.08) 0%, transparent 50%),
+                         radial-gradient(circle at 100% 100%, rgba(37, 99, 235, 0.05) 0%, transparent 50%),
+                         #0f172a;
+  --bg-page-gradient: var(--bg-page-foundation);
   --bg-surface: #1e293b;
-  --bg-surface-glass: rgba(30, 41, 59, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.05);
+  --bg-surface-glass: rgba(15, 23, 42, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.08);
   
   --dark: #f8fafc;
   --gray: #94a3b8;
   --gray-light: #64748b;
-  --light-gray: #1e293b;
-  --white: #111827;
-  --border: #334155;
+  --light-gray: rgba(15, 23, 42, 0.8);
+  --white: #ffffff;
+  --border: rgba(255, 255, 255, 0.08);
   
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
@@ -132,12 +143,58 @@
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: var(--text-primary);
-  background: var(--bg-page-gradient);
+  background: var(--bg-page-foundation);
   background-attachment: fixed;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background 0.4s ease, color 0.4s ease;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.ambient-blob {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(100px);
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.15;
+  animation: blob-float 20s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.blob-gold {
+  top: -10%;
+  right: -10%;
+  width: 50vw;
+  height: 50vw;
+  background: var(--gold-gradient);
+}
+
+.blob-blue {
+  bottom: -10%;
+  left: -10%;
+  width: 60vw;
+  height: 60vw;
+  background: radial-gradient(circle, #2563eb, #1d4ed8);
+  animation-delay: -5s;
+}
+
+@keyframes blob-float {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(-5%, 10%) scale(1.1); }
 }
 
 .dashboard-content-wrapper {
@@ -209,8 +266,9 @@ p {
 
 .page {
   min-height: 100vh;
-  padding: 2rem 0;
+  padding: 140px 0 2rem 0;
   animation: fadeIn 0.5s ease-in-out;
+  background: transparent;
 }
 
 @keyframes fadeIn {
@@ -2886,12 +2944,7 @@ button:focus,
   }
 }
 
-/* Page Background Enhancement */
-.page {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  padding-bottom: 2rem;
-}
+
 
 .container {
   max-width: 1200px;
@@ -4911,7 +4964,39 @@ button:focus,
   color: var(--text-secondary) !important;
 }
 
-/* Recharts override - chart text */
+/* Recharts Overrides - Premium Aesthetics */
+.recharts-cartesian-axis-tick-value {
+    font-size: 11px;
+    font-weight: 600;
+    fill: var(--text-secondary);
+}
+
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+    stroke: var(--border);
+    stroke-opacity: 0.4;
+}
+
+.recharts-tooltip-cursor {
+    fill: rgba(212, 175, 55, 0.05);
+}
+
+.recharts-default-tooltip {
+    background: var(--bg-surface-glass, rgba(255, 255, 255, 0.9)) !important;
+    backdrop-filter: blur(12px) !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
+    padding: 12px !important;
+}
+
+.recharts-tooltip-label {
+    font-weight: 800 !important;
+    color: var(--text-primary) !important;
+    margin-bottom: 8px !important;
+    font-size: 0.9rem !important;
+}
+
 [data-theme='dark'] .recharts-text,
 [data-theme='dark'] .recharts-cartesian-axis-tick-value {
   fill: var(--text-secondary) !important;
@@ -4926,9 +5011,14 @@ button:focus,
 }
 
 [data-theme='dark'] .recharts-tooltip-wrapper .recharts-default-tooltip {
-  background: var(--surface-2) !important;
-  border-color: var(--border) !important;
+  background: rgba(15, 23, 42, 0.95) !important;
+  border-color: var(--glass-border) !important;
   color: var(--text-primary) !important;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.4) !important;
+}
+
+[data-theme='dark'] .recharts-tooltip-item {
+    color: var(--text-primary) !important;
 }
 
 /* Loading skeleton */

@@ -1705,8 +1705,8 @@ const getUserLoans = async (req, res) => {
     const result = await pool.query(
       `SELECT 
         l.*,
-        c.name as chama_name,
-        c.type as chama_type
+        c.chama_name,
+        c.chama_type
        FROM loans l
        JOIN chamas c ON l.chama_id = c.chama_id
        ${whereClause}
