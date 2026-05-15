@@ -161,96 +161,98 @@ const MyChamas = () => {
       <div className="ambient-blob blob-blue" />
 
       <div className="container">
-        <motion.div 
-          className="my-chamas-lux-wrapper"
-          initial="hidden"
-          animate="show"
-          variants={{
-            hidden: { opacity: 0 },
-            show: {
-              opacity: 1,
-              transition: { staggerChildren: 0.15 }
-            }
-          }}
-        >
-          {/* Hero Section */}
+        <div className="page-frame-lux">
           <motion.div 
-            className="user-hero-lux"
-            variants={{ hidden: { opacity: 0, y: 50 }, show: { opacity: 1, y: 0 } }}
-            style={{ marginBottom: '40px' }}
+            className="my-chamas-lux-wrapper"
+            initial="hidden"
+            animate="show"
+            variants={{
+              hidden: { opacity: 0 },
+              show: {
+                opacity: 1,
+                transition: { staggerChildren: 0.15 }
+              }
+            }}
           >
-            <div className="user-hero-content">
-              <h1 className="user-hero-title">Your Chamas</h1>
-              <p className="user-hero-subtitle">
-                Explore your active investment groups. Manage your contributions, track community growth, 
-                and discover new opportunities for collective wealth.
-              </p>
-              <div style={{ display: 'flex', gap: '1.5rem', marginTop: '32px' }}>
-                <Link to="/join-chama" className="btn-action-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderRadius: "16px", padding: "14px 28px", fontWeight: 700 }}>
-                  <Users size={20} /><span>Join via Code</span>
-                </Link>
-                <Link to="/chamas/create" className="btn-action-primary" style={{ background: "var(--gold-gradient)", border: "none", color: "white", borderRadius: "16px", padding: "14px 32px", fontWeight: 800, display: "flex", alignItems: "center", gap: "10px" }}>
-                  <Sparkles size={20} /><span>Create New Chama</span>
-                </Link>
-              </div>
-            </div>
-            <div className="user-hero-visual">
-               <Building2 size={180} strokeWidth={0.5} style={{ opacity: 0.1, color: 'var(--gold-text)' }} />
-            </div>
-          </motion.div>
-
-        {error && <div className="alert alert-error">{error}</div>}
-
-        {/* Filter Bar */}
-        <div className="filter-bar-lux">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              className={`filter-btn-lux ${filter === cat.id ? "active" : ""}`}
-              onClick={() => setFilter(cat.id)}
+            {/* Hero Section */}
+            <motion.div 
+              className="user-hero-lux"
+              variants={{ hidden: { opacity: 0, y: 50 }, show: { opacity: 1, y: 0 } }}
+              style={{ marginBottom: '40px' }}
             >
-              <cat.Icon size={18} />
-              {cat.label}
-            </button>
-          ))}
-        </div>
+              <div className="user-hero-content">
+                <h1 className="user-hero-title">Your Chamas</h1>
+                <p className="user-hero-subtitle">
+                  Explore your active investment groups. Manage your contributions, track community growth, 
+                  and discover new opportunities for collective wealth.
+                </p>
+                <div style={{ display: 'flex', gap: '1.5rem', marginTop: '32px' }}>
+                  <Link to="/join-chama" className="btn-action-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderRadius: "16px", padding: "14px 28px", fontWeight: 700 }}>
+                    <Users size={20} /><span>Join via Code</span>
+                  </Link>
+                  <Link to="/chamas/create" className="btn-action-primary" style={{ background: "var(--gold-gradient)", border: "none", color: "white", borderRadius: "16px", padding: "14px 32px", fontWeight: 800, display: "flex", alignItems: "center", gap: "10px" }}>
+                    <Sparkles size={20} /><span>Create New Chama</span>
+                  </Link>
+                </div>
+              </div>
+              <div className="user-hero-visual">
+                 <Building2 size={180} strokeWidth={0.5} style={{ opacity: 0.1, color: 'var(--gold-text)' }} />
+              </div>
+            </motion.div>
 
-        {/* Content Section */}
-        {loading ? (
-          <div className="chamas-grid-lux">
-            <LoadingSkeleton type="card" count={3} />
-          </div>
-        ) : filteredChamas.length === 0 ? (
-          <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }} className="report-card-lux text-center" style={{ padding: '5rem 2rem' }}>
-            <div className="mb-4" style={{ color: 'var(--gold-text)', opacity: 0.5 }}><MapPin size={64} strokeWidth={1} /></div>
-            <h2 style={{ fontWeight: 800 }}>No chamas found</h2>
-            <p className="text-muted" style={{ fontSize: '1.1rem', maxWidth: '500px', margin: '1rem auto' }}>
-              {filter === "ALL"
-                ? "You haven't joined any groups yet. Start your financial journey today!"
-                : `You don't have any ${getChamaTypeLabel(filter)} chamas yet.`}
-            </p>
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '2rem' }}>
-              <Link to="/chamas/create" className="btn-action-primary" style={{ background: "var(--gold-gradient)", border: "none" }}>
-                Start a Chama
-              </Link>
-              <Link to="/join-chama" className="btn-action-secondary">
-                Join with Code
-              </Link>
+            {error && <div className="alert alert-error">{error}</div>}
+
+            {/* Filter Bar */}
+            <div className="filter-bar-lux">
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  className={`filter-btn-lux ${filter === cat.id ? "active" : ""}`}
+                  onClick={() => setFilter(cat.id)}
+                >
+                  <cat.Icon size={18} />
+                  {cat.label}
+                </button>
+              ))}
             </div>
+
+            {/* Content Section */}
+            {loading ? (
+              <div className="chamas-grid-lux">
+                <LoadingSkeleton type="card" count={3} />
+              </div>
+            ) : filteredChamas.length === 0 ? (
+              <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }} className="report-card-lux text-center" style={{ padding: '5rem 2rem' }}>
+                <div className="mb-4" style={{ color: 'var(--gold-text)', opacity: 0.5 }}><MapPin size={64} strokeWidth={1} /></div>
+                <h2 style={{ fontWeight: 800 }}>No chamas found</h2>
+                <p className="text-muted" style={{ fontSize: '1.1rem', maxWidth: '500px', margin: '1rem auto' }}>
+                  {filter === "ALL"
+                    ? "You haven't joined any groups yet. Start your financial journey today!"
+                    : `You don't have any ${getChamaTypeLabel(filter)} chamas yet.`}
+                </p>
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '2rem' }}>
+                  <Link to="/chamas/create" className="btn-action-primary" style={{ background: "var(--gold-gradient)", border: "none" }}>
+                    Start a Chama
+                  </Link>
+                  <Link to="/join-chama" className="btn-action-secondary">
+                    Join with Code
+                  </Link>
+                </div>
+              </motion.div>
+            ) : (
+              <div className="chamas-grid-lux">
+                {filteredChamas.map((chama) => (
+                  <MyChamaCard
+                    key={chama.chama_id}
+                    chama={chama}
+                    getChamaTypeLabel={getChamaTypeLabel}
+                    formatCurrency={formatCurrency}
+                  />
+                ))}
+              </div>
+            )}
           </motion.div>
-        ) : (
-          <div className="chamas-grid-lux">
-            {filteredChamas.map((chama) => (
-              <MyChamaCard
-                key={chama.chama_id}
-                chama={chama}
-                getChamaTypeLabel={getChamaTypeLabel}
-                formatCurrency={formatCurrency}
-              />
-            ))}
-          </div>
-        )}
-        </motion.div>
+        </div>
       </div>
     </div>
   );

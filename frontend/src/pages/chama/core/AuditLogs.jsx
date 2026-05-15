@@ -69,128 +69,130 @@ const AuditLogs = () => {
     return (
         <div className="page audit-logs-page">
             <div className="container">
-                <div className="page-header">
-                    <div>
-                        <h1>Audit Trail</h1>
-                        <p className="subtitle">Track all chama activities and changes</p>
+                <div className="page-frame-lux">
+                    <div className="page-header">
+                        <div>
+                            <h1>Audit Trail</h1>
+                            <p className="subtitle">Track all chama activities and changes</p>
+                        </div>
+                        <div className="header-actions">
+                            <button className="btn btn-outline" onClick={() => navigate(`/chamas/${id}`)}>
+                                ← Back to Chama
+                            </button>
+                            <button className="btn btn-primary" onClick={handleExport} aria-label="Export audit logs">
+                                <Download size={18} /> Export Logs
+                            </button>
+                        </div>
                     </div>
-                    <div className="header-actions">
-                        <button className="btn btn-outline" onClick={() => navigate(`/chamas/${id}`)}>
-                            ← Back to Chama
-                        </button>
-                        <button className="btn btn-primary" onClick={handleExport} aria-label="Export audit logs">
-                            <Download size={18} /> Export Logs
-                        </button>
-                    </div>
-                </div>
 
-                {/* Summary Cards */}
-                {summary && (
-                    <div className="stat-grid">
-                        <div className="stat-card">
-                            <h3>{summary.total_actions || 0}</h3>
-                            <p>Total Actions</p>
+                    {/* Summary Cards */}
+                    {summary && (
+                        <div className="stat-grid">
+                            <div className="stat-card">
+                                <h3>{summary.total_actions || 0}</h3>
+                                <p>Total Actions</p>
+                            </div>
+                            <div className="stat-card">
+                                <h3>{summary.unique_users || 0}</h3>
+                                <p>Active Users</p>
+                            </div>
+                            <div className="stat-card">
+                                <h3>{summary.today_actions || 0}</h3>
+                                <p>Actions Today</p>
+                            </div>
+                            <div className="stat-card">
+                                <h3>{summary.critical_actions || 0}</h3>
+                                <p>Critical Actions</p>
+                            </div>
                         </div>
-                        <div className="stat-card">
-                            <h3>{summary.unique_users || 0}</h3>
-                            <p>Active Users</p>
-                        </div>
-                        <div className="stat-card">
-                            <h3>{summary.today_actions || 0}</h3>
-                            <p>Actions Today</p>
-                        </div>
-                        <div className="stat-card">
-                            <h3>{summary.critical_actions || 0}</h3>
-                            <p>Critical Actions</p>
+                    )}
+
+                    {/* Filters */}
+                    <div className="card mb-3 p-3">
+                        <div className="filter-grid">
+                            <div className="form-group mb-0">
+                                <label>Action Type</label>
+                                <select
+                                    name="action"
+                                    className="form-select"
+                                    value={filter.action}
+                                    onChange={handleFilterChange}
+                                >
+                                    <option value="">All Actions</option>
+                                    <option value="CREATE">Create</option>
+                                    <option value="UPDATE">Update</option>
+                                    <option value="DELETE">Delete</option>
+                                    <option value="APPROVE">Approve</option>
+                                    <option value="REJECT">Reject</option>
+                                </select>
+                            </div>
+                            <div className="form-group mb-0">
+                                <label>Start Date</label>
+                                <input
+                                    type="date"
+                                    name="startDate"
+                                    className="form-input"
+                                    value={filter.startDate}
+                                    onChange={handleFilterChange}
+                                />
+                            </div>
+                            <div className="form-group mb-0">
+                                <label>End Date</label>
+                                <input
+                                    type="date"
+                                    name="endDate"
+                                    className="form-input"
+                                    value={filter.endDate}
+                                    onChange={handleFilterChange}
+                                />
+                            </div>
                         </div>
                     </div>
-                )}
 
-                {/* Filters */}
-                <div className="card mb-3 p-3">
-                    <div className="filter-grid">
-                        <div className="form-group mb-0">
-                            <label>Action Type</label>
-                            <select
-                                name="action"
-                                className="form-select"
-                                value={filter.action}
-                                onChange={handleFilterChange}
-                            >
-                                <option value="">All Actions</option>
-                                <option value="CREATE">Create</option>
-                                <option value="UPDATE">Update</option>
-                                <option value="DELETE">Delete</option>
-                                <option value="APPROVE">Approve</option>
-                                <option value="REJECT">Reject</option>
-                            </select>
-                        </div>
-                        <div className="form-group mb-0">
-                            <label>Start Date</label>
-                            <input
-                                type="date"
-                                name="startDate"
-                                className="form-input"
-                                value={filter.startDate}
-                                onChange={handleFilterChange}
-                            />
-                        </div>
-                        <div className="form-group mb-0">
-                            <label>End Date</label>
-                            <input
-                                type="date"
-                                name="endDate"
-                                className="form-input"
-                                value={filter.endDate}
-                                onChange={handleFilterChange}
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Logs Table */}
-                <div className="table-responsive">
-                    <table className="audit-table">
-                        <thead>
-                            <tr>
-                                <th>Date & Time</th>
-                                <th>User</th>
-                                <th>Action</th>
-                                <th>Resource</th>
-                                <th>Details</th>
-                                <th>IP Address</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {logs.length === 0 ? (
+                    {/* Logs Table */}
+                    <div className="table-responsive">
+                        <table className="audit-table">
+                            <thead>
                                 <tr>
-                                    <td colSpan="6" className="text-center p-4">No logs found matching your criteria</td>
+                                    <th>Date & Time</th>
+                                    <th>User</th>
+                                    <th>Action</th>
+                                    <th>Resource</th>
+                                    <th>Details</th>
+                                    <th>IP Address</th>
                                 </tr>
-                            ) : (
-                                logs.map(log => (
-                                    <tr key={log.audit_id}>
-                                        <td>{new Date(log.created_at).toLocaleString()}</td>
-                                        <td>
-                                            <div className="user-info">
-                                                <span className="font-bold">{log.user_name || "System"}</span>
-                                                <span className="text-muted text-sm">{log.user_email || ""}</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span className={`badge badge-${getActionColor(log.action?.split(':')?.[0]?.toUpperCase() || log.action?.toUpperCase())}`}>
-                                                {log.action}
-                                            </span>
-                                        </td>
-                                        <td>{log.entity_type || log.resource}</td>
-                                        <td className="log-details" title={log.details || log.metadata ? JSON.stringify(log.metadata) : ""}>
-                                            {log.details || (log.metadata ? JSON.stringify(log.metadata) : "-")}
-                                        </td>
-                                        <td className="text-muted text-sm">{log.ip_address}</td>
+                            </thead>
+                            <tbody>
+                                {logs.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="6" className="text-center p-4">No logs found matching your criteria</td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                ) : (
+                                    logs.map(log => (
+                                        <tr key={log.audit_id}>
+                                            <td>{new Date(log.created_at).toLocaleString()}</td>
+                                            <td>
+                                                <div className="user-info">
+                                                    <span className="font-bold">{log.user_name || "System"}</span>
+                                                    <span className="text-muted text-sm">{log.user_email || ""}</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span className={`badge badge-${getActionColor(log.action?.split(':')?.[0]?.toUpperCase() || log.action?.toUpperCase())}`}>
+                                                    {log.action}
+                                                </span>
+                                            </td>
+                                            <td>{log.entity_type || log.resource}</td>
+                                            <td className="log-details" title={log.details || log.metadata ? JSON.stringify(log.metadata) : ""}>
+                                                {log.details || (log.metadata ? JSON.stringify(log.metadata) : "-")}
+                                            </td>
+                                            <td className="text-muted text-sm">{log.ip_address}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

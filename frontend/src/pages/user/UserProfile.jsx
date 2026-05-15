@@ -1,18 +1,23 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { userAPI } from "../../services/api";
+import { userAPI, chamaAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { toast } from "react-toastify";
-import { Camera, Loader2 } from "lucide-react";
+import { 
+    Camera, Loader2, Shield, User, Lock, Trash2, 
+    CheckCircle2, Mail, Phone, CreditCard, Activity,
+    Calendar, Trophy, ShieldCheck
+} from "lucide-react";
 import { uploadMediaToFirebase } from "../../services/firebaseStorage";
 import { getImageUrl } from "../../utils/imageUtils";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import "./UserProfile.css";
 
 const UserProfile = () => {
     const { logout } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState({ groups: 0, since: "..." });
     const [profile, setProfile] = useState({
         first_name: "",
         last_name: "",
@@ -22,7 +27,6 @@ const UserProfile = () => {
         profile_picture_url: ""
     });
 
-    // Password change state
     const [passwordData, setPasswordData] = useState({
         currentPassword: "",
         newPassword: "",
@@ -40,8 +44,14 @@ const UserProfile = () => {
 
     const fetchProfile = async () => {
         try {
-            const res = await userAPI.getProfile();
-            const data = res.data.data || res.data;
+            const [profileRes, chamasRes] = await Promise.all([
+                userAPI.getProfile(),
+                chamaAPI.getMyChamas()
+            ]);
+            
+            const data = profileRes.data.data || profileRes.data;
+            const myChamas = chamasRes.data.data || chamasRes.data || [];
+            
             setProfile({
                 first_name: data.first_name,
                 last_name: data.last_name,
@@ -50,10 +60,18 @@ const UserProfile = () => {
                 national_id: data.national_id || "",
                 profile_picture_url: data.profilePictureUrl || data.profile_picture_url || ""
             });
+
+            // Derive some stats
+            const joinDate = new Date(data.created_at || Date.now());
+            setStats({
+                groups: myChamas.length,
+                since: joinDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+            });
+
             setLoading(false);
         } catch (err) {
             console.error(err);
-            toast.error("Failed to load profile");
+            toast.error("Failed to load profile details");
             setLoading(false);
         }
     };
@@ -62,20 +80,16 @@ const UserProfile = () => {
         const file = e.target.files[0];
         if (!file) return;
 
-        if (!file.type.startsWith('image/')) {
-            return toast.error("Please select an image file");
-        }
-        if (file.size > 5 * 1024 * 1024) {
-            return toast.error("Image must be less than 5MB");
-        }
+        if (!file.type.startsWith('image/')) return toast.error("Invalid image file");
+        if (file.size > 5 * 1024 * 1024) return toast.error("Image too large (max 5MB)");
 
         setUploadingImage(true);
         try {
             const downloadUrl = await uploadMediaToFirebase(file, 'avatars');
             setProfile(prev => ({ ...prev, profile_picture_url: downloadUrl }));
-            toast.success("Profile picture uploaded. Click Save to apply.");
+            toast.success("Identity updated! Save changes to apply permanently.");
         } catch (err) {
-            toast.error("Failed to upload image");
+            toast.error("Cloud sync failed");
             console.error(err);
         } finally {
             setUploadingImage(false);
@@ -95,12 +109,10 @@ const UserProfile = () => {
                 nationalId: profile.national_id,
                 profilePictureUrl: profile.profile_picture_url
             };
-            console.log("SENDING UPDATE DATA:", updateData);
             await userAPI.updateProfile(updateData);
-            toast.success("Profile updated successfully");
+            toast.success("Profile records secured");
         } catch (err) {
-            console.error("PROFILE UPDATE FAILED:", err.response?.data || err);
-            toast.error(err.response?.data?.message || "Failed to update profile");
+            toast.error(err.response?.data?.message || "Sync failed");
         } finally {
             setUpdating(false);
         }
@@ -109,7 +121,7 @@ const UserProfile = () => {
     const handlePasswordChange = async (e) => {
         e.preventDefault();
         if (passwordData.newPassword !== passwordData.confirmPassword) {
-            return toast.error("New passwords do not match");
+            return toast.error("Passwords do not match");
         }
 
         setChangingPassword(true);
@@ -118,193 +130,217 @@ const UserProfile = () => {
                 currentPassword: passwordData.currentPassword,
                 newPassword: passwordData.newPassword
             });
-            toast.success("Password changed successfully");
+            toast.success("Credentials updated successfully");
             setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
         } catch (err) {
-            console.error(err);
-            toast.error(err.response?.data?.message || "Failed to change password");
+            toast.error(err.response?.data?.message || "Credential update failed");
         } finally {
             setChangingPassword(false);
         }
     };
 
     const handleDeleteAccount = async () => {
-        if (!window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
-            return;
-        }
-
+        if (!window.confirm("CRITICAL: Permanent account deletion. Proceed?")) return;
         try {
             await userAPI.deleteAccount();
-            toast.success("Account deleted successfully");
+            toast.success("Account terminated");
             logout();
             navigate("/");
         } catch (err) {
-            console.error(err);
-            toast.error("Failed to delete account");
+            toast.error("Termination failed");
         }
     };
 
-    if (loading) return <div className="loading-spinner">Loading Profile...</div>;
+    if (loading) return (
+        <div className="flex-center" style={{ height: '80vh', flexDirection: 'column', gap: '1.5rem' }}>
+            <div className="spinner-modern" />
+            <p style={{ color: 'var(--text-secondary)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px' }}>
+                Securing Profile Session...
+            </p>
+        </div>
+    );
 
     return (
-        <div className="page">
-            <motion.div 
-                className="container profile-container"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-            >
-                <div className="profile-header" style={{ marginBottom: "3rem" }}>
-                    <h1 style={{ fontSize: "2.8rem", fontWeight: 900, letterSpacing: "-1.5px" }}>My Profile</h1>
-                </div>
-
-                <div className="profile-card">
-                    <div className="profile-section">
-                        <h3>Personal Information</h3>
-                        
-                        <div className="profile-picture-container">
-                            <div className="profile-picture-wrapper" onClick={() => fileInputRef.current?.click()}>
-                                {getImageUrl(profile.profile_picture_url) ? (
-                                    <img src={getImageUrl(profile.profile_picture_url)} alt="Profile" className="profile-picture" />
-                                ) : (
-                                    <div className="profile-picture-placeholder">
-                                        {(profile.first_name?.[0] || "") + (profile.last_name?.[0] || "") || "?"}
-                                    </div>
-                                )}
-                                <div className="profile-picture-overlay">
-                                    {uploadingImage ? <Loader2 className="spinner" size={24} /> : <Camera size={24} />}
+        <div className="profile-page-wrapper">
+            <div className="page-frame-lux">
+                <motion.div 
+                    className="profile-container-lux"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6 }}
+                >
+                {/* ── Left Sidebar: Identity ── */}
+                <aside className="identity-card-lux">
+                    <div className="identity-avatar-group">
+                        <div className="identity-avatar-ring" />
+                        <div className="identity-avatar-wrapper" onClick={() => fileInputRef.current?.click()}>
+                            {getImageUrl(profile.profile_picture_url) ? (
+                                <img src={getImageUrl(profile.profile_picture_url)} alt="Profile" className="identity-avatar-img" />
+                            ) : (
+                                <div className="identity-avatar-placeholder">
+                                    {(profile.first_name?.[0] || "") + (profile.last_name?.[0] || "")}
                                 </div>
+                            )}
+                            <div className="identity-avatar-overlay">
+                                {uploadingImage ? <Loader2 className="animate-spin" /> : <Camera />}
                             </div>
-                                <input 
-                                    type="file" 
-                                    ref={fileInputRef} 
-                                    style={{ display: 'none' }} 
-                                    accept="image/png, image/jpeg, image/jpg, image/webp"
-                                    onChange={handleImageUpload}
-                                />
-                            <p className="profile-picture-hint">Click to change profile picture</p>
                         </div>
-
-                        <form onSubmit={handleProfileUpdate} className="profile-form">
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>First Name</label>
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        value={profile.first_name || ""}
-                                        onChange={(e) => setProfile({ ...profile, first_name: e.target.value })}
-                                        required
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Last Name</label>
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        value={profile.last_name || ""}
-                                        onChange={(e) => setProfile({ ...profile, last_name: e.target.value })}
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Email Address</label>
-                                    <input
-                                        type="email"
-                                        className="form-input"
-                                        value={profile.email || ""}
-                                        onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                                        placeholder="Enter Email Address"
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>National ID</label>
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        value={profile.national_id || ""}
-                                        onChange={(e) => setProfile({ ...profile, national_id: e.target.value })}
-                                        placeholder="Enter National ID"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Phone Number</label>
-                                    <input
-                                        type="tel"
-                                        className="form-input"
-                                        value={profile.phone_number || ""}
-                                        onChange={(e) => setProfile({ ...profile, phone_number: e.target.value })}
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <button type="submit" className="btn-action-primary" style={{ background: "var(--gold-gradient)", border: "none", color: "white", padding: "12px 28px", borderRadius: "14px", fontWeight: 700 }} disabled={updating}>
-                                {updating ? "Saving Changes..." : "Save Changes"}
-                            </button>
-                        </form>
+                        <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            style={{ display: 'none' }} 
+                            onChange={handleImageUpload}
+                            accept="image/*"
+                        />
                     </div>
 
-                    {/* Security Section */}
-                    <div className="profile-section">
-                        <h3>Security</h3>
-                        <form onSubmit={handlePasswordChange} className="profile-form">
-                            <div className="form-group">
-                                <label>Current Password</label>
-                                <input
-                                    type="password"
-                                    className="form-input"
-                                    value={passwordData.currentPassword}
-                                    onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                                    required
-                                />
-                            </div>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>New Password</label>
-                                    <input
+                    <h2 className="identity-name">{profile.first_name} {profile.last_name}</h2>
+                    <p className="identity-email">{profile.email}</p>
+                    
+                    <div className="identity-badge-lux">
+                        <ShieldCheck size={14} />
+                        Verified Member
+                    </div>
+
+                    <div className="identity-stats-lux">
+                        <div className="identity-stat-item">
+                            <span className="identity-stat-val">{stats.groups}</span>
+                            <span className="identity-stat-label">Groups</span>
+                        </div>
+                        <div className="identity-stat-item">
+                            <span className="identity-stat-val">{stats.since}</span>
+                            <span className="identity-stat-label">Joined</span>
+                        </div>
+                    </div>
+                </aside>
+
+                {/* ── Right Content: Configuration ── */}
+                <main className="profile-content-lux">
+                    
+                    {/* Personal Info */}
+                    <div className="profile-card-lux">
+                        <div className="card-header-lux">
+                            <User size={20} className="text-gold" />
+                            <h3>Personal Information</h3>
+                        </div>
+                        <div className="card-body-lux">
+                            <form onSubmit={handleProfileUpdate} className="lux-form-grid">
+                                <div className="lux-input-group">
+                                    <label className="lux-label">First Name</label>
+                                    <input 
+                                        className="lux-input" 
+                                        value={profile.first_name} 
+                                        onChange={e => setProfile({...profile, first_name: e.target.value})}
+                                        required
+                                    />
+                                </div>
+                                <div className="lux-input-group">
+                                    <label className="lux-label">Last Name</label>
+                                    <input 
+                                        className="lux-input" 
+                                        value={profile.last_name} 
+                                        onChange={e => setProfile({...profile, last_name: e.target.value})}
+                                        required
+                                    />
+                                </div>
+                                <div className="lux-input-group">
+                                    <label className="lux-label">Email Address</label>
+                                    <input 
+                                        className="lux-input" 
+                                        type="email"
+                                        value={profile.email} 
+                                        onChange={e => setProfile({...profile, email: e.target.value})}
+                                    />
+                                </div>
+                                <div className="lux-input-group">
+                                    <label className="lux-label">National ID</label>
+                                    <input 
+                                        className="lux-input" 
+                                        value={profile.national_id} 
+                                        onChange={e => setProfile({...profile, national_id: e.target.value})}
+                                        placeholder="Identification Number"
+                                    />
+                                </div>
+                                <div className="lux-input-group" style={{ gridColumn: '1 / -1' }}>
+                                    <label className="lux-label">Phone Number</label>
+                                    <input 
+                                        className="lux-input" 
+                                        value={profile.phone_number} 
+                                        onChange={e => setProfile({...profile, phone_number: e.target.value})}
+                                        required
+                                    />
+                                </div>
+                                <button type="submit" className="btn-lux-save" disabled={updating}>
+                                    {updating ? "Syncing Records..." : "Save Profile Changes"}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    {/* Security */}
+                    <div className="profile-card-lux security-card-lux">
+                        <div className="card-header-lux">
+                            <Lock size={20} className="text-primary" />
+                            <h3>Access Credentials</h3>
+                        </div>
+                        <div className="card-body-lux">
+                            <form onSubmit={handlePasswordChange} className="lux-form-grid">
+                                <div className="lux-input-group" style={{ gridColumn: '1 / -1' }}>
+                                    <label className="lux-label">Current Password</label>
+                                    <input 
                                         type="password"
-                                        className="form-input"
+                                        className="lux-input" 
+                                        value={passwordData.currentPassword}
+                                        onChange={e => setPasswordData({...passwordData, currentPassword: e.target.value})}
+                                        required
+                                    />
+                                </div>
+                                <div className="lux-input-group">
+                                    <label className="lux-label">New Password</label>
+                                    <input 
+                                        type="password"
+                                        className="lux-input" 
                                         value={passwordData.newPassword}
-                                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                                        onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})}
                                         required
                                     />
                                 </div>
-                                <div className="form-group">
-                                    <label>Confirm New Password</label>
-                                    <input
+                                <div className="lux-input-group">
+                                    <label className="lux-label">Confirm New Password</label>
+                                    <input 
                                         type="password"
-                                        className="form-input"
+                                        className="lux-input" 
                                         value={passwordData.confirmPassword}
-                                        onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                                        onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})}
                                         required
                                     />
                                 </div>
-                            </div>
-                            <button type="submit" className="btn btn-outline" disabled={changingPassword}>
-                                {changingPassword ? "Updating Password..." : "Update Password"}
-                            </button>
-                        </form>
+                                <button type="submit" className="btn-lux-secondary" style={{ gridColumn: '1 / -1' }} disabled={changingPassword}>
+                                    {changingPassword ? "Updating Access..." : "Update Security Credentials"}
+                                </button>
+                            </form>
+                        </div>
                     </div>
 
                     {/* Danger Zone */}
-                    <div className="danger-zone">
-                        <h3>Danger Zone</h3>
-                        <p className="text-muted mb-3">
-                            Once you delete your account, there is no going back. Please be certain.
-                        </p>
-                        <button onClick={handleDeleteAccount} className="btn-danger-outline">
-                            Delete Account
-                        </button>
+                    <div className="profile-card-lux danger-card-lux">
+                        <div className="card-header-lux">
+                            <Trash2 size={20} className="text-danger" />
+                            <h3>System Override</h3>
+                        </div>
+                        <div className="card-body-lux">
+                            <p className="danger-text-lux">
+                                Terminating your account will permanently remove all stake records, history, and access from the ChamaSmart network. This operation is irreversible.
+                            </p>
+                            <button onClick={handleDeleteAccount} className="btn-lux-danger">
+                                Terminate Account Access
+                            </button>
+                        </div>
                     </div>
-                </div>
+
+                </main>
             </motion.div>
+          </div>
         </div>
     );
 };

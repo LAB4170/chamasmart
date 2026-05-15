@@ -1161,7 +1161,8 @@ const ChamaDetails = () => {
     <div className="chama-details-root">
       <div className="page">
         <div className="container">
-          <ChamaHeader
+          <div className="page-frame-lux">
+            <ChamaHeader
         chama={chama}
         userRole={userRole}
         isROSCA={isROSCA}
@@ -3207,6 +3208,7 @@ const ChamaDetails = () => {
                 </form>
               </div>
             )}
+          </div>
           </div>
         </div>
       </div>

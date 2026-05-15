@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { authAPI } from "../services/api";
 import { auth, googleProvider } from "../config/firebase";
-import { signInWithPopup } from "firebase/auth";
+import { signInWithPopup, signInWithRedirect, getRedirectResult } from "firebase/auth";
 
 const AuthContext = createContext();
 
@@ -22,6 +22,33 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initAuth = async () => {
       try {
+        setLoading(true);
+        // 1. Check for Redirect Result (Google Login Fallback)
+        const redirectResult = await getRedirectResult(auth).catch(err => {
+          console.warn("Redirect result check failed (normal if not returning from redirect):", err);
+          return null;
+        });
+
+        if (redirectResult) {
+          const idToken = await redirectResult.user.getIdToken();
+          const userData = {
+            firstName: redirectResult.user.displayName?.split(" ")[0] || "",
+            lastName: redirectResult.user.displayName?.split(" ").slice(1).join(" ") || "",
+            email: redirectResult.user.email,
+            phoneNumber: redirectResult.user.phoneNumber || ""
+          };
+
+          const response = await authAPI.firebaseSync(idToken, userData);
+          const { user: newUser, tokens } = response.data.data;
+
+          localStorage.setItem("token", tokens.accessToken);
+          localStorage.setItem("user", JSON.stringify(newUser));
+          setUser(newUser);
+          setLoading(false);
+          return;
+        }
+
+        // 2. Standard Session Check
         const token = localStorage.getItem("token");
         const savedUser = localStorage.getItem("user");
 
@@ -94,7 +121,19 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      const result = await signInWithPopup(auth, googleProvider);
+      let result;
+      try {
+        result = await signInWithPopup(auth, googleProvider);
+      } catch (popupErr) {
+        // If popup is blocked, fallback to redirect
+        if (popupErr.code === 'auth/popup-blocked') {
+          console.info("Popup blocked, falling back to redirect...");
+          await signInWithRedirect(auth, googleProvider);
+          return { success: 'redirecting' };
+        }
+        throw popupErr;
+      }
+
       const idToken = await result.user.getIdToken();
       
       const userData = {

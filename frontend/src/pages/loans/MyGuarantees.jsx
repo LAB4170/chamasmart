@@ -79,170 +79,172 @@ const MyGuarantees = () => {
 
     return (
         <div className="page">
-            <div className="container" style={{ maxWidth: 860 }}>
-                {/* Header */}
-                <div className="page-header-modern">
-                    <button className="back-link" onClick={() => navigate(-1)} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.4rem", color: "var(--text-secondary)", marginBottom: "1rem" }}>
-                        <ArrowLeft size={16} /> Back
-                    </button>
-                    <div className="page-header-row">
-                        <div className="page-header-info">
-                            <div className="page-header-icon green">
-                                <ShieldCheck size={24} />
-                            </div>
-                            <div>
-                                <h1>My Guarantees</h1>
-                                <p className="page-subtitle">
-                                    {pendingCount > 0
-                                        ? `You have ${pendingCount} pending guarantee request${pendingCount > 1 ? 's' : ''} that need your response.`
-                                        : "Review loan guarantee requests from your group members."}
-                                </p>
+            <div className="container">
+                <div className="page-frame-lux" style={{ maxWidth: 860, margin: '0 auto' }}>
+                    {/* Header */}
+                    <div className="page-header-modern">
+                        <button className="back-link" onClick={() => navigate(-1)} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.4rem", color: "var(--text-secondary)", marginBottom: "1rem" }}>
+                            <ArrowLeft size={16} /> Back
+                        </button>
+                        <div className="page-header-row">
+                            <div className="page-header-info">
+                                <div className="page-header-icon green">
+                                    <ShieldCheck size={24} />
+                                </div>
+                                <div>
+                                    <h1>My Guarantees</h1>
+                                    <p className="page-subtitle">
+                                        {pendingCount > 0
+                                            ? `You have ${pendingCount} pending guarantee request${pendingCount > 1 ? 's' : ''} that need your response.`
+                                            : "Review loan guarantee requests from your group members."}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                {error && (
-                    <div className="alert alert-error" style={{ marginBottom: "1rem" }}>
-                        <AlertTriangle size={16} /> {error}
+                    {error && (
+                        <div className="alert alert-error" style={{ marginBottom: "1rem" }}>
+                            <AlertTriangle size={16} /> {error}
+                        </div>
+                    )}
+
+                    {/* INFO BOX */}
+                    <div className="gm-info-box">
+                        <ShieldCheck size={18} style={{ color: "var(--primary)", flexShrink: 0 }} />
+                        <p>
+                            When you <strong>accept</strong> a guarantee, you pledge your savings as security for the borrower.
+                            If they default, your savings may be used to recover the loan.
+                            Only accept if you fully trust the borrower.
+                        </p>
                     </div>
-                )}
 
-                {/* INFO BOX */}
-                <div className="gm-info-box">
-                    <ShieldCheck size={18} style={{ color: "var(--primary)", flexShrink: 0 }} />
-                    <p>
-                        When you <strong>accept</strong> a guarantee, you pledge your savings as security for the borrower.
-                        If they default, your savings may be used to recover the loan.
-                        Only accept if you fully trust the borrower.
-                    </p>
-                </div>
-
-                {/* Filters */}
-                <div className="filter-bar" style={{ marginBottom: "1.5rem" }}>
-                    {["PENDING", "APPROVED", "REJECTED", "ALL"].map(f => (
-                        <button
-                            key={f}
-                            className={`filter-btn ${filter === f ? "active" : ""}`}
-                            onClick={() => setFilter(f)}
-                        >
-                            {f === "ALL" ? "All" : f === "PENDING" ? "Pending" : f === "APPROVED" ? "Accepted" : "Declined"}
-                            {" "}
-                            ({f === "ALL" ? items.length : items.filter(g => g.guarantee_status === f).length})
-                        </button>
-                    ))}
-                </div>
-
-                {/* Content */}
-                {loading ? (
-                    <div className="card" style={{ padding: "3rem", textAlign: "center" }}>
-                        <div className="spinner" style={{ margin: "0 auto 1rem" }} />
-                        <p className="text-muted">Loading guarantee requests…</p>
-                    </div>
-                ) : filteredItems.length === 0 ? (
-                    <div className="card" style={{ padding: "3rem", textAlign: "center" }}>
-                        <ShieldCheck size={48} style={{ color: "var(--border)", margin: "0 auto 1rem" }} />
-                        <h3 style={{ marginBottom: "0.5rem" }}>No {filter !== "ALL" ? filter.toLowerCase() : ""} guarantees</h3>
-                        <p className="text-muted">No guarantee requests match this filter.</p>
-                    </div>
-                ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                        {filteredItems.map((g, idx) => (
-                            <div
-                                key={`guarantee-${g.loan_id || idx}`}
-                                className={`card gm-card ${g.guarantee_status === "PENDING" ? "gm-card--pending" : ""}`}
+                    {/* Filters */}
+                    <div className="filter-bar" style={{ marginBottom: "1.5rem" }}>
+                        {["PENDING", "APPROVED", "REJECTED", "ALL"].map(f => (
+                            <button
+                                key={f}
+                                className={`filter-btn ${filter === f ? "active" : ""}`}
+                                onClick={() => setFilter(f)}
                             >
-                                {/* Card Header */}
-                                <div className="gm-card-header">
-                                    <div className="gm-card-title">
-                                        <div className="gm-avatar">
-                                            <User size={18} />
+                                {f === "ALL" ? "All" : f === "PENDING" ? "Pending" : f === "APPROVED" ? "Accepted" : "Declined"}
+                                {" "}
+                                ({f === "ALL" ? items.length : items.filter(g => g.guarantee_status === f).length})
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Content */}
+                    {loading ? (
+                        <div className="card" style={{ padding: "3rem", textAlign: "center" }}>
+                            <div className="spinner" style={{ margin: "0 auto 1rem" }} />
+                            <p className="text-muted">Loading guarantee requests…</p>
+                        </div>
+                    ) : filteredItems.length === 0 ? (
+                        <div className="card" style={{ padding: "3rem", textAlign: "center" }}>
+                            <ShieldCheck size={48} style={{ color: "var(--border)", margin: "0 auto 1rem" }} />
+                            <h3 style={{ marginBottom: "0.5rem" }}>No {filter !== "ALL" ? filter.toLowerCase() : ""} guarantees</h3>
+                            <p className="text-muted">No guarantee requests match this filter.</p>
+                        </div>
+                    ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                            {filteredItems.map((g, idx) => (
+                                <div
+                                    key={`guarantee-${g.loan_id || idx}`}
+                                    className={`card gm-card ${g.guarantee_status === "PENDING" ? "gm-card--pending" : ""}`}
+                                >
+                                    {/* Card Header */}
+                                    <div className="gm-card-header">
+                                        <div className="gm-card-title">
+                                            <div className="gm-avatar">
+                                                <User size={18} />
+                                            </div>
+                                            <div>
+                                                <strong>{g.borrower_name || "Member"}</strong>
+                                                <div className="gm-sub">
+                                                    <Building2 size={12} /> {g.chama_name || "Chama"}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <strong>{g.borrower_name || "Member"}</strong>
-                                            <div className="gm-sub">
-                                                <Building2 size={12} /> {g.chama_name || "Chama"}
+                                        <StatusBadge status={g.guarantee_status} />
+                                    </div>
+
+                                    {/* Loan Details */}
+                                    <div className="gm-details-grid">
+                                        <div className="gm-detail-item">
+                                            <DollarSign size={14} className="gm-detail-icon" />
+                                            <div>
+                                                <span className="gm-detail-label">Loan Amount</span>
+                                                <span className="gm-detail-value">{fmt(g.loan_amount)}</span>
+                                            </div>
+                                        </div>
+                                        <div className="gm-detail-item">
+                                            <ShieldCheck size={14} className="gm-detail-icon" />
+                                            <div>
+                                                <span className="gm-detail-label">Your Guarantee</span>
+                                                <span className="gm-detail-value text-warning">{fmt(g.guarantee_amount)}</span>
+                                            </div>
+                                        </div>
+                                        <div className="gm-detail-item">
+                                            <Calendar size={14} className="gm-detail-icon" />
+                                            <div>
+                                                <span className="gm-detail-label">Repayment Period</span>
+                                                <span className="gm-detail-value">{g.term_months || "–"} months</span>
+                                            </div>
+                                        </div>
+                                        <div className="gm-detail-item">
+                                            <DollarSign size={14} className="gm-detail-icon" />
+                                            <div>
+                                                <span className="gm-detail-label">Monthly Payment</span>
+                                                <span className="gm-detail-value">{fmt(g.monthly_payment)}</span>
                                             </div>
                                         </div>
                                     </div>
-                                    <StatusBadge status={g.guarantee_status} />
+
+                                    {/* Purpose */}
+                                    {g.purpose && (
+                                        <div className="gm-purpose">
+                                            <strong>Purpose: </strong>{g.purpose}
+                                        </div>
+                                    )}
+
+                                    {/* Date */}
+                                    <div className="gm-meta">
+                                        Requested on {fmtDate(g.created_at)}
+                                    </div>
+
+                                    {/* Action Buttons — only if PENDING */}
+                                    {g.guarantee_status === "PENDING" && (
+                                        <div className="gm-actions">
+                                            <button
+                                                className="btn btn-success"
+                                                onClick={() => handleRespond(g.loan_id, "ACCEPT")}
+                                                disabled={actionLoading !== null}
+                                                style={{ flex: 1 }}
+                                            >
+                                                {actionLoading === `${g.loan_id}-ACCEPT`
+                                                    ? <><span className="lw-spinner" /> Accepting…</>
+                                                    : <><ShieldCheck size={16} /> Accept Guarantee</>
+                                                }
+                                            </button>
+                                            <button
+                                                className="btn btn-outline btn-danger-outline"
+                                                onClick={() => handleRespond(g.loan_id, "REJECT")}
+                                                disabled={actionLoading !== null}
+                                                style={{ flex: 1 }}
+                                            >
+                                                {actionLoading === `${g.loan_id}-REJECT`
+                                                    ? <><span className="lw-spinner" /> Declining…</>
+                                                    : <><ShieldX size={16} /> Decline</>
+                                                }
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
-
-                                {/* Loan Details */}
-                                <div className="gm-details-grid">
-                                    <div className="gm-detail-item">
-                                        <DollarSign size={14} className="gm-detail-icon" />
-                                        <div>
-                                            <span className="gm-detail-label">Loan Amount</span>
-                                            <span className="gm-detail-value">{fmt(g.loan_amount)}</span>
-                                        </div>
-                                    </div>
-                                    <div className="gm-detail-item">
-                                        <ShieldCheck size={14} className="gm-detail-icon" />
-                                        <div>
-                                            <span className="gm-detail-label">Your Guarantee</span>
-                                            <span className="gm-detail-value text-warning">{fmt(g.guarantee_amount)}</span>
-                                        </div>
-                                    </div>
-                                    <div className="gm-detail-item">
-                                        <Calendar size={14} className="gm-detail-icon" />
-                                        <div>
-                                            <span className="gm-detail-label">Repayment Period</span>
-                                            <span className="gm-detail-value">{g.term_months || "–"} months</span>
-                                        </div>
-                                    </div>
-                                    <div className="gm-detail-item">
-                                        <DollarSign size={14} className="gm-detail-icon" />
-                                        <div>
-                                            <span className="gm-detail-label">Monthly Payment</span>
-                                            <span className="gm-detail-value">{fmt(g.monthly_payment)}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Purpose */}
-                                {g.purpose && (
-                                    <div className="gm-purpose">
-                                        <strong>Purpose: </strong>{g.purpose}
-                                    </div>
-                                )}
-
-                                {/* Date */}
-                                <div className="gm-meta">
-                                    Requested on {fmtDate(g.created_at)}
-                                </div>
-
-                                {/* Action Buttons — only if PENDING */}
-                                {g.guarantee_status === "PENDING" && (
-                                    <div className="gm-actions">
-                                        <button
-                                            className="btn btn-success"
-                                            onClick={() => handleRespond(g.loan_id, "ACCEPT")}
-                                            disabled={actionLoading !== null}
-                                            style={{ flex: 1 }}
-                                        >
-                                            {actionLoading === `${g.loan_id}-ACCEPT`
-                                                ? <><span className="lw-spinner" /> Accepting…</>
-                                                : <><ShieldCheck size={16} /> Accept Guarantee</>
-                                            }
-                                        </button>
-                                        <button
-                                            className="btn btn-outline btn-danger-outline"
-                                            onClick={() => handleRespond(g.loan_id, "REJECT")}
-                                            disabled={actionLoading !== null}
-                                            style={{ flex: 1 }}
-                                        >
-                                            {actionLoading === `${g.loan_id}-REJECT`
-                                                ? <><span className="lw-spinner" /> Declining…</>
-                                                : <><ShieldX size={16} /> Decline</>
-                                            }
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                )}
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
 
             <style>{`

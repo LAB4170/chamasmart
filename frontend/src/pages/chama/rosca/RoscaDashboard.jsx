@@ -361,166 +361,168 @@ const RoscaDashboard = () => {
     return (
         <div className="page rosca-dashboard-page">
             <div className="container">
-                <PaymentModal />
-                {/* Page Header */}
-                <div className="page-header-modern">
-                    <Link to={`/chamas/${id}`} className="back-link-premium">
-                        <ArrowLeft size={16} />
-                        <span>Chama Dashboard</span>
-                    </Link>
-                    <div className="header-content">
-                        <div className="header-info">
-                            <div className="header-icon-wrapper">
-                                <RefreshCw size={28} className="rotate-slow" />
+                <div className="page-frame-lux">
+                    <PaymentModal />
+                    {/* Page Header */}
+                    <div className="page-header-modern">
+                        <Link to={`/chamas/${id}`} className="back-link-premium">
+                            <ArrowLeft size={16} />
+                            <span>Chama Dashboard</span>
+                        </Link>
+                        <div className="header-content">
+                            <div className="header-info">
+                                <div className="header-icon-wrapper">
+                                    <RefreshCw size={28} className="rotate-slow" />
+                                </div>
+                                <div>
+                                    <h1>Merry-Go-Round</h1>
+                                    <p>Manage your ROSCA cycles and contributions</p>
+                                </div>
                             </div>
-                            <div>
-                                <h1>Merry-Go-Round</h1>
-                                <p>Manage your ROSCA cycles and contributions</p>
-                            </div>
+                            {canManage && (
+                                <Link to={`/chamas/${id}/rosca/create`} className="btn-create-premium">
+                                    <Plus size={20} />
+                                    <span>Start New Round</span>
+                                </Link>
+                            )}
                         </div>
-                        {canManage && (
-                            <Link to={`/chamas/${id}/rosca/create`} className="btn-create-premium">
-                                <Plus size={20} />
-                                <span>Start New Round</span>
-                            </Link>
-                        )}
                     </div>
-                </div>
 
-                {cycles.length === 0 ? (
-                    <div className="empty-state-card-premium">
-                        <div className="empty-illustration">
-                            <RefreshCw size={64} />
+                    {cycles.length === 0 ? (
+                        <div className="empty-state-card-premium">
+                            <div className="empty-illustration">
+                                <RefreshCw size={64} />
+                            </div>
+                            <h2>No active rounds yet</h2>
+                            <p>Launch your first merry-go-round cycle to start rotating savings today.</p>
+                            {canManage && (
+                                <Link to={`/chamas/${id}/rosca/create`} className="btn-create-premium large">
+                                    <Plus size={20} />
+                                    <span>Initialize First Cycle</span>
+                                </Link>
+                            )}
                         </div>
-                        <h2>No active rounds yet</h2>
-                        <p>Launch your first merry-go-round cycle to start rotating savings today.</p>
-                        {canManage && (
-                            <Link to={`/chamas/${id}/rosca/create`} className="btn-create-premium large">
-                                <Plus size={20} />
-                                <span>Initialize First Cycle</span>
-                            </Link>
-                        )}
-                    </div>
-                ) : (
-                    <>
-                        {/* Stats Summary */}
-                        <div className="stats-grid-premium">
-                            <div className="stat-card-premium active">
-                                <div className="stat-icon"><CircleDot size={20} /></div>
-                                <div className="stat-data">
-                                    <span className="stat-value">{activeCycles.length}</span>
-                                    <span className="stat-label">Active Rounds</span>
+                    ) : (
+                        <>
+                            {/* Stats Summary */}
+                            <div className="stats-grid-premium">
+                                <div className="stat-card-premium active">
+                                    <div className="stat-icon"><CircleDot size={20} /></div>
+                                    <div className="stat-data">
+                                        <span className="stat-value">{activeCycles.length}</span>
+                                        <span className="stat-label">Active Rounds</span>
+                                    </div>
+                                </div>
+                                <div className="stat-card-premium pending">
+                                    <div className="stat-icon"><Clock size={20} /></div>
+                                    <div className="stat-data">
+                                        <span className="stat-value">{pendingCycles.length}</span>
+                                        <span className="stat-label">Upcoming</span>
+                                    </div>
+                                </div>
+                                <div className="stat-card-premium total">
+                                    <div className="stat-icon"><Users size={20} /></div>
+                                    <div className="stat-data">
+                                        <span className="stat-value">{cycles.length}</span>
+                                        <span className="stat-label">Total Cycles</span>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="stat-card-premium pending">
-                                <div className="stat-icon"><Clock size={20} /></div>
-                                <div className="stat-data">
-                                    <span className="stat-value">{pendingCycles.length}</span>
-                                    <span className="stat-label">Upcoming</span>
-                                </div>
-                            </div>
-                            <div className="stat-card-premium total">
-                                <div className="stat-icon"><Users size={20} /></div>
-                                <div className="stat-data">
-                                    <span className="stat-value">{cycles.length}</span>
-                                    <span className="stat-label">Total Cycles</span>
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* Content Sections */}
-                        <div className="dashboard-content-grid">
-                            <div className="main-content">
-                                {swapRequests.length > 0 && (
-                                    <div className="card-premium mb-8 bg-amber-50 border-amber-200 shadow-amber-100/50">
-                                        <div className="p-5">
-                                            <h3 className="flex items-center gap-2 text-amber-800 font-bold mb-4">
-                                                <RefreshCw size={18} className="animate-spin-slow" />
-                                                Pending Swap Requests
-                                            </h3>
-                                            <div className="space-y-3">
-                                                {swapRequests.map(request => (
-                                                    <div key={request.request_id} className="bg-white p-4 rounded-xl shadow-sm border border-amber-100 flex justify-between items-center animate-pulse-subtle">
-                                                        <div>
-                                                            <p className="text-sm font-bold text-gray-800">
-                                                                {request.requester_first_name} {request.requester_last_name}
-                                                            </p>
-                                                            <p className="text-xs text-amber-600 font-medium">
-                                                                Wants to swap Turn #{request.requester_position} for your Turn #{request.target_position} in <span className="underline">{request.cycle_name}</span>
-                                                            </p>
-                                                            {request.reason && <p className="text-[10px] text-gray-400 mt-1">"{request.reason}"</p>}
+                            {/* Content Sections */}
+                            <div className="dashboard-content-grid">
+                                <div className="main-content">
+                                    {swapRequests.length > 0 && (
+                                        <div className="card-premium mb-8 bg-amber-50 border-amber-200 shadow-amber-100/50">
+                                            <div className="p-5">
+                                                <h3 className="flex items-center gap-2 text-amber-800 font-bold mb-4">
+                                                    <RefreshCw size={18} className="animate-spin-slow" />
+                                                    Pending Swap Requests
+                                                </h3>
+                                                <div className="space-y-3">
+                                                    {swapRequests.map(request => (
+                                                        <div key={request.request_id} className="bg-white p-4 rounded-xl shadow-sm border border-amber-100 flex justify-between items-center animate-pulse-subtle">
+                                                            <div>
+                                                                <p className="text-sm font-bold text-gray-800">
+                                                                    {request.requester_first_name} {request.requester_last_name}
+                                                                </p>
+                                                                <p className="text-xs text-amber-600 font-medium">
+                                                                    Wants to swap Turn #{request.requester_position} for your Turn #{request.target_position} in <span className="underline">{request.cycle_name}</span>
+                                                                </p>
+                                                                {request.reason && <p className="text-[10px] text-gray-400 mt-1">"{request.reason}"</p>}
+                                                            </div>
+                                                            <Link 
+                                                                to={`/chamas/${id}/rosca/${request.cycle_id}`}
+                                                                className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all"
+                                                            >
+                                                                View & Respond
+                                                            </Link>
                                                         </div>
-                                                        <Link 
-                                                            to={`/chamas/${id}/rosca/${request.cycle_id}`}
-                                                            className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all"
-                                                        >
-                                                            View & Respond
-                                                        </Link>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {renderCycleGrid("Ongoing Rounds", activeCycles, "active")}
+                                    {renderCycleGrid("Upcoming / Scheduled", pendingCycles, "pending")}
+                                    {renderCycleGrid("Past Rounds", completedCycles, "completed")}
+                                </div>
+
+                                <div className="side-content">
+                                    {chama?.payment_methods && (
+                                        <PaymentInstructionCard methods={chama.payment_methods} />
+                                    )}
+
+                                    <div className="card-premium chart-card-premium">
+                                        <h3 className="card-title-premium">Status Dictionary</h3>
+                                        <div className="chart-wrapper" style={{ marginTop: "1rem" }}>
+                                            <ResponsiveContainer width="100%" height={240}>
+                                                <PieChart>
+                                                    <Pie
+                                                        data={chartData}
+                                                        innerRadius={70}
+                                                        outerRadius={90}
+                                                        paddingAngle={8}
+                                                        dataKey="value"
+                                                        stroke="none"
+                                                    >
+                                                        {chartData.map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                                        ))}
+                                                    </Pie>
+                                                    <Tooltip 
+                                                        content={({ active, payload }) => {
+                                                            if (active && payload && payload.length) {
+                                                                return (
+                                                                    <div className="recharts-default-tooltip">
+                                                                        <p className="recharts-tooltip-label" style={{ margin: 0, fontSize: "0.8rem" }}>{payload[0].name}</p>
+                                                                        <p style={{ fontWeight: 800, margin: "4px 0 0 0", color: payload[0].payload.color }}>
+                                                                            {payload[0].value} Cycles
+                                                                        </p>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            return null;
+                                                        }}
+                                                    />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                            <div className="chart-legend-premium">
+                                                {chartData.map(d => (
+                                                    <div key={d.name} className="legend-item">
+                                                        <span className="dot" style={{ backgroundColor: d.color }}></span>
+                                                        <span className="name">{d.name}</span>
+                                                        <span className="val">{d.value}</span>
                                                     </div>
                                                 ))}
                                             </div>
                                         </div>
                                     </div>
-                                )}
-                                {renderCycleGrid("Ongoing Rounds", activeCycles, "active")}
-                                {renderCycleGrid("Upcoming / Scheduled", pendingCycles, "pending")}
-                                {renderCycleGrid("Past Rounds", completedCycles, "completed")}
-                            </div>
-
-                            <div className="side-content">
-                                {chama?.payment_methods && (
-                                    <PaymentInstructionCard methods={chama.payment_methods} />
-                                )}
-
-                                <div className="card-premium chart-card-premium">
-                                    <h3 className="card-title-premium">Status Dictionary</h3>
-                                    <div className="chart-wrapper" style={{ marginTop: "1rem" }}>
-                                        <ResponsiveContainer width="100%" height={240}>
-                                            <PieChart>
-                                                <Pie
-                                                    data={chartData}
-                                                    innerRadius={70}
-                                                    outerRadius={90}
-                                                    paddingAngle={8}
-                                                    dataKey="value"
-                                                    stroke="none"
-                                                >
-                                                    {chartData.map((entry, index) => (
-                                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                                    ))}
-                                                </Pie>
-                                                <Tooltip 
-                                                    content={({ active, payload }) => {
-                                                        if (active && payload && payload.length) {
-                                                            return (
-                                                                <div className="recharts-default-tooltip">
-                                                                    <p className="recharts-tooltip-label" style={{ margin: 0, fontSize: "0.8rem" }}>{payload[0].name}</p>
-                                                                    <p style={{ fontWeight: 800, margin: "4px 0 0 0", color: payload[0].payload.color }}>
-                                                                        {payload[0].value} Cycles
-                                                                    </p>
-                                                                </div>
-                                                            );
-                                                        }
-                                                        return null;
-                                                    }}
-                                                />
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                        <div className="chart-legend-premium">
-                                            {chartData.map(d => (
-                                                <div key={d.name} className="legend-item">
-                                                    <span className="dot" style={{ backgroundColor: d.color }}></span>
-                                                    <span className="name">{d.name}</span>
-                                                    <span className="val">{d.value}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </>
-                )}
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     );
