@@ -182,22 +182,6 @@ const CreateChama = () => {
                   and begin a legacy of collective prosperity.
                 </p>
               </motion.div>
-              <div className="cc-hero-stats">
-                <div className="cc-stat">
-                  <span className="cc-stat-num">4,200+</span>
-                  <span className="cc-stat-label">Active Chamas</span>
-                </div>
-                <div className="cc-stat-divider" />
-                <div className="cc-stat">
-                  <span className="cc-stat-num">KES 2.4B</span>
-                  <span className="cc-stat-label">Pooled Assets</span>
-                </div>
-                <div className="cc-stat-divider" />
-                <div className="cc-stat">
-                  <span className="cc-stat-num">98%</span>
-                  <span className="cc-stat-label">Success Rate</span>
-                </div>
-              </div>
             </div>
           </div>
 
