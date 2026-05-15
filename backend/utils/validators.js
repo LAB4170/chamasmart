@@ -52,7 +52,7 @@ const isValidChamaType = type => {
 
 // Contribution frequency validation
 const isValidFrequency = frequency => {
-  const validFrequencies = ['WEEKLY', 'MONTHLY', 'BIWEEKLY'];
+  const validFrequencies = ['DAILY', 'WEEKLY', 'MONTHLY', 'BIWEEKLY', 'BI_WEEKLY'];
   return validFrequencies.includes(frequency);
 };
 

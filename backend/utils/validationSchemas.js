@@ -76,18 +76,23 @@ const createChamaSchema = Joi.object({
   description: Joi.string().max(500).optional().allow('', null),
   contributionAmount: Joi.number().positive().required(),
   contributionFrequency: Joi.string()
-    .valid('WEEKLY', 'BIWEEKLY', 'MONTHLY')
+    .valid('DAILY', 'WEEKLY', 'BIWEEKLY', 'MONTHLY')
     .required(),
   meetingDay: Joi.string().required(),
   meetingTime: Joi.string().optional().allow(null, ''),
   visibility: Joi.string().valid('PUBLIC', 'PRIVATE').default('PRIVATE'),
   sharePrice: Joi.number().min(0).optional().allow(null, ""),
   paymentMethods: Joi.object({
-    type: Joi.string().valid('PAYBILL', 'TILL', 'POCHI').optional(),
+    type: Joi.string().valid('PAYBILL', 'TILL', 'POCHI', 'SEND_MONEY', 'BANK').optional(),
     businessNumber: Joi.string().optional().allow('', null),
     accountNumber: Joi.string().optional().allow('', null),
     tillNumber: Joi.string().optional().allow('', null),
     phoneNumber: Joi.string().optional().allow('', null),
+    recipientName: Joi.string().optional().allow('', null),
+    bankName: Joi.string().optional().allow('', null),
+    bankAccount: Joi.string().optional().allow('', null),
+    bankAccountName: Joi.string().optional().allow('', null),
+    bankBranch: Joi.string().optional().allow('', null),
   }).optional().default({}),
 });
 
@@ -97,18 +102,23 @@ const updateChamaSchema = Joi.object({
   description: Joi.string().max(500).optional().allow(''),
   contributionAmount: Joi.number().positive().optional(),
   contributionFrequency: Joi.string()
-    .valid('WEEKLY', 'MONTHLY', 'BI_WEEKLY')
+    .valid('DAILY', 'WEEKLY', 'BIWEEKLY', 'MONTHLY', 'BI_WEEKLY')
     .optional(),
   meetingDay: Joi.string().optional(),
   meetingTime: Joi.string().optional().allow(null, ''),
   visibility: Joi.string().valid('PUBLIC', 'PRIVATE').optional(),
   constitution_config: Joi.object().optional(),
   paymentMethods: Joi.object({
-    type: Joi.string().valid('PAYBILL', 'TILL', 'POCHI').optional(),
+    type: Joi.string().valid('PAYBILL', 'TILL', 'POCHI', 'SEND_MONEY', 'BANK').optional(),
     businessNumber: Joi.string().optional().allow('', null),
     accountNumber: Joi.string().optional().allow('', null),
     tillNumber: Joi.string().optional().allow('', null),
     phoneNumber: Joi.string().optional().allow('', null),
+    recipientName: Joi.string().optional().allow('', null),
+    bankName: Joi.string().optional().allow('', null),
+    bankAccount: Joi.string().optional().allow('', null),
+    bankAccountName: Joi.string().optional().allow('', null),
+    bankBranch: Joi.string().optional().allow('', null),
   }).optional(),
 });
 

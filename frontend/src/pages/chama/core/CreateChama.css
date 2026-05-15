@@ -1,0 +1,933 @@
+/* ================================================================
+   CREATE CHAMA — GOD MODE STYLES
+   Theme-aware (light + dark), hero inside page-frame-lux
+================================================================ */
+
+/* ── Frame modifier: no top padding so hero sits flush ────────── */
+.cc-frame {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+/* ── Hero Banner (inside the frame) ──────────────────────────── */
+.cc-hero-banner {
+  position: relative;
+  height: clamp(260px, 38vh, 420px);
+  overflow: hidden;
+  border-radius: 48px 48px 0 0; /* match frame top corners */
+}
+
+.cc-hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 35%;
+  filter: brightness(0.5) saturate(1.15);
+}
+
+.cc-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    160deg,
+    rgba(0, 0, 0, 0.3) 0%,
+    rgba(0, 0, 0, 0.15) 40%,
+    rgba(0, 0, 0, 0.75) 100%
+  );
+}
+
+.cc-hero-text {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: clamp(1.5rem, 4vw, 2.5rem) clamp(1.5rem, 5vw, 3rem);
+  gap: 20px;
+}
+
+/* Badge */
+.cc-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 14px;
+  background: rgba(212, 175, 55, 0.2);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: 100px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #f5e08a;
+  width: fit-content;
+  backdrop-filter: blur(8px);
+}
+
+.cc-hero-title {
+  font-size: clamp(1.8rem, 4.5vw, 3.2rem);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -1.5px;
+  color: #ffffff;
+  margin: 0;
+}
+
+.cc-hero-accent {
+  background: var(--gold-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.cc-hero-subtitle {
+  font-size: clamp(0.85rem, 1.8vw, 1rem);
+  color: rgba(255, 255, 255, 0.65);
+  max-width: 520px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Stats */
+.cc-hero-stats {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.cc-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cc-stat-num {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #D4AF37;
+  letter-spacing: -0.5px;
+}
+
+.cc-stat-label {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.45);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+}
+
+.cc-stat-divider {
+  width: 1px;
+  height: 30px;
+  background: rgba(255, 255, 255, 0.18);
+  flex-shrink: 0;
+}
+
+/* ── Wizard Area ──────────────────────────────────────────────── */
+.cc-wizard-area {
+  padding: clamp(1.5rem, 4vw, 2.5rem) clamp(1.5rem, 5vw, 3rem) clamp(2rem, 4vw, 3rem);
+}
+
+/* ── Step Progress ────────────────────────────────────────────── */
+.cc-progress-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 32px;
+  padding: 0 8px;
+}
+
+.cc-step-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.cc-step-bubble {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 900;
+  color: var(--text-secondary);
+  transition: all 0.35s ease;
+  flex-shrink: 0;
+}
+
+.cc-step-bubble.active {
+  border-color: var(--gold-text, #D4AF37);
+  background: rgba(212, 175, 55, 0.1);
+  color: var(--gold-text, #D4AF37);
+  box-shadow: 0 0 16px rgba(212, 175, 55, 0.25);
+}
+
+.cc-step-bubble.done {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
+}
+
+.cc-step-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cc-step-label {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.cc-step-sub {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.cc-step-connector {
+  flex: 1;
+  min-width: 32px;
+  max-width: 72px;
+  height: 2px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 0 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.cc-step-fill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #10b981, #D4AF37);
+  border-radius: 2px;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Form Card ────────────────────────────────────────────────── */
+.cc-form-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+/* ── Step Body ────────────────────────────────────────────────── */
+.cc-step-body {
+  padding: clamp(1.5rem, 4vw, 2rem);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Step Heading */
+.cc-step-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.cc-step-num-badge {
+  font-size: 1.8rem;
+  font-weight: 900;
+  background: var(--gold-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.cc-step-title {
+  font-size: clamp(1.2rem, 2.5vw, 1.5rem);
+  font-weight: 900;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.4px;
+  color: var(--text-primary);
+}
+
+.cc-step-desc {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── Fields ───────────────────────────────────────────────────── */
+.cc-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cc-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 520px) {
+  .cc-field-row { grid-template-columns: 1fr; }
+}
+
+.cc-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.73rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-secondary);
+}
+
+.cc-optional {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--gray-light);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Inputs — fully theme-aware */
+.cc-input,
+.cc-select,
+.cc-textarea {
+  width: 100%;
+  padding: 13px 16px;
+  background: var(--input-bg);
+  border: 1.5px solid var(--input-border);
+  border-radius: 12px;
+  color: var(--input-text);
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.cc-input::placeholder,
+.cc-textarea::placeholder {
+  color: var(--gray-light);
+  opacity: 0.7;
+}
+
+.cc-input:focus,
+.cc-select:focus,
+.cc-textarea:focus {
+  border-color: var(--gold-text, #D4AF37);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.12);
+}
+
+.cc-select {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 40px;
+}
+
+.cc-textarea {
+  resize: vertical;
+  min-height: 88px;
+  line-height: 1.5;
+}
+
+.cc-hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 2px 0 0;
+}
+
+.cc-info-box {
+  padding: 18px;
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  border-radius: 14px;
+}
+
+/* ── Chama Type Cards ────────────────────────────────────────────────── */
+.cc-type-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 480px) {
+  .cc-type-grid { grid-template-columns: 1fr; }
+}
+
+/* Cover-photo card */
+.cc-type-card {
+  position: relative;
+  height: 155px;
+  border-radius: 18px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2.5px solid transparent;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.cc-type-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+}
+
+.cc-type-card.active {
+  border-color: var(--tc, #D4AF37);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--tc, #D4AF37) 25%, transparent),
+    0 18px 44px rgba(0, 0, 0, 0.25);
+  transform: translateY(-4px);
+}
+
+/* Background image */
+.cc-type-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: transform 0.5s ease;
+  filter: brightness(0.72) saturate(1.1);
+}
+
+.cc-type-card:hover .cc-type-img,
+.cc-type-card.active .cc-type-img {
+  transform: scale(1.07);
+}
+
+/* Gradient overlay */
+.cc-type-overlay {
+  position: absolute;
+  inset: 0;
+  transition: background 0.35s ease;
+}
+
+/* Content anchored to bottom */
+.cc-type-body {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  z-index: 2;
+}
+
+.cc-type-icon-sm {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+  transition: background 0.3s ease;
+}
+
+.cc-type-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.cc-type-name {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+.cc-type-desc {
+  font-size: 0.67rem;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.35;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Active checkmark — top-right */
+.cc-type-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  color: white;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+
+/* ── Toggle Group ─────────────────────────────────────────────── */
+.cc-toggle-group {
+  display: flex;
+  gap: 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  padding: 5px;
+  border-radius: 14px;
+}
+
+.cc-toggle-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 11px 14px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.cc-toggle-btn:hover {
+  background: var(--surface-1, var(--white));
+  color: var(--text-primary);
+}
+
+.cc-toggle-btn.active {
+  background: var(--gold-gradient);
+  color: white;
+  box-shadow: 0 3px 12px rgba(212, 175, 55, 0.3);
+}
+
+/* ── 5-Method Payment Selector ────────────────────────────────── */
+.cc-pm5-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .cc-pm5-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .cc-pm5-grid { grid-template-columns: 1fr; }
+}
+
+.cc-pm5-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  padding: 24px 16px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--surface-2, var(--bg-secondary));
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.cc-pm5-card:hover {
+  border-color: var(--gold-text, #D4AF37);
+  background: var(--surface-1, var(--white));
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+}
+
+.cc-pm5-card.active {
+  border-color: var(--gold-text, #D4AF37);
+  background: linear-gradient(145deg, rgba(212, 175, 55, 0.05) 0%, rgba(212, 175, 55, 0.01) 100%);
+  box-shadow: 0 8px 24px rgba(212, 175, 55, 0.15), inset 0 0 0 1px rgba(212, 175, 55, 0.2);
+  transform: translateY(-4px);
+}
+
+.cc-pm5-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  background: var(--surface-1, var(--white));
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.cc-pm5-card.active .cc-pm5-icon {
+  background: var(--gold-gradient);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 6px 16px rgba(212, 175, 55, 0.3);
+}
+
+.cc-pm5-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.cc-pm5-label {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.cc-pm5-sub {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.cc-pm5-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 100px;
+  border: 1.5px solid;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.cc-pm5-check {
+  display: none;
+}
+
+/* ── Dynamic Fields Wrapper ───────────────────────────────────── */
+.cc-pm-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+  background: var(--surface-1, var(--white));
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Live Instruction Preview ─────────────────────────────────── */
+.cc-pm-preview {
+  margin-top: 8px;
+  border-radius: 16px;
+  border: 1.5px dashed rgba(212, 175, 55, 0.4);
+  background: rgba(212, 175, 55, 0.03);
+  overflow: hidden;
+  position: relative;
+}
+
+.cc-pm-preview::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--gold-gradient);
+}
+
+.cc-pm-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px;
+  background: rgba(212, 175, 55, 0.06);
+  border-bottom: 1.5px dashed rgba(212, 175, 55, 0.15);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--gold-text, #D4AF37);
+}
+
+.cc-pm-preview-body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cc-pm-preview-body span {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.cc-pm-preview-body strong {
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+/* ── Divider ──────────────────────────────────────────────────── */
+.cc-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-secondary);
+}
+
+.cc-divider::before,
+.cc-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── Summary Box (Step 3) ─────────────────────────────────────── */
+.cc-summary-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  background: rgba(212, 175, 55, 0.05);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  border-radius: 16px;
+}
+
+.cc-summary-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(212, 175, 55, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cc-summary-name {
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: -0.3px;
+  color: var(--text-primary);
+}
+
+.cc-summary-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-top: 3px;
+  flex-wrap: wrap;
+}
+
+/* ── Error ────────────────────────────────────────────────────── */
+.cc-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 clamp(1.5rem, 4vw, 2rem);
+  margin-bottom: 6px;
+  padding: 14px 18px;
+  background: rgba(239, 68, 68, 0.07);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 12px;
+  color: var(--danger);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* ── Form Nav ─────────────────────────────────────────────────── */
+.cc-form-nav {
+  display: flex;
+  gap: 10px;
+  padding: clamp(1rem, 3vw, 1.25rem) clamp(1.5rem, 4vw, 2rem);
+  border-top: 1px solid var(--border);
+  background: var(--surface-2, var(--bg-secondary));
+}
+
+.cc-btn-back {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 13px 20px;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.cc-btn-back:hover {
+  background: var(--surface-1, var(--white));
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.cc-btn-next {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 14px 24px;
+  background: var(--gold-gradient);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: inherit;
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.3);
+  letter-spacing: 0.2px;
+}
+
+.cc-btn-next:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(212, 175, 55, 0.4);
+}
+
+.cc-btn-next:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.cc-btn-next:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Loading dots */
+.cc-loading-dots {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.cc-loading-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+  animation: dotPulse 1.2s ease-in-out infinite;
+}
+
+.cc-loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.cc-loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dotPulse {
+  0%, 80%, 100% { transform: scale(0.7); opacity: 0.4; }
+  40% { transform: scale(1.2); opacity: 1; }
+}
+
+/* ── Trust Strip ──────────────────────────────────────────────── */
+.cc-trust-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 24px;
+  padding: 14px 20px;
+  background: var(--surface-2, var(--bg-secondary));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  flex-wrap: wrap;
+}
+
+.cc-trust-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.cc-trust-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* ── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .cc-hero-banner {
+    height: clamp(200px, 45vw, 280px);
+    border-radius: 48px 48px 0 0;
+  }
+
+  .cc-hero-stats { gap: 12px; }
+
+  .cc-stat-num { font-size: 1rem; }
+
+  .cc-stat-divider { height: 24px; }
+
+  .cc-progress-wrap { padding: 0; }
+
+  .cc-step-meta { display: none; }
+
+  .cc-step-connector {
+    min-width: 20px;
+    margin: 0 6px;
+  }
+
+  .cc-trust-strip { gap: 10px; }
+
+  .cc-trust-dot { display: none; }
+}
+
+@media (max-width: 400px) {
+  .cc-form-nav {
+    flex-direction: column-reverse;
+  }
+
+  .cc-btn-back {
+    justify-content: center;
+  }
+}
