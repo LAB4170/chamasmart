@@ -690,6 +690,26 @@ const ChamaDetails = () => {
     }
   };
 
+  const handleUpdateConstitution = async (e) => {
+    if (e) e.preventDefault();
+    try {
+      setLoading(true);
+      const response = await chamaAPI.update(id, {
+        description: constitutionText,
+        constitution_config: constitutionForm
+      });
+      if (response.data.success) {
+        toast.success("Constitution updated successfully!");
+        setChama(response.data.data);
+      }
+    } catch (err) {
+      console.error("Update constitution error:", err);
+      toast.error(err.response?.data?.message || "Failed to update constitution");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchContributions = async (f = filters) => {
     try {
       // Filter out empty values to prevent 500 errors

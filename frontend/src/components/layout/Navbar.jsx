@@ -15,6 +15,7 @@ import {
   User,
   ChevronDown,
   Banknote,
+  Bell,
 } from "lucide-react";
 import "./Navbar.css";
 
