@@ -2,8 +2,8 @@ import { useState, useEffect, memo, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { chamaAPI } from "../../../services/api";
 import LoadingSkeleton from "../../../components/LoadingSkeleton";
-import { Building, RefreshCw, TrendingUp, Building2, Handshake, Sparkles, MapPin, Users, ArrowRight } from 'lucide-react';
-import { motion } from "framer-motion";
+import { Building, RefreshCw, TrendingUp, Building2, Handshake, Sparkles, MapPin, Users, ArrowRight, Bell } from 'lucide-react';
+import { motion, AnimatePresence } from "framer-motion";
 import "./MyChamas.css";
 
 const TYPE_IMAGES = {
@@ -119,7 +119,6 @@ const MyChamas = () => {
       setChamas(Array.isArray(chamasData) ? chamasData : []);
     } catch (err) {
       setError("Failed to load your chamas");
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -156,7 +155,6 @@ const MyChamas = () => {
 
   return (
     <div className="page">
-      {/* Background Blobs */}
       <div className="ambient-blob blob-gold" />
       <div className="ambient-blob blob-blue" />
 
@@ -189,6 +187,9 @@ const MyChamas = () => {
                 <div style={{ display: 'flex', gap: '1.5rem', marginTop: '32px' }}>
                   <Link to="/join-chama" className="btn-action-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderRadius: "16px", padding: "14px 28px", fontWeight: 700 }}>
                     <Users size={20} /><span>Join via Code</span>
+                  </Link>
+                  <Link to="/my-join-requests" className="btn-action-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderRadius: "16px", padding: "14px 28px", fontWeight: 700 }}>
+                    <Bell size={20} /><span>Track Requests</span>
                   </Link>
                   <Link to="/chamas/create" className="btn-action-primary" style={{ background: "var(--gold-gradient)", border: "none", color: "white", borderRadius: "16px", padding: "14px 32px", fontWeight: 800, display: "flex", alignItems: "center", gap: "10px" }}>
                     <Sparkles size={20} /><span>Create New Chama</span>
@@ -234,21 +235,26 @@ const MyChamas = () => {
                   <Link to="/chamas/create" className="btn-action-primary" style={{ background: "var(--gold-gradient)", border: "none" }}>
                     Start a Chama
                   </Link>
-                  <Link to="/join-chama" className="btn-action-secondary">
-                    Join with Code
+                  <Link to="/browse-chamas" className="btn-action-secondary">
+                    Browse Public Chamas
+                  </Link>
+                  <Link to="/my-join-requests" className="btn-action-secondary">
+                    View My Requests
                   </Link>
                 </div>
               </motion.div>
             ) : (
               <div className="chamas-grid-lux">
-                {filteredChamas.map((chama) => (
-                  <MyChamaCard
-                    key={chama.chama_id}
-                    chama={chama}
-                    getChamaTypeLabel={getChamaTypeLabel}
-                    formatCurrency={formatCurrency}
-                  />
-                ))}
+                <AnimatePresence>
+                  {filteredChamas.map((chama) => (
+                    <MyChamaCard
+                      key={chama.chama_id}
+                      chama={chama}
+                      getChamaTypeLabel={getChamaTypeLabel}
+                      formatCurrency={formatCurrency}
+                    />
+                  ))}
+                </AnimatePresence>
               </div>
             )}
           </motion.div>

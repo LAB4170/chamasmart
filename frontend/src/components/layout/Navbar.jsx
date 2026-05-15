@@ -142,6 +142,10 @@ const Navbar = () => {
                       <User size={16} />
                       <span>My Profile</span>
                     </Link>
+                    <Link to="/my-join-requests" className="profile-menu-item" onClick={() => setProfileOpen(false)}>
+                      <Bell size={16} />
+                      <span>Join Requests</span>
+                    </Link>
                     <button className="profile-menu-item danger" onClick={handleLogout}>
                       <LogOut size={16} />
                       <span>Sign Out</span>

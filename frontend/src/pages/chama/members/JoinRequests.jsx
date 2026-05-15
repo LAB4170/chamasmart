@@ -4,18 +4,19 @@ import {
     Users, UserCheck, UserX, MessageSquare,
     Calendar, ArrowLeft, AlertCircle,
     CheckCircle2, Loader, Inbox, History,
-    Shield, Briefcase, Clock, ExternalLink
+    Shield, Briefcase, Clock, ExternalLink,
+    ChevronRight, ShieldCheck, Mail, Phone,
+    Trophy, Activity, Info
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { joinRequestAPI, chamaAPI } from "../../../services/api";
 import { useSocket } from "../../../context/SocketContext";
 import ConfirmDialog from "../../../components/ConfirmDialog";
-import "./MemberManagement.css";
 
 const JoinRequests = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { socket } = useSocket() || {}; // Guard against undefined context
+    const { socket } = useSocket() || {}; 
 
     const [chama, setChama] = useState(null);
     const [requests, setRequests] = useState([]);
@@ -24,7 +25,6 @@ const JoinRequests = () => {
     const [success, setSuccess] = useState("");
     const [processingId, setProcessingId] = useState(null);
     
-    // Dialog State
     const [dialogConfig, setDialogConfig] = useState({
         isOpen: false,
         requestId: null,
@@ -40,7 +40,7 @@ const JoinRequests = () => {
         if (!id) return;
         try {
             setLoading(true);
-            setError(""); // Clear previous errors
+            setError(""); 
             const [chamaRes, requestsRes] = await Promise.all([
                 chamaAPI.getById(id),
                 joinRequestAPI.getAll(id),
@@ -48,16 +48,13 @@ const JoinRequests = () => {
             setChama(chamaRes.data.data);
             setRequests(requestsRes.data.data);
         } catch (err) {
-            console.error("Fetch data error:", err);
             const status = err.response?.status;
             if (status === 404) {
-                setError("Chama not found. It may have been deleted or the ID is incorrect.");
+                setError("Chama not found. It may have been deleted.");
             } else if (status === 403) {
-                setError("Access Denied: You must be an official (Chairperson, Treasurer, or Secretary) to manage join requests.");
-            } else if (status === 401) {
-                setError("Session expired. Please log in again.");
+                setError("Access Denied: High-level official credentials required.");
             } else {
-                setError("An unexpected error occurred while loading data. Please try again.");
+                setError("Terminal connection unstable. Please retry.");
             }
         } finally {
             setLoading(false);
@@ -70,22 +67,13 @@ const JoinRequests = () => {
 
     useEffect(() => {
         if (!socket || !id || typeof socket.emit !== 'function') return;
-
-        console.log("Setting up join request socket listeners for chama:", id);
         socket.emit("join_chama", id);
-
         const handleNewRequest = (data) => {
-            if (data.chamaId == id) {
-                fetchData();
-            }
+            if (data.chamaId == id) fetchData();
         };
-
         socket.on("join_request_created", handleNewRequest);
-
         return () => {
-            if (typeof socket.emit === 'function') {
-                socket.emit("leave_chama", id);
-            }
+            if (typeof socket.emit === 'function') socket.emit("leave_chama", id);
             socket.off("join_request_created", handleNewRequest);
         };
     }, [socket, id]);
@@ -97,23 +85,20 @@ const JoinRequests = () => {
             requestId,
             status,
             requesterName,
-            title: isApprove ? "Approve Member" : "Reject Request",
-            message: `Are you sure you want to ${isApprove ? 'approve' : 'reject'} ${requesterName}'s application to join ${chama?.chama_name}?`,
+            title: isApprove ? "Grant Membership" : "Deny Application",
+            message: `Are you certain you wish to ${isApprove ? 'admit' : 'reject'} ${requesterName} into the ${chama?.chama_name} vault?`,
             variant: isApprove ? "success" : "danger",
-            confirmText: isApprove ? "Confirm Approval" : "Confirm Rejection"
+            confirmText: isApprove ? "Approve Admission" : "Deny Access"
         });
     };
 
     const handleConfirmResponse = async () => {
         const { requestId, status, requesterName } = dialogConfig;
-        
         try {
             setDialogConfig(prev => ({ ...prev, loading: true }));
             setProcessingId(requestId);
-            
             await joinRequestAPI.respond(requestId, status);
-            
-            setSuccess(`${requesterName} has been ${status.toLowerCase()}!`);
+            setSuccess(`Admission protocol completed: ${requesterName} has been ${status.toLowerCase()}.`);
             setDialogConfig(prev => ({ ...prev, isOpen: false }));
             fetchData();
             setTimeout(() => setSuccess(""), 5000);
@@ -134,263 +119,250 @@ const JoinRequests = () => {
         });
     };
 
-    const formatShortDate = (dateString) => {
-        if (!dateString) return "-";
-        return new Date(dateString).toLocaleDateString("en-KE", {
-            month: "short", year: "numeric"
-        });
-    };
-
     const getTrustColor = (score) => {
-        if (score >= 80) return "#22c55e"; // Success
-        if (score >= 50) return "#f59e0b"; // Warning
-        return "#ef4444"; // Danger
+        if (score >= 80) return "#10b981"; 
+        if (score >= 50) return "#f59e0b"; 
+        return "#ef4444"; 
     };
 
     const pendingRequests = requests.filter((r) => r.status === "PENDING");
     const reviewedRequests = requests.filter((r) => r.status !== "PENDING");
 
-    if (loading && requests.length === 0) {
-        return (
-            <div className="add-member-container d-flex flex-column align-center justify-center" style={{ minHeight: '60vh' }}>
-                <Loader size={48} className="spinner-sm" style={{ borderTopColor: 'var(--primary)' }} />
-                <p className="mt-3 text-muted">Retrieving join requests...</p>
-            </div>
-        );
-    }
-
     return (
-        <div className="add-member-container">
-            {/* Header */}
-            <div className="add-member-header">
-                <div>
-                    <h1 className="d-flex align-center gap-2">
-                        <Users size={32} style={{ color: 'var(--primary)' }} />
-                        Join Requests
-                    </h1>
-                    <p className="add-member-subtitle">Manage membership applications for <strong>{chama?.chama_name}</strong></p>
-                </div>
-                <button
-                    className="btn btn-outline btn-sm d-flex align-center gap-1"
-                    onClick={() => navigate(`/chamas/${id}`)}
-                >
-                    <ArrowLeft size={16} /> Back
-                </button>
-            </div>
+        <div className="page">
+            <div className="ambient-blob blob-gold" />
+            <div className="ambient-blob blob-blue" />
 
-            {error && (
-                <div className="alert alert-error d-flex align-center gap-2 mb-3">
-                    <AlertCircle size={18} /> {error}
-                </div>
-            )}
-            {success && (
-                <div className="alert alert-success d-flex align-center gap-2 mb-3">
-                    <CheckCircle2 size={18} /> {success}
-                </div>
-            )}
-
-            {/* Pending Requests Section */}
-            <div className="mb-5">
-                <div className="d-flex align-center gap-2 mb-4">
-                    <Inbox size={22} style={{ color: "var(--warning)" }} />
-                    <h2 className="mb-0" style={{ fontSize: "1.4rem" }}>Pending Review ({pendingRequests.length})</h2>
-                </div>
-
-                {pendingRequests.length === 0 ? (
-                    <div className="card text-center py-5 shadow-sm" style={{ opacity: 0.6, backgroundColor: "var(--surface-1)" }}>
-                        <UserCheck size={40} className="mb-3 mx-auto" opacity={0.3} />
-                        <p className="font-medium">No pending applications at the moment.</p>
-                    </div>
-                ) : (
-                    <div className="grid grid-1 gap-4">
-                        <AnimatePresence>
-                            {pendingRequests.map((request) => (
-                                <motion.div
-                                    key={request.request_id}
-                                    initial={{ opacity: 0, scale: 0.98 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className="join-request-card"
-                                >
-                                    <div className="jr-card-content">
-                                        {/* Profile Section */}
-                                        <div className="jr-profile-row">
-                                            <div className="user-avatar-large" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>
-                                                {request.first_name[0]}{request.last_name[0]}
-                                            </div>
-                                            <div className="jr-user-main">
-                                                <div className="d-flex justify-between align-start">
-                                                    <div>
-                                                        <h3 className="jr-name">{request.first_name} {request.last_name}</h3>
-                                                        <p className="jr-contact">{request.email} • {request.phone_number}</p>
-                                                    </div>
-                                                    <div className="jr-time-tag">
-                                                        <Clock size={12} /> {formatDate(request.created_at)}
-                                                    </div>
-                                                </div>
-
-                                                <div className="jr-metrics-grid mt-3">
-                                                    <div className="jr-metric">
-                                                        <Shield size={16} style={{ color: getTrustColor(request.trust_score || 50) }} />
-                                                        <div>
-                                                            <span className="jr-metric-label">Trust Score</span>
-                                                            <span className="jr-metric-value" style={{ color: getTrustColor(request.trust_score || 50) }}>
-                                                                {request.trust_score || 50}%
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="jr-metric">
-                                                        <Briefcase size={16} />
-                                                        <div>
-                                                            <span className="jr-metric-label">Other Chamas</span>
-                                                            <span className="jr-metric-value">{request.membership_count || 0} Joined</span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="jr-metric">
-                                                        <Calendar size={16} />
-                                                        <div>
-                                                            <span className="jr-metric-label">Member Since</span>
-                                                            <span className="jr-metric-value">{formatShortDate(request.user_joined_at)}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Application Content */}
-                                        <div className="jr-application-body">
-                                            {(() => {
-                                                try {
-                                                    const parsed = JSON.parse(request.message);
-                                                    
-                                                    // New Multi-Section Application Support
-                                                    if (parsed.type === "STRUCTURED_APPLICATION" || (parsed.introduction && parsed.motivation)) {
-                                                        const data = parsed.data || parsed;
-                                                        return (
-                                                            <div className="structured-application">
-                                                                {data.introduction && (
-                                                                    <div className="mb-4">
-                                                                        <div className="jr-section-title">
-                                                                            <Users size={14} /> Introduction
-                                                                        </div>
-                                                                        <p className="jr-message-text">{data.introduction}</p>
-                                                                    </div>
-                                                                )}
-                                                                
-                                                                {data.motivation && (
-                                                                    <div className="mb-4">
-                                                                        <div className="jr-section-title">
-                                                                            <Briefcase size={14} /> Motivation & Background
-                                                                        </div>
-                                                                        <p className="jr-message-text">{data.motivation}</p>
-                                                                    </div>
-                                                                )}
-
-                                                                {data.vows && (
-                                                                    <div className="d-flex flex-wrap gap-2 mt-2">
-                                                                        <div className={`vow-tag ${data.vows.financial ? 'active' : ''}`}>
-                                                                            {data.vows.financial ? "✓ Commits to Financial Contributions" : "✗ No Financial Vow"}
-                                                                        </div>
-                                                                        <div className={`vow-tag ${data.vows.rules ? 'active' : ''}`}>
-                                                                            {data.vows.rules ? "✓ Agrees to Chama Rules" : "✗ Rule Vow Mandatory"}
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    }
-                                                } catch (e) {
-                                                    // fallback to plain text if JSON parsing fails
-                                                }
-
-                                                // Clean display for plain text or fallback
-                                                return (
-                                                    <div className="plain-application">
-                                                        <div className="jr-section-title">
-                                                            <MessageSquare size={14} /> Application Statement
-                                                        </div>
-                                                        <div className="jr-message-text" style={{ borderLeft: '3px solid var(--primary-soft)' }}>
-                                                            {request.message || "No message provided."}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })()}
-                                        </div>
-
-                                        {/* Action Bar */}
-                                        <div className="jr-actions">
-                                            <button
-                                                className="jr-btn jr-btn-reject"
-                                                onClick={() => openConfirmDialog(request.request_id, "REJECTED", `${request.first_name} ${request.last_name}`)}
-                                                disabled={processingId === request.request_id}
-                                            >
-                                                <UserX size={18} /> Reject
-                                            </button>
-                                            <button
-                                                className="jr-btn jr-btn-approve"
-                                                onClick={() => openConfirmDialog(request.request_id, "APPROVED", `${request.first_name} ${request.last_name}`)}
-                                                disabled={processingId === request.request_id}
-                                            >
-                                                {processingId === request.request_id ? <Loader size={18} className="spinner-sm" /> : <UserCheck size={18} />}
-                                                Approve Member
-                                            </button>
-                                        </div>
+            <div className="container">
+                <div className="page-frame-lux">
+                    <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                    >
+                        {/* Header */}
+                        <div className="user-hero-lux" style={{ marginBottom: "40px", padding: "40px" }}>
+                            <div className="user-hero-content">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                                    <div style={{ background: 'rgba(212, 175, 55, 0.1)', padding: '8px', borderRadius: '12px' }}>
+                                        <ShieldCheck size={24} color="#D4AF37" />
                                     </div>
-                                </motion.div>
-                            ))}
-                        </AnimatePresence>
-                    </div>
-                )}
+                                    <span style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--gold-text)' }}>
+                                        Vault Oversight
+                                    </span>
+                                </div>
+                                <h1 className="user-hero-title">Admission Control</h1>
+                                <p className="user-hero-subtitle">
+                                    Review and manage membership applications for <strong style={{ color: 'var(--gold-text)' }}>{chama?.chama_name}</strong>. 
+                                    Evaluate applicant trust scores and financial commitment statements.
+                                </p>
+                            </div>
+                            <div style={{ marginLeft: 'auto' }}>
+                                <button
+                                    className="btn-action-secondary"
+                                    onClick={() => navigate(`/chamas/${id}`)}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', borderRadius: '14px' }}
+                                >
+                                    <ArrowLeft size={18} /> <span>Return to Vault</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {error && <div className="alert alert-error" style={{ marginBottom: '32px' }}>{error}</div>}
+                        {success && <div className="alert alert-success" style={{ marginBottom: '32px' }}>{success}</div>}
+
+                        {/* Pending Queue */}
+                        <div style={{ marginBottom: '60px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', boxShadow: '0 0 10px #f59e0b' }} />
+                                    <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0 }}>Pending Queue</h2>
+                                    <span style={{ fontSize: '0.85rem', background: 'rgba(255,255,255,0.05)', padding: '4px 12px', borderRadius: '20px', border: '1px solid var(--glass-border)' }}>
+                                        {pendingRequests.length} Applications
+                                    </span>
+                                </div>
+                            </div>
+
+                            {loading ? (
+                                <div style={{ padding: '60px', textAlign: 'center' }}>
+                                    <div className="spinner" style={{ margin: '0 auto 20px auto' }} />
+                                    <p style={{ color: 'var(--text-secondary)' }}>Syncing admission data...</p>
+                                </div>
+                            ) : pendingRequests.length === 0 ? (
+                                <div className="empty-state-card-premium" style={{ padding: '60px 40px' }}>
+                                    <Inbox size={48} style={{ opacity: 0.2, marginBottom: '20px' }} />
+                                    <h3 style={{ fontWeight: 800 }}>Queue Clear</h3>
+                                    <p style={{ color: 'var(--text-secondary)' }}>All membership applications have been processed.</p>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'grid', gap: '24px' }}>
+                                    <AnimatePresence>
+                                        {pendingRequests.map((request, index) => (
+                                            <motion.div
+                                                key={request.request_id}
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: index * 0.1 }}
+                                                style={{
+                                                    background: 'rgba(255, 255, 255, 0.02)',
+                                                    border: '1px solid var(--glass-border)',
+                                                    borderRadius: '24px',
+                                                    overflow: 'hidden'
+                                                }}
+                                            >
+                                                <div style={{ padding: '32px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
+                                                        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                                                            <div style={{ 
+                                                                width: '64px', height: '64px', borderRadius: '20px', 
+                                                                background: 'var(--gold-gradient)', display: 'flex', 
+                                                                alignItems: 'center', justifyContent: 'center',
+                                                                color: 'white', fontWeight: 800, fontSize: '1.5rem',
+                                                                boxShadow: 'var(--gold-glow)'
+                                                            }}>
+                                                                {request.first_name[0]}{request.last_name[0]}
+                                                            </div>
+                                                            <div>
+                                                                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>{request.first_name} {request.last_name}</h3>
+                                                                <div style={{ display: 'flex', gap: '16px', marginTop: '4px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Mail size={14} /> {request.email}</span>
+                                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Phone size={14} /> {request.phone_number}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ textAlign: 'right' }}>
+                                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Submitted On</div>
+                                                            <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>{formatDate(request.created_at)}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '32px' }}>
+                                                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                                                <Activity size={16} color={getTrustColor(request.trust_score || 50)} />
+                                                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Trust Rating</span>
+                                                            </div>
+                                                            <div style={{ fontSize: '1.2rem', fontWeight: 900, color: getTrustColor(request.trust_score || 50) }}>{request.trust_score || 50}%</div>
+                                                        </div>
+                                                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                                                <Trophy size={16} color="var(--gold-text)" />
+                                                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Chama Network</span>
+                                                            </div>
+                                                            <div style={{ fontSize: '1.2rem', fontWeight: 900 }}>{request.membership_count || 0} Groups</div>
+                                                        </div>
+                                                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                                                <Calendar size={16} color="#3b82f6" />
+                                                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Eco Tenure</span>
+                                                            </div>
+                                                            <div style={{ fontSize: '1.2rem', fontWeight: 900 }}>Since {new Date(request.user_joined_at).getFullYear()}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '24px', borderRadius: '20px', border: '1px solid var(--glass-border)', marginBottom: '32px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                                                            <MessageSquare size={16} color="var(--gold-text)" />
+                                                            <span style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>Statement of Intent</span>
+                                                        </div>
+                                                        <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+                                                            {request.message || "No specialized statement provided for this application."}
+                                                        </p>
+                                                    </div>
+
+                                                    <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
+                                                        <button 
+                                                            className="btn-action-secondary"
+                                                            onClick={() => openConfirmDialog(request.request_id, "REJECTED", `${request.first_name} ${request.last_name}`)}
+                                                            style={{ padding: '12px 24px', borderRadius: '12px', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#ef4444' }}
+                                                        >
+                                                            <UserX size={18} style={{ marginRight: '8px' }} /> Deny Admission
+                                                        </button>
+                                                        <button 
+                                                            className="btn-action-primary"
+                                                            onClick={() => openConfirmDialog(request.request_id, "APPROVED", `${request.first_name} ${request.last_name}`)}
+                                                            style={{ padding: '12px 32px', borderRadius: '12px' }}
+                                                        >
+                                                            <UserCheck size={18} style={{ marginRight: '8px' }} /> Grant Admission
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        ))}
+                                    </AnimatePresence>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* History Table */}
+                        {reviewedRequests.length > 0 && (
+                            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--glass-border)', borderRadius: '24px', padding: '32px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                                    <History size={20} color="var(--text-secondary)" />
+                                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>Decision History</h3>
+                                </div>
+                                <div className="table-responsive-lux">
+                                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 8px' }}>
+                                        <thead>
+                                            <tr style={{ textAlign: 'left', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '1px' }}>
+                                                <th style={{ padding: '12px 20px' }}>Applicant</th>
+                                                <th>Protocol Status</th>
+                                                <th>Decision Date</th>
+                                                <th>Reviewing Official</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {reviewedRequests.map((request) => (
+                                                <tr key={request.request_id} style={{ background: 'rgba(255,255,255,0.02)' }}>
+                                                    <td style={{ padding: '16px 20px', borderRadius: '12px 0 0 12px' }}>
+                                                        <div style={{ fontWeight: 800 }}>{request.first_name} {request.last_name}</div>
+                                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{request.email}</div>
+                                                    </td>
+                                                    <td>
+                                                        <div style={{ 
+                                                            display: 'inline-flex', alignItems: 'center', gap: '6px', 
+                                                            padding: '4px 12px', borderRadius: '20px', 
+                                                            fontSize: '0.75rem', fontWeight: 800,
+                                                            background: request.status === "APPROVED" ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.05)',
+                                                            color: request.status === "APPROVED" ? '#10b981' : 'var(--text-secondary)'
+                                                        }}>
+                                                            {request.status === "APPROVED" ? <ShieldCheck size={12} /> : <XCircle size={12} />}
+                                                            {request.status}
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{formatDate(request.updated_at)}</td>
+                                                    <td style={{ paddingRight: '20px', borderRadius: '0 12px 12px 0' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+                                                            <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(212, 175, 55, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                                <Shield size={12} color="#D4AF37" />
+                                                            </div>
+                                                            {request.reviewer_first_name} {request.reviewer_last_name}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Security Notice */}
+                        <div style={{ 
+                            marginTop: '40px', padding: '24px', 
+                            background: 'rgba(212, 175, 55, 0.03)', 
+                            borderRadius: '24px', border: '1px dashed var(--glass-border)',
+                            display: 'flex', alignItems: 'center', gap: '16px'
+                        }}>
+                            <Info size={20} color="var(--gold-text)" />
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                                Admission decisions are final and recorded in the immutable audit log. Ensure you have verified the applicant's 
+                                reputation before granting access to the group's financial vault.
+                            </p>
+                        </div>
+                    </motion.div>
+                </div>
             </div>
 
-            {/* History Section */}
-            {reviewedRequests.length > 0 && (
-                <div className="management-card shadow-sm mt-5">
-                    <div className="m-card-title d-flex justify-between align-center">
-                        <div className="d-flex align-center gap-2">
-                            <History size={18} className="text-muted" />
-                            <h3 className="mb-0">Decision History</h3>
-                        </div>
-                        <span className="small text-muted">{reviewedRequests.length} records</span>
-                    </div>
-                    <div className="table-responsive">
-                        <table className="m-table">
-                            <thead>
-                                <tr>
-                                    <th>Applicant</th>
-                                    <th>Status</th>
-                                    <th>Decision Date</th>
-                                    <th>Reviewer</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {reviewedRequests.map((request) => (
-                                    <tr key={request.request_id}>
-                                        <td>
-                                            <div className="font-bold">{request.first_name} {request.last_name}</div>
-                                            <div className="text-muted small">{request.email}</div>
-                                        </td>
-                                        <td>
-                                            <span className={`m-badge ${request.status === "APPROVED" ? "badge-success" : "badge-gray"}`}>
-                                                {request.status}
-                                            </span>
-                                        </td>
-                                        <td className="small text-muted">{formatDate(request.updated_at || request.created_at)}</td>
-                                        <td className="small">
-                                            <div className="d-flex align-center gap-1">
-                                                {request.reviewer_first_name ? (
-                                                    <><Shield size={12} className="text-primary" /> {request.reviewer_first_name} {request.reviewer_last_name}</>
-                                                ) : "-"}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-
-            {/* Confirmation Dialog */}
             <ConfirmDialog
                 isOpen={dialogConfig.isOpen}
                 title={dialogConfig.title}

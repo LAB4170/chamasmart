@@ -369,6 +369,14 @@ function AppContent() {
                                 }
                             />
                             <Route
+                                path="/my-join-requests"
+                                element={
+                                    <ProtectedRoute>
+                                        <PageTransition><MyJoinRequests /></PageTransition>
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
                                 path="/chamas/:id/apply"
                                 element={
                                     <ProtectedRoute>
