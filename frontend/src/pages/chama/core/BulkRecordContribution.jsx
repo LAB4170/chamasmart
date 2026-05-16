@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { chamaAPI, contributionAPI, roscaAPI } from "../../../services/api";
 import LoadingSkeleton from "../../../components/LoadingSkeleton";
 import { Save, X, Calendar, AlertCircle, CheckCircle2, RefreshCw, ArrowLeft } from "lucide-react";
+import "./ChamaDetailsLux.css";
 
 const BulkRecordContribution = () => {
   const { id } = useParams();
@@ -75,17 +76,24 @@ const BulkRecordContribution = () => {
         // Determine expected amount: ROSCA cycle > chama default
         const expectedAmount = (cycle?.contribution_amount) || chamaData.contribution_amount || 0;
 
-        setBatch(membersData.map(m => ({
-          userId: m.user_id,
-          name: `${m.first_name} ${m.last_name}`,
-          phone: m.phone_number || "",
-          totalContributions: m.total_contributions || 0,
-          amount: expectedAmount,
-          paymentMethod: "CASH",
-          receiptNumber: "",
-          notes: "",
-          checked: false
-        })));
+        setBatch(membersData.map(m => {
+          const uId = typeof m.user_id === 'object' && m.user_id !== null ? (m.user_id._id || m.user_id.id) : m.user_id;
+          const fName = m.first_name || (typeof m.user_id === 'object' ? m.user_id?.first_name : null) || "Unknown";
+          const lName = m.last_name || (typeof m.user_id === 'object' ? m.user_id?.last_name : null) || "User";
+          const phone = m.phone_number || (typeof m.user_id === 'object' ? m.user_id?.phone_number : null) || "";
+          
+          return {
+            userId: String(uId),
+            name: `${fName} ${lName}`,
+            phone: String(phone),
+            totalContributions: m.total_contributions || 0,
+            amount: expectedAmount,
+            paymentMethod: "CASH",
+            receiptNumber: "",
+            notes: "",
+            checked: false
+          };
+        }));
       } catch (err) {
         if (isMounted) {
           setError("Failed to load chama data");
@@ -101,12 +109,18 @@ const BulkRecordContribution = () => {
   }, [id]);
 
   const hasContributedThisMonth = useCallback((userId) => {
-    return existingContribs.some(c => c.user_id === userId);
+    return existingContribs.some(c => {
+      const cId = typeof c.user_id === 'object' && c.user_id !== null ? (c.user_id._id || c.user_id.id) : c.user_id;
+      return String(cId) === String(userId);
+    });
   }, [existingContribs]);
 
   const getMonthlyContribAmount = useCallback((userId) => {
     return existingContribs
-      .filter(c => c.user_id === userId)
+      .filter(c => {
+        const cId = typeof c.user_id === 'object' && c.user_id !== null ? (c.user_id._id || c.user_id.id) : c.user_id;
+        return String(cId) === String(userId);
+      })
       .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
   }, [existingContribs]);
 
@@ -194,23 +208,31 @@ const BulkRecordContribution = () => {
   const selectedBatch = batch.filter(b => b.checked);
   const totalSelected = selectedBatch.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
 
-  return (
-    <div className="page-lux-wrapper">
-        <div className="chama-header-lux">
-            <div className="chama-title-area">
-                <h1 className="flex align-center gap-3">
-                    <Save size={32} /> Bulk Entry Hub
-                </h1>
-                <div className="chama-badges mt-2">
-                    <span className="badge-lux badge-gold">Mass Contribution</span>
-                    <span className="badge-lux" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--lux-text-secondary)', border: '1px solid var(--lux-border)' }}>
-                        {chama?.chama_name} • {isROSCA ? "Merry-Go-Round" : chama?.chama_type}
-                    </span>
-                </div>
-            </div>
+    return (
+        <div className="page manage-page-root">
+            <div className="container">
+                <div className="chama-header-lux">
+                    <div className="chama-title-area">
+                        <h1 className="flex align-center gap-3">
+                            <Save size={32} /> Bulk Entry Hub
+                        </h1>
+                        <div className="chama-badges mt-2">
+                            <span className="badge-lux badge-gold">Mass Contribution</span>
+                            <span className="badge-lux" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--lux-text-secondary)', border: '1px solid var(--lux-border)' }}>
+                                {chama?.chama_name} • {isROSCA ? "Merry-Go-Round" : chama?.chama_type}
+                            </span>
+                        </div>
+                    </div>
             <div className="flex gap-3">
                 <button 
                     className="btn-lux btn-lux-outline"
+                    onClick={() => navigate(`/chamas/${id}`)}
+                >
+                    <ArrowLeft size={18} /> Back to Dashboard
+                </button>
+                <button 
+                    className="btn-lux btn-lux-outline"
+                    style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)' }}
                     onClick={() => navigate(`/chamas/${id}`)}
                 >
                     <X size={18} /> Cancel Session
@@ -334,7 +356,17 @@ const BulkRecordContribution = () => {
                             </tr>
                         </thead>
                         <tbody>
-                                <tr key={item.userId} className={item.checked ? "row-active-lux" : paid ? "row-verified-lux" : ""}>
+                            {batch.map((item, index) => {
+                                const userContribs = existingContribs.filter(c => {
+                                    const rawId = c.member_id || c.user_id;
+                                    const cId = typeof rawId === 'object' && rawId !== null ? (rawId._id || rawId.id) : rawId;
+                                    return String(cId) === String(item.userId);
+                                });
+                                const monthAmount = userContribs.reduce((sum, c) => sum + parseFloat(c.amount), 0);
+                                const paid = monthAmount >= (chama?.contribution_amount || 0);
+
+                                return (
+                                    <tr key={item.userId} className={item.checked ? "row-active-lux" : paid ? "row-verified-lux" : ""}>
                                     <td>
                                         <input
                                             type="checkbox"
@@ -417,7 +449,8 @@ const BulkRecordContribution = () => {
             </div>
         </form>
     </div>
-</div>
+        </div>
+    </div>
   );
 };
 

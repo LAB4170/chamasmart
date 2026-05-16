@@ -2,7 +2,7 @@
     --lux-card-bg: #ffffff;
     --lux-text-primary: #1e293b;
     --lux-text-secondary: #64748b;
-    --lux-border: rgba(0, 0, 0, 0.05);
+    --lux-border: rgba(0, 0, 0, 0.12);
     --lux-bg-soft: rgba(0, 0, 0, 0.02);
     --lux-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
     --lux-transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -23,8 +23,10 @@
     animation: fadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1);
     color: var(--lux-text-primary);
     transition: var(--lux-transition);
-    background-color: #f1f5f9; /* Distinct outer grey background */
+    background: linear-gradient(145deg, #e2e8f0 0%, #f8fafc 50%, #cbd5e1 100%);
+    background-attachment: fixed;
     min-height: 100vh;
+    padding-bottom: 5rem;
 }
 
 [data-theme='dark'] .chama-details-lux-root {
@@ -37,11 +39,11 @@
 
 .page-frame-lux {
     background: var(--lux-card-bg) !important;
-    border: 1px solid var(--lux-border) !important;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04) !important;
-    border-radius: 28px !important;
+    border: 1.5px solid rgba(0, 0, 0, 0.1) !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08) !important;
+    border-radius: 32px !important;
     padding: 2.5rem !important;
-    margin: 2rem auto !important;
+    margin: 3rem auto !important;
     max-width: 1200px;
     transition: var(--lux-transition) !important;
 }
@@ -141,6 +143,8 @@
     .management-tab-lux > div {
         grid-template-columns: 1fr !important;
     }
+
+
 
     .page-frame-lux {
         padding: 1rem !important;
@@ -600,6 +604,56 @@
     background: rgba(255, 255, 255, 0.05);
 }
 
+/* Form Styling - Premium Hub */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-label-lux {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--lux-text-secondary);
+    margin-bottom: 0.6rem;
+    letter-spacing: 0.05em;
+}
+
+.form-input-lux, .form-select-lux {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--lux-border);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    color: var(--lux-text-primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    outline: none;
+    transition: var(--lux-transition);
+}
+
+.form-input-lux:focus, .form-select-lux:focus {
+    border-color: var(--lux-gold);
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 0 15px rgba(251, 191, 36, 0.1);
+}
+
+.form-select-lux option {
+    background: var(--lux-card-bg);
+    color: var(--lux-text-primary);
+}
+
+/* Table Row Highlights */
+.row-active-lux td {
+    background: rgba(251, 191, 36, 0.08) !important;
+    border-color: rgba(251, 191, 36, 0.2) !important;
+}
+
+.row-verified-lux td {
+    background: rgba(16, 185, 129, 0.05) !important;
+    border-color: rgba(16, 185, 129, 0.1) !important;
+}
+
 /* Action Buttons - Premium */
 .btn-lux {
     padding: 0.75rem 1.5rem;
@@ -629,6 +683,40 @@
 .btn-lux-outline:hover {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(212, 175, 55, 0.3);
+}
+
+.btn-sm {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.75rem !important;
+}
+
+.stat-mini {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.alert {
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.alert-error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.alert-success {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 /* Scrollbar Customization */
@@ -1094,4 +1182,11 @@
 @media (max-width: 600px) {
     .manage-actions-bar { padding: 1rem; flex-direction: column; align-items: stretch; }
     .manage-actions-bar > div:last-child { display: flex; flex-direction: column; gap: 0.75rem; }
+}
+
+.manage-page-root {
+    padding-top: 7rem !important;
+    background: linear-gradient(145deg, #e2e8f0 0%, #f8fafc 50%, #cbd5e1 100%) !important;
+    background-attachment: fixed !important;
+    min-height: 100vh !important;
 }

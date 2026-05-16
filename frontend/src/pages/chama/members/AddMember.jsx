@@ -142,30 +142,26 @@ const AddMember = () => {
     ];
 
     return (
-        <div className="page-lux-wrapper" style={{ background: 'var(--lux-bg-soft)', minHeight: '100vh', padding: '2rem 0' }}>
-            <div className="ambient-blob blob-gold" />
-            <div className="ambient-blob blob-blue" />
-
+        <div className="page manage-page-root">
             <div className="container">
-                <div className="page-frame-lux" style={{ background: 'var(--lux-card-bg)', border: '1px solid var(--lux-border)' }}>
+                <div className="page-frame-lux">
                     <motion.div 
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8 }}
                     >
-                        {/* Header */}
-                        <div className="flex flex-between align-center mb-8">
-                            <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                        <div className="chama-header-lux">
+                            <div className="chama-title-area">
+                                <div className="flex align-center gap-3 mb-2">
                                     <div style={{ background: 'rgba(212, 175, 55, 0.1)', padding: '6px', borderRadius: '10px' }}>
-                                        <UserPlus size={20} color="var(--lux-gold)" />
+                                        <UserPlus size={24} color="var(--lux-gold)" />
                                     </div>
                                     <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--lux-gold)' }}>
                                         Growth Terminal
                                     </span>
                                 </div>
-                                <h1 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0, color: 'var(--lux-text-primary)' }}>Expand Member Base</h1>
-                                <p style={{ color: 'var(--lux-text-secondary)', marginTop: '4px', fontSize: '0.95rem' }}>
+                                <h1 className="m-0">Expand Member Base</h1>
+                                <p className="mt-2" style={{ color: 'var(--lux-text-secondary)', fontSize: '0.95rem' }}>
                                     Strategic expansion for <strong style={{ color: 'var(--lux-text-primary)' }}>{chamaName}</strong>
                                 </p>
                             </div>
@@ -173,7 +169,7 @@ const AddMember = () => {
                                 className="btn-lux btn-lux-outline flex items-center gap-2"
                                 onClick={() => navigate(`/chamas/${id}`)}
                             >
-                                <ArrowLeft size={16} /> <span>Return to Vault</span>
+                                <ArrowLeft size={16} /> <span>Back to Dashboard</span>
                             </button>
                         </div>
 
@@ -244,17 +240,12 @@ const AddMember = () => {
                                                 placeholder="Enter registered email or mobile terminal number..."
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                                className="form-input"
+                                                className="form-input-lux"
                                                 style={{
-                                                    width: '100%',
-                                                    padding: '20px 20px 20px 60px',
+                                                    paddingLeft: '60px',
                                                     fontSize: '1.1rem',
-                                                    background: 'var(--lux-bg-soft)',
-                                                    border: '1px solid var(--lux-border)',
-                                                    borderRadius: '16px',
-                                                    color: 'var(--lux-text-primary)',
-                                                    outline: 'none',
-                                                    boxSizing: 'border-box'
+                                                    paddingTop: '20px',
+                                                    paddingBottom: '20px'
                                                 }}
                                             />
                                             {isSearching && (
@@ -300,16 +291,8 @@ const AddMember = () => {
                                                     <select
                                                         value={selectedRole}
                                                         onChange={(e) => setSelectedRole(e.target.value)}
-                                                        style={{
-                                                            padding: '12px 20px',
-                                                            borderRadius: '12px',
-                                                            background: 'rgba(255, 255, 255, 0.05)',
-                                                            border: '1px solid var(--glass-border)',
-                                                            color: 'white',
-                                                            outline: 'none',
-                                                            fontWeight: 600,
-                                                            cursor: 'pointer'
-                                                        }}
+                                                        className="form-select-lux"
+                                                        style={{ width: 'auto', minWidth: '150px' }}
                                                     >
                                                         <option value="MEMBER">Member</option>
                                                         <option value="TREASURER">Treasurer</option>
@@ -367,44 +350,23 @@ const AddMember = () => {
                                                     placeholder="recipient@example.com"
                                                     value={inviteEmail}
                                                     onChange={(e) => setInviteEmail(e.target.value)}
-                                                    style={{
-                                                      width: '100%',
-                                                      padding: '16px 16px 16px 48px',
-                                                      fontSize: '1rem',
-                                                      background: 'rgba(255, 255, 255, 0.02)',
-                                                      border: '1px solid var(--glass-border)',
-                                                      borderRadius: '14px',
-                                                      color: 'white',
-                                                      outline: 'none',
-                                                      boxSizing: 'border-box'
-                                                    }}
+                                                    className="form-input-lux"
+                                                    style={{ paddingLeft: '48px' }}
                                                   />
                                                 </div>
                                             </div>
                                             <div style={{ marginBottom: '32px' }}>
                                                 <label style={{ display: 'block', marginBottom: '10px', fontWeight: 800, fontSize: '0.85rem', color: 'var(--gold-text)', textTransform: 'uppercase', letterSpacing: '1px' }}>Designated Role</label>
                                                 <select
-                                                    value={selectedRole}
-                                                    onChange={(e) => setSelectedRole(e.target.value)}
-                                                    style={{
-                                                        width: '100%',
-                                                        padding: '16px',
-                                                        fontSize: '1rem',
-                                                        background: 'rgba(255, 255, 255, 0.02)',
-                                                        border: '1px solid var(--glass-border)',
-                                                        borderRadius: '14px',
-                                                        color: 'white',
-                                                        fontWeight: 600,
-                                                        outline: 'none',
-                                                        cursor: 'pointer',
-                                                        boxSizing: 'border-box'
-                                                    }}
-                                                >
-                                                    <option value="MEMBER">Member</option>
-                                                    <option value="TREASURER">Treasurer</option>
-                                                    <option value="SECRETARY">Secretary</option>
-                                                    <option value="CHAIRPERSON">Chairperson</option>
-                                                </select>
+                                                     value={selectedRole}
+                                                     onChange={(e) => setSelectedRole(e.target.value)}
+                                                     className="form-select-lux"
+                                                 >
+                                                     <option value="MEMBER">Member</option>
+                                                     <option value="TREASURER">Treasurer</option>
+                                                     <option value="SECRETARY">Secretary</option>
+                                                     <option value="CHAIRPERSON">Chairperson</option>
+                                                 </select>
                                             </div>
                                             <button
                                                 type="submit"
@@ -439,19 +401,15 @@ const AddMember = () => {
                                             <div style={{ width: '100%', maxWidth: '320px' }}>
                                                 <label style={{ display: 'block', marginBottom: '10px', fontSize: '0.85rem', fontWeight: 800, color: 'var(--gold-text)', textTransform: 'uppercase', letterSpacing: '1px' }}>Authorized Role</label>
                                                 <select
-                                                    value={selectedRole}
-                                                    onChange={(e) => setSelectedRole(e.target.value)}
-                                                    style={{
-                                                        width: '100%', padding: '14px', borderRadius: '12px',
-                                                        border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.02)',
-                                                        color: 'white', fontWeight: 600, outline: 'none', cursor: 'pointer'
-                                                    }}
-                                                >
-                                                    <option value="MEMBER">Member</option>
-                                                    <option value="TREASURER">Treasurer</option>
-                                                    <option value="SECRETARY">Secretary</option>
-                                                    <option value="CHAIRPERSON">Chairperson</option>
-                                                </select>
+                                                     value={selectedRole}
+                                                     onChange={(e) => setSelectedRole(e.target.value)}
+                                                     className="form-select-lux"
+                                                 >
+                                                     <option value="MEMBER">Member</option>
+                                                     <option value="TREASURER">Treasurer</option>
+                                                     <option value="SECRETARY">Secretary</option>
+                                                     <option value="CHAIRPERSON">Chairperson</option>
+                                                 </select>
                                             </div>
                                         </div>
 
@@ -462,57 +420,47 @@ const AddMember = () => {
                                         ) : activeCode ? (
                                             <div style={{ maxWidth: '440px', margin: '0 auto', textAlign: 'center' }}>
                                                 <motion.div
-                                                    whileHover={{ scale: 1.02 }}
+                                                    whileHover={{ scale: 1.02, backgroundColor: 'var(--lux-bg-soft)' }}
                                                     whileTap={{ scale: 0.98 }}
                                                     onClick={copyCode}
                                                     style={{
-                                                        background: 'rgba(255, 255, 255, 0.02)',
-                                                        border: '2px dashed var(--gold-soft)',
+                                                        background: 'var(--lux-bg-soft)',
+                                                        border: '2px dashed var(--lux-gold)',
                                                         borderRadius: '24px',
                                                         padding: '32px',
                                                         marginBottom: '24px',
                                                         cursor: 'pointer',
-                                                        transition: 'all 0.3s'
+                                                        transition: 'all 0.3s',
+                                                        boxShadow: '0 10px 30px rgba(0,0,0,0.05)'
                                                     }}
                                                 >
-                                                    <div style={{ fontSize: '3rem', fontWeight: 900, letterSpacing: '8px', color: 'var(--gold-text)', fontFamily: 'monospace' }}>
+                                                    <div style={{ fontSize: '3rem', fontWeight: 900, letterSpacing: '8px', color: 'var(--gold-text)', fontFamily: 'monospace', textShadow: '0 4px 10px rgba(212,175,55,0.2)' }}>
                                                         {activeCode.invite_code}
                                                     </div>
-                                                    <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                                                    <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--lux-text-secondary)', fontSize: '0.9rem', fontWeight: 700 }}>
                                                         <Copy size={14} /> Click to secure copy
                                                     </div>
                                                 </motion.div>
 
                                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                                                    <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid var(--glass-border)', textAlign: 'left' }}>
-                                                        <p style={{ margin: '0 0 4px 0', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Security Expiry</p>
-                                                        <p style={{ margin: 0, fontWeight: 800, color: 'white' }}>{new Date(activeCode.expires_at).toLocaleDateString()}</p>
+                                                    <div style={{ padding: '16px', background: 'var(--lux-bg-soft)', borderRadius: '16px', border: '1px solid var(--lux-border)', textAlign: 'left' }}>
+                                                        <p style={{ margin: '0 0 4px 0', fontSize: '0.75rem', fontWeight: 700, color: 'var(--lux-text-secondary)', textTransform: 'uppercase' }}>Security Expiry</p>
+                                                        <p style={{ margin: 0, fontWeight: 800, color: 'var(--lux-text-primary)' }}>{new Date(activeCode.expires_at).toLocaleDateString()}</p>
                                                     </div>
-                                                    <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid var(--glass-border)', textAlign: 'left' }}>
-                                                        <p style={{ margin: '0 0 4px 0', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Usage Quota</p>
-                                                        <p style={{ margin: 0, fontWeight: 800, color: 'white' }}>{activeCode.uses_count} / {activeCode.max_uses}</p>
+                                                    <div style={{ padding: '16px', background: 'var(--lux-bg-soft)', borderRadius: '16px', border: '1px solid var(--lux-border)', textAlign: 'left' }}>
+                                                        <p style={{ margin: '0 0 4px 0', fontSize: '0.75rem', fontWeight: 700, color: 'var(--lux-text-secondary)', textTransform: 'uppercase' }}>Usage Quota</p>
+                                                        <p style={{ margin: 0, fontWeight: 800, color: 'var(--lux-text-primary)' }}>{activeCode.uses_count} / {activeCode.max_uses}</p>
                                                     </div>
                                                 </div>
 
                                                 <button
                                                     onClick={handleFetchCode}
                                                     disabled={codeLoading}
-                                                    style={{
-                                                        background: 'transparent',
-                                                        border: '1px solid var(--glass-border)',
-                                                        padding: '10px 20px',
-                                                        borderRadius: '12px',
-                                                        fontSize: '0.85rem',
-                                                        color: 'var(--text-secondary)',
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '8px',
-                                                        margin: '0 auto',
-                                                        fontWeight: 700
-                                                    }}
+                                                    className="btn-lux btn-lux-outline"
+                                                    style={{ margin: '0 auto', fontSize: '0.85rem' }}
                                                 >
-                                                    <RefreshCw size={14} /> Reset Protocol Code
+                                                    <RefreshCw size={14} className={codeLoading ? "animate-spin" : ""} /> 
+                                                    {codeLoading ? "Resetting Protocol..." : "Reset Protocol Code"}
                                                 </button>
                                             </div>
                                         ) : (
