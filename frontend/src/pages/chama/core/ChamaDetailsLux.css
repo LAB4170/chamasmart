@@ -590,7 +590,7 @@
 }
 
 .filter-input-lux {
-    background: #fff;
+    background: var(--lux-card-bg);
     border: 1px solid var(--lux-border);
     border-radius: 12px;
     padding: 0.75rem 1rem;
@@ -1200,4 +1200,8 @@
     background: linear-gradient(145deg, #e2e8f0 0%, #f8fafc 50%, #cbd5e1 100%) !important;
     background-attachment: fixed !important;
     min-height: 100vh !important;
+}
+
+[data-theme='dark'] .manage-page-root {
+    background: linear-gradient(145deg, #0f172a 0%, #111827 100%) !important;
 }
