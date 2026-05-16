@@ -1,9 +1,11 @@
 import { useState, useEffect, memo, useCallback, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
-import { chamaAPI, contributionAPI, ascaAPI, memberAPI } from "../../../services/api";
-import { roscaAPI, welfareAPI } from "../../../services/api";
-import { meetingAPI, loanAPI, auditAPI, chatAPI } from "../../../services/api";
+import { 
+  chamaAPI, contributionAPI, ascaAPI, memberAPI, 
+  roscaAPI, welfareAPI, 
+  meetingAPI, loanAPI, chatAPI 
+} from "../../../services/api";
 
 
 import { useAuth } from "../../../context/AuthContext";
@@ -26,162 +28,109 @@ import {
   BarChart3, Calendar, Mail, Building2, Heart, RefreshCw, TrendingUp,
   Settings, CreditCard, Users, User, DollarSign, Handshake, FileText, Download,
   Target, Bell, Trash2, Filter, RotateCcw, CheckCircle2, Clock, MapPin,
-  Shield, Landmark, ArrowRight, TrendingDown, Wallet, Smartphone, AlertTriangle
+  Shield, Landmark, ArrowRight, TrendingDown, Wallet, Smartphone, AlertTriangle,
+  MessageCircle, ArrowRightLeft, Sparkles
 } from 'lucide-react';
 import ContributionMatrix from "../../../components/rosca/ContributionMatrix";
 import ChamaCreditScore from "./ChamaCreditScore";
 import HealthAlerts from "./HealthAlerts";
 import ChamaChat from "../../../components/chat/ChamaChat";
-import { MessageCircle } from 'lucide-react';
 import InvestmentProposals from "../asca/InvestmentProposals";
+import "./ChamaDetailsLux.css";
 
 // --- Memoized Sub-components ---
 
-const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavigate, onTabChange, isOfficial }) => (
-  <div style={{
-    background: 'var(--card-bg)',
-    borderRadius: '1rem',
-    border: '1px solid var(--border)',
-    padding: '1.25rem 1.75rem',
-    marginBottom: '1rem',
-    boxShadow: 'var(--shadow)',
-  }}>
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-      {/* Left: Title + Back Button + Badges */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavigate, isOfficial }) => (
+  <div className="chama-header-lux">
+    <div className="chama-title-area">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
         <button
           onClick={() => onNavigate('/dashboard')}
           aria-label="Back to Dashboard"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '2.5rem',
-            height: '2.5rem',
-            borderRadius: '0.75rem',
-            background: 'var(--surface-2)',
-            border: '1px solid var(--border)',
-            color: 'var(--text-secondary)',
-            cursor: 'pointer',
-            transition: 'var(--transition)'
-          }}
-          onMouseOver={(e) => { e.currentTarget.style.background = 'var(--surface-3)'; e.currentTarget.style.color = 'var(--primary)'; }}
-          onMouseOut={(e) => { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+          className="tab-btn-lux"
+          style={{ padding: '0.6rem', background: 'var(--lux-bg-soft)', border: '1px solid var(--lux-border)' }}
         >
-          <ArrowRight size={20} style={{ transform: 'rotate(180deg)' }} />
+          <ArrowRight size={20} style={{ transform: 'rotate(180deg)', color: 'var(--lux-text-primary)' }} />
         </button>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: 0 }}>
-          <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {chama.chama_name}
-            {chama.is_verified && (
-              <CheckCircle2 
-                size={18} 
-                style={{ color: '#3b82f6', fill: 'rgba(59, 130, 246, 0.1)', flexShrink: 0 }} 
-                title="Verified Chama"
-              />
-            )}
-          </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {/* Chama type badge â€” uses theme primary color */}
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'var(--bg-primary-light)', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 600 }}>
-              {isROSCA ? <RefreshCw size={13} /> : chama.chama_type === 'TABLE_BANKING' ? <DollarSign size={13} /> : chama.chama_type === 'ASCA' ? <TrendingUp size={13} /> : <Handshake size={13} />}
+        <div>
+          <h1>{chama.chama_name}</h1>
+          <div className="chama-badges">
+            <span className="badge-lux badge-gold">
+              {isROSCA ? <RefreshCw size={13} /> : <DollarSign size={13} />}
               {getChamaTypeLabel(chama.chama_type)}
             </span>
-            {/* Role badge â€” high-contrast for both modes */}
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-              padding: '0.25rem 0.75rem', borderRadius: '9999px',
-              fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.02em',
-              border: '1.5px solid',
-              ...(userRole === 'CHAIRPERSON'
-                ? { color: '#a78bfa', borderColor: '#a78bfa', background: 'rgba(167,139,250,0.12)' }
-                : userRole === 'TREASURER'
-                ? { color: 'var(--secondary)', borderColor: 'var(--secondary)', background: 'rgba(16,185,129,0.1)' }
-                : userRole === 'SECRETARY'
-                ? { color: 'var(--warning)', borderColor: 'var(--warning)', background: 'rgba(245,158,11,0.1)' }
-                : { color: 'var(--text-secondary)', borderColor: 'var(--border)', background: 'var(--surface-3)' })
-            }}>
+            <span className="badge-lux" style={{ background: 'var(--lux-bg-soft)', color: 'var(--lux-text-secondary)', border: '1px solid var(--lux-border)' }}>
               <Shield size={11} /> {userRole}
             </span>
           </div>
         </div>
       </div>
-
-      {/* Right: Action buttons */}
-      {isOfficial && (
-        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexShrink: 0 }}>
-          <button
-            onClick={() => onNavigate(`/chamas/${chama.chama_id}/record-contribution`)}
-            aria-label="Record payment for member"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1.15rem', background: 'var(--primary)', color: '#ffffff', border: 'none', borderRadius: '0.75rem', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', boxShadow: '0 2px 8px rgba(37,99,235,0.3)', transition: 'all 0.2s' }}
-          >
-            <CreditCard size={15} /> Record
-          </button>
-          <button
-            onClick={() => onNavigate(`/chamas/${chama.chama_id}/bulk-record`)}
-            aria-label="Bulk record contributions"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1.15rem', background: 'var(--surface-2)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: '0.75rem', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', transition: 'all 0.2s' }}
-          >
-            <Users size={15} /> Bulk Record
-          </button>
-          <button
-            onClick={() => onNavigate(`/chamas/${chama.chama_id}/manage`)}
-            aria-label="Manage chama settings"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1.15rem', background: 'transparent', color: 'var(--primary)', border: '1.5px solid var(--primary)', borderRadius: '0.75rem', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', transition: 'all 0.2s' }}
-          >
-            <Settings size={15} /> Manage
-          </button>
-        </div>
-      )}
     </div>
+
+    {isOfficial && (
+      <div style={{ display: 'flex', gap: '1rem' }}>
+        <button
+          onClick={() => onNavigate(`/chamas/${chama.chama_id}/manage`)}
+          className="tab-btn-lux"
+        >
+          <Settings size={16} /> Manage
+        </button>
+        <button
+          onClick={() => onNavigate(`/chamas/${chama.chama_id}/record-contribution`)}
+          className="tab-btn-lux active"
+        >
+          <CreditCard size={16} /> Record
+        </button>
+      </div>
+    )}
   </div>
 ));
 
 const StatsSection = memo(({ stats, isROSCA, chama, members, formatCurrency }) => (
-  <div className="stats-grid">
-    <div className="stat-card">
-      <div className="stat-icon"><Users size={24} /></div>
-      <div>
-        <h3>{stats.total_members || 0}</h3>
-        <p>Members</p>
+  <div className="hero-stats-lux">
+    <div className="stat-card-lux">
+      <div className="flex items-center gap-2 mb-1">
+        <Users size={14} className="text-blue-400" />
+        <span className="stat-label-lux">Directors</span>
+      </div>
+      <div className="stat-value-lux">{stats.total_members || 0}</div>
+      <div className="stat-trend-lux stat-trend-up">
+        <TrendingUp size={12} /> {members.length} Active
       </div>
     </div>
-    <div className="stat-card">
-      <div className="stat-icon"><DollarSign size={24} /></div>
-      <div>
-        <h3>{formatCurrency(stats.total_contributions || 0)}</h3>
-        <p>Total Collected</p>
+    <div className="stat-card-lux">
+      <div className="flex items-center gap-2 mb-1">
+        <DollarSign size={14} className="text-emerald-400" />
+        <span className="stat-label-lux">Revenue</span>
+      </div>
+      <div className="stat-value-lux">{formatCurrency(stats.total_contributions || 0)}</div>
+      <div className="stat-trend-lux stat-trend-up">
+        <TrendingUp size={12} /> Lifetime
       </div>
     </div>
-    <div className="stat-card" style={{ flexGrow: 1 }}>
-      <div className="stat-icon"><Building2 size={24} /></div>
-      <div style={{ width: '100%' }}>
-        <h3>{formatCurrency(stats.current_fund || 0)}</h3>
-        <p>Current Fund</p>
-        {['ASCA', 'TABLE_BANKING'].includes(chama.chama_type) && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginTop: '0.5rem', background: 'var(--bg-primary-light)', padding: '0.35rem 0.5rem', borderRadius: '0.35rem', width: '100%' }}>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ color: 'var(--primary)', fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 800 }}>Base Savings</span>
-              <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{formatCurrency((stats.current_fund || 0) - (stats.total_interest_earned || 0))}</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'right' }}>
-              <span style={{ color: 'var(--primary)', fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 800 }}>Interest</span>
-              <span style={{ fontWeight: 800, color: '#10b981' }}>+{formatCurrency(stats.total_interest_earned || 0)}</span>
-            </div>
-          </div>
-        )}
+    <div className="stat-card-lux">
+      <div className="flex items-center gap-2 mb-1">
+        <Wallet size={14} className="text-amber-400" />
+        <span className="stat-label-lux">Treasury</span>
+      </div>
+      <div className="stat-value-lux">{formatCurrency(stats.total_fund || 0)}</div>
+      <div className="stat-trend-lux" style={{ color: 'var(--text-secondary)' }}>
+        <Shield size={12} /> Verified
       </div>
     </div>
-    <div className="stat-card">
-      <div className="stat-icon">{isROSCA ? <RefreshCw size={24} /> : <BarChart3 size={24} />}</div>
-      <div>
-        <h3>
-          {isROSCA
-            ? formatCurrency(chama.contribution_amount * members.length)
-            : formatCurrency(chama.contribution_amount)}
-        </h3>
-        <p>{isROSCA ? "Per Payout" : "Per Contribution"}</p>
+    <div className="stat-card-lux">
+      <div className="flex items-center gap-2 mb-1">
+        <Target size={14} className="text-purple-400" />
+        <span className="stat-label-lux">{isROSCA ? 'Next Payout' : 'Loan Volume'}</span>
+      </div>
+      <div className="stat-value-lux">
+        {isROSCA 
+          ? formatCurrency(chama.contribution_amount * members.length)
+          : formatCurrency(stats.total_loans_disbursed || 0)
+        }
+      </div>
+      <div className="stat-trend-lux" style={{ color: 'var(--text-secondary)' }}>
+        <Clock size={12} /> Upcoming
       </div>
     </div>
   </div>
@@ -189,126 +138,127 @@ const StatsSection = memo(({ stats, isROSCA, chama, members, formatCurrency }) =
 
 
 const MembersTab = memo(({ members, isOfficial, isROSCA, roster, getMemberStatus, onNavigate, formatCurrency, formatDate, chamaId, userRole, onUpdateRole, activeUsers = [] }) => {
-  const Row = ({ index, style }) => {
-    const member = members[index];
-    const status = getMemberStatus(member);
-    const isOnline = activeUsers.includes(member.user_id.toString()) || activeUsers.includes(member.user_id);
-
-    return (
-      <div className="v-tr" style={style}>
-        <div className="v-td v-td-lg">
-          <strong>{member.first_name} {member.last_name}</strong>
-          {isOnline && <span className="online-indicator" title="Online"></span>}
-        </div>
-        <div className="v-td">
-          {isOfficial && userRole === "CHAIRPERSON" ? (
-            <select
-              value={member.role}
-              onChange={(e) => onUpdateRole(member.user_id, e.target.value)}
-              className={`role-select badge badge-${member.role === "CHAIRPERSON" ? "primary" : member.role === "TREASURER" ? "success" : member.role === "SECRETARY" ? "warning" : "secondary"}`}
-              style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid var(--border)', cursor: 'pointer' }}
-            >
-              <option value="CHAIRPERSON">CHAIRPERSON</option>
-              <option value="TREASURER">TREASURER</option>
-              <option value="SECRETARY">SECRETARY</option>
-              <option value="MEMBER">MEMBER</option>
-            </select>
-          ) : (
-            <span className={`badge badge-${member.role === "CHAIRPERSON" ? "primary" : member.role === "TREASURER" ? "success" : member.role === "SECRETARY" ? "warning" : "secondary"}`}>
-              {member.role}
-            </span>
-          )}
-        </div>
-        {isROSCA && (
-          <div className="v-td v-td-sm">{roster.findIndex((r) => r.user_id === member.user_id) + 1}</div>
-        )}
-        {isROSCA && (
-          <div className="v-td">
-            <span className={`badge badge-${status === "CURRENT_RECIPIENT" ? "success" : status === "COMPLETED" ? "primary" : "secondary"}`}>
-              {status.replace("_", " ")}
-            </span>
-          </div>
-        )}
-        <div className="v-td v-td-lg">{member.phone_number}</div>
-        <div className="v-td text-success">{formatCurrency(member.total_contributions || 0)}</div>
-        <div className="v-td">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between gap-2">
-              <span style={{ 
-                fontSize: '0.7rem', 
-                fontWeight: 600,
-                color: member.trust_score >= 70 ? 'var(--secondary)' : member.trust_score >= 40 ? 'var(--warning)' : 'var(--danger)'
-              }}>
-                {member.trust_score || 0}%
-              </span>
-            </div>
-            <div style={{ 
-              height: '4px', 
-              width: '100%', 
-              background: 'var(--border)', 
-              borderRadius: '2px',
-              overflow: 'hidden' 
-            }}>
-              <div style={{ 
-                height: '100%', 
-                width: `${member.trust_score || 0}%`, 
-                background: member.trust_score >= 70 ? 'var(--secondary)' : member.trust_score >= 40 ? 'var(--warning)' : 'var(--danger)',
-                transition: 'width 0.5s ease'
-              }} />
-            </div>
-          </div>
-        </div>
-        <div className="v-td text-muted">{formatDate(member.join_date)}</div>
-      </div>
-    );
-  };
-
   return (
-    <div className="card" style={{ height: "500px", display: "flex", flexDirection: "column" }}>
-      <div className="card-header flex-between" style={{ flexShrink: 0 }}>
-        <h3>Members ({members.length})</h3>
+    <div className="dashboard-card-lux" style={{ minHeight: '600px' }}>
+      <div className="card-header pb-4 mb-8 border-b flex justify-between items-center" style={{ borderColor: 'var(--lux-border)' }}>
+        <h3 className="card-title-lux m-0 flex items-center gap-3">
+          <div className="p-2 rounded-lg" style={{ background: 'rgba(212, 175, 55, 0.1)', color: 'var(--lux-gold)', border: '1px solid var(--lux-border)' }}>
+            <Users size={20} />
+          </div>
+          Group Directors ({members.length})
+        </h3>
         {isOfficial && (
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
             <button
-              className="btn btn-sm btn-outline"
+              className="btn-lux btn-lux-outline"
               onClick={() => onNavigate(`/chamas/${chamaId}/bulk-record`)}
             >
               Bulk Record
             </button>
             <button
-              className="btn btn-sm btn-primary"
+              className="btn-lux btn-lux-primary"
               onClick={() => onNavigate(`/chamas/${chamaId}/add-member`)}
             >
-              + Add Member
+              <Users size={16} /> Add Member
             </button>
           </div>
         )}
       </div>
 
       {members.length === 0 ? (
-        <p className="text-muted text-center" style={{ padding: "2rem" }}>No members yet</p>
+        <div className="text-center py-20 opacity-50">
+          <Users size={48} style={{ marginBottom: '1rem', opacity: 0.2 }} />
+          <p>No members have been added to this chama yet.</p>
+        </div>
       ) : (
-        <div className="v-table" style={{ flex: 1, minHeight: 0 }}>
-          <div className="v-thead" style={{ flexShrink: 0 }}>
-            <div className="v-th v-td-lg">Name</div>
-            <div className="v-th">Role</div>
-            {isROSCA && <div className="v-th v-td-sm">Pos</div>}
-            {isROSCA && <div className="v-th">Status</div>}
-            <div className="v-th v-td-lg">Phone</div>
-            <div className="v-th">Total</div>
-            <div className="v-th">Trust Score</div>
-            <div className="v-th">Joined</div>
-          </div>
-          <div style={{ flex: 1 }}>
-            <List
-              height={400}
-              itemCount={members.length}
-              itemSize={60}
-              width="100%"
-            >
-              {Row}
-            </List>
-          </div>
+        <div className="member-grid-lux">
+          {members.map((member) => {
+            const status = getMemberStatus(member);
+            const isOnline = activeUsers.includes(member.user_id.toString()) || activeUsers.includes(member.user_id);
+            const initials = `${member.first_name?.[0] || ''}${member.last_name?.[0] || ''}`;
+            const trustColor = member.trust_score >= 70 ? '#10b981' : member.trust_score >= 40 ? '#f59e0b' : '#ef4444';
+
+            return (
+              <div key={member.user_id} className="member-card-lux">
+                <div 
+                  className="member-avatar-lux" 
+                  style={{ 
+                    background: 'rgba(212, 175, 55, 0.05)', 
+                    color: 'var(--gold-text)',
+                    position: 'relative'
+                  }}
+                >
+                  {initials}
+                  {isOnline && (
+                    <div style={{ 
+                      position: 'absolute', 
+                      bottom: '2px', 
+                      right: '2px', 
+                      width: '12px', 
+                      height: '12px', 
+                      background: '#10b981', 
+                      borderRadius: '50%', 
+                      border: '2px solid rgba(0,0,0,0.5)',
+                      boxShadow: '0 0 10px #10b981'
+                    }} />
+                  )}
+                </div>
+
+                <div className="member-role-lux">{member.role}</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--lux-text-primary)', marginBottom: '0.25rem' }}>
+                  {member.first_name} {member.last_name}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--lux-text-secondary)', marginBottom: '1rem' }}>
+                  {member.phone_number}
+                </div>
+
+                <div style={{ width: '100%', padding: '1rem', background: 'var(--lux-bg-soft)', border: '1px solid var(--lux-border)', borderRadius: '16px', marginBottom: '1.25rem' }}>
+                  <div className="flex-between mb-2">
+                    <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--lux-text-secondary)', letterSpacing: '0.05em' }}>PERFORMANCE INDEX</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 900, color: trustColor }}>{member.trust_score || 0}%</span>
+                  </div>
+                  <div style={{ height: '6px', width: '100%', background: 'var(--lux-card-bg)', borderRadius: '3px', overflow: 'hidden', border: '1px solid var(--lux-border)' }}>
+                    <div style={{ height: '100%', width: `${member.trust_score || 0}%`, background: trustColor, transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)', boxShadow: `0 0 10px ${trustColor}40` }} />
+                  </div>
+                </div>
+
+                <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--lux-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Equity</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 900, color: '#10b981' }}>{formatCurrency(member.total_contributions || 0)}</div>
+                  </div>
+                  {isOfficial && userRole === "CHAIRPERSON" && (
+                    <button 
+                      className="btn-lux btn-lux-outline" 
+                      style={{ padding: '0.5rem', borderRadius: '10px' }}
+                      onClick={() => onUpdateRole(member.user_id, member.role === 'MEMBER' ? 'TREASURER' : 'MEMBER')}
+                      title="Governance Control"
+                    >
+                      <Shield size={16} />
+                    </button>
+                  )}
+                </div>
+
+                {isROSCA && (
+                  <div style={{ 
+                    marginTop: '1rem', 
+                    paddingTop: '1rem', 
+                    borderTop: '1px solid rgba(255,255,255,0.05)', 
+                    width: '100%',
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    color: 'var(--text-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <Target size={12} /> Cycle Position: {roster.findIndex((r) => r.user_id === member.user_id) + 1}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -322,27 +272,27 @@ const DeadlineAlerts = memo(({ repayments, formatDate, formatCurrency, isOfficia
     const due = new Date(r.next_repayment_date);
     const now = new Date();
     const diff = (due - now) / (1000 * 60 * 60 * 24);
-    return diff <= 7; // Within 7 days
+    return diff <= 7;
   });
 
   if (urgent.length === 0) return null;
 
   return (
-    <div className="deadline-alerts-container mb-6">
-      <h4 className="flex items-center gap-2 text-amber-600 mb-3 font-bold text-sm">
-        <Bell size={16} className="animate-bounce" /> Attention: Upcoming Deadlines
+    <div className="dashboard-card-lux" style={{ borderLeft: '5px solid #f59e0b', background: 'rgba(245, 158, 11, 0.02)', marginBottom: '1.5rem' }}>
+      <h4 className="card-title-lux" style={{ color: '#f59e0b' }}>
+        <Bell size={18} className="animate-bounce" /> Attention: Critical Deadlines
       </h4>
-      <div className="grid grid-1 md:grid-2 gap-3">
+      <div className="grid grid-2 gap-4">
         {urgent.map((r, idx) => (
-          <div key={idx} className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex justify-between items-center shadow-sm">
+          <div key={idx} className="member-card-lux" style={{ flexDirection: 'row', justifyContent: 'space-between', padding: '1rem' }}>
             <div>
-              <div className="text-xs uppercase font-black text-amber-700 opacity-60">Repayment Due</div>
-              <div className="font-bold text-slate-800">{isOfficial ? r.borrower_name : 'Your Loan'}</div>
-              <div className="text-xs text-amber-600 font-semibold">{formatDate(r.next_repayment_date)}</div>
+              <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#f59e0b', textTransform: 'uppercase' }}>Repayment Due</div>
+              <div style={{ fontWeight: 800, color: '#fff' }}>{isOfficial ? r.borrower_name : 'Your Loan Facility'}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{formatDate(r.next_repayment_date)}</div>
             </div>
-            <div className="text-right">
-              <div className="font-black text-slate-800">{formatCurrency(r.amount_due)}</div>
-              <button className="btn btn-xs btn-amber mt-1">Pay Now</button>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontWeight: 900, fontSize: '1.1rem', color: '#fff' }}>{formatCurrency(r.amount_due)}</div>
+              <button className="btn-lux btn-lux-primary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.7rem', marginTop: '0.5rem' }}>Execute</button>
             </div>
           </div>
         ))}
@@ -358,6 +308,7 @@ const ChamaDetails = () => {
   const { user } = useAuth();
   const { socket } = useSocket();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [chama, setChama] = useState(null);
   const [members, setMembers] = useState([]);
@@ -559,12 +510,10 @@ const ChamaDetails = () => {
   useEffect(() => {
     if (location.state?.refresh) {
       fetchChamaData();
-
-      // If specific tab requested, switch to it
-      if (location.state?.tab) {
-        setActiveTab(location.state.tab);
-      }
-
+    }
+    // Restore tab from navigation state (e.g., back from management sub-sections)
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab);
       // Clear state to prevent loop
       window.history.replaceState({}, document.title);
     }
@@ -714,7 +663,7 @@ const ChamaDetails = () => {
     try {
       // Filter out empty values to prevent 500 errors
       const cleanFilters = Object.fromEntries(
-        Object.entries(f).filter(([_, v]) => v != null && v !== "")
+        Object.entries(f).filter(([key, v]) => v != null && v !== "")
       );
 
       const response = await contributionAPI.getAll(id, cleanFilters);
@@ -1154,6 +1103,34 @@ const ChamaDetails = () => {
     });
   };
 
+  const handleActivateCycle = async (cycleId) => {
+    try {
+      setLoading(true);
+      await roscaAPI.activateCycle(cycleId);
+      toast.success("Cycle activated successfully!");
+      fetchChamaData();
+    } catch (err) {
+      console.error("Failed to activate cycle:", err);
+      toast.error(err.response?.data?.message || "Failed to activate cycle");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSwapResponse = async (requestId, action) => {
+    try {
+      setLoading(true);
+      await roscaAPI.respondToSwap(requestId, action);
+      toast.success(`Swap request ${action === 'ACCEPT' ? 'accepted' : 'rejected'}`);
+      fetchChamaData();
+    } catch (err) {
+      console.error("Failed to respond to swap request:", err);
+      toast.error(err.response?.data?.message || "Failed to respond to swap request");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="page">
@@ -1178,7 +1155,7 @@ const ChamaDetails = () => {
   }
 
   return (
-    <div className="chama-details-root">
+    <div className="chama-details-root chama-details-lux-root">
       <div className="page">
         <div className="container">
           <div className="page-frame-lux">
@@ -1201,465 +1178,139 @@ const ChamaDetails = () => {
           formatCurrency={formatCurrency}
         />
 
-        <div className="tab-container-premium" style={{ width: '100%', overflow: 'hidden' }}>
-          <div className="tabs-modern scroll-fade" style={{ display: 'flex', overflowX: 'auto', flexWrap: 'nowrap', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none', paddingBottom: '4px' }}>
+        <div className="tabs-nav-lux">
+          <button
+            className={`tab-btn-lux ${activeTab === "overview" ? "active" : ""}`}
+            onClick={() => setActiveTab("overview")}
+          >
+            <BarChart3 size={18} /> Overview
+          </button>
+          <button
+            className={`tab-btn-lux ${activeTab === "members" ? "active" : ""}`}
+            onClick={() => setActiveTab("members")}
+          >
+            <Users size={18} /> Members
+          </button>
+          <button
+            className={`tab-btn-lux ${activeTab === "contributions" ? "active" : ""}`}
+            onClick={() => setActiveTab("contributions")}
+          >
+            <DollarSign size={18} /> Payments
+          </button>
+          <button
+            className={`tab-btn-lux ${activeTab === "chat" ? "active" : ""}`}
+            onClick={() => {
+              setActiveTab("chat");
+              setUnreadChatCount(0);
+            }}
+          >
+            <MessageCircle size={18} /> Chat
+            {unreadChatCount > 0 && <span className="unread-dot">{unreadChatCount}</span>}
+          </button>
+          <button
+            className={`tab-btn-lux ${activeTab === "meetings" ? "active" : ""}`}
+            onClick={() => setActiveTab("meetings")}
+          >
+            <Calendar size={18} /> Meetings
+          </button>
+          {officialStatus && (
             <button
-              className={`tab-modern ${activeTab === "overview" ? "active" : ""}`}
-              onClick={() => setActiveTab("overview")}
+              className={`tab-btn-lux ${activeTab === "management" ? "active" : ""}`}
+              onClick={() => setActiveTab("management")}
             >
-              <BarChart3 size={18} className="tab-icon" aria-hidden="true" /> Overview
+              <Shield size={18} /> Management
             </button>
-            <button
-              className={`tab-modern ${activeTab === "members" ? "active" : ""}`}
-              onClick={() => setActiveTab("members")}
-            >
-              <Users size={18} className="tab-icon" aria-hidden="true" /> Members
-            </button>
-            <button
-              className={`tab-modern ${activeTab === "contributions" ? "active" : ""}`}
-              onClick={() => setActiveTab("contributions")}
-            >
-              <DollarSign size={18} className="tab-icon" aria-hidden="true" /> Payments
-            </button>
-            <button
-              className={`tab-modern ${activeTab === "chat" ? "active" : ""}`}
-              onClick={() => {
-                setActiveTab("chat");
-                setUnreadChatCount(0);
-              }}
-              style={{ position: 'relative' }}
-            >
-              <MessageCircle size={18} className="tab-icon" aria-hidden="true" /> Chat
-              {unreadChatCount > 0 && (
-                <span style={{
-                  position: 'absolute',
-                  top: '0.25rem',
-                  right: '0.5rem',
-                  background: '#ef4444',
-                  color: 'white',
-                  borderRadius: '50%',
-                  width: '18px',
-                  height: '18px',
-                  fontSize: '0.65rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 'bold',
-                  boxShadow: '0 0 0 2px var(--card-bg)'
-                }}>
-                  {unreadChatCount > 9 ? '9+' : unreadChatCount}
-                </span>
-              )}
-            </button>
-            <button
-              className={`tab-modern ${activeTab === "meetings" ? "active" : ""}`}
-              onClick={() => setActiveTab("meetings")}
-            >
-              <Calendar size={18} className="tab-icon" aria-hidden="true" /> Meetings
-            </button>
-
-            {["TABLE_BANKING", "ASCA"].includes(chama.chama_type) && (
-              <button
-                className={`tab-modern ${activeTab === "loans" ? "active" : ""}`}
-                onClick={() => setActiveTab("loans")}
-              >
-                <Landmark size={18} className="tab-icon" aria-hidden="true" /> Loans
-              </button>
-            )}
-
-            {chama.chama_type === "ASCA" && (
-              <button
-                className={`tab-modern ${activeTab === "investments" ? "active" : ""}`}
-                onClick={() => setActiveTab("investments")}
-              >
-                <TrendingUp size={18} className="tab-icon" aria-hidden="true" /> Investments
-              </button>
-            )}
-
-            {chama.chama_type === "WELFARE" && (
-              <button
-                className={`tab-modern ${activeTab === "welfare" ? "active" : ""}`}
-                onClick={() => setActiveTab("welfare")}
-              >
-                <Heart size={18} className="tab-icon" aria-hidden="true" /> Welfare
-              </button>
-            )}
-
-            {isROSCA && (
-              <button
-                className={`tab-modern ${activeTab === "cycle" ? "active" : ""}`}
-                onClick={() => setActiveTab("cycle")}
-              >
-                <RefreshCw size={18} className="tab-icon" aria-hidden="true" /> Cycle & Roster
-              </button>
-            )}
-
-            <button
-              className={`tab-modern ${activeTab === "reports" ? "active" : ""}`}
-              onClick={() => setActiveTab("reports")}
-            >
-              <BarChart3 size={18} className="tab-icon" aria-hidden="true" /> Reports
-            </button>
-
-            {officialStatus && (
-              <>
-                <button
-                  className={`tab-modern ${activeTab === "management" ? "active" : ""}`}
-                  onClick={() => setActiveTab("management")}
-                >
-                  <Shield size={18} className="tab-icon" aria-hidden="true" /> Management
-                </button>
-                <button
-                  className={`tab-modern ${activeTab === "constitution" ? "active" : ""}`}
-                  onClick={() => setActiveTab("constitution")}
-                >
-                  <FileText size={18} className="tab-icon" aria-hidden="true" /> Constitution
-                </button>
-              </>
-            )}
-          </div>
+          )}
+        </div>
 
           <div className="tab-content-area">
             {activeTab === "overview" && (
-              <>
-                {/* â”€â”€ Chama Launchpad (Officials Only) â”€â”€ */}
-                {officialStatus && (() => {
-                  const step1Done = !!chama.payment_methods;
-                  const step2Done = members.length > 1;
-                  const step3Done = cycles.length > 0;
-                  const completedCount = (isROSCA ? [step1Done, step2Done, step3Done] : [step1Done, step2Done]).filter(Boolean).length;
-                  const totalSteps = isROSCA ? 3 : 2;
-                  const allDone = completedCount >= totalSteps;
+              <div className="overview-dashboard">
+                {/* Main Content Column */}
+                <div className="dashboard-main">
+                  {officialStatus && (() => {
+                    return null;
+                  })()}
 
-                  return (
-                    <div className="launchpad-card" style={{ marginBottom: '1.5rem' }}>
-                      <div className="launchpad-header">
-                        <div className="launchpad-title-area">
-                          <h3>
-                            <Target size={22} style={{ color: '#4f46e5' }} />
-                            {allDone ? 'ðŸš€ Chama is Live!' : 'Chama Launchpad'}
-                          </h3>
-                          <p>{allDone ? 'All setup steps are complete. Your group is operational.' : 'Complete the steps below to go live.'}</p>
-                        </div>
-                        <span className="launchpad-progress-badge">
-                          {completedCount} / {totalSteps} Done
-                        </span>
-                      </div>
-
-                      <div className="launchpad-steps" style={{ gridTemplateColumns: isROSCA ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)' }}>
-
-                        {/* Step 1: Payment */}
-                        <div className={`launchpad-step ${step1Done ? 'completed' : 'active'}`}>
-                          <div className="step-icon-wrapper">
-                            {step1Done ? <CheckCircle2 size={20} /> : <CreditCard size={20} />}
-                          </div>
-                          <div className="step-content">
-                            <h4>Set Payment Details</h4>
-                            {!step1Done && <p>Add M-PESA Paybill, Till or Pochi for members to pay.</p>}
-                            {step1Done && <p style={{ color: '#16a34a', fontSize: '0.78rem' }}>Payment method configured.</p>}
-                          </div>
-                          {!step1Done && (
-                            <div className="step-action">
-                              <button
-                                onClick={() => navigate(`/chamas/${id}/manage`)}
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 1rem', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '0.6rem', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', transition: 'all 0.2s' }}
-                              >
-                                <Settings size={14} /> Setup
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Step 2: Members */}
-                        <div className={`launchpad-step ${step2Done ? 'completed' : step1Done ? 'active' : ''}`}>
-                          <div className="step-icon-wrapper">
-                            {step2Done ? <CheckCircle2 size={20} /> : <Users size={20} />}
-                          </div>
-                          <div className="step-content">
-                            <h4>Invite Members</h4>
-                            {!step2Done && <p>At least 2 members needed. Currently: {members.length}.</p>}
-                            {step2Done && <p style={{ color: '#16a34a', fontSize: '0.78rem' }}>{members.length} members joined.</p>}
-                          </div>
-                          {!step2Done && (
-                            <div className="step-action">
-                              <button
-                                onClick={() => navigate(`/chamas/${id}/invites`)}
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 1rem', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '0.6rem', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', transition: 'all 0.2s' }}
-                              >
-                                <Mail size={14} /> Invite
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Step 3: Start Cycle (ROSCA only) */}
-                        {isROSCA && (
-                          <div className={`launchpad-step ${step3Done ? 'completed' : step2Done ? 'active' : ''}`}>
-                            <div className="step-icon-wrapper">
-                              {step3Done ? <CheckCircle2 size={20} /> : <RefreshCw size={20} />}
-                            </div>
-                            <div className="step-content">
-                              <h4>Start First Cycle</h4>
-                              {!step3Done && <p>Launch the merry-go-round rotation for members.</p>}
-                              {step3Done && <p style={{ color: '#16a34a', fontSize: '0.78rem' }}>Cycle is running.</p>}
-                            </div>
-                            {!step3Done && (
-                              <div className="step-action">
-                                <button
-                                  onClick={() => setShowCreateCycleModal(true)}
-                                  disabled={!step2Done}
-                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 1rem', background: step2Done ? '#4f46e5' : '#a5b4fc', color: '#fff', border: 'none', borderRadius: '0.6rem', fontWeight: 700, fontSize: '0.82rem', cursor: step2Done ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}
-                                >
-                                  <RefreshCw size={14} /> Start
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Member Wall Widget */}
-                <div className="card-premium mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="card-title-premium mb-0 flex items-center gap-2">
-                      <Users size={18} className="text-gray-500" />
-                      Who's Here <span className="text-gray-400 text-sm font-normal">({members.length})</span>
-                    </h3>
-                    <button
-                      onClick={() => setActiveTab('members')}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.3rem 0.9rem', border: '1px solid rgba(79,70,229,0.3)', borderRadius: '0.6rem', color: '#4f46e5', background: 'rgba(79,70,229,0.04)', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
-                    >
-                      <Users size={13} /> View All
-                    </button>
-                  </div>
-
-                  <div className="flex -space-x-3 overflow-hidden py-2 px-1">
-                    {members.slice(0, 8).map((m) => (
-                      <div
-                        key={m.user_id}
-                        className="relative w-10 h-10 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-xs font-bold text-white transition-transform hover:scale-110 hover:z-10 cursor-default"
-                        style={{ backgroundColor: `hsl(${(m.user_id * 137) % 360}, 70%, 50%)` }}
-                        title={`${m.first_name} ${m.last_name}`}
-                      >
-                        {m.first_name[0]}{m.last_name[0]}
-                        {(activeUsers.includes(m.user_id.toString()) || activeUsers.includes(m.user_id)) && (
-                          <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
-                        )}
-                      </div>
-                    ))}
-                    {members.length > 8 && (
-                      <div className="w-10 h-10 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
-                        +{members.length - 8}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="card">
-                  <h3>Chama Information</h3>
-                  <div className="info-grid">
-                    <div className="info-item"><span className="info-label">Type</span><span className="info-value">{getChamaTypeLabel(chama.chama_type)}</span></div>
-                    <div className="info-item"><span className="info-label">Contribution</span><span className="info-value">{formatCurrency(chama.contribution_amount)}</span></div>
-                    <div className="info-item"><span className="info-label">Frequency</span><span className="info-value">{chama.contribution_frequency}</span></div>
-                    <div className="info-item"><span className="info-label">Created</span><span className="info-value">{formatDate(chama.created_at)}</span></div>
-                    <div className="info-item">
-                      <span className="info-label">Invite Code</span>
-                      <span className="info-value">
-                        <span className="badge badge-primary" style={{ fontSize: '1rem', letterSpacing: '1px' }}>
-                          {chama.invite_code || "N/A"}
-                        </span>
-                      </span>
-                    </div>
-                    <div className="info-item"><span className="info-label">Visibility</span><span className="info-value">{chama.visibility}</span></div>
-                  </div>
-                  {chama.description && (
-                    <div className="mt-3">
-                      <h4>Description</h4>
-                      <p className="text-muted">{chama.description}</p>
-                    </div>
-                  )}
-
-                  {isROSCA && (
-                    <div className="mt-3">
-                      <h4>How ROSCA Works</h4>
-                      <div className="rosca-explanation">
-                        <div className="explanation-item">
-                          <div className="explanation-icon"><RefreshCw size={24} /></div>
-                          <div>
-                            <h5>Cycle Rotation</h5>
-                            <p>
-                              Each member takes turns receiving the full pot amount
-                              while others contribute.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="explanation-item">
-                          <div className="explanation-icon">â°</div>
-                          <div>
-                            <h5>Regular Contributions</h5>
-                            <p>
-                              Members contribute{" "}
-                              {formatCurrency(chama.contribution_amount)}{" "}
-                              {chama.contribution_frequency?.toLowerCase()}.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="explanation-item">
-                          <div className="explanation-icon"><Target size={24} /></div>
-                          <div>
-                            <h5>Guaranteed Returns</h5>
-                            <p>
-                              Each member receives{" "}
-                              {formatCurrency(
-                                chama.contribution_amount * members.length
-                              )}{" "}
-                              when their turn comes.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Deadline Alerts - Phase 13.4 */}
-                  {officialStatus && loanAnalytics?.upcomingRepayments && (
-                    <DeadlineAlerts 
-                      repayments={loanAnalytics.upcomingRepayments} 
+                    <DeadlineAlerts
+                      repayments={loanAnalytics?.upcomingRepayments || []}
                       formatDate={formatDate}
                       formatCurrency={formatCurrency}
-                      isOfficial={true}
+                      isOfficial={officialStatus}
                     />
-                  )}
 
-                  {!officialStatus && memberStanding?.upcomingRepayments && (
-                    <DeadlineAlerts 
-                      repayments={memberStanding.upcomingRepayments} 
-                      formatDate={formatDate}
-                      formatCurrency={formatCurrency}
-                      isOfficial={false}
-                    />
-                  )}
-
-                  <div className="grid grid-col-1 md:grid-cols-2 gap-4 my-4">
-                    <ChamaCreditScore chamaId={id} />
-                    <HealthAlerts chamaId={id} />
+                  <div className="dashboard-card-lux mb-8">
+                    <div className="health-hub-lux">
+                      <ChamaCreditScore chamaId={id} />
+                      <HealthAlerts chamaId={id} />
+                    </div>
                   </div>
 
-                  {/* Manual Payment Information Section for Members */}
+                  {(ascaEquity || memberStanding) && (
+                    <div className="grid grid-2 mb-6">
+                      {ascaEquity && (
+                        <div className="dashboard-card-lux">
+                          <h4 className="card-title-lux" style={{ fontSize: '0.8rem' }}>
+                            <DollarSign size={16} /> My Equity
+                          </h4>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '1.5rem', fontWeight: 800 }}>{formatCurrency(ascaEquity.value || 0)}</span>
+                            <span style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', background: 'rgba(16,185,129,0.1)', color: 'var(--secondary)', borderRadius: '6px' }}>
+                              {ascaEquity.percentage?.toFixed(1)}% Share
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {memberStanding && (
+                        <div className="dashboard-card-lux">
+                          <h4 className="card-title-lux" style={{ fontSize: '0.8rem' }}>
+                            <Shield size={16} /> Credit Limit
+                          </h4>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '1.5rem', fontWeight: 800 }}>{formatCurrency(memberStanding.loanLimit)}</span>
+                            <span style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', background: 'rgba(212,175,55,0.1)', color: 'var(--gold-text)', borderRadius: '6px' }}>
+                              {formatCurrency(memberStanding.availableCredit)} Avail.
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+
                   {chama.accepts_manual_payment && chama.payment_methods && (
-                    <div className="card-modern" style={{ marginTop: '1rem', marginBottom: '1rem', background: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)', border: '1px solid #bae6fd' }}>
-                      <h4 className="flex items-center gap-2 mb-4 text-slate-800">
-                        <Smartphone size={18} className="text-blue-500" />
-                        Manual Payment Options
-                      </h4>
-                      <p className="text-sm text-slate-600 mb-4">You can manually contribute to this chama using the details below. After paying, submit your receipt code in the Payments tab.</p>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="dashboard-card-lux">
+                      <h3 className="card-title-lux"><Smartphone size={18} /> Payment Information</h3>
+                      <div className="info-list-lux" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
                         {chama.payment_methods.type === 'PAYBILL' && (
                           <>
-                            <div className="p-3 bg-white rounded-lg border border-blue-100 shadow-sm flex items-center justify-between">
-                              <span className="text-xs font-bold text-slate-400 uppercase">Paybill Number</span>
-                              <span className="font-mono font-bold text-lg text-slate-800">{chama.payment_methods.businessNumber}</span>
+                            <div className="info-item-lux">
+                              <div style={{ color: 'var(--lux-text-secondary)', fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 800 }}>Paybill Number</div>
+                              <div style={{ fontWeight: 900, fontSize: '1.25rem', color: 'var(--lux-text-primary)', fontFamily: 'monospace' }}>{chama.payment_methods.businessNumber}</div>
                             </div>
-                            <div className="p-3 bg-white rounded-lg border border-blue-100 shadow-sm flex items-center justify-between">
-                              <span className="text-xs font-bold text-slate-400 uppercase">Account Number</span>
-                              <span className="font-mono font-bold text-lg text-slate-800">{chama.payment_methods.accountNumber || "Wait for Admin instruction"}</span>
+                            <div className="info-item-lux">
+                              <div style={{ color: 'var(--lux-text-secondary)', fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 800 }}>Account Reference</div>
+                              <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--lux-text-primary)' }}>{chama.payment_methods.accountPrefix || ''}XXXX</div>
                             </div>
                           </>
                         )}
                         {chama.payment_methods.type === 'BUY_GOODS' && (
-                          <div className="p-3 bg-white rounded-lg border border-blue-100 shadow-sm flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-400 uppercase">Till Number (Buy Goods)</span>
-                            <span className="font-mono font-bold text-lg text-slate-800">{chama.payment_methods.tillNumber}</span>
+                          <div className="info-item-lux">
+                            <div style={{ color: 'var(--lux-text-secondary)', fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 800 }}>Till Number</div>
+                            <div style={{ fontWeight: 900, fontSize: '1.25rem', color: 'var(--lux-text-primary)', fontFamily: 'monospace' }}>{chama.payment_methods.tillNumber}</div>
                           </div>
                         )}
                         {chama.payment_methods.type === 'POCHI' && (
-                          <div className="p-3 bg-white rounded-lg border border-blue-100 shadow-sm flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-400 uppercase">Phone Number (Pochi)</span>
-                            <span className="font-mono font-bold text-lg text-slate-800">{chama.payment_methods.phoneNumber}</span>
+                          <div className="info-item-lux">
+                            <div style={{ color: 'var(--lux-text-secondary)', fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 800 }}>Pochi Number</div>
+                            <div style={{ fontWeight: 900, fontSize: '1.25rem', color: 'var(--lux-text-primary)', fontFamily: 'monospace' }}>{chama.payment_methods.phoneNumber}</div>
                           </div>
                         )}
                       </div>
                     </div>
                   )}
-
-                  {["ASCA", "TABLE_BANKING"].includes(chama.chama_type) && (
-                    <div className="grid grid-1 md:grid-2 gap-4 mt-4">
-                      {/* Equity Card — shown for all ASCA/TABLE_BANKING */}
-                      {ascaEquity && (
-                        <div className="card-modern">
-                          <h4 className="flex items-center gap-2 mb-4">
-                            <TrendingUp size={18} className="text-success" />
-                            {chama.chama_type === 'TABLE_BANKING' ? 'My Capital' : 'My Equity Shares'}
-                          </h4>
-                          <div className="equity-grid">
-                            <div className="equity-card">
-                              <div className="equity-label">
-                                {chama.chama_type === 'TABLE_BANKING' ? 'Total Contributed' : 'Total Shares'}
-                              </div>
-                              <div className="equity-value">
-                                {chama.chama_type === 'TABLE_BANKING'
-                                  ? formatCurrency(ascaEquity.investedAmount || ascaEquity.shares || 0)
-                                  : (ascaEquity.shares || 0).toFixed(2)}
-                              </div>
-                            </div>
-                            <div className="equity-card">
-                              <div className="equity-label">Equity Value</div>
-                              <div className="equity-value highlight">{formatCurrency(ascaEquity.value || 0)}</div>
-                            </div>
-                          </div>
-                          {ascaEquity.percentage > 0 && (
-                            <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                              Ownership: <strong style={{ color: 'var(--primary)' }}>{ascaEquity.percentage.toFixed(1)}%</strong> of group capital
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* New Standing Card */}
-                      {memberStanding && (
-                        <div className="card-modern" style={{ background: 'linear-gradient(135deg, #ffffff, #fffbeb)' }}>
-                          <h4 className="flex items-center justify-between mb-4">
-                            <span className="flex items-center gap-2">
-                              <Shield size={18} className="text-amber-500" />
-                              Borrowing Capacity
-                            </span>
-                            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-bold">
-                              {Math.round((memberStanding.outstandingDebt / (memberStanding.loanLimit || 1)) * 100)}% Used
-                            </span>
-                          </h4>
-                          <div className="space-y-4">
-                            <div className="flex justify-between items-end">
-                              <div>
-                                <div className="text-xs text-slate-400 uppercase font-black">Limit (3x Shares)</div>
-                                <div className="text-xl font-bold">{formatCurrency(memberStanding.loanLimit)}</div>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-xs text-slate-400 uppercase font-black">Available Credit</div>
-                                <div className="text-xl font-bold text-success">{formatCurrency(memberStanding.availableCredit)}</div>
-                              </div>
-                            </div>
-                            <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                                <div 
-                                    className="h-full bg-amber transition-all duration-1000" 
-                                    style={{ width: `${Math.min((memberStanding.outstandingDebt / (memberStanding.loanLimit || 1)) * 100, 100)}%` }}
-                                />
-                            </div>
-                            {memberStanding.outstandingDebt > 0 && (
-                                <div className="text-xs text-slate-500 italic">
-                                    Current Debt: <span className="text-red-500 font-bold">{formatCurrency(memberStanding.outstandingDebt)}</span>
-                                </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
-              </>
+              </div>
             )}
 
             {isROSCA && activeTab === "cycle" && (
@@ -1803,8 +1454,7 @@ const ChamaDetails = () => {
                       ></div>
                     </div>
 
-                    <div className="card-premium mb-8 border border-success/30 relative overflow-hidden">
-                      {/* Subtle status indicator strip */}
+                    <div className="dashboard-card-lux mb-8 border border-success/30 relative overflow-hidden">
                       <div className="absolute top-0 left-0 w-full h-1 bg-success"></div>
                       
                       <div className="card-header pb-4 mb-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
@@ -1812,7 +1462,7 @@ const ChamaDetails = () => {
                           <User size={18} className="text-success" />
                           Current Recipient
                         </h4>
-                        <span className="badge badge-success px-3 py-1">Ready for Payout</span>
+                        <span className="status-pill-lux status-verified px-3 py-1">Ready for Payout</span>
                       </div>
 
                       {getCurrentRecipient() && (
@@ -1836,11 +1486,10 @@ const ChamaDetails = () => {
                             </div>
                           </div>
 
-                          {/* Only TREASURER and CHAIRPERSON can disburse funds */}
                           {['TREASURER', 'CHAIRPERSON'].includes(userRole) && (
                             <div className="flex flex-wrap items-center gap-2 w-full md:w-auto mt-2 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-gray-100 dark:border-gray-800">
                               <button
-                                className="btn btn-success flex-1 md:flex-none shadow-sm h-10 px-5 font-bold"
+                                className="btn-lux btn-lux-primary flex-1 md:flex-none shadow-sm h-10 px-5 font-bold"
                                 onClick={() => {
                                   setPayoutRecipient({
                                     ...getCurrentRecipient(),
@@ -1853,7 +1502,7 @@ const ChamaDetails = () => {
                               </button>
 
                               <button
-                                className="btn btn-outline flex-1 md:flex-none h-10 px-4 flex justify-center items-center gap-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                                className="btn-lux btn-lux-outline flex-1 md:flex-none h-10 px-4 flex justify-center items-center gap-2 transition-colors cursor-pointer"
                                 onClick={() => {
                                   confirmAction({
                                     title: "Cancel ROSCA Cycle",
@@ -1876,7 +1525,7 @@ const ChamaDetails = () => {
                               </button>
 
                               <button
-                                className="btn btn-danger btn-outline flex-1 md:flex-none h-10 px-4 flex justify-center items-center gap-2 cursor-pointer"
+                                className="btn-lux btn-lux-outline flex-1 md:flex-none h-10 px-4 flex justify-center items-center gap-2 cursor-pointer border-danger"
                                 onClick={() => {
                                   if (window.confirm("Are you sure you want to delete this cycle? This action cannot be undone and will remove all roster and payment history for this cycle.")) {
                                     roscaAPI.deleteCycle(activeCycle.cycle_id)
@@ -1899,7 +1548,7 @@ const ChamaDetails = () => {
                       )}
                     </div>
 
-                    <div className="card-premium mb-8">
+                    <div className="dashboard-card-lux mb-8">
                       <div className="card-header pb-4 mb-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
                         <h4 className="flex items-center gap-2 m-0 text-gray-800 dark:text-gray-100">
                           <Users size={18} className="text-primary" /> Cycle Roster
@@ -1907,7 +1556,7 @@ const ChamaDetails = () => {
                       </div>
                       
                       <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
+                        <table className="table-lux w-full text-left border-collapse">
                           <thead>
                             <tr className="bg-gray-50 dark:bg-slate-800/50">
                               <th className="p-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700 w-16 text-center">Pos</th>
@@ -2025,378 +1674,169 @@ const ChamaDetails = () => {
             )}
 
             {activeTab === "contributions" && (
-              <div className="card" style={{ height: "auto", minHeight: "600px", display: "flex", flexDirection: "column" }}>
-                <div className="card-header flex-between" style={{ flexShrink: 0 }}>
-                  <h3>Contributions ({contributions.length})</h3>
-                  <div className="flex-gap">
+              <div className="dashboard-card-lux" style={{ minHeight: '700px' }}>
+                <div className="card-header pb-4 mb-6 border-b border-white/5 flex justify-between items-center">
+                  <h3 className="card-title-lux m-0">
+                    <CreditCard size={20} /> Financial Ledger ({contributions.length})
+                  </h3>
+                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                     {officialStatus && (
                       <button 
-                        className="btn btn-sm btn-outline flex items-center gap-1 border-amber-200 text-amber-600 hover:bg-amber-50"
+                        className="btn-lux btn-lux-outline"
                         onClick={() => setShowPendingContributionsModal(true)}
                       >
-                        <Shield size={16} /> Verify Manual Payments
-                      </button>
-                    )}
-                    {userRole === "TREASURER" && (
-                      <button className="btn btn-sm btn-primary" onClick={() => navigate(`/chamas/${id}/record-contribution`)}>
-                        + Record Contribution
+                        <Shield size={16} /> Verify Payments
                       </button>
                     )}
                     <button 
-                      className="btn btn-sm btn-success flex items-center gap-1" 
+                      className="btn-lux btn-lux-primary" 
                       onClick={() => navigate(`/chamas/${id}/submit-contribution`)}
                     >
-                      <Smartphone size={16} /> Pay via M-Pesa
+                      <Smartphone size={16} /> Pay M-Pesa
                     </button>
                     {chama.accepts_manual_payment && (
                       <button 
-                        className="btn btn-sm btn-outline flex items-center gap-1 border-blue-200 text-blue-600 hover:bg-blue-50"
+                        className="btn-lux btn-lux-outline"
                         onClick={() => setShowManualPaymentModal(true)}
                       >
-                        <FileText size={16} /> Submit Receipt
+                        <FileText size={16} /> Receipt
                       </button>
                     )}
                   </div>
                 </div>
 
-                {/* Contribution Summary Stats */}
-                <div className="stats-grid mb-4">
-                  <div className="stat-card">
-                    <div className="stat-icon bg-primary-light text-primary">
-                      <DollarSign size={20} />
-                    </div>
-                    <div>
-                      <div className="stat-label">Total Collected</div>
-                      <div className="stat-value text-lg">
-                        {formatCurrency(contributions.reduce((sum, c) => sum + parseFloat(c.amount), 0))}
-                      </div>
+                {/* Summary Stats */}
+                <div className="stats-grid-lux" style={{ marginBottom: '2rem' }}>
+                  <div className="stat-card-lux">
+                    <span className="stat-label-lux">Total Collections</span>
+                    <div className="stat-value-lux" style={{ color: '#10b981' }}>
+                      {formatCurrency(contributions.reduce((sum, c) => sum + parseFloat(c.amount), 0))}
                     </div>
                   </div>
-                  <div className="stat-card">
-                    <div className="stat-icon bg-success-light text-success">
-                      <Calendar size={20} />
-                    </div>
-                    <div>
-                      <div className="stat-label">This Month</div>
-                      <div className="stat-value text-lg">
-                        {formatCurrency(
-                          contributions
-                            .filter(c => new Date(c.contribution_date).getMonth() === new Date().getMonth())
-                            .reduce((sum, c) => sum + parseFloat(c.amount), 0)
-                        )}
-                      </div>
+                  <div className="stat-card-lux">
+                    <span className="stat-label-lux">Current Month</span>
+                    <div className="stat-value-lux">
+                      {formatCurrency(
+                        contributions
+                          .filter(c => new Date(c.contribution_date).getMonth() === new Date().getMonth())
+                          .reduce((sum, c) => sum + parseFloat(c.amount), 0)
+                      )}
                     </div>
                   </div>
-                  <div className="stat-card">
-                    <div className="stat-icon bg-warning-light text-warning">
-                      <Users size={20} />
-                    </div>
-                    <div>
-                      <div className="stat-label">Members Contributed</div>
-                      <div className="stat-value text-lg">
-                        {new Set(contributions.map(c => c.user_id)).size} / {members.length}
-                      </div>
+                  <div className="stat-card-lux">
+                    <span className="stat-label-lux">Member Participation</span>
+                    <div className="stat-value-lux">
+                      {new Set(contributions.map(c => c.user_id)).size} <small style={{ fontSize: '0.6em', opacity: 0.5 }}>/ {members.length}</small>
                     </div>
                   </div>
                 </div>
 
-                {/* Monthly Progress */}
-                {!isROSCA && (
-                  <div className="progress-section mb-4 p-3 bg-light rounded">
-                    <div className="flex-between mb-2">
-                      <span className="text-sm font-medium">Monthly Target Progress</span>
-                      <span className="text-sm text-muted">
-                        {Math.round((contributions.filter(c => new Date(c.contribution_date).getMonth() === new Date().getMonth()).length / Math.max(members.length, 1)) * 100)}%
-                      </span>
-                    </div>
-                    <div className="progress-bar">
-                      <div
-                        className="progress-fill bg-success"
-                        style={{
-                          width: `${Math.min((contributions.filter(c => new Date(c.contribution_date).getMonth() === new Date().getMonth()).length / Math.max(members.length, 1)) * 100, 100)}%`
-                        }}
-                      ></div>
-                    </div>
+                {/* Filter Bar */}
+                <div className="filter-bar-lux">
+                  <div className="filter-group-lux">
+                    <span className="filter-label-lux">Search Member</span>
+                    <select
+                      name="userId"
+                      value={filters.userId}
+                      onChange={handleFilterChange}
+                      className="filter-input-lux"
+                    >
+                      <option value="">All Members</option>
+                      {members.map(m => (
+                        <option key={m.user_id} value={m.user_id}>{m.first_name} {m.last_name}</option>
+                      ))}
+                    </select>
                   </div>
-                )}
-
-                {/* Filtering UI */}
-                {/* Filtering UI */}
-                {/* Filtering UI - Premium Redesign */}
-                <div style={{
-                  background: 'var(--card-bg)',
-                  borderRadius: '12px',
-                  padding: '1.5rem',
-                  marginBottom: '1.5rem',
-                  boxShadow: 'var(--shadow)',
-                  border: '1px solid var(--border-color)',
-                  color: 'var(--text-primary)'
-                }}>
-                  {/* Header & Quick Select Row */}
-                  <div style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: '1rem',
-                    marginBottom: '1.5rem',
-                    paddingBottom: '1rem',
-                    borderBottom: '1px solid var(--light-gray)'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)', fontWeight: 600 }}>
-                      <Filter size={18} className="text-primary" />
-                      <span>Filter Contributions</span>
-                    </div>
-
-                    {/* Segmented Control */}
-                    <div style={{
-                      display: 'inline-flex',
-                      background: 'var(--bg-secondary)',
-                      padding: '4px',
-                      borderRadius: '8px',
-                      gap: '4px'
-                    }}>
-                      {['thisMonth', 'lastMonth', 'ytd', 'all'].map((type) => {
-                        const isActive = (type === 'thisMonth' && new Date(filters.startDate).getMonth() === new Date().getMonth() && !filters.endDate.includes(new Date().getFullYear() + 1)) ||
-                          (type === 'all' && !filters.startDate) ||
-                          (type === 'lastMonth' && new Date(filters.startDate).getMonth() === new Date().getMonth() - 1);
-
-                        return (
-                          <button
-                            key={type}
-                            onClick={() => handleQuickFilter(type)}
-                            style={{
-                              padding: '6px 12px',
-                              borderRadius: '6px',
-                              fontSize: '0.85rem',
-                              fontWeight: isActive ? 600 : 500,
-                              border: 'none',
-                              cursor: 'pointer',
-                              background: isActive ? 'var(--card-bg)' : 'transparent',
-                              color: isActive ? 'var(--primary-color)' : 'var(--text-secondary)',
-                              boxShadow: isActive ? 'var(--shadow)' : 'none',
-                              transition: 'all 0.2s ease',
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            {type === 'thisMonth' ? 'This Month' :
-                              type === 'lastMonth' ? 'Last Month' :
-                                type === 'ytd' ? 'Year to Date' : 'All Time'}
-                          </button>
-                        );
-                      })}
-                    </div>
+                  <div className="filter-group-lux">
+                    <span className="filter-label-lux">Start Date</span>
+                    <input
+                      type="date"
+                      name="startDate"
+                      value={filters.startDate}
+                      onChange={handleFilterChange}
+                      className="filter-input-lux"
+                    />
                   </div>
-
-                  {/* Inputs Grid */}
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                    gap: '1.25rem',
-                    alignItems: 'end'
-                  }}>
-                    {/* From Date */}
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--gray)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        From Date
-                      </label>
-                      <div style={{ position: 'relative' }}>
-                        <div style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--gray-light)' }}>
-                          <Calendar size={16} />
-                        </div>
-                        <input
-                          type="date"
-                          name="startDate"
-                          value={filters.startDate}
-                          onChange={handleFilterChange}
-                          style={{
-                            width: '100%',
-                            padding: '0.625rem 0.75rem 0.625rem 2.5rem',
-                            border: '1px solid var(--input-border)',
-                            borderRadius: '8px',
-                            fontSize: '0.9rem',
-                            color: 'var(--input-text)',
-                            outline: 'none',
-                            background: 'var(--input-bg)',
-                            transition: 'border-color 0.2s'
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* To Date */}
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--gray)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        To Date
-                      </label>
-                      <div style={{ position: 'relative' }}>
-                        <div style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--gray-light)' }}>
-                          <Calendar size={16} />
-                        </div>
-                        <input
-                          type="date"
-                          name="endDate"
-                          value={filters.endDate}
-                          onChange={handleFilterChange}
-                          style={{
-                            width: '100%',
-                            padding: '0.625rem 0.75rem 0.625rem 2.5rem',
-                            border: '1px solid var(--input-border)',
-                            borderRadius: '8px',
-                            fontSize: '0.9rem',
-                            color: 'var(--input-text)',
-                            outline: 'none',
-                            background: 'var(--input-bg)',
-                            transition: 'border-color 0.2s'
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Member Select */}
-                    <div style={{ flexGrow: 1.5 }}>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--gray)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Member
-                      </label>
-                      <div style={{ position: 'relative' }}>
-                        <div style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--gray-light)' }}>
-                          <Users size={16} />
-                        </div>
-                        <select
-                          name="userId"
-                          value={filters.userId}
-                          onChange={handleFilterChange}
-                          style={{
-                            width: '100%',
-                            padding: '0.625rem 0.75rem 0.625rem 2.5rem',
-                            border: '1px solid var(--input-border)',
-                            borderRadius: '8px',
-                            fontSize: '0.9rem',
-                            color: 'var(--input-text)',
-                            outline: 'none',
-                            background: 'var(--input-bg)',
-                            appearance: 'none',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <option value="">All Members</option>
-                          {members.map(m => (
-                            <option key={m.user_id} value={m.user_id}>{m.first_name} {m.last_name}</option>
-                          ))}
-                        </select>
-                        <div style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid var(--gray)' }}></div>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div style={{ display: 'flex', gap: '0.75rem' }}>
-                      <button
-                        onClick={applyFilters}
-                        style={{
-                          flex: 1,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '0.5rem',
-                          background: 'var(--primary)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '8px',
-                          padding: '0.625rem 1.25rem',
-                          fontWeight: 500,
-                          cursor: 'pointer',
-                          whiteSpace: 'nowrap',
-                          boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'
-                        }}
-                      >
-                        <RefreshCw size={16} /> Apply
-                      </button>
-                      <button
-                        onClick={resetFilters}
-                        title="Reset Filters"
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          background: 'transparent',
-                          border: '1px solid var(--border)',
-                          borderRadius: '8px',
-                          padding: '0.625rem',
-                          color: 'var(--gray)',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <RotateCcw size={18} />
-                      </button>
-                    </div>
+                  <div className="filter-group-lux">
+                    <span className="filter-label-lux">End Date</span>
+                    <input
+                      type="date"
+                      name="endDate"
+                      value={filters.endDate}
+                      onChange={handleFilterChange}
+                      className="filter-input-lux"
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="btn-lux btn-lux-primary" onClick={applyFilters}>
+                      <Filter size={16} /> Filter
+                    </button>
+                    <button className="btn-lux btn-lux-outline" onClick={resetFilters}>
+                      <RotateCcw size={16} />
+                    </button>
                   </div>
                 </div>
 
                 {contributions.length === 0 ? (
-                  <p className="text-muted text-center" style={{ padding: "2rem" }}>No contributions found matching filters</p>
+                  <div className="text-center py-20 opacity-30">
+                    <CreditCard size={48} style={{ marginBottom: '1rem' }} />
+                    <p>No transaction history found.</p>
+                  </div>
                 ) : (
-                  <div className="v-table" style={{ flex: 1, minHeight: 0 }}>
-                    <div className="v-thead" style={{ flexShrink: 0 }}>
-                      <div className="v-th">Date</div>
-                      <div className="v-th v-td-lg">Member</div>
-                      <div className="v-th">Amount</div>
-                      <div className="v-th">Method</div>
-                      <div className="v-th">Status</div>
-                      <div className="v-th">Notes</div>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <List
-                        height={400}
-                        itemCount={contributions.length}
-                        itemSize={70}
-                        width="100%"
-                      >
-                        {({ index, style }) => {
-                          const c = contributions[index];
-                          const member = members.find(m => m.user_id === c.user_id);
-                          const initials = c.contributor_name ? c.contributor_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '??';
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="table-lux">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Contributor</th>
+                          <th>Amount</th>
+                          <th>Method</th>
+                          <th>Status</th>
+                          <th>Reference</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {contributions.slice(0, 100).map((c) => {
                           const verStatus = c.verification_status || c.status || 'PENDING';
-                          const statusColor = verStatus === 'VERIFIED' || verStatus === 'COMPLETED' ? 'success' : verStatus === 'REJECTED' ? 'danger' : 'warning';
-                          const statusIcon = verStatus === 'VERIFIED' || verStatus === 'COMPLETED' ? <CheckCircle2 size={10} /> : <Clock size={10} />;
-
+                          const isVerified = verStatus === 'VERIFIED' || verStatus === 'COMPLETED';
+                          const isRejected = verStatus === 'REJECTED';
+                          
                           return (
-                            <div className="v-tr" style={style}>
-                              <div className="v-td">
-                                <div className="font-medium">{formatDate(c.contribution_date)}</div>
-                                <div className="text-xs text-muted">{new Date(c.contribution_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                              </div>
-                              <div className="v-td v-td-lg">
-                                <div className="flex items-center gap-2">
-                                  <div className="avatar-placeholder bg-primary-light text-primary text-xs rounded-full w-8 h-8 flex items-center justify-center font-bold">
-                                    {initials}
-                                  </div>
-                                  <div>
-                                    <strong>{c.contributor_name}</strong>
-                                    {member?.role && <div className="text-xs text-muted">{member.role}</div>}
-                                    {c.recorded_by_name && <div className="text-xs text-muted">Rec: {c.recorded_by_name}</div>}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="v-td text-success font-bold">{formatCurrency(c.amount)}</div>
-                              <div className="v-td">
-                                <span className={`badge badge-${c.payment_method === 'MPESA' ? 'success' : 'secondary'}`}>
+                            <tr key={c.id || c.contribution_id || Math.random()}>
+                              <td style={{ whiteSpace: 'nowrap' }}>
+                                <div style={{ fontWeight: 700 }}>{formatDate(c.contribution_date)}</div>
+                                <div style={{ fontSize: '0.7rem', opacity: 0.5 }}>{new Date(c.contribution_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                              </td>
+                              <td>
+                                <div style={{ fontWeight: 700, color: '#fff' }}>{c.contributor_name}</div>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--gold-text)', opacity: 0.8 }}>Member</div>
+                              </td>
+                              <td style={{ fontWeight: 900, color: '#10b981' }}>{formatCurrency(c.amount)}</td>
+                              <td>
+                                <span className="status-pill-lux" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                                  {c.payment_method === 'MPESA' ? <Smartphone size={10} /> : <CreditCard size={10} />}
                                   {c.payment_method}
                                 </span>
-                              </div>
-                              <div className="v-td">
-                                <span className={`badge badge-${statusColor} flex items-center gap-1`}>
-                                  {statusIcon} {verStatus === 'COMPLETED' ? 'VERIFIED' : verStatus}
+                              </td>
+                              <td>
+                                <span className={`status-pill-lux ${isVerified ? 'status-verified' : isRejected ? 'status-danger' : 'status-pending'}`}>
+                                  {isVerified ? <CheckCircle2 size={12} /> : <Clock size={12} />}
+                                  {isVerified ? 'Verified' : verStatus}
                                 </span>
-                              </div>
-                              <div className="v-td text-xs text-muted" style={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.notes || ''}>
-                                {c.notes || 'â€”'}
-                              </div>
-                            </div>
+                              </td>
+                              <td style={{ fontSize: '0.75rem', opacity: 0.6, fontFamily: 'monospace' }}>
+                                {c.transaction_reference || 'MANUAL-REF'}
+                              </td>
+                            </tr>
                           );
-                        }}
-                      </List>
-                    </div>
+                        })}
+                      </tbody>
+                    </table>
+                    {contributions.length > 100 && (
+                      <div className="text-center py-4 opacity-50 text-xs italic">
+                        Showing last 100 transactions. Export for full history.
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -2409,15 +1849,17 @@ const ChamaDetails = () => {
             )}
 
             {activeTab === "reports" && (
-              <div className="card border-0 shadow-sm" id="finance-reports-charts">
-                <div className="card-header flex-between border-b pb-4 mb-4">
-                  <h3 className="card-title-premium m-0 text-xl font-bold flex items-center gap-2">Chama Reports & Analytics</h3>
-                  <div className="report-actions">
-                    <button className="btn btn-sm btn-outline" onClick={handleExportPDF} aria-label="Export PDF report">
-                      <FileText size={16} /> Export PDF
+              <div className="dashboard-card-lux" id="finance-reports-charts">
+                <div className="card-header pb-4 mb-6 border-b border-white/5 flex justify-between items-center">
+                  <h3 className="card-title-lux m-0">
+                    <BarChart3 size={20} /> Analytics & Intelligence
+                  </h3>
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button className="btn-lux btn-lux-outline" onClick={handleExportPDF}>
+                      <FileText size={16} /> PDF
                     </button>
-                    <button className="btn btn-sm btn-outline" onClick={handleExportExcel} aria-label="Export Excel report">
-                      <Download size={16} /> Export Excel
+                    <button className="btn-lux btn-lux-outline" onClick={handleExportExcel}>
+                      <Download size={16} /> Excel
                     </button>
                   </div>
                 </div>
@@ -2610,53 +2052,46 @@ const ChamaDetails = () => {
                       </div>
 
 
-                      <div className="report-card" style={{ gridColumn: '1 / -1' }}>
-                        <div className="report-header" style={{ justifyContent: 'space-between' }}>
-                          <div className="flex items-center gap-3">
-                            <div className="report-icon"><FileText size={20} className="text-blue-500" /></div>
-                            <h4>Personal Equity Statement</h4>
-                          </div>
-                          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Live Audit</div>
+                      <div className="dashboard-card-lux" style={{ gridColumn: '1 / -1' }}>
+                        <div className="card-header pb-4 mb-4 border-b border-white/5 flex justify-between items-center">
+                          <h4 className="card-title-lux m-0 flex items-center gap-2">
+                            <FileText size={20} /> Personal Equity Statement
+                          </h4>
+                          <span className="status-pill-lux status-verified">Live Audit</span>
                         </div>
-                        <div className="report-content">
-                          <div className="overflow-hidden rounded-2xl border border-slate-100 dark:border-slate-800">
-                            <table className="w-full text-left border-collapse">
-                              <thead>
-                                <tr className="bg-slate-50 dark:bg-slate-900/50">
-                                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Date</th>
-                                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Action</th>
-                                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Detail</th>
-                                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Amount</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {ascaStatement.length === 0 ? (
-                                  <tr><td colSpan="4" className="px-6 py-8 text-center text-slate-400 italic">No equity transactions found.</td></tr>
-                                ) : (
-                                  ascaStatement.map((s, idx) => (
-                                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
-                                      <td className="px-6 py-4 text-xs font-bold text-slate-500">{formatDate(s.date)}</td>
-                                      <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                          s.type === 'SHARE_PURCHASE' 
-                                            ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10' 
-                                            : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10'
-                                        }`}>
-                                          {s.type.replace('_', ' ')}
-                                        </span>
-                                      </td>
-                                      <td className="px-6 py-4 text-xs font-medium text-slate-600 dark:text-slate-300">
-                                        {s.type === 'SHARE_PURCHASE' ? `${s.detail} Shares` : 'Dividend Credit'}
-                                      </td>
-                                      <td className="px-6 py-4 text-sm font-black text-slate-800 dark:text-white text-right">
-                                        {formatCurrency(s.amount)}
-                                      </td>
-                                    </tr>
-                                  ))
-                                )}
-                              </tbody>
-                            </table>
-                          </div>
+                        <div style={{ overflowX: 'auto' }}>
+                          <table className="table-lux">
+                            <thead>
+                              <tr>
+                                <th>Date</th>
+                                <th>Action</th>
+                                <th>Detail</th>
+                                <th style={{ textAlign: 'right' }}>Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {ascaStatement.length === 0 ? (
+                                <tr><td colSpan="4" className="text-center py-8 opacity-30">No equity transactions found.</td></tr>
+                              ) : (
+                                ascaStatement.map((s, idx) => (
+                                  <tr key={idx}>
+                                    <td style={{ fontWeight: 700 }}>{formatDate(s.date)}</td>
+                                    <td>
+                                      <span className={`status-pill-lux ${s.type === 'SHARE_PURCHASE' ? 'status-pending' : 'status-verified'}`}>
+                                        {s.type.replace('_', ' ')}
+                                      </span>
+                                    </td>
+                                    <td style={{ fontSize: '0.8rem', opacity: 0.7 }}>
+                                      {s.type === 'SHARE_PURCHASE' ? `${s.detail} Shares` : 'Dividend Credit'}
+                                    </td>
+                                    <td style={{ textAlign: 'right', fontWeight: 900, color: s.amount >= 0 ? '#10b981' : '#ef4444' }}>
+                                      {formatCurrency(s.amount)}
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
                         </div>
                       </div>
                     </>
@@ -2911,47 +2346,44 @@ const ChamaDetails = () => {
             )}
 
             {activeTab === "meetings" && (
-              <div className="card">
-                <div className="card-header flex-between mb-4">
-                  <h3 className="card-title-premium flex items-center gap-2">
-                    <Calendar size={20} className="text-gray-500" />
-                    Chama Meetings
+              <div className="dashboard-card-lux">
+                <div className="card-header pb-4 mb-6 border-b border-white/5 flex justify-between items-center">
+                  <h3 className="card-title-lux m-0">
+                    <Calendar size={20} /> Group Assemblies
                   </h3>
                   {officialStatus && (
                     <button
-                      className="btn btn-sm btn-primary"
+                      className="btn-lux btn-lux-primary"
                       onClick={() => navigate(`/chamas/${id}/meetings/create`)}
                     >
-                      Schedule Meeting
+                      Schedule
                     </button>
                   )}
                 </div>
                 {meetings.length === 0 ? (
-                  <div className="p-8 text-center bg-gray-50 rounded-xl border border-dashed">
-                    <Calendar size={48} className="mx-auto text-gray-300 mb-3" />
-                    <p className="text-gray-500">No meetings scheduled yet.</p>
+                  <div className="text-center py-20 opacity-30">
+                    <Calendar size={48} style={{ marginBottom: '1rem' }} />
+                    <p>No upcoming assemblies scheduled.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {meetings.map(m => (
-                      <div key={m.meeting_id} className="p-4 border border-gray-100 rounded-xl bg-white shadow-sm hover:shadow-md transition-all flex-between">
-                        <div>
-                          <p className="font-bold text-gray-900">{m.title}</p>
-                          <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                            <Clock size={12} />
-                            {new Date(m.scheduled_at || m.date).toLocaleDateString()} at {new Date(m.scheduled_at || m.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                          {m.location && (
-                            <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                              <MapPin size={10} /> {m.location}
-                            </p>
-                          )}
+                      <div key={m.meeting_id} className="member-card-lux" style={{ alignItems: 'flex-start', textAlign: 'left', padding: '1.25rem' }}>
+                        <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--lux-text-primary)' }}>{m.title}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--lux-text-secondary)', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <Clock size={12} /> {new Date(m.scheduled_at || m.date).toLocaleDateString()} at {new Date(m.scheduled_at || m.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
+                        {m.location && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--lux-gold)', marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+                            <MapPin size={10} /> {m.location}
+                          </div>
+                        )}
                         <button
-                          className="btn btn-xs btn-outline border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                          className="btn-lux btn-lux-outline w-full mt-5"
+                          style={{ justifyContent: 'center', fontSize: '0.8rem', fontWeight: 800 }}
                           onClick={() => navigate(`/chamas/${id}/meetings`)}
                         >
-                          Manager
+                          Access Assembly Agenda
                         </button>
                       </div>
                     ))}
@@ -2961,46 +2393,45 @@ const ChamaDetails = () => {
             )}
 
             {activeTab === "loans" && (
-              <div className="card">
-                <div className="card-header flex-between mb-4">
-                  <h3 className="card-title-premium flex items-center gap-2">
-                    <Building2 size={20} className="text-gray-500" />
-                    Loan Dashboard
+              <div className="dashboard-card-lux">
+                <div className="card-header pb-4 mb-6 border-b border-white/5 flex justify-between items-center">
+                  <h3 className="card-title-lux m-0">
+                    <Building2 size={20} /> Credit & Lending
                   </h3>
                   <button
-                    className="btn btn-sm btn-primary"
+                    className="btn-lux btn-lux-primary"
                     onClick={() => navigate(`/chamas/${id}/loans/apply`)}
                   >
                     Apply for Loan
                   </button>
                 </div>
                 {loans.length === 0 ? (
-                  <div className="p-8 text-center bg-gray-50 rounded-xl border border-dashed">
-                    <Building2 size={48} className="mx-auto text-gray-300 mb-3" />
-                    <p className="text-gray-500">No active loans in this group.</p>
+                  <div className="text-center py-20 opacity-30">
+                    <Building2 size={48} style={{ marginBottom: '1rem' }} />
+                    <p>No active credit facilities found.</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="table-premium w-full text-left">
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="table-lux">
                       <thead>
-                        <tr className="border-b">
-                          <th className="pb-3 pt-1">Member</th>
-                          <th className="pb-3 pt-1">Amount</th>
-                          <th className="pb-3 pt-1">Status</th>
-                          <th className="pb-3 pt-1">Date</th>
+                        <tr>
+                          <th>Member</th>
+                          <th>Principal</th>
+                          <th>Status</th>
+                          <th style={{ textAlign: 'right' }}>Disbursement</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y">
+                      <tbody>
                         {loans.map(l => (
-                          <tr key={l.loan_id} className="hover:bg-gray-50/50">
-                            <td className="py-3 font-medium">{l.borrower_name}</td>
-                            <td className="py-3 text-indigo-600 font-bold">{formatCurrency(l.loan_amount)}</td>
-                            <td className="py-3">
-                              <span className={`px-2 py-1 rounded-full text-xs font-bold ${l.status === 'APPROVED' ? 'bg-green-100 text-green-700' : l.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                          <tr key={l.loan_id}>
+                            <td style={{ fontWeight: 800, color: 'var(--lux-text-primary)' }}>{l.borrower_name}</td>
+                            <td style={{ fontWeight: 900, color: '#10b981', fontSize: '1rem' }}>{formatCurrency(l.loan_amount)}</td>
+                            <td>
+                              <span className={`status-pill-lux ${l.status === 'APPROVED' ? 'status-verified' : l.status === 'PENDING' ? 'status-pending' : 'status-danger'}`}>
                                 {l.status}
                               </span>
                             </td>
-                            <td className="py-3 text-sm text-gray-500">{formatDate(l.created_at)}</td>
+                            <td style={{ textAlign: 'right', color: 'var(--lux-text-secondary)', fontSize: '0.85rem', fontWeight: 600 }}>{formatDate(l.created_at)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -3015,60 +2446,59 @@ const ChamaDetails = () => {
             )}
 
             {activeTab === "welfare" && (
-              <div className="card">
-                <div className="card-header flex-between mb-4">
-                  <h3 className="card-title-premium flex items-center gap-2">
-                    <Heart size={20} className="text-pink-500" />
-                    Welfare Fund
+              <div className="dashboard-card-lux">
+                <div className="card-header pb-4 mb-6 border-b border-white/5 flex justify-between items-center">
+                  <h3 className="card-title-lux m-0">
+                    <Heart size={20} /> Benevolence & Welfare
                   </h3>
-                  <div className="flex items-center gap-2">
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
                     {officialStatus && (
-                      <button
-                        className="btn btn-sm btn-outline border-pink-200 text-pink-600 hover:bg-pink-50"
-                        onClick={() => navigate(`/chamas/${id}/welfare/admin`)}
-                      >
-                        <Shield size={14} className="mr-1" /> Manage Claims
+                      <button className="btn-lux btn-lux-outline" onClick={() => navigate(`/chamas/${id}/welfare/admin`)}>
+                        Manage Claims
                       </button>
                     )}
-                    <button
-                      className="btn btn-sm btn-primary"
-                      onClick={() => navigate(`/chamas/${id}/welfare/submit-claim`)}
-                    >
+                    <button className="btn-lux btn-lux-primary" onClick={() => navigate(`/chamas/${id}/welfare/submit-claim`)}>
                       New Claim
                     </button>
                   </div>
                 </div>
                 {welfareFund && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                    <div className="p-4 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-xl border border-indigo-100">
-                      <p className="text-xs text-indigo-600 font-bold uppercase tracking-wider mb-1">Total Fund Value</p>
-                      <p className="text-2xl font-bold text-indigo-900">{formatCurrency(welfareFund.balance)}</p>
+                  <div className="stats-grid-lux mb-8">
+                    <div className="stat-card-lux">
+                      <span className="stat-label-lux">Fund Balance</span>
+                      <div className="stat-value-lux">{formatCurrency(welfareFund.balance)}</div>
                     </div>
-                    <div className="p-4 bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl border border-pink-100">
-                      <p className="text-xs text-pink-600 font-bold uppercase tracking-wider mb-1">Active Claims</p>
-                      <p className="text-2xl font-bold text-pink-900">{welfareClaims.filter(c => c.status === 'PENDING').length}</p>
+                    <div className="stat-card-lux">
+                      <span className="stat-label-lux">Active Claims</span>
+                      <div className="stat-value-lux" style={{ color: 'var(--gold-text)' }}>
+                        {welfareClaims.filter(c => c.status === 'PENDING').length}
+                      </div>
                     </div>
                   </div>
                 )}
-                <h4 className="text-sm font-bold text-gray-500 uppercase mb-3 px-1">Recent Activity</h4>
+                
+                <h4 style={{ fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 900, letterSpacing: '0.15em', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+                  Recent Disbursements
+                </h4>
+
                 {welfareClaims.length === 0 ? (
-                  <div className="p-6 text-center bg-gray-50 rounded-xl border border-dashed">
-                    <p className="text-gray-400">No recent claims submitted.</p>
+                  <div className="text-center py-10 opacity-30">
+                    <p>No historical claims found.</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     {welfareClaims.slice(0, 5).map(c => (
-                      <div key={c.claim_id} className="p-3 bg-white border border-gray-100 rounded-xl flex-between shadow-sm">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center font-bold">
-                            {(c.claim_type || c.event_type || '?')[0]}
+                      <div key={c.claim_id} className="member-card-lux" style={{ flexDirection: 'row', justifyContent: 'space-between', padding: '1.25rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div className="member-avatar-lux" style={{ width: '44px', height: '44px', margin: 0, background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: 'none' }}>
+                            <Heart size={20} />
                           </div>
                           <div>
-                            <p className="font-bold text-gray-800">{c.claim_type || c.event_type || 'Custom Claim'}</p>
-                            <p className="text-xs text-gray-400">{formatDate(c.created_at)}</p>
+                            <div style={{ fontWeight: 800, color: 'var(--lux-text-primary)', fontSize: '1rem' }}>{c.claim_type || c.event_type || 'Custom Claim'}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--lux-text-secondary)', fontWeight: 600 }}>{formatDate(c.created_at)}</div>
                           </div>
                         </div>
-                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${c.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        <span className={`status-pill-lux ${c.status === 'APPROVED' ? 'status-verified' : 'status-pending'}`} style={{ height: 'fit-content' }}>
                           {c.status}
                         </span>
                       </div>
@@ -3080,64 +2510,64 @@ const ChamaDetails = () => {
 
 
             {activeTab === "management" && officialStatus && (
-              <div className="management-tab-pane">
+              <div className="management-tab-lux">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div className="card-premium hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/manage`)}>
+                  <div className="dashboard-card-lux hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/manage`)}>
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center border border-indigo-500/20">
                         <Settings size={24} />
                       </div>
                       <div>
-                        <h4 className="font-bold text-gray-900">General Settings</h4>
-                        <p className="text-xs text-gray-500">Update chama name, visibility, and payments</p>
+                        <h4 className="font-bold text-lux-primary m-0" style={{ color: 'var(--lux-text-primary)' }}>General Settings</h4>
+                        <p className="text-xs text-lux-secondary m-0" style={{ color: 'var(--lux-text-secondary)' }}>Update chama name, visibility, and payments</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="card-premium hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/invites`)}>
+                  <div className="dashboard-card-lux hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/invites`)}>
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20">
                         <Mail size={24} />
                       </div>
                       <div>
-                        <h4 className="font-bold text-gray-900">Member Invites</h4>
-                        <p className="text-xs text-gray-500">Generate codes and send email invitations</p>
+                        <h4 className="font-bold text-lux-primary m-0" style={{ color: 'var(--lux-text-primary)' }}>Member Invites</h4>
+                        <p className="text-xs text-lux-secondary m-0" style={{ color: 'var(--lux-text-secondary)' }}>Generate codes and send email invitations</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="card-premium hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/add-member`)}>
+                  <div className="dashboard-card-lux hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/add-member`)}>
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center border border-blue-500/20">
                         <Users size={24} />
                       </div>
                       <div>
-                        <h4 className="font-bold text-gray-900">Add Member Direct</h4>
-                        <p className="text-xs text-gray-500">Add a known user directly to the chama</p>
+                        <h4 className="font-bold text-lux-primary m-0" style={{ color: 'var(--lux-text-primary)' }}>Add Member Direct</h4>
+                        <p className="text-xs text-lux-secondary m-0" style={{ color: 'var(--lux-text-secondary)' }}>Add a known user directly to the chama</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="card-premium hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/join-requests`)}>
+                  <div className="dashboard-card-lux hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/join-requests`)}>
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center border border-amber-500/20">
                         <Bell size={24} />
                       </div>
                       <div>
-                        <h4 className="font-bold text-gray-900">Join Requests</h4>
-                        <p className="text-xs text-gray-500">Approve or reject pending member requests</p>
+                        <h4 className="font-bold text-lux-primary m-0" style={{ color: 'var(--lux-text-primary)' }}>Join Requests</h4>
+                        <p className="text-xs text-lux-secondary m-0" style={{ color: 'var(--lux-text-secondary)' }}>Approve or reject pending member requests</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="card-premium hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/audit-logs`)}>
+                  <div className="dashboard-card-lux hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/audit-logs`)}>
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-gray-100 text-gray-600 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-500/10 text-slate-500 flex items-center justify-center border border-slate-500/20">
                         <FileText size={24} />
                       </div>
                       <div>
-                        <h4 className="font-bold text-gray-900">Audit Logs</h4>
-                        <p className="text-xs text-gray-500">View history of all actions in the chama</p>
+                        <h4 className="font-bold text-lux-primary m-0" style={{ color: 'var(--lux-text-primary)' }}>Audit Logs</h4>
+                        <p className="text-xs text-lux-secondary m-0" style={{ color: 'var(--lux-text-secondary)' }}>View history of all actions in the chama</p>
                       </div>
                     </div>
                   </div>
@@ -3148,25 +2578,39 @@ const ChamaDetails = () => {
                      <LoanConfigCard chamaId={id} />
                    </div>
                  )}
-
               </div>
             )}
 
             {activeTab === "constitution" && officialStatus && (
-              <div className="card-premium bg-white p-6 shadow-md rounded-lg">
+              <div className="dashboard-card-lux" style={{ padding: '40px' }}>
                 <form
                   onSubmit={handleUpdateConstitution}
                   className="space-y-6"
                 >
-                  <div className="section-header border-b pb-4 mb-4">
-                    <h3 className="text-2xl font-bold text-gray-800">Chama Constitution</h3>
-                    <p className="text-muted text-sm">Define your group's rules, bylaws, and penalties.</p>
+                  <div className="section-header mb-8" style={{ borderBottom: '1px solid var(--lux-border)', paddingBottom: '24px' }}>
+                    <div className="flex items-center gap-4 mb-2">
+                        <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+                            <FileText size={24} />
+                        </div>
+                        <h3 className="text-2xl font-bold m-0" style={{ color: 'var(--lux-text-primary)' }}>Chama Constitution</h3>
+                    </div>
+                    <p style={{ color: 'var(--lux-text-secondary)', margin: 0 }}>Define your group's rules, bylaws, and penalties.</p>
                   </div>
 
-                  <div className="form-group mb-4">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Rules & Bylaws</label>
+                  <div className="form-group mb-6">
+                    <label className="block mb-2" style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--lux-text-secondary)' }}>Rules & Bylaws</label>
                     <textarea
-                      className="form-input"
+                      className="form-textarea"
+                      style={{
+                          width: '100%',
+                          background: 'var(--lux-bg-soft)',
+                          border: '1px solid var(--lux-border)',
+                          color: 'var(--lux-text-primary)',
+                          padding: '20px',
+                          borderRadius: '16px',
+                          fontSize: '1rem',
+                          lineHeight: '1.6'
+                      }}
                       rows="10"
                       value={constitutionText}
                       onChange={(e) => setConstitutionText(e.target.value)}
@@ -3175,9 +2619,9 @@ const ChamaDetails = () => {
                     ></textarea>
                   </div>
 
-                  <div className="settings-section mb-4">
-                    <h4 className="flex-between">
-                      <span>Late Payment Penalties</span>
+                  <div className="dashboard-card-lux" style={{ background: 'var(--lux-bg-soft)', padding: '24px', marginBottom: '24px' }}>
+                    <h4 className="flex flex-between align-center m-0 mb-4">
+                      <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--lux-text-primary)' }}>Late Payment Penalties</span>
                       <label className="switch">
                         <input
                           type="checkbox"
@@ -3192,12 +2636,13 @@ const ChamaDetails = () => {
                     </h4>
 
                     {constitutionForm.late_payment?.enabled && (
-                      <div className="grid-2 mt-2">
+                      <div className="grid grid-cols-2 gap-6 mt-4">
                         <div className="form-group">
-                          <label>Penalty Amount (KES)</label>
+                          <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--lux-text-secondary)', display: 'block', marginBottom: '8px' }}>Penalty Amount (KES)</label>
                           <input
                             type="number"
                             className="form-input"
+                            style={{ width: '100%', background: 'var(--lux-card-bg)', border: '1px solid var(--lux-border)', color: 'var(--lux-text-primary)' }}
                             value={constitutionForm.late_payment.amount}
                             onChange={(e) => setConstitutionForm(prev => ({
                               ...prev,
@@ -3206,29 +2651,29 @@ const ChamaDetails = () => {
                           />
                         </div>
                         <div className="form-group">
-                          <label>Grace Period (Days)</label>
+                          <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--lux-text-secondary)', display: 'block', marginBottom: '8px' }}>Grace Period (Days)</label>
                           <input
                             type="number"
                             className="form-input"
+                            style={{ width: '100%', background: 'var(--lux-card-bg)', border: '1px solid var(--lux-border)', color: 'var(--lux-text-primary)' }}
                             value={constitutionForm.late_payment.grace_period_days}
                             onChange={(e) => setConstitutionForm(prev => ({
                               ...prev,
                               late_payment: { ...prev.late_payment, grace_period_days: parseInt(e.target.value) }
                             }))}
                           />
-                          <small className="text-muted">Days after deadline before penalty applies.</small>
+                          <small style={{ color: 'var(--lux-text-secondary)', opacity: 0.7, marginTop: '4px', display: 'block' }}>Days after deadline before penalty applies.</small>
                         </div>
                       </div>
                     )}
                   </div>
 
-                  <div className="form-actions">
-                    <button type="submit" className="btn btn-primary">Save Constitution</button>
+                  <div className="flex justify-end mt-8">
+                    <button type="submit" className="btn-lux" style={{ minWidth: '220px' }}>Commit Governance Protocols</button>
                   </div>
                 </form>
               </div>
             )}
-          </div>
           </div>
         </div>
       </div>

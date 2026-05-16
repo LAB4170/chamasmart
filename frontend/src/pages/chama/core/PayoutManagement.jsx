@@ -94,142 +94,136 @@ const PayoutManagement = () => {
     }
 
     return (
-        <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto', color: 'var(--text-primary)' }}>
-
+        <div className="page-lux-wrapper">
             {/* Header */}
-            <div style={{ marginBottom: '2rem' }}>
-                <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.75rem', fontWeight: 800, margin: 0 }}>
-                    <div style={{ padding: '0.5rem', borderRadius: '12px', background: 'var(--bg-secondary)', color: 'var(--primary)' }}>
-                        <Wallet size={28} />
+            <div className="chama-header-lux">
+                <div className="chama-title-area">
+                    <h1 className="flex align-center gap-3">
+                        <Wallet size={32} /> Financial Center
+                    </h1>
+                    <div className="chama-badges mt-2">
+                        <span className="badge-lux badge-gold">Disbursements</span>
+                        <span className="badge-lux" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--lux-text-secondary)', border: '1px solid var(--lux-border)' }}>
+                            {chama?.chama_name}
+                        </span>
                     </div>
-                    Financial Center
-                </h1>
-                <p style={{ margin: '0.5rem 0 0 3.5rem', color: 'var(--text-secondary)', fontSize: '1rem' }}>
-                    Manage disbursements and track payout history.
-                </p>
+                </div>
+                <button 
+                    className="btn-lux btn-lux-outline"
+                    onClick={() => navigate(`/chamas/${id}`)}
+                >
+                    <ArrowLeft size={18} /> Dashboard
+                </button>
             </div>
 
             {/* Stats Overview */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
-                <div style={{ background: 'var(--card-bg)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                        <div>
-                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Total Disbursed</p>
-                            <h3 style={{ margin: '0.25rem 0 0', fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                {formatCurrency(stats.totalDisbursed)}
-                            </h3>
-                        </div>
-                        <div style={{ padding: '0.5rem', background: 'rgba(34, 197, 94, 0.1)', borderRadius: '10px', color: 'var(--success)' }}>
-                            <DollarSign size={20} />
-                        </div>
+            <div className="stats-grid-lux mb-8">
+                <div className="stat-card-lux">
+                    <span className="stat-label-lux">Total Disbursed</span>
+                    <div className="stat-value-lux" style={{ color: '#10b981' }}>
+                        {formatCurrency(stats.totalDisbursed)}
+                    </div>
+                    <div className="stat-trend-lux stat-trend-up">
+                        <TrendingUp size={12} /> Live Payout Audit
                     </div>
                 </div>
 
-                <div style={{ background: 'var(--card-bg)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                        <div>
-                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Total Payouts</p>
-                            <h3 style={{ margin: '0.25rem 0 0', fontSize: '1.75rem', fontWeight: 700, color: 'var(--primary)' }}>
-                                {stats.totalPayouts}
-                            </h3>
-                        </div>
-                        <div style={{ padding: '0.5rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px', color: 'var(--primary)' }}>
-                            <TrendingUp size={20} />
-                        </div>
+                <div className="stat-card-lux">
+                    <span className="stat-label-lux">Disbursement Count</span>
+                    <div className="stat-value-lux">
+                        {stats.totalPayouts}
+                    </div>
+                    <div className="stat-trend-lux" style={{ color: 'var(--lux-text-secondary)' }}>
+                        Completed Cycles
                     </div>
                 </div>
 
-                <div style={{ background: 'var(--card-bg)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                        <div>
-                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Next Payout</p>
-                            <h3 style={{ margin: '0.25rem 0 0', fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                {formatCurrency(stats.nextAmount)}
-                            </h3>
-                        </div>
-                        <div style={{ padding: '0.5rem', background: 'rgba(168, 85, 247, 0.1)', borderRadius: '10px', color: '#a855f7' }}>
-                            <Target size={20} />
-                        </div>
+                <div className="stat-card-lux" style={{ borderLeftColor: 'var(--lux-gold)' }}>
+                    <span className="stat-label-lux">Next Payout Amount</span>
+                    <div className="stat-value-lux" style={{ color: 'var(--lux-gold)' }}>
+                        {formatCurrency(stats.nextAmount)}
+                    </div>
+                    <div className="stat-trend-lux" style={{ color: 'var(--lux-gold)' }}>
+                        Expected Capital Flow
                     </div>
                 </div>
             </div>
 
             {/* Next Recipient Spotlight */}
             {isOfficial && nextRecipient ? (
-                <div style={{
-                    background: 'linear-gradient(135deg, var(--primary), #1e40af)',
-                    borderRadius: '20px',
-                    padding: '2rem',
-                    color: 'white',
+                <div className="dashboard-card-lux" style={{ 
+                    background: 'var(--gold-gradient)', 
+                    padding: '2.5rem', 
                     marginBottom: '3rem',
-                    boxShadow: '0 10px 25px -5px rgba(37, 99, 235, 0.4)',
+                    border: 'none',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     flexWrap: 'wrap',
-                    gap: '2rem'
+                    gap: '2rem',
+                    boxShadow: 'var(--gold-glow)'
                 }}>
                     <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                            <span style={{ background: 'rgba(255,255,255,0.2)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600 }}>
-                                Next in Line
-                            </span>
+                        <div className="flex align-center gap-2 mb-2">
+                            <span className="badge-lux" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', border: 'none' }}>Active Protocol</span>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '1px' }}>Next Eligible Recipient</span>
                         </div>
-                        <h2 style={{ margin: 0, fontSize: '2rem', fontWeight: 800, color: 'white' }}>
+                        <h2 style={{ margin: 0, fontSize: '2.5rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em' }}>
                             {nextRecipient.first_name} {nextRecipient.last_name}
                         </h2>
-                        <p style={{ margin: '0.5rem 0 0', opacity: 0.9, fontSize: '1.1rem' }}>
-                            Eligible for <strong>{formatCurrency(stats.nextAmount)}</strong>
+                        <p style={{ margin: '0.5rem 0 0', color: 'rgba(255,255,255,0.9)', fontSize: '1.1rem', fontWeight: 600 }}>
+                            Authorized for disbursement of <strong style={{ color: '#fff' }}>{formatCurrency(stats.nextAmount)}</strong>
                         </p>
                     </div>
                     <button
                         onClick={() => navigate(`/chamas/${id}/payouts/process`)}
+                        className="btn-lux"
                         style={{
-                            background: 'white',
-                            color: 'var(--primary)',
-                            border: 'none',
-                            padding: '1rem 2rem',
-                            borderRadius: '12px',
+                            background: '#fff',
+                            color: 'var(--lux-text-primary)',
+                            padding: '1rem 2.5rem',
                             fontSize: '1rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.75rem',
-                            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                            fontWeight: 900,
+                            borderRadius: '14px',
+                            boxShadow: '0 10px 20px rgba(0,0,0,0.1)'
                         }}
                     >
-                        Process Payout <ArrowRight size={20} />
+                        Execute Payout <ArrowRight size={20} />
                     </button>
                 </div>
             ) : isOfficial && !nextRecipient && stats.remaining === 0 ? (
-                <div style={{ padding: '2rem', background: 'var(--bg-secondary)', borderRadius: '16px', textAlign: 'center', marginBottom: '3rem' }}>
-                    <CheckCircle2 size={48} style={{ color: 'var(--success)', marginBottom: '1rem' }} />
-                    <h3>All members have been paid!</h3>
-                    <p style={{ color: 'var(--text-secondary)' }}>Cycle complete. Start a new cycle to continue.</p>
+                <div className="dashboard-card-lux text-center py-12 mb-12">
+                    <CheckCircle2 size={48} style={{ color: '#10b981', marginBottom: '1.5rem' }} />
+                    <h3 className="m-0" style={{ color: 'var(--lux-text-primary)', fontSize: '1.5rem' }}>Portfolio Fully Disbursed</h3>
+                    <p style={{ color: 'var(--lux-text-secondary)', marginTop: '0.5rem' }}>All eligible members have received their allocated funds for this cycle.</p>
                 </div>
             ) : null}
 
             {/* Payout History */}
-            <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Payout History</h3>
+            <div className="dashboard-card-lux">
+                <div className="card-header pb-4 mb-6 border-b border-white/5 flex justify-between items-center">
+                    <h3 className="card-title-lux m-0">
+                        <Clock size={20} /> Disbursement Registry
+                    </h3>
+                    <span className="status-pill-lux status-verified">Audited History</span>
+                </div>
 
-                <div style={{ background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid var(--border)', overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <div style={{ overflowX: 'auto' }}>
+                    <table className="table-lux">
                         <thead>
-                            <tr style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
-                                <th style={{ padding: '1rem 1.5rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>Date</th>
-                                <th style={{ padding: '1rem 1.5rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>Recipient</th>
-                                <th style={{ padding: '1rem 1.5rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>Amount</th>
-                                <th style={{ padding: '1rem 1.5rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>Status</th>
-                                <th style={{ padding: '1rem 1.5rem', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>Ref</th>
+                            <tr>
+                                <th>Date</th>
+                                <th>Recipient</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th style={{ textAlign: 'right' }}>Reference</th>
                             </tr>
                         </thead>
                         <tbody>
                             {payouts.length === 0 ? (
                                 <tr>
-                                    <td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                        No payouts recorded yet.
+                                    <td colSpan="5" className="text-center py-20 opacity-30">
+                                        No historical disbursements found.
                                     </td>
                                 </tr>
                             ) : (
@@ -238,31 +232,24 @@ const PayoutManagement = () => {
                                         key={payout.payout_id}
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
-                                        style={{ borderBottom: '1px solid var(--border)' }}
                                     >
-                                        <td style={{ padding: '1rem 1.5rem', color: 'var(--text-primary)' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                <Calendar size={16} className="text-muted" />
-                                                {new Date(payout.payment_date).toLocaleDateString()}
-                                            </div>
+                                        <td style={{ fontWeight: 700 }}>
+                                            {new Date(payout.payment_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                                         </td>
-                                        <td style={{ padding: '1rem 1.5rem' }}>
-                                            <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{payout.first_name} {payout.last_name}</div>
+                                        <td>
+                                            <div style={{ fontWeight: 800, color: 'var(--lux-text-primary)' }}>{payout.first_name} {payout.last_name}</div>
+                                            <div style={{ fontSize: '0.7rem', color: 'var(--lux-text-secondary)', opacity: 0.7 }}>Validated Member</div>
                                         </td>
-                                        <td style={{ padding: '1rem 1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                        <td style={{ fontWeight: 900, color: '#10b981' }}>
                                             {formatCurrency(payout.amount)}
                                         </td>
-                                        <td style={{ padding: '1rem 1.5rem' }}>
-                                            <span style={{
-                                                padding: '4px 10px', borderRadius: '20px',
-                                                background: 'var(--success-light)', color: 'var(--success-dark)',
-                                                fontSize: '0.85rem', fontWeight: 600
-                                            }}>
-                                                Completed
+                                        <td>
+                                            <span className="status-pill-lux status-verified">
+                                                <CheckCircle2 size={12} /> Disbursed
                                             </span>
                                         </td>
-                                        <td style={{ padding: '1rem 1.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
-                                            #{payout.payout_id.toString().padStart(4, '0')}
+                                        <td style={{ textAlign: 'right', fontFamily: 'monospace', opacity: 0.6, fontSize: '0.75rem' }}>
+                                            PAY-AUD-{payout.payout_id.toString().padStart(4, '0')}
                                         </td>
                                     </motion.tr>
                                 ))

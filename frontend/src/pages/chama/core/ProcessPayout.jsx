@@ -129,67 +129,80 @@ const ProcessPayout = () => {
     }
 
     return (
-        <div style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto', color: 'var(--text-primary)' }}>
-
-            <button
-                onClick={() => navigate(`/chamas/${id}/payouts`)}
-                style={{
-                    display: 'flex', alignItems: 'center', gap: '0.5rem',
-                    background: 'none', border: 'none', color: 'var(--text-secondary)',
-                    cursor: 'pointer', marginBottom: '1.5rem', fontSize: '0.95rem', fontWeight: 500
-                }}
-            >
-                <ArrowLeft size={18} /> Back to Financial Center
-            </button>
-
-            <div style={{ marginBottom: '2rem' }}>
-                <h1 style={{ fontSize: '2rem', fontWeight: 800, margin: '0 0 0.5rem', color: 'var(--text-primary)' }}>Process Payout</h1>
-                <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Confirm details and maximize disbursement.</p>
+        <div className="page-lux-wrapper">
+            <div className="chama-header-lux">
+                <div className="chama-title-area">
+                    <h1 className="flex align-center gap-3">
+                        <Send size={32} /> Execute Payout
+                    </h1>
+                    <div className="chama-badges mt-2">
+                        <span className="badge-lux badge-gold">Official Protocol</span>
+                        <span className="badge-lux" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--lux-text-secondary)', border: '1px solid var(--lux-border)' }}>
+                            Disbursement Execution
+                        </span>
+                    </div>
+                </div>
+                <button 
+                    className="btn-lux btn-lux-outline"
+                    onClick={() => navigate(`/chamas/${id}/payouts`)}
+                >
+                    <ArrowLeft size={18} /> Financial Center
+                </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '2rem', alignItems: 'start' }}>
-
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
                 {/* Recipient Card */}
-                <div style={{ background: 'var(--card-bg)', padding: '2rem', borderRadius: '20px', border: '1px solid var(--border)', textAlign: 'center', boxShadow: 'var(--shadow)' }}>
-                    <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary), #1e40af)', margin: '0 auto 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '2rem', fontWeight: 700, boxShadow: '0 8px 20px -5px rgba(37, 99, 235, 0.4)' }}>
-                        {selectedMember ? selectedMember.first_name[0] : <User size={32} />}
+                <div className="lg:col-span-2 dashboard-card-lux" style={{ textAlign: 'center', padding: '3rem 2rem' }}>
+                    <div style={{ 
+                        width: '100px', 
+                        height: '100px', 
+                        borderRadius: '50%', 
+                        background: 'var(--gold-gradient)', 
+                        margin: '0 auto 1.5rem', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        color: 'white', 
+                        fontSize: '2.5rem', 
+                        fontWeight: 900, 
+                        boxShadow: 'var(--gold-glow)' 
+                    }}>
+                        {selectedMember ? selectedMember.first_name[0] : <User size={40} />}
                     </div>
-                    <h3 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                    <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.5rem', color: 'var(--lux-text-primary)', fontWeight: 900 }}>
                         {selectedMember ? `${selectedMember.first_name} ${selectedMember.last_name}` : "Select Member"}
                     </h3>
-                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                        {selectedMember ? "Next Eligible Recipient" : "Pending Selection"}
+                    <p style={{ margin: 0, color: 'var(--lux-text-secondary)', fontSize: '0.9rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                        {selectedMember ? "Next Eligible Recipient" : "Pending Protocol Selection"}
                     </p>
 
-                    <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-light)' }}>
-                        <p style={{ margin: '0 0 0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Amount to Pay</p>
-                        <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--primary)' }}>
-                            <span style={{ fontSize: '1rem', verticalAlign: 'top', marginRight: '4px' }}>KES</span>
+                    <div style={{ marginTop: '2.5rem', paddingTop: '2rem', borderTop: '1px solid var(--lux-border)' }}>
+                        <p style={{ margin: '0 0 0.75rem', fontSize: '0.7rem', color: 'var(--lux-text-secondary)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '2px' }}>Authorized Amount</p>
+                        <div style={{ fontSize: '2.5rem', fontWeight: 950, color: 'var(--lux-gold)', letterSpacing: '-0.05em' }}>
+                            <span style={{ fontSize: '1.2rem', verticalAlign: 'top', marginRight: '6px', opacity: 0.7 }}>KES</span>
                             {parseFloat(formData.amount || 0).toLocaleString()}
+                        </div>
+                        <div className="status-pill-lux status-verified mx-auto mt-4" style={{ width: 'fit-content' }}>
+                            Calculated Yield
                         </div>
                     </div>
                 </div>
 
                 {/* Form */}
-                <form onSubmit={handleSubmit} style={{ background: 'var(--card-bg)', padding: '2rem', borderRadius: '20px', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' }}>
-
-                    <div style={{ marginBottom: '1.5rem' }}>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Recipient</label>
-                        <div style={{ position: 'relative' }}>
-                            <User size={18} style={{ position: 'absolute', top: '50%', left: '1rem', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                <form onSubmit={handleSubmit} className="lg:col-span-3 dashboard-card-lux" style={{ padding: '2.5rem' }}>
+                    <div className="form-group mb-8">
+                        <label className="form-label-lux">Target Recipient</label>
+                        <div className="input-lux-wrapper">
+                            <User size={18} className="input-lux-icon" />
                             <select
                                 name="userId"
                                 value={formData.userId}
                                 onChange={handleChange}
                                 required
-                                style={{
-                                    width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem',
-                                    borderRadius: '10px', border: '1px solid var(--border)',
-                                    background: 'var(--bg-secondary)', color: 'var(--text-primary)',
-                                    fontSize: '1rem', outline: 'none'
-                                }}
+                                className="form-select-lux"
+                                style={{ paddingLeft: '3rem' }}
                             >
-                                <option value="">Select Member</option>
+                                <option value="">Select Validated Member</option>
                                 {eligibleMembers.map(member => (
                                     <option key={member.user_id} value={member.user_id}>
                                         {member.first_name} {member.last_name}
@@ -199,46 +212,38 @@ const ProcessPayout = () => {
                         </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                        <div>
-                            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Amount (KES)</label>
-                            <div style={{ position: 'relative' }}>
-                                <DollarSign size={18} style={{ position: 'absolute', top: '50%', left: '1rem', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                    <div className="grid grid-cols-2 gap-6 mb-8">
+                        <div className="form-group">
+                            <label className="form-label-lux">Disbursement (KES)</label>
+                            <div className="input-lux-wrapper">
+                                <DollarSign size={18} className="input-lux-icon" />
                                 <input
                                     type="number"
                                     name="amount"
                                     value={formData.amount}
                                     onChange={handleChange}
                                     required
-                                    style={{
-                                        width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem',
-                                        borderRadius: '10px', border: '1px solid var(--border)',
-                                        background: 'var(--bg-secondary)', color: 'var(--text-primary)',
-                                        fontSize: '1rem', outline: 'none'
-                                    }}
+                                    className="form-input-lux"
+                                    style={{ paddingLeft: '3rem' }}
                                 />
                             </div>
                         </div>
 
-                        <div>
-                            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Meeting</label>
-                            <div style={{ position: 'relative' }}>
-                                <Calendar size={18} style={{ position: 'absolute', top: '50%', left: '1rem', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                        <div className="form-group">
+                            <label className="form-label-lux">Associated Meeting</label>
+                            <div className="input-lux-wrapper">
+                                <Calendar size={18} className="input-lux-icon" />
                                 <select
                                     name="meetingId"
                                     value={formData.meetingId}
                                     onChange={handleChange}
-                                    style={{
-                                        width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem',
-                                        borderRadius: '10px', border: '1px solid var(--border)',
-                                        background: 'var(--bg-secondary)', color: 'var(--text-primary)',
-                                        fontSize: '1rem', outline: 'none'
-                                    }}
+                                    className="form-select-lux"
+                                    style={{ paddingLeft: '3rem' }}
                                 >
-                                    <option value="">No Meeting</option>
+                                    <option value="">No Linked Meeting</option>
                                     {meetings.map(meeting => (
                                         <option key={meeting.meeting_id} value={meeting.meeting_id}>
-                                            {new Date(meeting.meeting_date).toLocaleDateString()}
+                                            {new Date(meeting.meeting_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                                         </option>
                                     ))}
                                 </select>
@@ -246,21 +251,18 @@ const ProcessPayout = () => {
                         </div>
                     </div>
 
-                    <div style={{ marginBottom: '2rem' }}>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Notes (Optional)</label>
-                        <div style={{ position: 'relative' }}>
-                            <FileText size={18} style={{ position: 'absolute', top: '1rem', left: '1rem', color: 'var(--text-secondary)' }} />
+                    <div className="form-group mb-10">
+                        <label className="form-label-lux">Execution Notes</label>
+                        <div className="input-lux-wrapper">
+                            <FileText size={18} className="input-lux-icon" style={{ top: '1.2rem', transform: 'none' }} />
                             <textarea
                                 name="notes"
                                 value={formData.notes}
                                 onChange={handleChange}
-                                rows="3"
-                                style={{
-                                    width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem',
-                                    borderRadius: '10px', border: '1px solid var(--border)',
-                                    background: 'var(--bg-secondary)', color: 'var(--text-primary)',
-                                    fontSize: '1rem', outline: 'none', resize: 'vertical'
-                                }}
+                                rows="4"
+                                className="form-input-lux"
+                                style={{ paddingLeft: '3rem', resize: 'none' }}
+                                placeholder="Add administrative notes for this disbursement..."
                             />
                         </div>
                     </div>
@@ -268,29 +270,12 @@ const ProcessPayout = () => {
                     <button
                         type="submit"
                         disabled={loading}
-                        style={{
-                            width: '100%',
-                            padding: '1rem',
-                            background: 'var(--primary)',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '12px',
-                            fontSize: '1.1rem',
-                            fontWeight: 700,
-                            cursor: loading ? 'not-allowed' : 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '0.75rem',
-                            opacity: loading ? 0.7 : 1,
-                            transition: 'all 0.2s',
-                            boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
-                        }}
+                        className="btn-lux btn-lux-primary w-full py-4"
+                        style={{ fontSize: '1.1rem', fontWeight: 900 }}
                     >
                         {loading ? <RefreshCw className="spin" /> : <Send size={20} />}
-                        {loading ? "Processing..." : "Confirm Disbursement"}
+                        {loading ? "Authorizing Disbursement..." : "Confirm & Execute Payout"}
                     </button>
-
                 </form>
             </div>
         </div>

@@ -4,25 +4,25 @@ import { AlertTriangle, Info, Lightbulb, ChevronDown, ChevronUp, Sparkles } from
 
 const SEVERITY_CONFIG = {
     CRITICAL: {
-        icon: <AlertTriangle size={18} />,
+        icon: <AlertTriangle size={16} />,
         color: "#ef4444",
-        bg: "#fef2f2",
-        border: "#fecaca",
+        bg: "rgba(239, 68, 68, 0.05)",
+        border: "rgba(239, 68, 68, 0.2)",
         label: "Critical",
     },
     WARNING: {
-        icon: <Info size={18} />,
+        icon: <Info size={16} />,
         color: "#f59e0b",
-        bg: "#fffbeb",
-        border: "#fde68a",
+        bg: "rgba(245, 158, 11, 0.05)",
+        border: "rgba(245, 158, 11, 0.2)",
         label: "Warning",
     },
     TIP: {
-        icon: <Lightbulb size={18} />,
+        icon: <Lightbulb size={16} />,
         color: "#3b82f6",
-        bg: "#eff6ff",
-        border: "#bfdbfe",
-        label: "Tip",
+        bg: "rgba(59, 130, 246, 0.05)",
+        border: "rgba(59, 130, 246, 0.2)",
+        label: "Insight",
     },
 };
 
@@ -33,7 +33,6 @@ function AlertCard({ alert }) {
     return (
         <div
             className="health-alert-card"
-            style={{ background: cfg.bg, border: `1.5px solid ${cfg.border}` }}
         >
             <button
                 className="health-alert-header"
@@ -41,7 +40,7 @@ function AlertCard({ alert }) {
                 style={{ borderBottom: open ? `1px solid ${cfg.border}` : "none" }}
             >
                 <span className="health-alert-icon" style={{ color: cfg.color }}>
-                    <span style={{ fontSize: "16px", marginRight: "6px" }}>{alert.icon}</span> 
+                    <span style={{ fontSize: "14px", marginRight: "8px", fontWeight: 800, textTransform: 'uppercase', opacity: 0.8 }}>{alert.icon}</span> 
                     {cfg.icon}
                 </span>
                 <span className="health-alert-title" style={{ color: cfg.color }}>
@@ -62,7 +61,8 @@ function AlertCard({ alert }) {
                 <div className="health-alert-body">
                     <p className="health-alert-detail">{alert.detail}</p>
                     <div className="health-alert-action">
-                        <strong>Next step:</strong> {alert.action}
+                        <strong style={{ color: 'var(--lux-gold)', textTransform: 'uppercase', fontSize: '0.75rem', marginRight: '8px' }}>Strategic Protocol:</strong>
+                        <span style={{ color: 'var(--lux-text-primary)', fontWeight: 600 }}> {alert.action}</span>
                     </div>
                 </div>
             )}
@@ -98,20 +98,23 @@ const HealthAlerts = ({ chamaId }) => {
         <div className="health-alerts-container">
             <div className="health-alerts-header" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Lightbulb size={18} color="#10b981" />
-                <h3 className="health-alerts-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    AI Financial Health Coach
+                <h3 className="health-alerts-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--lux-text-primary)', fontSize: '1.1rem', fontWeight: 900 }}>
+                    Intelligent Audit
                     <span style={{ 
-                        fontSize: '11px', 
-                        padding: '2px 8px', 
-                        background: 'linear-gradient(90deg, #10b981, #0ea5e9)', 
-                        color: 'white', 
-                        borderRadius: '12px',
+                        fontSize: '10px', 
+                        padding: '3px 10px', 
+                        background: 'var(--gold-gradient)', 
+                        color: '#fff', 
+                        borderRadius: '6px',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '4px',
-                        fontWeight: '500'
+                        gap: '6px',
+                        fontWeight: '900',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em',
+                        boxShadow: '0 4px 10px rgba(212, 175, 55, 0.3)'
                     }}>
-                        <Sparkles size={10} /> Powered by Groq AI
+                        <Sparkles size={11} /> God Mode
                     </span>
                 </h3>
 

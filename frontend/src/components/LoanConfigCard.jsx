@@ -57,21 +57,21 @@ export default function LoanConfigCard({ chamaId }) {
   };
 
   return (
-    <div className="card-premium" style={{ gridColumn: "1 / -1" }}>
+    <div className="dashboard-card-lux" style={{ gridColumn: "1 / -1" }}>
       <div
-        className="flex items-center justify-between gap-4 cursor-pointer p-2 py-3 rounded-2xl transition-colors hover:bg-gray-50/50 w-full"
+        className="flex items-center justify-between gap-4 cursor-pointer p-2 py-3 rounded-2xl transition-colors hover:bg-lux-bg-soft w-full"
         onClick={() => setOpen(o => !o)}
       >
         <div className="flex items-center gap-4 min-w-0" style={{ maxWidth: 'calc(100% - 130px)' }}>
-          <div className="w-12 h-12 flex-shrink-0 rounded-2xl bg-violet-100 text-violet-600 flex items-center justify-center shadow-sm">
+          <div className="w-12 h-12 flex-shrink-0 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center border border-amber-500/20">
             <CreditCard size={24} />
           </div>
           <div className="min-w-0 flex-1">
-            <h4 className="font-bold text-gray-900 text-lg tracking-tight truncate">Loan Configuration</h4>
-            <p className="text-xs text-gray-500 mt-1 truncate">
-              Set the chama's interest rate, max months, and loan limits · Current: 
+            <h4 className="font-bold text-lux-primary text-lg tracking-tight truncate" style={{ color: 'var(--lux-text-primary)', margin: 0 }}>Loan Configuration</h4>
+            <p className="text-xs mt-1 truncate" style={{ color: 'var(--lux-text-secondary)' }}>
+              Set interest rate, multipliers, and repayment caps · Current: 
               <span className="inline-block ml-1">
-                <strong className="text-violet-700 bg-violet-50 px-1.5 py-0.5 rounded-md">
+                <strong style={{ color: 'var(--lux-gold)', background: 'var(--lux-bg-soft)', padding: '2px 6px', borderRadius: '6px', border: '1px solid var(--lux-border)' }}>
                   {config.interest_rate}% {config.interest_type === "FLAT" ? "flat" : "reducing"}
                 </strong>
               </span>
@@ -79,12 +79,10 @@ export default function LoanConfigCard({ chamaId }) {
           </div>
         </div>
         <button 
-          className={`btn btn-sm flex-shrink-0 transition-all duration-300 ${
-            open 
-              ? "bg-gray-100 text-gray-700 hover:bg-gray-200 border-transparent shadow-none" 
-              : "bg-violet-600 hover:bg-violet-700 text-white border-transparent shadow-md hover:shadow-lg hover:-translate-y-0.5"
+          className={`btn-lux btn-lux-outline flex-shrink-0 transition-all duration-300 ${
+            open ? "opacity-50" : ""
           }`}
-          style={{ width: 110, borderRadius: '12px' }}
+          style={{ width: 110, borderRadius: '12px', padding: '8px' }}
           onClick={(e) => {
             e.stopPropagation();
             setOpen(o => !o);
@@ -95,21 +93,22 @@ export default function LoanConfigCard({ chamaId }) {
       </div>
 
       {open && (
-        <form onSubmit={handleSave} className="mt-6 space-y-6 border-t pt-6">
+        <form onSubmit={handleSave} className="mt-6 space-y-6 border-t pt-6" style={{ borderColor: 'var(--lux-border)' }}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             {/* Interest Rate */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1">
+              <label className="block mb-2 flex items-center gap-2" style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--lux-text-secondary)' }}>
                 <Lock size={13} /> Interest Rate (%)
               </label>
-              <p className="text-xs text-gray-500 mb-2">Applied to ALL loan types equally. Members cannot change this.</p>
+              <p className="text-xs mb-2" style={{ color: 'var(--lux-text-secondary)', opacity: 0.7 }}>Applied to ALL loan types equally. Members cannot change this.</p>
               <input
                 type="number"
                 min="0"
                 max="100"
                 step="0.5"
                 className="form-input"
+                style={{ width: '100%', background: 'var(--lux-bg-soft)', border: '1px solid var(--lux-border)', color: 'var(--lux-text-primary)' }}
                 value={config.interest_rate}
                 onChange={e => setConfig(p => ({ ...p, interest_rate: parseFloat(e.target.value) || 0 }))}
               />
@@ -117,10 +116,11 @@ export default function LoanConfigCard({ chamaId }) {
 
             {/* Interest Type */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Interest Type</label>
-              <p className="text-xs text-gray-500 mb-2">Flat rate applies once. Reducing balance applies monthly on outstanding.</p>
+              <label className="block mb-2" style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--lux-text-secondary)' }}>Interest Type</label>
+              <p className="text-xs mb-2" style={{ color: 'var(--lux-text-secondary)', opacity: 0.7 }}>Flat rate applies once. Reducing balance applies monthly.</p>
               <select
                 className="form-input"
+                style={{ width: '100%', background: 'var(--lux-bg-soft)', border: '1px solid var(--lux-border)', color: 'var(--lux-text-primary)' }}
                 value={config.interest_type}
                 onChange={e => setConfig(p => ({ ...p, interest_type: e.target.value }))}
               >
@@ -131,28 +131,29 @@ export default function LoanConfigCard({ chamaId }) {
 
             {/* Loan Multiplier */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Loan Multiplier (×savings)</label>
-              <p className="text-xs text-gray-500 mb-2">Max loan = member's savings × multiplier. E.g. 3× means KES 10,000 savings = KES 30,000 limit.</p>
+              <label className="block mb-2" style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--lux-text-secondary)' }}>Loan Multiplier (×savings)</label>
+              <p className="text-xs mb-2" style={{ color: 'var(--lux-text-secondary)', opacity: 0.7 }}>Max loan = member's savings × multiplier.</p>
               <input
                 type="number"
                 min="1"
                 max="10"
                 step="0.5"
                 className="form-input"
+                style={{ width: '100%', background: 'var(--lux-bg-soft)', border: '1px solid var(--lux-border)', color: 'var(--lux-text-primary)' }}
                 value={config.loan_multiplier}
                 onChange={e => setConfig(p => ({ ...p, loan_multiplier: parseFloat(e.target.value) || 3 }))}
               />
             </div>
 
-            {/* Max Repayment Months */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Max Repayment Period (months)</label>
-              <p className="text-xs text-gray-500 mb-2">Members cannot request repayment longer than this cap.</p>
+              <label className="block mb-2" style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--lux-text-secondary)' }}>Max Period (months)</label>
+              <p className="text-xs mb-2" style={{ color: 'var(--lux-text-secondary)', opacity: 0.7 }}>Members cannot request repayment longer than this cap.</p>
               <input
                 type="number"
                 min="1"
                 max="60"
                 className="form-input"
+                style={{ width: '100%', background: 'var(--lux-bg-soft)', border: '1px solid var(--lux-border)', color: 'var(--lux-text-primary)' }}
                 value={config.max_repayment_months}
                 onChange={e => setConfig(p => ({ ...p, max_repayment_months: parseInt(e.target.value) || 12 }))}
               />
@@ -160,24 +161,24 @@ export default function LoanConfigCard({ chamaId }) {
           </div>
 
           {/* Live Preview */}
-          <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4 text-sm">
-            <p className="font-bold text-violet-800 mb-2">📋 Preview — What members will see:</p>
-            <ul className="text-violet-700 space-y-1">
-              <li>· Interest Rate: <strong>{config.interest_rate}%</strong> ({config.interest_type === "FLAT" ? "flat, applied once" : "reducing balance, monthly"})</li>
-              <li>· Max Loan: <strong>{config.loan_multiplier}×</strong> their savings</li>
-              <li>· Repayment: up to <strong>{config.max_repayment_months} months</strong></li>
+          <div style={{ background: 'var(--lux-bg-soft)', border: '1px solid var(--lux-border)', borderRadius: '20px', padding: '24px' }}>
+            <p className="font-bold mb-3" style={{ color: 'var(--lux-gold)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '1px' }}>📋 Protocol Preview — What members will see:</p>
+            <ul className="space-y-2 m-0 p-0" style={{ listStyle: 'none', color: 'var(--lux-text-primary)', fontSize: '0.9rem' }}>
+              <li className="flex items-center gap-2">· Interest Rate: <strong>{config.interest_rate}%</strong> ({config.interest_type === "FLAT" ? "flat, applied once" : "reducing balance, monthly"})</li>
+              <li className="flex items-center gap-2">· Max Loan Limit: <strong>{config.loan_multiplier}×</strong> their registered savings</li>
+              <li className="flex items-center gap-2">· Repayment Window: up to <strong>{config.max_repayment_months} months</strong></li>
             </ul>
           </div>
 
           <div className="flex justify-end gap-3">
-            <button type="button" className="btn btn-sm btn-outline bg-white hover:bg-gray-50 border-gray-200 text-gray-700" onClick={() => setOpen(false)}>Cancel</button>
+            <button type="button" className="btn-lux btn-lux-outline" onClick={() => setOpen(false)}>Dismiss</button>
             <button 
               type="submit" 
-              className="btn btn-sm bg-violet-600 hover:bg-violet-700 text-white border-transparent shadow-md hover:shadow-lg transition-all" 
+              className="btn-lux" 
               disabled={saving} 
-              style={{ minWidth: 150 }}
+              style={{ minWidth: 180 }}
             >
-              {saving ? "Saving…" : <><Save size={15} className="mr-1.5" /> Save Loan Config</>}
+              {saving ? "Syncing…" : <><Save size={16} className="mr-2" /> Commit Protocols</>}
             </button>
           </div>
         </form>

@@ -99,33 +99,29 @@ const InviteManagement = () => {
     const inactiveInvites = invites.filter(i => !i.is_active);
 
     return (
-        <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '1.5rem', color: 'var(--text-primary)' }}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <div>
-                    <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.5rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                        <div style={{ padding: '0.5rem', background: 'var(--bg-primary-light)', borderRadius: '10px', color: 'var(--primary)' }}>
-                            <Share2 size={24} />
+        <div className="page-lux-wrapper" style={{ background: 'var(--lux-bg-soft)', minHeight: '100vh', padding: '2rem 0' }}>
+            <div className="container">
+                <div className="page-frame-lux" style={{ background: 'var(--lux-card-bg)', border: '1px solid var(--lux-border)' }}>
+                    {/* Header */}
+                    <div className="flex flex-between align-center mb-8">
+                        <div className="flex flex-col">
+                            <h1 className="flex items-center gap-3 m-0" style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--lux-text-primary)' }}>
+                                <div className="p-3 rounded-xl" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                                    <Share2 size={24} />
+                                </div>
+                                Invite Management
+                            </h1>
+                            <p className="m-0 mt-2" style={{ color: 'var(--lux-text-secondary)', fontSize: '0.95rem' }}>
+                                Access control for <strong style={{ color: 'var(--lux-text-primary)' }}>{chama?.chama_name}</strong>
+                            </p>
                         </div>
-                        Invite Management
-                    </h1>
-                    <p style={{ color: 'var(--gray)', marginTop: '0.25rem', fontSize: '0.95rem' }}>
-                        Access control for <strong>{chama?.chama_name}</strong>
-                    </p>
-                </div>
-                <button
-                    onClick={() => navigate(`/chamas/${id}`)}
-                    style={{
-                        display: 'flex', alignItems: 'center', gap: '0.5rem',
-                        padding: '0.5rem 1rem', background: 'transparent',
-                        border: '1px solid var(--border)', borderRadius: '8px',
-                        color: 'var(--text-secondary)', cursor: 'pointer',
-                        fontSize: '0.9rem', fontWeight: 500, transition: 'all 0.2s'
-                    }}
-                >
-                    <ArrowLeft size={16} /> Back
-                </button>
-            </div>
+                        <button
+                            onClick={() => navigate(`/chamas/${id}`, { state: { tab: 'management' } })}
+                            className="btn-lux btn-lux-outline flex items-center gap-2"
+                        >
+                            <ArrowLeft size={16} /> Back to Management
+                        </button>
+                    </div>
 
             {error && (
                 <div style={{ padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', color: 'var(--danger)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -139,21 +135,14 @@ const InviteManagement = () => {
             )}
 
             {/* Bulk Email Invitations - NEW */}
-            <div style={{
-                background: 'var(--card-bg)',
-                borderRadius: '16px',
-                padding: '1.5rem',
-                border: '1px solid var(--border)',
-                marginBottom: '2rem',
-                boxShadow: 'var(--shadow)'
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                    <div style={{ padding: '0.5rem', background: 'var(--bg-primary-light)', borderRadius: '8px', color: 'var(--primary)' }}>
-                        <Plus size={20} />
+            <div className="dashboard-card-lux mb-8" style={{ padding: '2rem' }}>
+                <div className="flex items-center gap-4 mb-6">
+                    <div className="p-3 rounded-xl" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                        <Plus size={24} />
                     </div>
                     <div>
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0 }}>Invite via Email</h3>
-                        <p style={{ color: 'var(--gray)', fontSize: '0.85rem', margin: 0 }}>Send professional invitations powered by Resend</p>
+                        <h3 className="m-0" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--lux-text-primary)' }}>Invite via Email</h3>
+                        <p className="m-0" style={{ color: 'var(--lux-text-secondary)', fontSize: '0.9rem' }}>Direct secure invitations to specific directors</p>
                     </div>
                 </div>
 
@@ -161,10 +150,11 @@ const InviteManagement = () => {
                     <div style={{ flex: '1 1 250px', minWidth: '200px' }}>
                         <textarea
                             placeholder="Enter emails separated by commas (e.g. member1@gmail.com, member2@gmail.com)"
+                            className="form-textarea"
                             style={{
-                                width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)',
-                                background: 'transparent', color: 'var(--text-primary)', minHeight: '80px',
-                                resize: 'none', fontSize: '0.9rem'
+                                width: '100%', padding: '1rem', borderRadius: '12px', border: '1px solid var(--lux-border)',
+                                background: 'var(--lux-bg-soft)', color: 'var(--lux-text-primary)', minHeight: '100px',
+                                resize: 'none', fontSize: '0.95rem'
                             }}
                             value={bulkEmails}
                             onChange={(e) => setBulkEmails(e.target.value)}
@@ -204,79 +194,68 @@ const InviteManagement = () => {
                           }}
                           disabled={generating}
                           style={{
-                              padding: '0.75rem 1.5rem', background: 'var(--primary)',
-                              color: 'white', border: 'none', borderRadius: '10px',
-                              fontWeight: 600, cursor: generating ? 'not-allowed' : 'pointer',
-                              display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem'
+                              padding: '0.75rem 1.5rem', 
+                              background: 'var(--lux-gold)',
+                              color: '#000', 
+                              border: 'none', 
+                              borderRadius: '12px',
+                              fontWeight: 900, 
+                              cursor: generating ? 'not-allowed' : 'pointer',
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '0.5rem', 
+                              fontSize: '0.9rem',
+                              boxShadow: 'var(--lux-shadow)'
                           }}
                       >
                           {generating ? <RefreshCw size={16} className="animate-spin" /> : <Plus size={16} />}
-                          {generating ? 'Sending...' : 'Send Invites'}
+                          {generating ? 'Sending...' : 'SEND INVITATIONS'}
                       </button>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--gray)', textAlign: 'center' }}>
-                         {emailsCount || 0} emails detected
+                      <p style={{ fontSize: '0.75rem', color: 'var(--lux-text-secondary)', textAlign: 'center', fontWeight: 600 }}>
+                         {emailsCount || 0} DIRECTORS DETECTED
                       </p>
                     </div>
                 </div>
             </div>
 
-            <div style={{
-                background: 'var(--primary)', 
-                borderRadius: '16px',
-                padding: '1.5rem',
-                color: 'white',
-                marginBottom: '2rem',
-                boxShadow: 'var(--shadow-md)'
-            }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div className="dashboard-card-lux mb-8" style={{ background: 'var(--gold-gradient)', border: 'none', padding: '2rem' }}>
+                <div className="flex flex-between align-center flex-wrap gap-6">
                     <div>
-                        <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem', color: 'white' }}>Generate Quick Invite Link</h2>
-                        <p style={{ color: 'rgba(255, 255, 255, 0.9)', margin: 0, fontSize: '0.85rem', maxWidth: '400px' }}>
-                            Create a single-use code for manual sharing.
+                        <h2 className="m-0 mb-1" style={{ fontSize: '1.3rem', fontWeight: 800, color: 'white' }}>Generate Quick Invite Link</h2>
+                        <p className="m-0" style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.95rem', maxWidth: '450px' }}>
+                            Create a single-use code for manual sharing via WhatsApp, SMS or Signal.
                         </p>
                     </div>
                     <button
                         onClick={handleGenerateInvite}
                         disabled={generating}
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: '0.5rem',
-                            padding: '0.6rem 1.25rem', background: 'white',
-                            color: 'var(--primary)', border: 'none', borderRadius: '10px',
-                            fontWeight: 600, cursor: generating ? 'not-allowed' : 'pointer',
-                            fontSize: '0.9rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                        }}
+                        className="btn-lux"
+                        style={{ background: 'white', color: 'var(--lux-bg-dark)', padding: '0.8rem 1.5rem', borderRadius: '12px' }}
                     >
-                        {generating ? <Loader size={16} className="animate-spin" /> : <LinkIcon size={16} />}
+                        {generating ? <Loader size={18} className="animate-spin" /> : <LinkIcon size={18} />}
                         Create Code
                     </button>
                 </div>
             </div>
 
             {/* Active Invites Section */}
-            <div style={{
-                background: 'var(--card-bg)',
-                borderRadius: '12px',
-                border: '1px solid var(--border-color)',
-                boxShadow: 'var(--shadow)',
-                overflow: 'hidden',
-                marginBottom: '2rem'
-            }}>
-                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>Active Invite Codes</h3>
-                    <button onClick={fetchData} style={{ background: 'transparent', border: '1px solid var(--border)', padding: '0.4rem', borderRadius: '6px', color: 'var(--gray)', cursor: 'pointer' }}>
-                        <RefreshCw size={16} />
+            <div className="dashboard-card-lux mb-8" style={{ padding: 0, overflow: 'hidden' }}>
+                <div className="flex flex-between items-center p-6 border-b" style={{ borderColor: 'var(--lux-border)' }}>
+                    <h3 className="m-0" style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--lux-text-primary)' }}>Active Invite Codes</h3>
+                    <button onClick={fetchData} className="tab-btn-lux">
+                        <RefreshCw size={18} />
                     </button>
                 </div>
 
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-                        <thead style={{ background: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}>
-                            <tr>
-                                <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: 600 }}>Code</th>
-                                <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: 600 }}>Created By</th>
-                                <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: 600 }}>Usage</th>
-                                <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: 600 }}>Expires</th>
-                                <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: 600 }}>Actions</th>
+                <div className="table-responsive-lux">
+                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 4px' }}>
+                        <thead>
+                            <tr style={{ textAlign: 'left', fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--lux-text-secondary)', letterSpacing: '1px' }}>
+                                <th style={{ padding: '1rem 1.5rem' }}>Code</th>
+                                <th>Created By</th>
+                                <th>Usage</th>
+                                <th>Expires</th>
+                                <th style={{ paddingRight: '1.5rem' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -290,53 +269,47 @@ const InviteManagement = () => {
                                     </td>
                                 </tr>
                             ) : activeInvites.map(invite => (
-                                <tr key={invite.invite_id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                    <td style={{ padding: '1rem 1.5rem' }}>
+                                <tr key={invite.invite_id} style={{ background: 'var(--lux-bg-soft)' }}>
+                                    <td style={{ padding: '1rem 1.5rem', borderRadius: '12px 0 0 12px' }}>
                                         <div
                                             onClick={() => copyToClipboard(invite.invite_code)}
                                             style={{
                                                 display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                                fontFamily: 'monospace', fontSize: '1rem', fontWeight: 700,
-                                                color: 'var(--primary)', cursor: 'pointer', width: 'fit-content',
-                                                padding: '0.25rem 0.5rem', borderRadius: '6px',
-                                                background: 'rgba(37, 99, 235, 0.05)'
+                                                fontFamily: 'monospace', fontSize: '1.1rem', fontWeight: 800,
+                                                color: 'var(--lux-gold)', cursor: 'pointer', width: 'fit-content',
+                                                padding: '0.4rem 0.8rem', borderRadius: '8px',
+                                                background: 'var(--lux-gold-dim)', border: '1px solid var(--lux-gold-border)'
                                             }}
                                             title="Click to copy"
                                         >
                                             {invite.invite_code} <Copy size={12} />
                                         </div>
                                     </td>
-                                    <td style={{ padding: '1rem 1.5rem', color: 'var(--text-primary)' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                            <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                                    <td>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-lux-bg-soft flex items-center justify-center border border-lux-border text-lux-primary font-bold text-xs">
                                                 {invite.created_by_name?.charAt(0) || <User size={14} />}
                                             </div>
-                                            {invite.created_by_name}
+                                            <span style={{ color: 'var(--lux-text-primary)', fontWeight: 600 }}>{invite.created_by_name}</span>
                                         </div>
                                     </td>
-                                    <td style={{ padding: '1rem 1.5rem', color: 'var(--text-secondary)' }}>
-                                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{invite.uses_count}</span>
-                                        <span style={{ opacity: 0.7 }}> / {invite.max_uses}</span>
+                                    <td>
+                                        <span style={{ fontWeight: 800, color: 'var(--lux-text-primary)' }}>{invite.uses_count}</span>
+                                        <span style={{ color: 'var(--lux-text-secondary)', opacity: 0.6 }}> / {invite.max_uses}</span>
                                     </td>
-                                    <td style={{ padding: '1rem 1.5rem', color: 'var(--text-secondary)' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <td style={{ color: 'var(--lux-text-secondary)' }}>
+                                        <div className="flex items-center gap-2">
                                             <Calendar size={14} />
                                             {formatDate(invite.expires_at)}
                                         </div>
                                     </td>
-                                    <td style={{ padding: '1rem 1.5rem' }}>
+                                    <td style={{ paddingRight: '1.5rem', borderRadius: '0 12px 12px 0' }}>
                                         <button
                                             onClick={() => handleDeactivate(invite.invite_id)}
+                                            className="p-2 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-colors"
                                             title="Revoke Invite"
-                                            style={{
-                                                background: 'transparent', border: '1px solid var(--danger)',
-                                                color: 'var(--danger)', borderRadius: '6px', padding: '0.4rem 0.75rem',
-                                                fontSize: '0.85rem', fontWeight: 500, cursor: 'pointer',
-                                                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                                transition: 'all 0.2s'
-                                            }}
                                         >
-                                            <Trash2 size={14} /> Revoke
+                                            <Trash2 size={16} />
                                         </button>
                                     </td>
                                 </tr>
@@ -380,8 +353,10 @@ const InviteManagement = () => {
                         </table>
                     </div>
                 </div>
-            )}
+                )}
+            </div>
         </div>
+    </div>
     );
 };
 

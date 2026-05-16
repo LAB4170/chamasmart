@@ -5,10 +5,10 @@ import "./ChamaCredit.css";
 
 // Helper to get a tier's visual props
 const TIER_CONFIG = {
-    EXCELLENT: { label: "Excellent", color: "#10b981", bg: "#d1fae5", ring: "#10b981" },
-    GOOD:      { label: "Good",      color: "#3b82f6", bg: "#dbeafe", ring: "#3b82f6" },
-    FAIR:      { label: "Fair",      color: "#f59e0b", bg: "#fef3c7", ring: "#f59e0b" },
-    AT_RISK:   { label: "At Risk",   color: "#ef4444", bg: "#fee2e2", ring: "#ef4444" },
+    EXCELLENT: { label: "Elite Status", color: "#10b981", bg: "rgba(16, 185, 129, 0.1)", ring: "#10b981" },
+    GOOD:      { label: "Prime Health",      color: "#3b82f6", bg: "rgba(59, 130, 246, 0.1)", ring: "#3b82f6" },
+    FAIR:      { label: "Standard",      color: "#f59e0b", bg: "rgba(245, 158, 11, 0.1)", ring: "#f59e0b" },
+    AT_RISK:   { label: "Critical Risk",   color: "#ef4444", bg: "rgba(239, 68, 68, 0.1)", ring: "#ef4444" },
 };
 
 // Circular SVG gauge
@@ -22,7 +22,7 @@ function ScoreGauge({ score, tier }) {
         <div className="credit-gauge-wrapper">
             <svg width="180" height="180" viewBox="0 0 180 180">
                 {/* Track */}
-                <circle cx="90" cy="90" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="14" />
+                <circle cx="90" cy="90" r={radius} fill="none" stroke="var(--lux-bg-soft)" strokeWidth="14" />
                 {/* Progress */}
                 <circle
                     cx="90" cy="90" r={radius}
@@ -32,14 +32,17 @@ function ScoreGauge({ score, tier }) {
                     strokeDasharray={`${filled} ${circumference}`}
                     strokeLinecap="round"
                     transform="rotate(-90 90 90)"
-                    style={{ transition: "stroke-dasharray 1s ease" }}
+                    style={{ 
+                        transition: "stroke-dasharray 1.5s cubic-bezier(0.4, 0, 0.2, 1)", 
+                        filter: `drop-shadow(0 0 12px ${cfg.ring}60)` 
+                    }}
                 />
                 {/* Score text */}
-                <text x="90" y="85" textAnchor="middle" fontSize="36" fontWeight="800" fill={cfg.color}>
+                <text x="90" y="85" textAnchor="middle" fontSize="48" fontWeight="900" fill="var(--lux-text-primary)" style={{ fontFamily: 'Inter, sans-serif' }}>
                     {score}
                 </text>
-                <text x="90" y="108" textAnchor="middle" fontSize="13" fill="#6b7280" fontWeight="500">
-                    / 100
+                <text x="90" y="110" textAnchor="middle" fontSize="10" fill="var(--lux-text-secondary)" fontWeight="900" style={{ textTransform: 'uppercase', letterSpacing: '0.2em' }}>
+                    Elite Index
                 </text>
             </svg>
         </div>
@@ -49,22 +52,23 @@ function ScoreGauge({ score, tier }) {
 // Dimension bar
 function DimensionBar({ label, score, weight, color }) {
     return (
-        <div className="dimension-item">
-            <div className="dimension-header">
-                <span className="dimension-label">{label}</span>
-                <span className="dimension-score">{score}%</span>
+        <div className="dimension-item" style={{ marginBottom: '1rem' }}>
+            <div className="dimension-header" style={{ marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span className="dimension-label" style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--lux-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
+                <span className="dimension-score" style={{ fontSize: '0.85rem', fontWeight: 900, color: 'var(--lux-text-primary)' }}>{score}%</span>
             </div>
-            <div className="dimension-track">
+            <div className="dimension-track" style={{ height: '8px', background: 'var(--lux-card-bg)', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--lux-border)' }}>
                 <div
                     className="dimension-fill"
                     style={{
+                        height: '100%',
                         width: `${score}%`,
-                        background: score >= 80 ? "#10b981" : score >= 60 ? "#3b82f6" : score >= 40 ? "#f59e0b" : "#ef4444",
-                        transition: "width 1s ease",
+                        background: `linear-gradient(90deg, ${color || '#d4af37'}, ${color || '#fcd34d'})`,
+                        transition: "width 1.5s cubic-bezier(0.4, 0, 0.2, 1)",
+                        boxShadow: `0 0 10px ${color || '#d4af37'}40`
                     }}
                 />
             </div>
-            <span className="dimension-weight">Weight: {weight}%</span>
         </div>
     );
 }

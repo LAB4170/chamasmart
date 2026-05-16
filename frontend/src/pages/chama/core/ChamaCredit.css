@@ -4,13 +4,13 @@
 
 /* ─── Credit Score Card ─────────────────────────────────────────────── */
 .credit-score-card {
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(12px);
+    background: var(--lux-card-bg);
     border-radius: 24px;
     padding: 1.75rem;
-    border: 1.5px solid #e5e7eb;
-    box-shadow: 0 8px 32px rgba(16, 185, 129, 0.06);
+    border: 1px solid var(--lux-border);
+    box-shadow: var(--lux-shadow);
     margin-bottom: 1.5rem;
+    transition: var(--lux-transition);
 }
 
 .credit-loading {
@@ -39,17 +39,17 @@
 .credit-title {
     font-size: 1rem;
     font-weight: 700;
-    color: #111827;
+    color: var(--lux-text-primary);
     margin: 0;
 }
 
 .credit-refresh-btn {
-    background: #f3f4f6;
-    border: none;
+    background: var(--lux-bg-soft);
+    border: 1px solid var(--lux-border);
     border-radius: 8px;
     padding: 0.4rem 0.6rem;
     cursor: pointer;
-    color: #6b7280;
+    color: var(--lux-text-secondary);
     transition: all 0.2s;
 }
 .credit-refresh-btn:hover { background: #e5e7eb; color: #10b981; }
@@ -82,7 +82,7 @@
 
 .credit-computed-at {
     font-size: 0.7rem;
-    color: #9ca3af;
+    color: var(--lux-text-secondary);
     margin: 0;
 }
 
@@ -101,14 +101,14 @@
     align-items: center;
 }
 
-.dimension-label { font-size: 0.8rem; color: #374151; font-weight: 500; }
-.dimension-score { font-size: 0.8rem; font-weight: 700; color: #111827; }
-.dimension-weight { font-size: 0.65rem; color: #9ca3af; }
+.dimension-label { font-size: 0.8rem; color: var(--lux-text-secondary); font-weight: 500; }
+.dimension-score { font-size: 0.8rem; font-weight: 700; color: var(--lux-text-primary); }
+.dimension-weight { font-size: 0.65rem; color: var(--lux-text-secondary); }
 
 .dimension-track {
     height: 7px;
     border-radius: 100px;
-    background: #f3f4f6;
+    background: var(--lux-bg-soft);
     overflow: hidden;
 }
 
@@ -126,13 +126,14 @@
 
 /* ─── Health Alerts ─────────────────────────────────────────────────── */
 .health-alerts-container {
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(12px);
+    background: var(--lux-card-bg);
     border-radius: 24px;
     padding: 1.5rem;
-    border: 1.5px solid #e5e7eb;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+    border: 1px solid var(--lux-border);
+    box-shadow: var(--lux-shadow);
     margin-bottom: 1.5rem;
+    transition: var(--lux-transition);
+    backdrop-filter: none;
 }
 
 .health-alerts-header {
@@ -145,7 +146,7 @@
 .health-alerts-title {
     font-size: 1rem;
     font-weight: 700;
-    color: #111827;
+    color: var(--lux-text-primary);
     margin: 0;
     flex: 1;
 }
@@ -169,7 +170,7 @@
 
 .health-alert-header {
     width: 100%;
-    background: none;
+    background: transparent;
     border: none;
     display: flex;
     align-items: center;
@@ -180,7 +181,7 @@
 }
 
 .health-alert-icon { font-size: 1rem; display: flex; align-items: center; gap: 3px; }
-.health-alert-title { font-weight: 700; font-size: 0.85rem; flex: 1; }
+.health-alert-title { font-weight: 700; font-size: 0.85rem; flex: 1; color: var(--lux-text-primary); }
 
 .health-alert-severity-badge {
     border-radius: 100px;
@@ -192,17 +193,19 @@
 .health-alert-body { padding: 0.65rem 0.9rem 0.75rem; }
 
 .health-alert-detail {
-    font-size: 0.82rem;
-    color: #374151;
-    margin: 0 0 0.5rem 0;
+    font-size: 0.85rem;
+    color: var(--lux-text-primary);
+    margin: 0 0 0.75rem 0;
     line-height: 1.5;
+    opacity: 0.9;
 }
 
 .health-alert-action {
     font-size: 0.78rem;
-    color: #6b7280;
-    padding: 0.5rem 0.7rem;
-    background: rgba(0,0,0,0.04);
-    border-radius: 8px;
+    color: var(--lux-text-secondary);
+    padding: 0.75rem;
+    background: var(--lux-bg-soft);
+    border: 1px solid var(--lux-border);
+    border-radius: 12px;
     line-height: 1.5;
 }

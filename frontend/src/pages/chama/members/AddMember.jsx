@@ -142,49 +142,45 @@ const AddMember = () => {
     ];
 
     return (
-        <div className="page">
+        <div className="page-lux-wrapper" style={{ background: 'var(--lux-bg-soft)', minHeight: '100vh', padding: '2rem 0' }}>
             <div className="ambient-blob blob-gold" />
             <div className="ambient-blob blob-blue" />
 
             <div className="container">
-                <div className="page-frame-lux">
+                <div className="page-frame-lux" style={{ background: 'var(--lux-card-bg)', border: '1px solid var(--lux-border)' }}>
                     <motion.div 
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8 }}
                     >
                         {/* Header */}
-                        <div className="user-hero-lux" style={{ marginBottom: "40px", padding: "40px" }}>
-                            <div className="user-hero-content">
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                                    <div style={{ background: 'rgba(212, 175, 55, 0.1)', padding: '8px', borderRadius: '12px' }}>
-                                        <UserPlus size={24} color="#D4AF37" />
+                        <div className="flex flex-between align-center mb-8">
+                            <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                                    <div style={{ background: 'rgba(212, 175, 55, 0.1)', padding: '6px', borderRadius: '10px' }}>
+                                        <UserPlus size={20} color="var(--lux-gold)" />
                                     </div>
-                                    <span style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--gold-text)' }}>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--lux-gold)' }}>
                                         Growth Terminal
                                     </span>
                                 </div>
-                                <h1 className="user-hero-title">Expand Member Base</h1>
-                                <p className="user-hero-subtitle">
-                                    Strategic expansion for <strong style={{ color: 'var(--gold-text)' }}>{chamaName}</strong>. 
-                                    Select your preferred onboarding protocol below.
+                                <h1 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0, color: 'var(--lux-text-primary)' }}>Expand Member Base</h1>
+                                <p style={{ color: 'var(--lux-text-secondary)', marginTop: '4px', fontSize: '0.95rem' }}>
+                                    Strategic expansion for <strong style={{ color: 'var(--lux-text-primary)' }}>{chamaName}</strong>
                                 </p>
                             </div>
-                            <div style={{ marginLeft: 'auto' }}>
-                                <button
-                                    className="btn-action-secondary"
-                                    onClick={() => navigate(`/chamas/${id}`)}
-                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', borderRadius: '14px' }}
-                                >
-                                    <ArrowLeft size={18} /> <span>Return to Vault</span>
-                                </button>
-                            </div>
+                            <button
+                                className="btn-lux btn-lux-outline flex items-center gap-2"
+                                onClick={() => navigate(`/chamas/${id}`)}
+                            >
+                                <ArrowLeft size={16} /> <span>Return to Vault</span>
+                            </button>
                         </div>
 
                         {/* Segmented Tab Controls */}
                         <div style={{
-                            background: 'rgba(255, 255, 255, 0.02)',
-                            border: '1px solid var(--glass-border)',
+                            background: 'var(--lux-bg-soft)',
+                            border: '1px solid var(--lux-border)',
                             padding: '6px',
                             borderRadius: '18px',
                             display: 'flex',
@@ -208,10 +204,10 @@ const AddMember = () => {
                                             border: 'none',
                                             cursor: 'pointer',
                                             background: isActive ? 'var(--gold-gradient)' : 'transparent',
-                                            color: isActive ? 'white' : 'var(--text-secondary)',
+                                            color: isActive ? 'white' : 'var(--lux-text-secondary)',
                                             fontWeight: 800,
                                             fontSize: '0.9rem',
-                                            boxShadow: isActive ? 'var(--gold-glow)' : 'none',
+                                            boxShadow: isActive ? '0 10px 20px rgba(212, 175, 55, 0.2)' : 'none',
                                             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                                         }}
                                     >
@@ -223,10 +219,7 @@ const AddMember = () => {
                         </div>
 
                         {/* Protocol Content */}
-                        <div style={{
-                            background: 'rgba(255, 255, 255, 0.01)',
-                            borderRadius: '32px',
-                            border: '1px solid var(--glass-border)',
+                        <div className="dashboard-card-lux" style={{
                             padding: '40px',
                             minHeight: '460px',
                             position: 'relative'
@@ -240,25 +233,26 @@ const AddMember = () => {
                                         exit={{ opacity: 0, scale: 0.98 }}
                                     >
                                         <div style={{ marginBottom: '32px' }}>
-                                            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.4rem', fontWeight: 800 }}>Protocol Search</h3>
-                                            <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Identify existing users within the global financial ecosystem.</p>
+                                            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.4rem', fontWeight: 800, color: 'var(--lux-text-primary)' }}>Protocol Search</h3>
+                                            <p style={{ margin: 0, color: 'var(--lux-text-secondary)' }}>Identify existing users within the global financial ecosystem.</p>
                                         </div>
 
                                         <form onSubmit={handleSearch} style={{ position: 'relative', marginBottom: '32px' }}>
-                                            <Search size={22} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--gold-text)' }} />
+                                            <Search size={22} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--lux-gold)' }} />
                                             <input
                                                 type="text"
                                                 placeholder="Enter registered email or mobile terminal number..."
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
+                                                className="form-input"
                                                 style={{
                                                     width: '100%',
                                                     padding: '20px 20px 20px 60px',
                                                     fontSize: '1.1rem',
-                                                    background: 'rgba(255, 255, 255, 0.02)',
-                                                    border: '1px solid var(--glass-border)',
+                                                    background: 'var(--lux-bg-soft)',
+                                                    border: '1px solid var(--lux-border)',
                                                     borderRadius: '16px',
-                                                    color: 'white',
+                                                    color: 'var(--lux-text-primary)',
                                                     outline: 'none',
                                                     boxSizing: 'border-box'
                                                 }}
@@ -275,14 +269,13 @@ const AddMember = () => {
                                         )}
 
                                         {searchResult && (
-                                            <div style={{
-                                                background: 'rgba(255, 255, 255, 0.02)',
-                                                borderRadius: '24px',
+                                            <div className="dashboard-card-lux" style={{
                                                 padding: '32px',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'space-between',
-                                                border: '1px solid var(--glass-border)'
+                                                background: 'var(--lux-bg-soft)',
+                                                border: '1px solid var(--lux-border)'
                                             }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                                                     <div style={{ 
@@ -290,13 +283,13 @@ const AddMember = () => {
                                                         background: 'var(--gold-gradient)', color: 'white', 
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center', 
                                                         fontSize: '1.5rem', fontWeight: 800,
-                                                        boxShadow: 'var(--gold-glow)'
+                                                        boxShadow: '0 10px 20px rgba(212, 175, 55, 0.2)'
                                                     }}>
                                                         {searchResult.first_name.charAt(0)}
                                                     </div>
                                                     <div>
-                                                        <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>{searchResult.first_name} {searchResult.last_name}</h4>
-                                                        <div style={{ display: 'flex', gap: '20px', marginTop: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                                        <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: 'var(--lux-text-primary)' }}>{searchResult.first_name} {searchResult.last_name}</h4>
+                                                        <div style={{ display: 'flex', gap: '20px', marginTop: '6px', fontSize: '0.85rem', color: 'var(--lux-text-secondary)' }}>
                                                             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Mail size={14} /> {searchResult.email}</span>
                                                             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Zap size={14} /> Trusted Member</span>
                                                         </div>
@@ -337,10 +330,10 @@ const AddMember = () => {
                                         )}
 
                                         {!searchResult && !isSearching && !searchError && (
-                                            <div style={{ textAlign: 'center', padding: '60px 0', opacity: 0.5 }}>
-                                                <Sparkles size={64} style={{ color: 'var(--gold-text)', marginBottom: '20px', opacity: 0.2 }} />
-                                                <h4 style={{ margin: '0 0 8px 0', fontWeight: 800 }}>Direct Integration</h4>
-                                                <p style={{ margin: 0, fontSize: '0.9rem' }}>Search for established members to bypass admission protocols.</p>
+                                            <div style={{ textAlign: 'center', padding: '60px 0', opacity: 0.8 }}>
+                                                <Sparkles size={64} style={{ color: 'var(--lux-gold)', marginBottom: '20px', opacity: 0.3 }} />
+                                                <h4 style={{ margin: '0 0 8px 0', fontWeight: 800, color: 'var(--lux-text-primary)' }}>Direct Integration</h4>
+                                                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--lux-text-secondary)' }}>Search for established members to bypass admission protocols.</p>
                                             </div>
                                         )}
                                     </motion.div>
@@ -354,11 +347,11 @@ const AddMember = () => {
                                         exit={{ opacity: 0, x: -20 }}
                                     >
                                         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                                            <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(212, 175, 55, 0.1)', color: 'var(--gold-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                                            <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(212, 175, 55, 0.1)', color: 'var(--lux-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
                                                 <Mail size={32} />
                                             </div>
-                                            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.4rem', fontWeight: 800 }}>External Invitation</h3>
-                                            <p style={{ color: 'var(--text-secondary)' }}>Securely invite prospective members via their external email terminal.</p>
+                                            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.4rem', fontWeight: 800, color: 'var(--lux-text-primary)' }}>External Invitation</h3>
+                                            <p style={{ color: 'var(--lux-text-secondary)' }}>Securely invite prospective members via their external email terminal.</p>
                                         </div>
 
                                         <form onSubmit={handleSendInvite} style={{ maxWidth: '440px', margin: '0 auto' }}>
@@ -536,12 +529,12 @@ const AddMember = () => {
                         {/* Security Notice */}
                         <div style={{ 
                             marginTop: '40px', padding: '24px', 
-                            background: 'rgba(59, 130, 246, 0.03)', 
-                            borderRadius: '24px', border: '1px dashed var(--glass-border)',
+                            background: 'var(--lux-bg-soft)', 
+                            borderRadius: '24px', border: '1px dashed var(--lux-border)',
                             display: 'flex', alignItems: 'center', gap: '16px'
                         }}>
-                            <ShieldAlert size={20} color="#3b82f6" />
-                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                            <ShieldAlert size={20} color="var(--lux-gold)" />
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--lux-text-secondary)', lineHeight: 1.5 }}>
                                 Member addition is a high-security event. All additions are logged and subject to audit by the board of trustees. 
                                 Ensure you are onboarding verified participants to maintain vault integrity.
                             </p>
