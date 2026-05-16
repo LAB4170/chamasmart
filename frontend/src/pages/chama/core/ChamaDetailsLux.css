@@ -23,6 +23,12 @@
     animation: fadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1);
     color: var(--lux-text-primary);
     transition: var(--lux-transition);
+    background-color: #f1f5f9; /* Distinct outer grey background */
+    min-height: 100vh;
+}
+
+[data-theme='dark'] .chama-details-lux-root {
+    background-color: transparent;
 }
 
 .page {
@@ -30,14 +36,19 @@
 }
 
 .page-frame-lux {
-    background: transparent !important;
+    background: var(--lux-card-bg) !important;
     border: 1px solid var(--lux-border) !important;
-    box-shadow: none !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04) !important;
+    border-radius: 28px !important;
+    padding: 2.5rem !important;
+    margin: 2rem auto !important;
+    max-width: 1200px;
     transition: var(--lux-transition) !important;
 }
 
 [data-theme='dark'] .page-frame-lux {
-    background: transparent !important;
+    background: var(--lux-card-bg) !important;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4) !important;
 }
 
 /* Glassmorphic Container */
