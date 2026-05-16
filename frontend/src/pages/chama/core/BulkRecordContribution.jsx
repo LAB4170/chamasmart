@@ -225,10 +225,10 @@ const BulkRecordContribution = () => {
                     </div>
             <div className="flex gap-3">
                 <button 
-                    className="btn-lux btn-lux-outline"
+                    className="btn-return-lux"
                     onClick={() => navigate(`/chamas/${id}`)}
                 >
-                    <ArrowLeft size={18} /> Back to Dashboard
+                    <ArrowLeft size={18} /> Return to Vault
                 </button>
                 <button 
                     className="btn-lux btn-lux-outline"

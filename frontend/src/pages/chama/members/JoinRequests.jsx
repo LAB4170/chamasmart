@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { joinRequestAPI, chamaAPI } from "../../../services/api";
 import { useSocket } from "../../../context/SocketContext";
 import ConfirmDialog from "../../../components/ConfirmDialog";
+import "../core/ChamaDetailsLux.css";
 
 const JoinRequests = () => {
     const { id } = useParams();
@@ -129,31 +130,31 @@ const JoinRequests = () => {
     const reviewedRequests = requests.filter((r) => r.status !== "PENDING");
 
     return (
-        <div className="page-lux-wrapper" style={{ background: 'var(--lux-bg-soft)', minHeight: '100vh', padding: '2rem 0' }}>
+        <div className="manage-page-root">
             <div className="container">
-                <div className="page-frame-lux" style={{ background: 'var(--lux-card-bg)', border: '1px solid var(--lux-border)' }}>
+                <div className="page-frame-lux">
                     <motion.div 
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                     >
                         {/* Header */}
-                        <div className="flex flex-between align-center mb-8">
+                        <div className="flex flex-between align-center mb-10 pb-6 border-b border-white/5">
                             <div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                                    <div style={{ background: 'rgba(212, 175, 55, 0.1)', padding: '6px', borderRadius: '10px' }}>
+                                    <div style={{ background: 'var(--lux-bg-soft)', padding: '6px', borderRadius: '10px', border: '1px solid var(--lux-border)' }}>
                                         <ShieldCheck size={20} color="var(--lux-gold)" />
                                     </div>
-                                    <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--lux-gold)' }}>
+                                    <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--lux-text-secondary)' }}>
                                         Vault Oversight
                                     </span>
                                 </div>
-                                <h1 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0, color: 'var(--lux-text-primary)' }}>Admission Control</h1>
-                                <p style={{ color: 'var(--lux-text-secondary)', marginTop: '4px', fontSize: '0.95rem' }}>
-                                    Review membership applications for <strong style={{ color: 'var(--lux-text-primary)' }}>{chama?.chama_name}</strong>
+                                <h1 style={{ fontSize: '2.2rem', fontWeight: 900, margin: 0, color: 'var(--lux-text-primary)', letterSpacing: '-0.03em' }}>Admission Control</h1>
+                                <p style={{ color: 'var(--lux-text-secondary)', marginTop: '6px', fontSize: '1rem', fontWeight: 600 }}>
+                                    Review membership applications for <strong style={{ color: 'var(--lux-gold)' }}>{chama?.chama_name}</strong>
                                 </p>
                             </div>
                             <button
-                                className="btn-lux btn-lux-outline flex items-center gap-2"
+                                className="btn-return-lux"
                                 onClick={() => navigate(`/chamas/${id}`)}
                             >
                                 <ArrowLeft size={16} /> <span>Return to Vault</span>
@@ -163,194 +164,206 @@ const JoinRequests = () => {
                         {error && <div className="alert alert-error" style={{ marginBottom: '32px' }}>{error}</div>}
                         {success && <div className="alert alert-success" style={{ marginBottom: '32px' }}>{success}</div>}
 
-                        {/* Pending Queue */}
-                        <div style={{ marginBottom: '60px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--lux-gold)', boxShadow: '0 0 10px var(--lux-gold)' }} />
-                                    <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: 'var(--lux-text-primary)' }}>Pending Queue</h2>
-                                    <span style={{ fontSize: '0.85rem', background: 'var(--lux-bg-soft)', padding: '4px 12px', borderRadius: '20px', border: '1px solid var(--lux-border)', color: 'var(--lux-text-secondary)' }}>
-                                        {pendingRequests.length} Applications
-                                    </span>
+                        {/* Main Content Area */}
+                        <div className="grid grid-cols-1 gap-12">
+                            {/* Pending Queue Section */}
+                            <section>
+                                <div className="flex items-center justify-between mb-8">
+                                    <div className="flex items-center gap-4">
+                                        <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--lux-gold)', boxShadow: 'var(--gold-glow)' }} />
+                                        <h2 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, color: 'var(--lux-text-primary)' }}>Pending Queue</h2>
+                                        <span className="status-pill-lux" style={{ background: 'var(--lux-bg-soft)', color: 'var(--lux-text-secondary)', border: '1px solid var(--lux-border)' }}>
+                                            {pendingRequests.length} Applications
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
 
-                            {loading ? (
-                                <div style={{ padding: '60px', textAlign: 'center' }}>
-                                    <div className="spinner" style={{ margin: '0 auto 20px auto' }} />
-                                    <p style={{ color: 'var(--text-secondary)' }}>Syncing admission data...</p>
-                                </div>
-                            ) : pendingRequests.length === 0 ? (
-                                <div className="empty-state-card-premium" style={{ padding: '60px 40px' }}>
-                                    <Inbox size={48} style={{ opacity: 0.2, marginBottom: '20px' }} />
-                                    <h3 style={{ fontWeight: 800 }}>Queue Clear</h3>
-                                    <p style={{ color: 'var(--text-secondary)' }}>All membership applications have been processed.</p>
-                                </div>
-                            ) : (
-                                <div style={{ display: 'grid', gap: '24px' }}>
-                                    <AnimatePresence>
-                                        {pendingRequests.map((request, index) => (
-                                            <motion.div
-                                                key={request.request_id}
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: index * 0.1 }}
-                                                className="dashboard-card-lux"
-                                                style={{
-                                                    overflow: 'hidden',
-                                                    padding: 0
-                                                }}
-                                            >
-                                                <div style={{ padding: '32px' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
-                                                        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                                {loading ? (
+                                    <div style={{ padding: '80px', textAlign: 'center', background: 'var(--lux-bg-soft)', borderRadius: '32px', border: '1px dashed var(--lux-border)' }}>
+                                        <Loader className="spinner" size={40} style={{ color: 'var(--lux-gold)', marginBottom: '16px' }} />
+                                        <p style={{ fontWeight: 700, color: 'var(--lux-text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Syncing Secure Data...</p>
+                                    </div>
+                                ) : pendingRequests.length === 0 ? (
+                                    <div style={{ 
+                                        padding: '100px 40px', textAlign: 'center', 
+                                        background: 'var(--lux-bg-soft)', borderRadius: '32px', 
+                                        border: '1px dashed var(--lux-border)',
+                                        display: 'flex', flexDirection: 'column', alignItems: 'center'
+                                    }}>
+                                        <div style={{ width: '80px', height: '80px', borderRadius: '24px', background: 'rgba(0,0,0,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>
+                                            <Inbox size={40} style={{ opacity: 0.3, color: 'var(--lux-text-primary)' }} />
+                                        </div>
+                                        <h3 style={{ fontSize: '1.5rem', fontWeight: 900, margin: '0 0 8px 0', color: 'var(--lux-text-primary)' }}>Queue Clear</h3>
+                                        <p style={{ color: 'var(--lux-text-secondary)', fontSize: '1rem', maxWidth: '400px', margin: '0 auto', lineHeight: 1.6 }}>
+                                            All membership applications have been processed. New requests will appear here in real-time.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 gap-6">
+                                        <AnimatePresence>
+                                            {pendingRequests.map((request, index) => (
+                                                <motion.div
+                                                    key={request.request_id}
+                                                    initial={{ opacity: 0, x: -20 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: index * 0.1 }}
+                                                    className="dashboard-card-lux"
+                                                    style={{ padding: '32px' }}
+                                                >
+                                                    <div className="flex flex-between align-start mb-8 flex-wrap gap-6">
+                                                        <div className="flex gap-6 items-center">
                                                             <div style={{ 
-                                                                width: '64px', height: '64px', borderRadius: '20px', 
+                                                                width: '80px', height: '80px', borderRadius: '24px', 
                                                                 background: 'var(--gold-gradient)', display: 'flex', 
                                                                 alignItems: 'center', justifyContent: 'center',
-                                                                color: 'white', fontWeight: 800, fontSize: '1.5rem',
-                                                                boxShadow: 'var(--gold-glow)'
+                                                                color: 'white', fontWeight: 900, fontSize: '1.8rem',
+                                                                boxShadow: 'var(--gold-glow)', border: '4px solid rgba(255,255,255,0.1)'
                                                             }}>
                                                                 {request.first_name[0]}{request.last_name[0]}
                                                             </div>
                                                             <div>
-                                                                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>{request.first_name} {request.last_name}</h3>
-                                                                <div style={{ display: 'flex', gap: '16px', marginTop: '4px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Mail size={14} /> {request.email}</span>
-                                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Phone size={14} /> {request.phone_number}</span>
-                                                                </div>
+                                                                    <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900, color: 'var(--lux-text-primary)' }}>
+                                                                        {request.first_name} {request.last_name}
+                                                                    </h3>
+                                                                    <div className="flex gap-5 mt-2 flex-wrap">
+                                                                        <span className="flex items-center gap-2 text-sm font-bold text-slate-500">
+                                                                            <Mail size={14} className="text-primary" /> {request.email}
+                                                                        </span>
+                                                                        <span className="flex items-center gap-2 text-sm font-bold text-slate-500">
+                                                                            <Phone size={14} className="text-primary" /> {request.phone_number}
+                                                                        </span>
+                                                                    </div>
                                                             </div>
                                                         </div>
-                                                            <div style={{ textAlign: 'right' }}>
-                                                                <div style={{ fontSize: '0.7rem', color: 'var(--lux-text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Submitted On</div>
-                                                                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--lux-text-primary)' }}>{formatDate(request.created_at)}</div>
-                                                            </div>
+                                                        <div style={{ textAlign: 'right' }}>
+                                                            <div style={{ fontSize: '0.65rem', color: 'var(--lux-text-secondary)', textTransform: 'uppercase', letterSpacing: '2px', fontWeight: 800, marginBottom: '4px' }}>Submission Log</div>
+                                                            <div style={{ fontSize: '1rem', fontWeight: 900, color: 'var(--lux-text-primary)' }}>{formatDate(request.created_at)}</div>
+                                                        </div>
                                                     </div>
 
-                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '32px' }}>
-                                                        <div style={{ background: 'var(--lux-bg-soft)', padding: '16px', borderRadius: '16px', border: '1px solid var(--lux-border)' }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+                                                        <div style={{ background: 'var(--lux-bg-soft)', padding: '20px', borderRadius: '20px', border: '1.5px solid var(--lux-border)' }}>
+                                                            <div className="flex items-center gap-2 mb-3">
                                                                 <Activity size={16} color={getTrustColor(request.trust_score || 50)} />
-                                                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--lux-text-secondary)', textTransform: 'uppercase' }}>Trust Rating</span>
+                                                                <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--lux-text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Trust Rating</span>
                                                             </div>
-                                                            <div style={{ fontSize: '1.2rem', fontWeight: 900, color: getTrustColor(request.trust_score || 50) }}>{request.trust_score || 50}%</div>
+                                                            <div style={{ fontSize: '1.5rem', fontWeight: 900, color: getTrustColor(request.trust_score || 50) }}>{request.trust_score || 50}%</div>
                                                         </div>
-                                                        <div style={{ background: 'var(--lux-bg-soft)', padding: '16px', borderRadius: '16px', border: '1px solid var(--lux-border)' }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                                        <div style={{ background: 'var(--lux-bg-soft)', padding: '20px', borderRadius: '20px', border: '1.5px solid var(--lux-border)' }}>
+                                                            <div className="flex items-center gap-2 mb-3">
                                                                 <Trophy size={16} color="var(--lux-gold)" />
-                                                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--lux-text-secondary)', textTransform: 'uppercase' }}>Chama Network</span>
+                                                                <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--lux-text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Chama Network</span>
                                                             </div>
-                                                            <div style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--lux-text-primary)' }}>{request.membership_count || 0} Groups</div>
+                                                            <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--lux-text-primary)' }}>{request.membership_count || 0} Groups</div>
                                                         </div>
-                                                        <div style={{ background: 'var(--lux-bg-soft)', padding: '16px', borderRadius: '16px', border: '1px solid var(--lux-border)' }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                                                <Calendar size={16} color="#3b82f6" />
-                                                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--lux-text-secondary)', textTransform: 'uppercase' }}>Eco Tenure</span>
+                                                        <div style={{ background: 'var(--lux-bg-soft)', padding: '20px', borderRadius: '20px', border: '1.5px solid var(--lux-border)' }}>
+                                                            <div className="flex items-center gap-2 mb-3">
+                                                                <Calendar size={16} color="var(--lux-gold)" />
+                                                                <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--lux-text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Platform Tenure</span>
                                                             </div>
-                                                            <div style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--lux-text-primary)' }}>Since {new Date(request.user_joined_at).getFullYear()}</div>
+                                                            <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--lux-text-primary)' }}>Est. {new Date(request.user_joined_at).getFullYear()}</div>
                                                         </div>
                                                     </div>
 
-                                                    <div style={{ background: 'var(--lux-bg-soft)', padding: '24px', borderRadius: '20px', border: '1px solid var(--lux-border)', marginBottom: '32px' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                                                            <MessageSquare size={16} color="var(--lux-gold)" />
-                                                            <span style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--lux-text-primary)' }}>Statement of Intent</span>
+                                                    <div style={{ background: 'var(--lux-bg-soft)', padding: '24px', borderRadius: '24px', border: '1.5px solid var(--lux-border)', marginBottom: '32px' }}>
+                                                        <div className="flex items-center gap-3 mb-4">
+                                                            <MessageSquare size={18} color="var(--lux-gold)" />
+                                                            <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--lux-text-primary)' }}>Statement of Purpose</h4>
                                                         </div>
-                                                        <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: 1.6, color: 'var(--lux-text-secondary)' }}>
-                                                            {request.message || "No specialized statement provided for this application."}
+                                                        <p style={{ margin: 0, fontSize: '1rem', lineHeight: 1.7, color: 'var(--lux-text-secondary)', fontWeight: 500 }}>
+                                                            {request.message || "The applicant did not provide a custom statement for this group."}
                                                         </p>
                                                     </div>
 
-                                                    <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
+                                                    <div className="flex justify-end gap-4">
                                                         <button 
-                                                            className="btn-action-secondary"
+                                                            className="btn-lux btn-lux-outline"
+                                                            style={{ borderColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', padding: '14px 28px' }}
                                                             onClick={() => openConfirmDialog(request.request_id, "REJECTED", `${request.first_name} ${request.last_name}`)}
-                                                            style={{ padding: '12px 24px', borderRadius: '12px', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#ef4444' }}
                                                         >
-                                                            <UserX size={18} style={{ marginRight: '8px' }} /> Deny Admission
+                                                            <UserX size={18} /> Deny Entry
                                                         </button>
                                                         <button 
-                                                            className="btn-action-primary"
+                                                            className="btn-lux btn-lux-primary"
+                                                            style={{ padding: '14px 40px' }}
                                                             onClick={() => openConfirmDialog(request.request_id, "APPROVED", `${request.first_name} ${request.last_name}`)}
-                                                            style={{ padding: '12px 32px', borderRadius: '12px' }}
                                                         >
-                                                            <UserCheck size={18} style={{ marginRight: '8px' }} /> Grant Admission
+                                                            <UserCheck size={18} /> Grant Access
                                                         </button>
                                                     </div>
-                                                </div>
-                                            </motion.div>
-                                        ))}
-                                    </AnimatePresence>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* History Table */}
-                        {reviewedRequests.length > 0 && (
-                            <div className="dashboard-card-lux" style={{ padding: '32px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-                                    <History size={20} color="var(--lux-text-secondary)" />
-                                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: 'var(--lux-text-primary)' }}>Decision History</h3>
-                                </div>
-                                <div className="table-responsive-lux">
-                                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 8px' }}>
-                                        <thead>
-                                            <tr style={{ textAlign: 'left', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '1px' }}>
-                                                <th style={{ padding: '12px 20px' }}>Applicant</th>
-                                                <th>Protocol Status</th>
-                                                <th>Decision Date</th>
-                                                <th>Reviewing Official</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {reviewedRequests.map((request) => (
-                                                <tr key={request.request_id} style={{ background: 'var(--lux-bg-soft)' }}>
-                                                    <td style={{ padding: '16px 20px', borderRadius: '12px 0 0 12px' }}>
-                                                        <div style={{ fontWeight: 800, color: 'var(--lux-text-primary)' }}>{request.first_name} {request.last_name}</div>
-                                                        <div style={{ fontSize: '0.8rem', color: 'var(--lux-text-secondary)' }}>{request.email}</div>
-                                                    </td>
-                                                    <td>
-                                                        <div style={{ 
-                                                            display: 'inline-flex', alignItems: 'center', gap: '6px', 
-                                                            padding: '4px 12px', borderRadius: '20px', 
-                                                            fontSize: '0.75rem', fontWeight: 800,
-                                                            background: request.status === "APPROVED" ? 'rgba(16, 185, 129, 0.1)' : 'var(--lux-bg-soft)',
-                                                            color: request.status === "APPROVED" ? '#10b981' : 'var(--lux-text-secondary)',
-                                                            border: '1px solid var(--lux-border)'
-                                                        }}>
-                                                            {request.status === "APPROVED" ? <ShieldCheck size={12} /> : <AlertCircle size={12} />}
-                                                            {request.status}
-                                                        </div>
-                                                    </td>
-                                                    <td style={{ fontSize: '0.85rem', color: 'var(--lux-text-secondary)' }}>{formatDate(request.updated_at)}</td>
-                                                    <td style={{ paddingRight: '20px', borderRadius: '0 12px 12px 0' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--lux-text-primary)' }}>
-                                                            <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(212, 175, 55, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                                <Shield size={12} color="var(--lux-gold)" />
-                                                            </div>
-                                                            {request.reviewer_first_name} {request.reviewer_last_name}
-                                                        </div>
-                                                    </td>
-                                                </tr>
+                                                </motion.div>
                                             ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        )}
+                                        </AnimatePresence>
+                                    </div>
+                                )}
+                            </section>
 
-                        {/* Security Notice */}
-                        <div style={{ 
-                            marginTop: '40px', padding: '24px', 
-                            background: 'var(--lux-bg-soft)', 
-                            borderRadius: '24px', border: '1px dashed var(--lux-border)',
-                            display: 'flex', alignItems: 'center', gap: '16px'
-                        }}>
-                            <Info size={20} color="var(--lux-gold)" />
-                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--lux-text-secondary)', lineHeight: 1.5 }}>
-                                Admission decisions are final and recorded in the immutable audit log. Ensure you have verified the applicant's 
-                                reputation before granting access to the group's financial vault.
-                            </p>
+                            {/* Decision History Section */}
+                            {reviewedRequests.length > 0 && (
+                                <section>
+                                    <div className="flex items-center gap-4 mb-8">
+                                        <History size={24} color="var(--lux-text-secondary)" />
+                                        <h2 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, color: 'var(--lux-text-primary)' }}>Decision Logs</h2>
+                                    </div>
+                                    <div className="dashboard-card-lux" style={{ padding: '8px' }}>
+                                        <div className="table-responsive-lux">
+                                            <table className="table-lux">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Applicant Profile</th>
+                                                        <th>Security Status</th>
+                                                        <th>Action Date</th>
+                                                        <th>Authorized Official</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {reviewedRequests.map((request) => (
+                                                        <tr key={request.request_id}>
+                                                            <td style={{ padding: '1.25rem 1.5rem' }}>
+                                                                <div style={{ fontWeight: 800, color: 'var(--lux-text-primary)' }}>{request.first_name} {request.last_name}</div>
+                                                                <div style={{ fontSize: '0.75rem', color: 'var(--lux-text-secondary)', fontWeight: 600 }}>{request.email}</div>
+                                                            </td>
+                                                            <td>
+                                                                <span className={`status-pill-lux ${request.status === "APPROVED" ? "status-verified" : "status-pending"}`}>
+                                                                    {request.status === "APPROVED" ? <ShieldCheck size={12} /> : <AlertCircle size={12} />}
+                                                                    {request.status}
+                                                                </span>
+                                                            </td>
+                                                            <td style={{ fontSize: '0.85rem', color: 'var(--lux-text-secondary)', fontWeight: 600 }}>{formatDate(request.updated_at)}</td>
+                                                            <td>
+                                                                <div className="flex items-center gap-3">
+                                                                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--lux-bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--lux-border)' }}>
+                                                                        <Shield size={14} color="var(--lux-gold)" />
+                                                                    </div>
+                                                                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--lux-text-primary)' }}>
+                                                                        {request.reviewer_first_name} {request.reviewer_last_name}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </section>
+                            )}
+
+                            {/* Security Footer Notice */}
+                            <div style={{ 
+                                padding: '24px 32px', 
+                                background: 'rgba(212, 175, 55, 0.03)', 
+                                borderRadius: '24px', border: '1px dashed var(--lux-border)',
+                                display: 'flex', alignItems: 'center', gap: '20px'
+                            }}>
+                                <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: 'var(--lux-bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--lux-border)' }}>
+                                    <Info size={24} color="var(--lux-gold)" />
+                                </div>
+                                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--lux-text-secondary)', lineHeight: 1.6, fontWeight: 500 }}>
+                                    Admission decisions are final and recorded in the immutable audit log. Ensure you have verified the applicant's 
+                                    reputation and security credentials before granting access to the group's financial vault.
+                                </p>
+                            </div>
                         </div>
                     </motion.div>
                 </div>

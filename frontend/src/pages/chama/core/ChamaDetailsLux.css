@@ -696,6 +696,42 @@
     border-color: rgba(212, 175, 55, 0.3);
 }
 
+.btn-return-lux {
+    background: var(--lux-bg-soft);
+    border: 1px solid var(--lux-border);
+    color: var(--lux-text-primary);
+    padding: 0.75rem 1.5rem;
+    border-radius: 14px;
+    font-weight: 800;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+    outline: none;
+    appearance: none;
+}
+
+.btn-return-lux:hover {
+    background: var(--lux-card-bg);
+    border-color: var(--lux-gold);
+    box-shadow: 0 10px 30px rgba(212, 175, 55, 0.12);
+    transform: translateX(-4px) translateY(-1px);
+    color: var(--lux-gold);
+}
+
+.btn-return-lux svg {
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-return-lux:hover svg {
+    transform: translateX(-6px);
+}
+
 .btn-sm {
     padding: 0.5rem 1rem !important;
     font-size: 0.75rem !important;
@@ -1196,7 +1232,7 @@
 }
 
 .manage-page-root {
-    padding-top: 7rem !important;
+    padding-top: 10rem !important;
     background: linear-gradient(145deg, #e2e8f0 0%, #f8fafc 50%, #cbd5e1 100%) !important;
     background-attachment: fixed !important;
     min-height: 100vh !important;
