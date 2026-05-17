@@ -1,0 +1,69 @@
+server:
+  port: ${PORT:5006} # Running on 5006, configurable via environment
+  servlet:
+    context-path: /api/v1
+
+spring:
+  application:
+    name: chamasmart-backend
+  
+  datasource:
+    # Optimized for Neon Serverless PostgreSQL & Local Fallback
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:chamasmart}?sslmode=prefer}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USER:postgres}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:postgres}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      minimum-idle: 1
+      maximum-pool-size: 15
+      idle-timeout: 30000
+      connection-timeout: 10000
+      max-lifetime: 1800000 # 30 minutes max lifetime to prevent Neon serverless connection drops
+      keepalive-time: 30000 # Keepalive heartbeats for Neon proxy
+
+  jpa:
+    hibernate:
+      ddl-auto: ${SPRING_JPA_DDL_AUTO:validate} # Validates existing schema without altering tables
+    show-sql: ${SPRING_JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  data:
+    redis:
+      # Optimized for Upstash / Render Redis & Local Fallback
+      host: ${SPRING_REDIS_HOST:${REDIS_HOST:localhost}}
+      port: ${SPRING_REDIS_PORT:${REDIS_PORT:6379}}
+      password: ${SPRING_REDIS_PASSWORD:${REDIS_PASSWORD:}}
+      ssl: ${SPRING_REDIS_SSL:false}
+
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:your_jwt_secret_placeholder_replace_in_render_environment}
+      expiration-ms: 86400000 # 24 hours
+  cors:
+    allowed-origins: ${CORS_ORIGIN:http://localhost:5173,http://localhost:3000,https://chamasmart-xcym.onrender.com}
+  mpesa:
+    env: ${MPESA_ENV:sandbox}
+    consumer-key: ${MPESA_CONSUMER_KEY:cpQnnxLsrtEU7WQ94G5XwfBGG11yUckjQAnAJPQXM9JkHycV}
+    consumer-secret: ${MPESA_CONSUMER_SECRET:}
+    shortcode: ${MPESA_SHORTCODE:174379}
+    passkey: ${MPESA_PASSKEY:}
+    callback-url: ${MPESA_CALLBACK_URL:https://chamasmart-xcym.onrender.com/api/v1/mpesa/callback}
+  firebase:
+    project-id: ${FIREBASE_PROJECT_ID:chamasmart-1c600}
+    client-email: ${FIREBASE_CLIENT_EMAIL:firebase-adminsdk-fbsvc@chamasmart-1c600.iam.gserviceaccount.com}
+    private-key: ${FIREBASE_PRIVATE_KEY:}
+  ai:
+    gemini-key: ${GEMINI_API_KEY:}
+    groq-key: ${GROQ_API_KEY:}
+  mail:
+    resend-key: ${RESEND_API_KEY:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
