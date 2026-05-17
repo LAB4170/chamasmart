@@ -6,6 +6,7 @@ import {
     Building2, User, DollarSign, Calendar, AlertTriangle, ArrowLeft
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import "../chama/core/ChamaDetailsLux.css";
 
 const MyGuarantees = () => {
     const navigate = useNavigate();
@@ -78,13 +79,13 @@ const MyGuarantees = () => {
     };
 
     return (
-        <div className="page">
+        <div className="manage-page-root">
             <div className="container">
                 <div className="page-frame-lux" style={{ maxWidth: 860, margin: '0 auto' }}>
                     {/* Header */}
                     <div className="page-header-modern">
-                        <button className="back-link" onClick={() => navigate(-1)} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.4rem", color: "var(--text-secondary)", marginBottom: "1rem" }}>
-                            <ArrowLeft size={16} /> Back
+                        <button className="btn-return-lux" onClick={() => navigate(-1)} style={{ marginBottom: "1.5rem" }}>
+                            <ArrowLeft size={18} /> <span>Back</span>
                         </button>
                         <div className="page-header-row">
                             <div className="page-header-info">
@@ -120,11 +121,11 @@ const MyGuarantees = () => {
                     </div>
 
                     {/* Filters */}
-                    <div className="filter-bar" style={{ marginBottom: "1.5rem" }}>
+                    <div className="filter-bar" style={{ marginBottom: "2rem", display: "flex", gap: "12px", flexWrap: "wrap" }}>
                         {["PENDING", "APPROVED", "REJECTED", "ALL"].map(f => (
                             <button
                                 key={f}
-                                className={`filter-btn ${filter === f ? "active" : ""}`}
+                                className={`filter-btn-lux ${filter === f ? "active" : ""}`}
                                 onClick={() => setFilter(f)}
                             >
                                 {f === "ALL" ? "All" : f === "PENDING" ? "Pending" : f === "APPROVED" ? "Accepted" : "Declined"}
@@ -249,75 +250,114 @@ const MyGuarantees = () => {
 
             <style>{`
                 .gm-info-box {
-                    display: flex; gap: 0.75rem; align-items: flex-start;
-                    background: var(--primary-light, #EEF2FF); border: 1px solid var(--primary-border, #C7D2FE);
-                    border-radius: 10px; padding: 0.9rem 1rem; margin-bottom: 1.5rem;
-                    font-size: 0.9rem; color: var(--text-secondary);
+                    display: flex; gap: 1.25rem; align-items: flex-start;
+                    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%);
+                    border: 1.5px solid rgba(16, 185, 129, 0.3);
+                    border-radius: 20px; padding: 1.5rem; margin-bottom: 2rem;
+                    font-size: 0.95rem; color: var(--text-primary);
+                    box-shadow: 0 10px 30px rgba(16, 185, 129, 0.05);
                 }
                 .gm-card {
-                    border: 1px solid var(--border); border-radius: 14px;
-                    padding: 1.25rem; transition: box-shadow 0.2s;
+                    background: var(--lux-card-bg, var(--bg-surface-glass));
+                    backdrop-filter: blur(24px);
+                    border: 1.5px solid var(--lux-border, var(--border));
+                    border-radius: 24px;
+                    padding: 1.8rem 2rem;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 15px 40px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.1);
+                }
+                [data-theme='dark'] .gm-card {
+                    box-shadow: 0 15px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
+                }
+                .gm-card:hover {
+                    transform: translateY(-3px);
+                    box-shadow: 0 20px 50px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.2);
                 }
                 .gm-card--pending {
-                    border-color: #F59E0B;
-                    box-shadow: 0 0 0 3px rgba(245,158,11,0.1);
+                    border-color: rgba(245, 158, 11, 0.5);
+                    box-shadow: 0 0 25px rgba(245, 158, 11, 0.15), inset 0 1px 0 rgba(255,255,255,0.1);
                 }
                 .gm-card-header {
                     display: flex; align-items: flex-start;
                     justify-content: space-between; gap: 1rem;
-                    margin-bottom: 1rem;
+                    margin-bottom: 1.5rem;
                 }
                 .gm-card-title {
-                    display: flex; align-items: center; gap: 0.75rem;
+                    display: flex; align-items: center; gap: 1rem;
                 }
                 .gm-avatar {
-                    width: 40px; height: 40px; border-radius: 50%;
-                    background: var(--primary-light, #EEF2FF);
+                    width: 48px; height: 48px; border-radius: 16px;
+                    background: linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(212, 175, 55, 0.05) 100%);
+                    border: 1px solid rgba(212, 175, 55, 0.3);
                     display: flex; align-items: center; justify-content: center;
-                    color: var(--primary); flex-shrink: 0;
+                    color: var(--lux-gold, #D4AF37); flex-shrink: 0;
+                    box-shadow: 0 8px 20px rgba(212, 175, 55, 0.15);
                 }
                 .gm-sub {
-                    display: flex; align-items: center; gap: 0.3rem;
-                    font-size: 0.8rem; color: var(--text-muted); margin-top: 0.1rem;
+                    display: flex; align-items: center; gap: 0.4rem;
+                    font-size: 0.85rem; color: var(--gray); margin-top: 0.2rem;
+                    font-weight: 600;
                 }
                 .gm-badge {
-                    display: inline-flex; align-items: center; gap: 0.3rem;
-                    padding: 0.3rem 0.7rem; border-radius: 999px;
-                    font-size: 0.75rem; font-weight: 700; white-space: nowrap;
+                    display: inline-flex; align-items: center; gap: 0.4rem;
+                    padding: 0.5rem 1rem; border-radius: 999px;
+                    font-size: 0.8rem; font-weight: 800; white-space: nowrap;
+                    backdrop-filter: blur(8px);
                 }
-                .gm-badge-warn    { background: #FEF3C7; color: #92400E; }
-                .gm-badge-success { background: #D1FAE5; color: #065F46; }
-                .gm-badge-error   { background: #FEE2E2; color: #991B1B; }
+                .gm-badge-warn    { background: rgba(245, 158, 11, 0.15); color: #D97706; border: 1px solid rgba(245, 158, 11, 0.3); box-shadow: 0 4px 12px rgba(245, 158, 11, 0.1); }
+                .gm-badge-success { background: rgba(16, 185, 129, 0.15); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1); }
+                .gm-badge-error   { background: rgba(239, 68, 68, 0.15); color: #EF4444; border: 1px solid rgba(239, 68, 68, 0.3); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1); }
                 .gm-details-grid {
                     display: grid; grid-template-columns: 1fr 1fr;
-                    gap: 0.75rem; margin-bottom: 0.9rem;
+                    gap: 1rem; margin-bottom: 1.25rem;
                 }
                 @media(min-width: 600px) { .gm-details-grid { grid-template-columns: repeat(4,1fr); } }
                 .gm-detail-item {
-                    display: flex; align-items: flex-start; gap: 0.5rem;
-                    background: var(--surface-2, var(--bg-card)); border: 1px solid var(--border);
-                    border-radius: 8px; padding: 0.6rem 0.75rem;
+                    display: flex; align-items: flex-start; gap: 0.75rem;
+                    background: var(--lux-bg-soft, var(--surface-2)); border: 1.5px solid var(--lux-border, var(--border));
+                    border-radius: 16px; padding: 1rem;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.02);
                 }
-                .gm-detail-icon { color: var(--text-muted); margin-top: 0.1rem; flex-shrink: 0; }
-                .gm-detail-label { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.15rem; }
-                .gm-detail-value { display: block; font-size: 0.95rem; font-weight: 700; color: var(--text-primary); }
-                .text-warning { color: #D97706 !important; }
+                .gm-detail-icon { color: var(--lux-gold, #D4AF37); margin-top: 0.1rem; flex-shrink: 0; }
+                .gm-detail-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gray); margin-bottom: 0.25rem; font-weight: 800; }
+                .gm-detail-value { display: block; font-size: 1.1rem; font-weight: 900; color: var(--text-primary); }
+                .text-warning { color: var(--lux-gold, #D4AF37) !important; text-shadow: 0 2px 8px rgba(212, 175, 55, 0.2); }
                 .gm-purpose {
-                    font-size: 0.88rem; color: var(--text-secondary);
-                    background: var(--surface-2, var(--bg-card));
-                    border-radius: 8px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;
+                    font-size: 0.95rem; color: var(--text-secondary);
+                    background: var(--lux-bg-soft, var(--surface-2));
+                    border: 1.5px solid var(--lux-border, var(--border));
+                    border-radius: 16px; padding: 1rem 1.25rem; margin-bottom: 1.25rem;
+                    line-height: 1.6;
                 }
                 .gm-meta {
-                    font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.9rem;
+                    font-size: 0.85rem; color: var(--gray); margin-bottom: 1.5rem;
+                    font-weight: 600;
                 }
                 .gm-actions {
-                    display: flex; gap: 0.75rem; flex-wrap: wrap;
+                    display: flex; gap: 1rem; flex-wrap: wrap;
+                    padding-top: 1.25rem; border-top: 1.5px solid var(--lux-border, var(--border));
                 }
-                .btn-danger-outline {
-                    border-color: #EF4444; color: #EF4444;
+                .gm-actions .btn-success {
+                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                    color: white; border: none; padding: 1rem 1.5rem;
+                    border-radius: 16px; font-weight: 800; font-size: 1rem;
+                    box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+                    display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+                    transition: all 0.2s; cursor: pointer;
                 }
-                .btn-danger-outline:hover {
-                    background: #FEF2F2; border-color: #DC2626; color: #DC2626;
+                .gm-actions .btn-success:hover {
+                    transform: translateY(-2px); box-shadow: 0 15px 35px rgba(16, 185, 129, 0.4);
+                }
+                .gm-actions .btn-danger-outline {
+                    background: transparent; border: 1.5px solid #EF4444;
+                    color: #EF4444; padding: 1rem 1.5rem;
+                    border-radius: 16px; font-weight: 800; font-size: 1rem;
+                    display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+                    transition: all 0.2s; cursor: pointer;
+                }
+                .gm-actions .btn-danger-outline:hover {
+                    background: rgba(239, 68, 68, 0.1); border-color: #DC2626; color: #DC2626;
+                    transform: translateY(-2px);
                 }
             `}</style>
         </div>
