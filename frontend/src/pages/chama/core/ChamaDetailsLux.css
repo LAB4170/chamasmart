@@ -1433,3 +1433,207 @@
     outline: none;
     appearance: none;
 }
+
+/* ============================================================
+   MEMBERSHIP APPLICATION WIZARD — STUNNING ONBOARDING
+   ============================================================ */
+
+.wizard-card-lux {
+    background: var(--lux-card-bg);
+    border: 1.5px solid var(--lux-border);
+    border-radius: 32px;
+    padding: 48px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.1);
+    transition: var(--lux-transition);
+}
+
+[data-theme='dark'] .wizard-card-lux {
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.wizard-step-label {
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--lux-text-primary);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.wizard-step-input {
+    background: var(--lux-bg-soft);
+    border: 1.5px solid var(--lux-border);
+    border-radius: 20px;
+    padding: 20px 24px;
+    font-size: 1rem;
+    color: var(--lux-text-primary);
+    font-family: inherit;
+    line-height: 1.6;
+    outline: none;
+    transition: var(--lux-transition);
+    width: 100%;
+    box-sizing: border-box;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.wizard-step-input:focus {
+    background: var(--lux-card-bg);
+    border-color: var(--lux-gold);
+    box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.12), inset 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.wizard-step-input::placeholder {
+    color: var(--lux-text-secondary);
+    opacity: 0.6;
+}
+
+.wizard-btn-next {
+    background: var(--gold-gradient);
+    color: #fff;
+    border: none;
+    border-radius: 16px;
+    padding: 16px 32px;
+    font-weight: 800;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    box-shadow: var(--gold-glow);
+    transition: var(--lux-transition);
+    outline: none;
+    appearance: none;
+}
+
+.wizard-btn-next:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(212,175,55,0.4);
+}
+
+.wizard-btn-next:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+.wizard-btn-prev {
+    background: var(--lux-bg-soft);
+    border: 1.5px solid var(--lux-border);
+    color: var(--lux-text-primary);
+    border-radius: 16px;
+    padding: 16px 28px;
+    font-weight: 800;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: var(--lux-transition);
+    outline: none;
+    appearance: none;
+}
+
+.wizard-btn-prev:hover {
+    background: var(--lux-card-bg);
+    border-color: var(--lux-gold);
+    color: var(--lux-gold);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(212, 175, 55, 0.12);
+}
+
+.wizard-checkbox-card {
+    display: flex;
+    gap: 20px;
+    padding: 24px;
+    background: var(--lux-bg-soft);
+    border: 1.5px solid var(--lux-border);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: var(--lux-transition);
+    align-items: flex-start;
+}
+
+.wizard-checkbox-card:hover {
+    background: var(--lux-card-bg);
+    border-color: var(--lux-gold);
+    box-shadow: 0 10px 30px rgba(212,175,55,0.08);
+}
+
+.wizard-checkbox-icon {
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--lux-border);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    flex-shrink: 0;
+    transition: var(--lux-transition);
+    background: var(--lux-card-bg);
+}
+
+.wizard-checkbox-icon.checked {
+    background: var(--gold-gradient);
+    border-color: transparent;
+    box-shadow: var(--gold-glow);
+}
+
+.wizard-checkbox-content h6 {
+    margin: 0 0 6px 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--lux-text-primary);
+}
+
+.wizard-checkbox-content p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--lux-text-secondary);
+    line-height: 1.5;
+}
+
+.wizard-summary-card {
+    background: var(--lux-card-bg);
+    border: 1.5px solid var(--lux-border);
+    border-radius: 32px;
+    padding: 36px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.1);
+    transition: var(--lux-transition);
+}
+
+[data-theme='dark'] .wizard-summary-card {
+    box-shadow: 0 20px 50px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.wizard-summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--lux-border);
+}
+
+.wizard-summary-item .label {
+    font-size: 0.85rem;
+    color: var(--lux-text-secondary);
+    font-weight: 600;
+}
+
+.wizard-summary-item .value {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--lux-text-primary);
+}
+
+.wizard-security-box {
+    marginTop: 32px;
+    padding: 24px;
+    background: rgba(59, 130, 246, 0.06);
+    border: 1px solid rgba(59, 130, 246, 0.15);
+    border-radius: 20px;
+}

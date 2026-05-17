@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { chamaAPI, joinRequestAPI } from "../../../services/api";
+import "../core/ChamaDetailsLux.css";
 
 const ApplyChama = () => {
     const { id } = useParams();
@@ -107,7 +108,7 @@ const ApplyChama = () => {
     };
 
     return (
-        <div className="page">
+        <div className="manage-page-root">
             <div className="ambient-blob blob-gold" />
             <div className="ambient-blob blob-blue" />
 
@@ -149,24 +150,24 @@ const ApplyChama = () => {
 
                         <div className="grid grid-2-1 gap-5">
                             {/* Wizard Body */}
-                            <div className="wizard-form-container">
+                            <div className="wizard-card-lux">
                                 {/* Progress Indicator */}
-                                <div className="wizard-progress-bar" style={{ display: 'flex', gap: '8px', marginBottom: '40px' }}>
+                                <div className="wizard-progress-bar" style={{ display: 'flex', gap: '12px', marginBottom: '48px' }}>
                                     {[1, 2, 3].map(s => (
                                         <div key={s} style={{ flex: 1 }}>
                                             <div style={{ 
-                                                height: '4px', 
-                                                background: step >= s ? 'var(--gold-gradient)' : 'rgba(255,255,255,0.05)',
-                                                borderRadius: '2px',
+                                                height: '6px', 
+                                                background: step >= s ? 'var(--gold-gradient)' : 'var(--lux-border)',
+                                                borderRadius: '3px',
                                                 transition: '0.6s cubic-bezier(0.4, 0, 0.2, 1)'
                                             }} />
                                             <div style={{ 
-                                                marginTop: '8px', 
-                                                fontSize: '0.7rem', 
+                                                marginTop: '10px', 
+                                                fontSize: '0.75rem', 
                                                 fontWeight: 800, 
                                                 textTransform: 'uppercase',
-                                                color: step >= s ? 'var(--gold-text)' : 'var(--text-secondary)',
-                                                letterSpacing: '1px'
+                                                color: step >= s ? 'var(--lux-gold)' : 'var(--lux-text-secondary)',
+                                                letterSpacing: '1.5px'
                                             }}>
                                                 Step 0{s}
                                             </div>
@@ -174,7 +175,7 @@ const ApplyChama = () => {
                                     ))}
                                 </div>
 
-                                <form onSubmit={handleSubmit} className="wizard-form-lux">
+                                <form onSubmit={handleSubmit}>
                                     <AnimatePresence mode="wait">
                                         {step === 1 && (
                                             <motion.div
@@ -183,29 +184,29 @@ const ApplyChama = () => {
                                                 animate={{ opacity: 1, x: 0 }}
                                                 exit={{ opacity: 0, x: -20 }}
                                             >
-                                                <div style={{ marginBottom: '32px' }}>
-                                                    <h3 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '8px' }}>Personal Profile</h3>
-                                                    <p style={{ color: 'var(--text-secondary)' }}>Introduce yourself to the group leadership.</p>
+                                                <div style={{ marginBottom: '36px' }}>
+                                                    <h3 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: '8px', color: 'var(--lux-text-primary)' }}>Personal Profile</h3>
+                                                    <p style={{ color: 'var(--lux-text-secondary)', fontSize: '1rem' }}>Introduce yourself to the group leadership.</p>
                                                 </div>
 
-                                                <div className="form-group-lux">
-                                                    <label className="lux-label">Identity & Background</label>
+                                                <div style={{ marginBottom: '36px' }}>
+                                                    <label className="wizard-step-label">Identity & Background</label>
                                                     <textarea
                                                         name="introduction"
-                                                        className="lux-input"
+                                                        className="wizard-step-input"
                                                         rows="6"
                                                         placeholder="Provide a brief summary of your occupation, location, and professional background..."
                                                         value={formData.introduction}
                                                         onChange={handleInputChange}
-                                                        style={{ borderRadius: '16px', resize: 'none' }}
+                                                        style={{ resize: 'none' }}
                                                         required
                                                     />
                                                 </div>
 
                                                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '40px' }}>
-                                                    <button type="button" className="btn-action-primary" onClick={nextStep} disabled={!formData.introduction} style={{ padding: '14px 28px' }}>
+                                                    <button type="button" className="wizard-btn-next" onClick={nextStep} disabled={!formData.introduction}>
                                                         <span>Continue to Intent</span>
-                                                        <ArrowRight size={18} style={{ marginLeft: '10px' }} />
+                                                        <ArrowRight size={18} />
                                                     </button>
                                                 </div>
                                             </motion.div>
@@ -218,32 +219,32 @@ const ApplyChama = () => {
                                                 animate={{ opacity: 1, x: 0 }}
                                                 exit={{ opacity: 0, x: -20 }}
                                             >
-                                                <div style={{ marginBottom: '32px' }}>
-                                                    <h3 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '8px' }}>Strategic Intent</h3>
-                                                    <p style={{ color: 'var(--text-secondary)' }}>What value do you bring and what are your goals?</p>
+                                                <div style={{ marginBottom: '36px' }}>
+                                                    <h3 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: '8px', color: 'var(--lux-text-primary)' }}>Strategic Intent</h3>
+                                                    <p style={{ color: 'var(--lux-text-secondary)', fontSize: '1rem' }}>What value do you bring and what are your goals?</p>
                                                 </div>
 
-                                                <div className="form-group-lux">
-                                                    <label className="lux-label">Motivation for Joining</label>
+                                                <div style={{ marginBottom: '36px' }}>
+                                                    <label className="wizard-step-label">Motivation for Joining</label>
                                                     <textarea
                                                         name="reason"
-                                                        className="lux-input"
+                                                        className="wizard-step-input"
                                                         rows="6"
                                                         placeholder="Describe your motivation and how you plan to contribute to the group's success..."
                                                         value={formData.reason}
                                                         onChange={handleInputChange}
-                                                        style={{ borderRadius: '16px', resize: 'none' }}
+                                                        style={{ resize: 'none' }}
                                                         required
                                                     />
                                                 </div>
 
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '40px' }}>
-                                                    <button type="button" className="btn-action-secondary" onClick={prevStep} style={{ padding: '14px 24px' }}>
-                                                        <ArrowLeft size={18} style={{ marginRight: '10px' }} /> Back
+                                                    <button type="button" className="wizard-btn-prev" onClick={prevStep}>
+                                                        <ArrowLeft size={18} /> Back
                                                     </button>
-                                                    <button type="button" className="btn-action-primary" onClick={nextStep} disabled={!formData.reason} style={{ padding: '14px 28px' }}>
+                                                    <button type="button" className="wizard-btn-next" onClick={nextStep} disabled={!formData.reason}>
                                                         <span>Review Terms</span>
-                                                        <ArrowRight size={18} style={{ marginLeft: '10px' }} />
+                                                        <ArrowRight size={18} />
                                                     </button>
                                                 </div>
                                             </motion.div>
@@ -256,37 +257,37 @@ const ApplyChama = () => {
                                                 animate={{ opacity: 1, x: 0 }}
                                                 exit={{ opacity: 0, x: -20 }}
                                             >
-                                                <div style={{ marginBottom: '32px' }}>
-                                                    <h3 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '8px' }}>Final Attestation</h3>
-                                                    <p style={{ color: 'var(--text-secondary)' }}>Acknowledge your commitments to the group architecture.</p>
+                                                <div style={{ marginBottom: '36px' }}>
+                                                    <h3 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: '8px', color: 'var(--lux-text-primary)' }}>Final Attestation</h3>
+                                                    <p style={{ color: 'var(--lux-text-secondary)', fontSize: '1rem' }}>Acknowledge your commitments to the group architecture.</p>
                                                 </div>
 
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                                    <div className="lux-checkbox-card" onClick={() => handleInputChange({ target: { name: 'financialCommitment', type: 'checkbox', checked: !formData.financialCommitment } })}>
-                                                        <div className={`lux-checkbox-icon ${formData.financialCommitment ? 'checked' : ''}`}>
-                                                            {formData.financialCommitment && <CheckCircle2 size={16} />}
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                                    <div className="wizard-checkbox-card" onClick={() => handleInputChange({ target: { name: 'financialCommitment', type: 'checkbox', checked: !formData.financialCommitment } })}>
+                                                        <div className={`wizard-checkbox-icon ${formData.financialCommitment ? 'checked' : ''}`}>
+                                                            {formData.financialCommitment && <CheckCircle2 size={18} />}
                                                         </div>
-                                                        <div className="lux-checkbox-content">
+                                                        <div className="wizard-checkbox-content">
                                                             <h6>Financial Liquidity</h6>
                                                             <p>I attest to meeting the <strong>{formatCurrency(chama.contribution_amount)} {chama.contribution_frequency}</strong> requirement.</p>
                                                         </div>
                                                     </div>
 
-                                                    <div className="lux-checkbox-card" onClick={() => handleInputChange({ target: { name: 'rulesAgreed', type: 'checkbox', checked: !formData.rulesAgreed } })}>
-                                                        <div className={`lux-checkbox-icon ${formData.rulesAgreed ? 'checked' : ''}`}>
-                                                            {formData.rulesAgreed && <CheckCircle2 size={16} />}
+                                                    <div className="wizard-checkbox-card" onClick={() => handleInputChange({ target: { name: 'rulesAgreed', type: 'checkbox', checked: !formData.rulesAgreed } })}>
+                                                        <div className={`wizard-checkbox-icon ${formData.rulesAgreed ? 'checked' : ''}`}>
+                                                            {formData.rulesAgreed && <CheckCircle2 size={18} />}
                                                         </div>
-                                                        <div className="lux-checkbox-content">
+                                                        <div className="wizard-checkbox-content">
                                                             <h6>Constitutional Adherence</h6>
                                                             <p>I agree to abide by the bylaws and governing constitution of this collective.</p>
                                                         </div>
                                                     </div>
 
-                                                    <div className="lux-checkbox-card" onClick={() => handleInputChange({ target: { name: 'dataDisclosureAgreed', type: 'checkbox', checked: !formData.dataDisclosureAgreed } })}>
-                                                        <div className={`lux-checkbox-icon ${formData.dataDisclosureAgreed ? 'checked' : ''}`}>
-                                                            {formData.dataDisclosureAgreed && <CheckCircle2 size={16} />}
+                                                    <div className="wizard-checkbox-card" onClick={() => handleInputChange({ target: { name: 'dataDisclosureAgreed', type: 'checkbox', checked: !formData.dataDisclosureAgreed } })}>
+                                                        <div className={`wizard-checkbox-icon ${formData.dataDisclosureAgreed ? 'checked' : ''}`}>
+                                                            {formData.dataDisclosureAgreed && <CheckCircle2 size={18} />}
                                                         </div>
-                                                        <div className="lux-checkbox-content">
+                                                        <div className="wizard-checkbox-content">
                                                             <h6>Data Verification</h6>
                                                             <p>I authorize the disclosure of my verified profile information to group officials.</p>
                                                         </div>
@@ -296,19 +297,18 @@ const ApplyChama = () => {
                                                 {error && <div className="alert alert-error" style={{ marginTop: '24px' }}>{error}</div>}
 
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '40px' }}>
-                                                    <button type="button" className="btn-action-secondary" onClick={prevStep} style={{ padding: '14px 24px' }}>
-                                                        <ArrowLeft size={18} style={{ marginRight: '10px' }} /> Back
+                                                    <button type="button" className="wizard-btn-prev" onClick={prevStep}>
+                                                        <ArrowLeft size={18} /> Back
                                                     </button>
                                                     <button
                                                         type="submit"
-                                                        className="btn-action-primary"
+                                                        className="wizard-btn-next"
                                                         disabled={submitting || !formData.rulesAgreed || !formData.dataDisclosureAgreed || !formData.financialCommitment}
-                                                        style={{ padding: '14px 32px' }}
                                                     >
                                                         {submitting ? "Processing..." : (
                                                             <>
-                                                                <span>Submit Application</span>
-                                                                <Send size={18} style={{ marginLeft: '10px' }} />
+                                                                <span>Submit Attestation</span>
+                                                                <Send size={18} />
                                                             </>
                                                         )}
                                                     </button>
@@ -322,43 +322,37 @@ const ApplyChama = () => {
                             {/* Sidebar Info */}
                             <div className="wizard-sidebar">
                                 <motion.div 
-                                    className="security-card-lux"
+                                    className="wizard-summary-card"
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: 0.2 }}
                                 >
-                                    <h4 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <ShieldCheck size={20} color="#D4AF37" />
+                                    <h4 style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '28px', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--lux-text-primary)' }}>
+                                        <ShieldCheck size={24} color="var(--lux-gold)" />
                                         Summary
                                     </h4>
                                     
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                        <div className="summary-item-lux">
+                                        <div className="wizard-summary-item">
                                             <span className="label">Group Type</span>
                                             <span className="value">{chama.chama_type}</span>
                                         </div>
-                                        <div className="summary-item-lux">
+                                        <div className="wizard-summary-item">
                                             <span className="label">Contribution</span>
                                             <span className="value">{formatCurrency(chama.contribution_amount)}</span>
                                         </div>
-                                        <div className="summary-item-lux">
+                                        <div className="wizard-summary-item">
                                             <span className="label">Cycle</span>
                                             <span className="value" style={{ textTransform: 'capitalize' }}>{chama.contribution_frequency}</span>
                                         </div>
                                     </div>
 
-                                    <div style={{ 
-                                        marginTop: '32px', 
-                                        padding: '20px', 
-                                        background: 'rgba(59, 130, 246, 0.05)', 
-                                        border: '1px solid rgba(59, 130, 246, 0.1)', 
-                                        borderRadius: '16px' 
-                                    }}>
-                                        <div style={{ display: 'flex', gap: '12px', marginBottom: '8px' }}>
-                                            <Shield size={18} color="#3b82f6" />
-                                            <h5 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 800 }}>Vault Security</h5>
+                                    <div className="wizard-security-box">
+                                        <div style={{ display: 'flex', gap: '12px', marginBottom: '10px', alignItems: 'center' }}>
+                                            <Shield size={20} color="#3b82f6" />
+                                            <h5 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--lux-text-primary)' }}>Vault Security</h5>
                                         </div>
-                                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+                                        <p style={{ fontSize: '0.8rem', color: 'var(--lux-text-secondary)', margin: 0, lineHeight: 1.6 }}>
                                             Your application is protected by enterprise encryption and will only be accessible to authorized officials of <strong>{chama.chama_name}</strong>.
                                         </p>
                                     </div>
@@ -372,68 +366,6 @@ const ApplyChama = () => {
             <style dangerouslySetInnerHTML={{ __html: `
                 .application-wizard-lux {
                     position: relative;
-                }
-                .lux-checkbox-card {
-                    display: flex;
-                    gap: 16px;
-                    padding: 20px;
-                    background: rgba(255, 255, 255, 0.02);
-                    border: 1px solid var(--glass-border);
-                    border-radius: 20px;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                }
-                .lux-checkbox-card:hover {
-                    background: rgba(255, 255, 255, 0.05);
-                    border-color: rgba(212, 175, 55, 0.3);
-                }
-                .lux-checkbox-icon {
-                    width: 24px;
-                    height: 24px;
-                    border: 2px solid var(--glass-border);
-                    border-radius: 8px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: white;
-                    flex-shrink: 0;
-                    transition: all 0.3s ease;
-                }
-                .lux-checkbox-icon.checked {
-                    background: var(--gold-gradient);
-                    border-color: transparent;
-                }
-                .lux-checkbox-content h6 {
-                    margin: 0 0 4px 0;
-                    font-size: 0.95rem;
-                    font-weight: 700;
-                }
-                .lux-checkbox-content p {
-                    margin: 0;
-                    font-size: 0.8rem;
-                    color: var(--text-secondary);
-                }
-                .summary-item-lux {
-                    display: flex;
-                    justify-content: space-between;
-                    padding-bottom: 12px;
-                    border-bottom: 1px solid var(--glass-border);
-                }
-                .summary-item-lux .label {
-                    font-size: 0.8rem;
-                    color: var(--text-secondary);
-                }
-                .summary-item-lux .value {
-                    font-size: 0.85rem;
-                    font-weight: 800;
-                }
-                .security-card-lux {
-                    background: rgba(255, 255, 255, 0.03);
-                    backdrop-filter: blur(10px);
-                    border: 1px solid var(--glass-border);
-                    border-radius: 32px;
-                    padding: 32px;
-                    box-shadow: 0 20px 50px rgba(0,0,0,0.1);
                 }
             `}} />
         </div>
