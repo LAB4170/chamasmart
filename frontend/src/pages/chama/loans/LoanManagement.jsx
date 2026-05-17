@@ -9,6 +9,8 @@ import {
     AlertCircle, FileText, X, Check, DollarSign, Calendar
 } from "lucide-react";
 import { toast } from "react-toastify";
+import "../core/ChamaDetailsLux.css";
+import "../../loans/MyLoans.css";
 
 const LoanManagement = () => {
     const { id } = useParams();
@@ -224,10 +226,10 @@ const LoanManagement = () => {
     }
 
     return (
-        <div className="page">
+        <div className="manage-page-root">
             <div className="container">
                 <div className="page-header-modern">
-                    <Link to={`/chamas/${id}`} className="back-link">
+                    <Link to={`/chamas/${id}`} className="btn-return-lux" style={{ marginBottom: "1.5rem", display: "inline-flex" }}>
                         <ArrowLeft size={18} />
                         <span>Back to Chama</span>
                     </Link>
@@ -307,69 +309,69 @@ const LoanManagement = () => {
                 ) : (
                     <>
                         {/* Stats - Only visible in Loans tab */}
-                        <div className="stats-row">
-                    <div className="mini-stat-card">
-                        <div className="mini-stat-icon blue">
-                            <BarChart2 size={20} />
+                        <div className="stats-row" style={{ marginBottom: "2.5rem" }}>
+                            <div className="mini-stat-card-lux">
+                                <div className="stat-icon-circle blue">
+                                    <BarChart2 size={20} />
+                                </div>
+                                <div className="stat-content">
+                                    <div className="stat-label">Total Loans</div>
+                                    <div className="stat-value">{stats.total}</div>
+                                </div>
+                            </div>
+                            <div className="mini-stat-card-lux">
+                                <div className="stat-icon-circle amber">
+                                    <Clock size={20} />
+                                </div>
+                                <div className="stat-content">
+                                    <div className="stat-label">Pending Approval</div>
+                                    <div className="stat-value">{stats.pending}</div>
+                                </div>
+                            </div>
+                            <div className="mini-stat-card-lux">
+                                <div className="stat-icon-circle green">
+                                    <CheckCircle2 size={20} />
+                                </div>
+                                <div className="stat-content">
+                                    <div className="stat-label">Active Loans</div>
+                                    <div className="stat-value">{stats.active}</div>
+                                </div>
+                            </div>
+                            <div className="mini-stat-card-lux">
+                                <div className="stat-icon-circle purple" style={{ background: "rgba(139, 92, 246, 0.15)", color: "#8b5cf6" }}>
+                                    <Wallet size={20} />
+                                </div>
+                                <div className="stat-content">
+                                    <div className="stat-label">Total Loaned</div>
+                                    <div className="stat-value">{formatCurrency(stats.totalAmount)}</div>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <div className="mini-stat-value">{stats.total}</div>
-                            <div className="mini-stat-label">Total Loans</div>
-                        </div>
-                    </div>
-                    <div className="mini-stat-card">
-                        <div className="mini-stat-icon amber">
-                            <Clock size={20} />
-                        </div>
-                        <div>
-                            <div className="mini-stat-value">{stats.pending}</div>
-                            <div className="mini-stat-label">Pending Approval</div>
-                        </div>
-                    </div>
-                    <div className="mini-stat-card">
-                        <div className="mini-stat-icon green">
-                            <CheckCircle2 size={20} />
-                        </div>
-                        <div>
-                            <div className="mini-stat-value">{stats.active}</div>
-                            <div className="mini-stat-label">Active Loans</div>
-                        </div>
-                    </div>
-                    <div className="mini-stat-card">
-                        <div className="mini-stat-icon purple">
-                            <Wallet size={20} />
-                        </div>
-                        <div>
-                            <div className="mini-stat-value">{formatCurrency(stats.totalAmount)}</div>
-                            <div className="mini-stat-label">Total Loaned</div>
-                        </div>
-                    </div>
-                </div>
-                </>
+                    </>
                 )}
 
                 {/* Filter */}
-                <div className="filter-bar">
+                <div className="filter-bar" style={{ marginBottom: "2.5rem", display: "flex", gap: "12px", flexWrap: "wrap" }}>
                     <button
-                        className={`filter-btn ${filter === "ALL" ? "active" : ""}`}
+                        className={`filter-btn-lux ${filter === "ALL" ? "active" : ""}`}
                         onClick={() => setFilter("ALL")}
                     >
                         All ({loans.length})
                     </button>
                     <button
-                        className={`filter-btn ${filter === "PENDING" ? "active" : ""}`}
+                        className={`filter-btn-lux ${filter === "PENDING" ? "active" : ""}`}
                         onClick={() => setFilter("PENDING")}
                     >
                         Pending ({loans.filter((l) => l.status === "PENDING").length})
                     </button>
                     <button
-                        className={`filter-btn ${filter === "ACTIVE" ? "active" : ""}`}
+                        className={`filter-btn-lux ${filter === "ACTIVE" ? "active" : ""}`}
                         onClick={() => setFilter("ACTIVE")}
                     >
                         Active ({loans.filter((l) => ["APPROVED", "DISBURSED"].includes(l.status)).length})
                     </button>
                     <button
-                        className={`filter-btn ${filter === "PAID" ? "active" : ""}`}
+                        className={`filter-btn-lux ${filter === "PAID" ? "active" : ""}`}
                         onClick={() => setFilter("PAID")}
                     >
                         Paid ({loans.filter((l) => ["COMPLETED", "PAID_OFF"].includes(l.status)).length})
@@ -377,14 +379,14 @@ const LoanManagement = () => {
                 </div>
 
                 {/* Loans List */}
-                <div className="card-modern">
-                    <div className="card-header">
-                        <h3>Loans</h3>
+                <div className="table-card-lux">
+                    <div className="card-header" style={{ marginBottom: "24px" }}>
+                        <h3 style={{ fontSize: "1.5rem", fontWeight: 900 }}>Loans</h3>
                     </div>
 
                     {filteredLoans.length === 0 ? (
-                        <div className="empty-state-modern compact">
-                            <div className="empty-state-icon">
+                        <div className="empty-state-modern compact" style={{ padding: "40px 20px", textAlign: "center" }}>
+                            <div className="empty-state-icon" style={{ opacity: 0.4, marginBottom: "16px" }}>
                                 <FileText size={36} strokeWidth={1.5} />
                             </div>
                             <h3>No loans found</h3>
@@ -392,7 +394,7 @@ const LoanManagement = () => {
                         </div>
                     ) : (
                         <div className="table-responsive">
-                            <table className="table">
+                            <table className="table-lux">
                                 <thead>
                                     <tr>
                                         <th>Borrower</th>
@@ -483,12 +485,12 @@ const LoanManagement = () => {
 
             {/* Loan Details Modal */}
             {selectedLoan && loanDetails && (
-                <div className="modal-backdrop" onClick={closeLoanDetails}>
-                    <div className="modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3>Loan Details</h3>
-                            <button className="btn-icon" onClick={closeLoanDetails}>
-                                <X size={20} />
+                <div className="modal-overlay-lux" onClick={closeLoanDetails}>
+                    <div className="modal-content-lux" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
+                            <h3 style={{ fontSize: "1.5rem", fontWeight: 900, margin: 0 }}>Loan Details</h3>
+                            <button className="btn-icon" onClick={closeLoanDetails} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--lux-text-secondary)" }}>
+                                <X size={24} />
                             </button>
                         </div>
                         <div className="modal-body">

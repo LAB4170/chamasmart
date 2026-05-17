@@ -10,6 +10,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 
 import "./MyLoans.css";
+import "../chama/core/ChamaDetailsLux.css";
 
 const MyLoans = () => {
     const navigate = useNavigate();
@@ -76,12 +77,12 @@ const MyLoans = () => {
     };
 
     return (
-        <div className="page">
+        <div className="manage-page-root">
             <div className="container">
                 {/* Header */}
                 <div className="page-header-modern">
-                    <button className="back-link" onClick={() => navigate(-1)} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.4rem", color: "var(--text-secondary)", marginBottom: "1rem" }}>
-                        <ArrowLeft size={16} /> Back
+                    <button className="btn-return-lux" onClick={() => navigate(-1)} style={{ marginBottom: "1.5rem" }}>
+                        <ArrowLeft size={18} /> <span>Back</span>
                     </button>
                     <div className="page-header-row">
                         <div className="page-header-info">
@@ -156,7 +157,7 @@ const MyLoans = () => {
                 )}
 
                 {/* Filters */}
-                <div className="filter-bar" style={{ marginBottom: "1.5rem" }}>
+                <div className="filter-bar" style={{ marginBottom: "2rem", display: "flex", gap: "12px", flexWrap: "wrap" }}>
                     {[
                         { id: "ACTIVE", label: "Active" },
                         { id: "PENDING", label: "Pending" },
@@ -165,7 +166,7 @@ const MyLoans = () => {
                     ].map(f => (
                         <button
                             key={f.id}
-                            className={`filter-btn ${filter === f.id ? "active" : ""}`}
+                            className={`filter-btn-lux ${filter === f.id ? "active" : ""}`}
                             onClick={() => setFilter(f.id)}
                         >
                             {f.label}

@@ -1637,3 +1637,112 @@
     border: 1px solid rgba(59, 130, 246, 0.15);
     border-radius: 20px;
 }
+
+/* ============================================================
+   LOAN MANAGEMENT SYSTEM — PREMIUM FINANCIAL INTERACTION
+   ============================================================ */
+
+.filter-btn-lux {
+    background: var(--lux-bg-soft);
+    border: 1.5px solid var(--lux-border);
+    color: var(--lux-text-primary);
+    border-radius: 20px;
+    padding: 14px 24px;
+    font-weight: 800;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: var(--lux-transition);
+    box-shadow: var(--lux-shadow);
+    outline: none;
+    appearance: none;
+}
+
+.filter-btn-lux:hover {
+    background: var(--lux-card-bg);
+    border-color: var(--lux-gold);
+    color: var(--lux-gold);
+    transform: translateY(-2px);
+}
+
+.filter-btn-lux.active {
+    background: var(--gold-gradient);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: var(--gold-glow);
+}
+
+.table-card-lux {
+    background: var(--lux-card-bg);
+    border: 1.5px solid var(--lux-border);
+    border-radius: 32px;
+    padding: 36px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.1);
+    overflow: hidden;
+    transition: var(--lux-transition);
+}
+
+[data-theme='dark'] .table-card-lux {
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.table-lux {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    text-align: left;
+}
+
+.table-lux th {
+    padding: 20px 24px;
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--lux-text-secondary);
+    border-bottom: 2px solid var(--lux-border);
+}
+
+.table-lux td {
+    padding: 24px;
+    font-size: 0.95rem;
+    color: var(--lux-text-primary);
+    border-bottom: 1px solid var(--lux-border);
+    vertical-align: middle;
+    transition: var(--lux-transition);
+}
+
+.table-lux tr:last-child td {
+    border-bottom: none;
+}
+
+.table-lux tr:hover td {
+    background: var(--lux-bg-soft);
+}
+
+.modal-overlay-lux {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 24px;
+}
+
+.modal-content-lux {
+    background: var(--lux-card-bg);
+    border: 1.5px solid var(--lux-border);
+    border-radius: 32px;
+    padding: 40px;
+    width: 100%;
+    max-width: 650px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+    max-height: 90vh;
+    overflow-y: auto;
+    transition: var(--lux-transition);
+}
