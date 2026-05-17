@@ -76,4 +76,8 @@ public class WelfareClaim {
     @OneToMany(mappedBy = "claim", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<WelfareClaimApproval> approvals = new ArrayList<>();
+
+    @Version
+    @Column(name = "version")
+    private Long version;
 }

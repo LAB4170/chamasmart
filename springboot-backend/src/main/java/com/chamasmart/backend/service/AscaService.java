@@ -22,10 +22,27 @@ public class AscaService {
     private final AscaMemberRepository ascaMemberRepository;
     private final ChamaRepository chamaRepository;
     private final UserRepository userRepository;
+    private final ChamaMemberRepository chamaMemberRepository;
+
+    private ChamaMember validateUserMembershipAndActiveStatus(Long chamaId, Long userId) {
+        return chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
+                .filter(ChamaMember::getIsActive)
+                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("Security Violation: User ID " + userId + " is not an active member of Chama ID " + chamaId));
+    }
+
+    private ChamaMember validateUserIsOfficial(Long chamaId, Long userId) {
+        ChamaMember member = validateUserMembershipAndActiveStatus(chamaId, userId);
+        if (!"CHAIRPERSON".equalsIgnoreCase(member.getRole()) && !"TREASURER".equalsIgnoreCase(member.getRole())) {
+            throw new org.springframework.security.access.AccessDeniedException("Security Violation: User ID " + userId + " lacks official administrative privileges for Chama ID " + chamaId);
+        }
+        return member;
+    }
 
     @Transactional
-    public AscaCycleDto createCycle(AscaCycleDto dto, Long chamaId) {
-        log.info("Creating ASCA cycle '{}' for chama ID: {}", dto.getCycle_name(), chamaId);
+    public AscaCycleDto createCycle(AscaCycleDto dto, Long chamaId, Long userId) {
+        log.info("Creating ASCA cycle '{}' for chama ID: {} by user ID: {}", dto.getCycle_name(), chamaId, userId);
+        
+        validateUserIsOfficial(chamaId, userId);
         Chama chama = chamaRepository.findById(chamaId)
                 .orElseThrow(() -> new RuntimeException("Chama not found"));
 
@@ -55,8 +72,10 @@ public class AscaService {
     @Transactional
     public AscaCycleDto purchaseShares(Long cycleId, Long userId, Integer sharesToPurchase) {
         log.info("Processing share purchase of {} shares by user ID: {} in cycle ID: {}", sharesToPurchase, userId, cycleId);
-        AscaCycle cycle = ascaCycleRepository.findById(cycleId)
+        AscaCycle cycle = ascaCycleRepository.findByIdWithPessimisticLock(cycleId)
                 .orElseThrow(() -> new RuntimeException("ASCA cycle not found"));
+
+        validateUserMembershipAndActiveStatus(cycle.getChama().getChamaId(), userId);
 
         if (!"ACTIVE".equals(cycle.getStatus())) {
             throw new RuntimeException("Cannot purchase shares in an inactive cycle");

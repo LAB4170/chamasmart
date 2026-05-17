@@ -26,7 +26,7 @@ public class WelfareController {
                                                                       @RequestBody WelfareConfigDto configDto,
                                                                       @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to create welfare config for chama ID: {} by user ID: {}", chamaId, currentUser.getUserId());
-        WelfareConfigDto createdConfig = welfareService.createConfig(configDto, chamaId);
+        WelfareConfigDto createdConfig = welfareService.createConfig(configDto, chamaId, currentUser.getUserId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(createdConfig, "Welfare configuration created successfully"));
     }

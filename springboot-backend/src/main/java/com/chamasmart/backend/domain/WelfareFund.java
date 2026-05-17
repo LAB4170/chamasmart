@@ -34,4 +34,8 @@ public class WelfareFund {
     @UpdateTimestamp
     @Column(name = "last_updated")
     private ZonedDateTime lastUpdated;
+
+    @Version
+    @Column(name = "version")
+    private Long version;
 }

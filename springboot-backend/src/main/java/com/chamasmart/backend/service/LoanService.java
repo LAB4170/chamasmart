@@ -24,10 +24,19 @@ public class LoanService {
     private final LoanGuarantorRepository loanGuarantorRepository;
     private final ChamaRepository chamaRepository;
     private final UserRepository userRepository;
+    private final ChamaMemberRepository chamaMemberRepository;
+
+    private ChamaMember validateUserMembershipAndActiveStatus(Long chamaId, Long userId) {
+        return chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
+                .filter(ChamaMember::getIsActive)
+                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("Security Violation: User ID " + userId + " is not an active member of Chama ID " + chamaId));
+    }
 
     @Transactional
     public LoanSummaryDto applyForLoan(LoanApplicationRequestDto request, Long borrowerUserId) {
         log.info("Processing loan application for user ID: {} in chama ID: {}", borrowerUserId, request.getChama_id());
+
+        validateUserMembershipAndActiveStatus(request.getChama_id(), borrowerUserId);
 
         User borrower = userRepository.findById(borrowerUserId)
                 .orElseThrow(() -> new RuntimeException("Borrower user not found"));
@@ -102,6 +111,8 @@ public class LoanService {
         LoanGuarantor lg = loanGuarantorRepository.findByLoanLoanIdAndGuarantorUserUserId(loanId, guarantorUserId)
                 .orElseThrow(() -> new RuntimeException("Guarantee request not found"));
 
+        validateUserMembershipAndActiveStatus(lg.getLoan().getChama().getChamaId(), guarantorUserId);
+
         if (!"PENDING".equals(lg.getStatus())) {
             throw new RuntimeException("Guarantee request has already been responded to");
         }
@@ -120,15 +131,18 @@ public class LoanService {
         boolean allApproved = allGuarantors.stream().allMatch(g -> "APPROVED".equals(g.getStatus()));
         boolean anyRejected = allGuarantors.stream().anyMatch(g -> "REJECTED".equals(g.getStatus()));
 
-        Loan loan = lg.getLoan();
-        if (anyRejected) {
-            loan.setStatus("REJECTED");
-            loan.setRejectionReason("One or more guarantors declined the guarantee pledge.");
-            loan.setRejectedAt(ZonedDateTime.now());
+        if (anyRejected || allApproved) {
+            Loan loan = loanRepository.findByIdWithPessimisticLock(loanId)
+                    .orElseThrow(() -> new RuntimeException("Loan not found"));
+            if (anyRejected) {
+                loan.setStatus("REJECTED");
+                loan.setRejectionReason("One or more guarantors declined the guarantee pledge.");
+                loan.setRejectedAt(ZonedDateTime.now());
+            } else if (allApproved && !allGuarantors.isEmpty()) {
+                log.info("All guarantors approved for loan ID: {}. Ready for disbursement.", loanId);
+                // Loan remains PENDING administrative approval/disbursement
+            }
             loanRepository.save(loan);
-        } else if (allApproved && !allGuarantors.isEmpty()) {
-            log.info("All guarantors approved for loan ID: {}. Ready for disbursement.", loanId);
-            // Loan remains PENDING administrative approval/disbursement
         }
 
         return GuarantorSummaryDto.fromEntity(updatedLg);

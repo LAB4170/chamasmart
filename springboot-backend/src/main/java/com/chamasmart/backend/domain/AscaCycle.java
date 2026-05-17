@@ -58,6 +58,10 @@ public class AscaCycle {
     @Column(name = "created_at", updatable = false)
     private ZonedDateTime createdAt;
 
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @OneToMany(mappedBy = "cycle", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<AscaMember> members = new ArrayList<>();
