@@ -2,7 +2,9 @@
 # RENDER BLUEPRINT SPECIFICATION (render.yaml)
 # ============================================================================
 # This file allows Render.com to automatically detect, configure, and deploy
-# your Spring Boot backend as a Docker Web Service with zero manual UI configuration.
+# your Spring Boot backend as a Docker Web Service.
+# Sensitive keys use 'sync: false' to prevent exposure in Git while ensuring
+# placeholders are created in the Render Dashboard.
 
 services:
   - type: web
@@ -10,18 +12,71 @@ services:
     runtime: docker
     rootDir: springboot-backend
     dockerfilePath: ./Dockerfile
-    plan: starter # Can be upgraded to standard/pro in Render dashboard
-    region: oregon # Choose oregon, frankfurt, ohio, singapore, etc.
+    plan: starter
+    region: oregon
     envVars:
+      # Server & Profile
       - key: PORT
         value: 5006
       - key: SPRING_PROFILES_ACTIVE
         value: prod
+
+      # Neon Serverless PostgreSQL Configuration
       - key: SPRING_DATASOURCE_URL
-        sync: false # Set your Neon Serverless Connection String in Render Dashboard E.g. jdbc:postgresql://ep-xxx.us-east-2.aws.neon.tech/neondb?sslmode=require
+        value: jdbc:postgresql://ep-late-band-am1h9jqv-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require
       - key: SPRING_DATASOURCE_USERNAME
-        sync: false # Set your Neon DB Username in Render Dashboard
+        value: neondb_owner
       - key: SPRING_DATASOURCE_PASSWORD
-        sync: false # Set your Neon DB Password in Render Dashboard
+        sync: false
+
+      # JWT Security Configuration
       - key: JWT_SECRET
-        sync: false # Set your secure HMAC-SHA JWT Secret in Render Dashboard
+        sync: false
+      - key: JWT_SECRET_V1
+        sync: false
+      - key: JWT_SECRET_V2
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+
+      # Firebase Admin SDK Configuration
+      - key: FIREBASE_PROJECT_ID
+        value: chamasmart-1c600
+      - key: FIREBASE_CLIENT_EMAIL
+        value: firebase-adminsdk-fbsvc@chamasmart-1c600.iam.gserviceaccount.com
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+
+      # M-Pesa Daraja API Configuration
+      - key: MPESA_ENV
+        value: sandbox
+      - key: MPESA_CONSUMER_KEY
+        value: cpQnnxLsrtEU7WQ94G5XwfBGG11yUckjQAnAJPQXM9JkHycV
+      - key: MPESA_CONSUMER_SECRET
+        sync: false
+      - key: MPESA_SHORTCODE
+        value: 174379
+      - key: MPESA_PASSKEY
+        sync: false
+      - key: MPESA_CALLBACK_URL
+        value: https://chamasmart-xcym.onrender.com/api/v1/mpesa/callback
+
+      # AI & Communication API Keys
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+
+      # Production URLs & CORS
+      - key: FRONTEND_URL
+        value: https://chamasmart-xcym.onrender.com
+      - key: BACKEND_URL
+        value: https://chamasmart-xcym.onrender.com
+      - key: CORS_ORIGIN
+        value: http://localhost:5173,http://localhost:3000,https://chamasmart-xcym.onrender.com
