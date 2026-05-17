@@ -4,10 +4,10 @@ import { payoutAPI, chamaAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import {
     DollarSign, RefreshCw, Clock, Target,
-    ArrowRight, CheckCircle2, AlertCircle,
-    Wallet, TrendingUp, Calendar
+    Wallet, TrendingUp, Calendar, ArrowLeft, ArrowRight
 } from 'lucide-react';
 import { motion } from "framer-motion";
+import "./ChamaDetailsLux.css";
 
 const PayoutManagement = () => {
     const { id } = useParams();
@@ -94,27 +94,28 @@ const PayoutManagement = () => {
     }
 
     return (
-        <div className="page-lux-wrapper">
-            {/* Header */}
-            <div className="chama-header-lux">
-                <div className="chama-title-area">
-                    <h1 className="flex align-center gap-3">
-                        <Wallet size={32} /> Financial Center
-                    </h1>
-                    <div className="chama-badges mt-2">
-                        <span className="badge-lux badge-gold">Disbursements</span>
-                        <span className="badge-lux" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--lux-text-secondary)', border: '1px solid var(--lux-border)' }}>
-                            {chama?.chama_name}
-                        </span>
+        <div className="manage-page-root">
+            <div className="container">
+                {/* Header */}
+                <div className="chama-header-lux">
+                    <div className="chama-title-area">
+                        <h1 className="flex align-center gap-3">
+                            <Wallet size={32} /> Financial Center
+                        </h1>
+                        <div className="chama-badges mt-2">
+                            <span className="badge-lux badge-gold">Disbursements</span>
+                            <span className="badge-lux" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--lux-text-secondary)', border: '1px solid var(--lux-border)' }}>
+                                {chama?.chama_name}
+                            </span>
+                        </div>
                     </div>
+                    <button 
+                        className="btn-return-lux"
+                        onClick={() => navigate(`/chamas/${id}`)}
+                    >
+                        <ArrowLeft size={18} /> Return to Vault
+                    </button>
                 </div>
-                <button 
-                    className="btn-lux btn-lux-outline"
-                    onClick={() => navigate(`/chamas/${id}`)}
-                >
-                    <ArrowLeft size={18} /> Dashboard
-                </button>
-            </div>
 
             {/* Stats Overview */}
             <div className="stats-grid-lux mb-8">
@@ -257,6 +258,7 @@ const PayoutManagement = () => {
                         </tbody>
                     </table>
                 </div>
+            </div>
             </div>
         </div>
     );

@@ -3,8 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { auditAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import { toast } from "react-toastify";
-import { Download } from 'lucide-react';
-import "./AuditLogs.css"; // Create this CSS file for styling
+import { Download, ArrowLeft } from 'lucide-react';
+import "../core/ChamaDetailsLux.css";
 
 const AuditLogs = () => {
     const { id } = useParams();
@@ -67,7 +67,7 @@ const AuditLogs = () => {
     if (loading) return <div className="loading-spinner">Loading Audit Logs...</div>;
 
     return (
-        <div className="page-lux-wrapper" style={{ background: 'var(--lux-bg-soft)', minHeight: '100vh', padding: '2rem 0' }}>
+        <div className="manage-page-root">
             <div className="container">
                 <div className="page-frame-lux" style={{ background: 'var(--lux-card-bg)', border: '1px solid var(--lux-border)' }}>
                     <div className="flex flex-between align-center mb-8">
@@ -75,9 +75,9 @@ const AuditLogs = () => {
                             <h1 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0, color: 'var(--lux-text-primary)' }}>Audit Trail</h1>
                             <p style={{ color: 'var(--lux-text-secondary)', marginTop: '4px', fontSize: '0.95rem' }}>Immutable record of all <strong style={{ color: 'var(--lux-text-primary)' }}>System Events</strong></p>
                         </div>
-                        <div className="flex gap-4">
-                            <button className="btn-lux btn-lux-outline flex items-center gap-2" onClick={() => navigate(`/chamas/${id}`, { state: { tab: 'management' } })}>
-                                <ArrowLeft size={16} /> Back to Management
+                        <div className="flex gap-4 items-center">
+                            <button className="btn-return-lux" onClick={() => navigate(`/chamas/${id}`, { state: { tab: 'management' } })}>
+                                <ArrowLeft size={16} /> Return to Vault
                             </button>
                             <button className="btn-lux flex items-center gap-2" onClick={handleExport} aria-label="Export audit logs">
                                 <Download size={16} /> Export CSV
