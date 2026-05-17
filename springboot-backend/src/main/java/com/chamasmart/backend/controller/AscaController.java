@@ -27,7 +27,7 @@ public class AscaController {
                                                                   @RequestBody AscaCycleDto cycleDto,
                                                                   @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to create ASCA cycle for chama ID: {} by user ID: {}", chamaId, currentUser.getUserId());
-        AscaCycleDto createdCycle = ascaService.createCycle(cycleDto, chamaId);
+        AscaCycleDto createdCycle = ascaService.createCycle(cycleDto, chamaId, currentUser.getUserId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(createdCycle, "ASCA cycle created successfully"));
     }

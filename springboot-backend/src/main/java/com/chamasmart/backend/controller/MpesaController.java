@@ -40,8 +40,20 @@ public class MpesaController {
 
     // Public webhook endpoint for Safaricom Daraja servers
     @PostMapping("/callback")
-    public ResponseEntity<Map<String, String>> mpesaCallback(@RequestBody MpesaCallbackDto callbackDto) {
-        log.info("REST request received Safaricom M-Pesa Daraja Callback");
+    public ResponseEntity<Map<String, String>> mpesaCallback(@RequestBody MpesaCallbackDto callbackDto, jakarta.servlet.http.HttpServletRequest request) {
+        String ipAddress = request.getHeader("X-Forwarded-For");
+        if (ipAddress == null || ipAddress.isEmpty()) {
+            ipAddress = request.getRemoteAddr();
+        }
+        
+        log.info("REST request received Safaricom M-Pesa Daraja Callback from IP: {}", ipAddress);
+        
+        // Basic Safaricom IP Whitelist Validation (196.201.214.*, 196.201.213.*, 196.201.212.*)
+        if (ipAddress != null && !ipAddress.startsWith("196.201.") && !ipAddress.startsWith("127.0.0.1") && !ipAddress.startsWith("localhost")) {
+            log.warn("SECURITY ALERT: M-Pesa Callback blocked from unauthorized IP: {}", ipAddress);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         mpesaService.processCallback(callbackDto);
 
         Map<String, String> response = new HashMap<>();

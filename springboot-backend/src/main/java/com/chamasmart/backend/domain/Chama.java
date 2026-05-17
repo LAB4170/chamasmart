@@ -77,4 +77,8 @@ public class Chama {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private ZonedDateTime updatedAt;
+
+    @Version
+    @Column(name = "version")
+    private Long version;
 }
