@@ -1,5 +1,5 @@
 server:
-  port: 5006 # Running on 5006 to allow side-by-side proxying with Node.js on 5005
+  port: ${PORT:5006} # Running on 5006, configurable via environment
   servlet:
     context-path: /api/v1
 
@@ -8,20 +8,23 @@ spring:
     name: chamasmart-backend
   
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:chamasmart}
-    username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:postgres}
+    # Optimized for Neon Serverless PostgreSQL & Local Fallback
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:chamasmart}?sslmode=prefer}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USER:postgres}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:postgres}}
     driver-class-name: org.postgresql.Driver
     hikari:
-      minimum-idle: 2
-      maximum-pool-size: 10
+      minimum-idle: 1
+      maximum-pool-size: 15
       idle-timeout: 30000
-      connection-timeout: 2000
+      connection-timeout: 10000
+      max-lifetime: 1800000 # 30 minutes max lifetime to prevent Neon serverless connection drops
+      keepalive-time: 30000 # Keepalive heartbeats for Neon proxy
 
   jpa:
     hibernate:
-      ddl-auto: validate # Validates existing schema without altering Node.js tables
-    show-sql: true
+      ddl-auto: ${SPRING_JPA_DDL_AUTO:validate} # Validates existing schema without altering tables
+    show-sql: ${SPRING_JPA_SHOW_SQL:false}
     properties:
       hibernate:
         format_sql: true
@@ -29,9 +32,11 @@ spring:
 
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
+      # Optimized for Upstash / Render Redis & Local Fallback
+      host: ${SPRING_REDIS_HOST:${REDIS_HOST:localhost}}
+      port: ${SPRING_REDIS_PORT:${REDIS_PORT:6379}}
+      password: ${SPRING_REDIS_PASSWORD:${REDIS_PASSWORD:}}
+      ssl: ${SPRING_REDIS_SSL:false}
 
 app:
   security:
