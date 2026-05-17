@@ -1241,3 +1241,195 @@
 [data-theme='dark'] .manage-page-root {
     background: linear-gradient(145deg, #0f172a 0%, #111827 100%) !important;
 }
+
+/* ============================================================
+   BROWSE PUBLIC CHAMAS — STUNNING ECOSYSTEM CARDS
+   ============================================================ */
+
+.browse-chama-card-lux {
+    background: var(--lux-card-bg);
+    border: 1.5px solid var(--lux-border);
+    border-radius: 28px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+[data-theme='dark'] .browse-chama-card-lux {
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.browse-chama-card-lux:hover {
+    transform: translateY(-8px);
+    border-color: var(--lux-gold);
+    box-shadow: 0 20px 50px rgba(212, 175, 55, 0.15), inset 0 1px 0 rgba(255,255,255,0.2);
+}
+
+.browse-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.browse-card-title-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.browse-chama-title {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 900;
+    color: var(--lux-text-primary);
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+}
+
+.browse-chama-badge {
+    background: rgba(212, 175, 55, 0.1);
+    color: var(--lux-gold);
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    border-radius: 12px;
+    padding: 6px 14px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    flex-shrink: 0;
+}
+
+.browse-chama-desc {
+    color: var(--lux-text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.65;
+    margin: 0 0 24px;
+    font-weight: 500;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 4.7rem;
+}
+
+.browse-metrics-box {
+    background: var(--lux-bg-soft);
+    border: 1px solid var(--lux-border);
+    border-radius: 20px;
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 28px;
+    transition: var(--lux-transition);
+}
+
+.browse-chama-card-lux:hover .browse-metrics-box {
+    background: var(--lux-card-bg);
+    border-color: rgba(212, 175, 55, 0.3);
+}
+
+.browse-metric-label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--lux-text-secondary);
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
+}
+
+.browse-metric-val {
+    font-size: 1.15rem;
+    font-weight: 900;
+    color: var(--lux-text-primary);
+}
+
+.browse-network-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 12px 0;
+    margin-bottom: 28px;
+    border-top: 1px dashed var(--lux-border);
+}
+
+.browse-network-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--lux-text-secondary);
+}
+
+.browse-actions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr;
+    gap: 14px;
+}
+
+.btn-browse-view {
+    background: var(--lux-bg-soft);
+    border: 1.5px solid var(--lux-border);
+    color: var(--lux-text-primary);
+    border-radius: 16px;
+    padding: 14px 16px;
+    font-weight: 800;
+    font-size: 0.85rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+    appearance: none;
+}
+
+.btn-browse-view:hover {
+    background: var(--lux-card-bg);
+    border-color: var(--lux-gold);
+    color: var(--lux-gold);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(212, 175, 55, 0.12);
+}
+
+.btn-browse-join {
+    background: var(--gold-gradient);
+    color: #fff;
+    border: none;
+    border-radius: 16px;
+    padding: 14px 20px;
+    font-weight: 800;
+    font-size: 0.85rem;
+    text-align: center;
+    cursor: pointer;
+    box-shadow: var(--gold-glow);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+    appearance: none;
+}
+
+.btn-browse-join:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(212, 175, 55, 0.35);
+}
+
+.btn-browse-requested {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border: 1.5px solid rgba(16, 185, 129, 0.25);
+    border-radius: 16px;
+    padding: 14px 20px;
+    font-weight: 800;
+    font-size: 0.85rem;
+    text-align: center;
+    cursor: not-allowed;
+    outline: none;
+    appearance: none;
+}

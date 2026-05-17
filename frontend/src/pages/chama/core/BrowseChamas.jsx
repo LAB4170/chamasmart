@@ -9,101 +9,70 @@ import {
     Globe, LayoutGrid, ListFilter, History
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import "./ChamaDetailsLux.css";
 
 // Memoized Chama card component for the premium grid
 const ChamaCard = memo(({ chama, onDetails, onRequest, requestingId, formatCurrency, getChamaTypeLabel, isRequested }) => {
-    const type = (chama.chama_type || '').toUpperCase();
-    
     return (
         <motion.div 
-            className="chama-card-lux"
+            className="browse-chama-card-lux"
             variants={{
                 hidden: { opacity: 0, y: 20 },
                 show: { opacity: 1, y: 0 }
             }}
-            whileHover={{ y: -8, transition: { duration: 0.3 } }}
         >
-            <div className="chama-card-body-lux">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <h4 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 800, color: 'var(--text-primary)' }}>
+            <div>
+                <div className="browse-card-header">
+                    <div className="browse-card-title-area">
+                        <h4 className="browse-chama-title">
                             {chama.chama_name}
                         </h4>
-                        {chama.is_verified && <ShieldCheck size={16} style={{ color: '#D4AF37' }} />}
+                        {chama.is_verified && <ShieldCheck size={18} style={{ color: 'var(--lux-gold)' }} />}
                     </div>
-                    <span className="chama-type-badge-lux" style={{ fontSize: "10px", padding: "4px 10px" }}>
+                    <span className="browse-chama-badge">
                         {getChamaTypeLabel(chama.chama_type)}
                     </span>
                 </div>
 
-                <p style={{ 
-                    fontSize: "0.875rem", 
-                    color: "var(--text-secondary)", 
-                    lineHeight: "1.6",
-                    marginBottom: "20px",
-                    display: "-webkit-box",
-                    WebkitLineClamp: "3",
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                    minHeight: "4.8rem"
-                }}>
+                <p className="browse-chama-desc">
                     {chama.description || "Join this collective to grow wealth and secure your financial future through community-driven savings."}
                 </p>
                 
-                <div style={{ 
-                    display: "grid", 
-                    gridTemplateColumns: "1fr 1fr", 
-                    gap: "16px", 
-                    marginBottom: "24px",
-                    padding: "16px",
-                    background: "rgba(255, 255, 255, 0.03)",
-                    borderRadius: "16px",
-                    border: "1px solid var(--glass-border)"
-                }}>
+                <div className="browse-metrics-box">
                     <div>
-                        <div style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "1px", color: "var(--text-secondary)", marginBottom: "4px" }}>Contribution</div>
-                        <div style={{ fontSize: "0.9rem", fontWeight: 800 }}>{formatCurrency(chama.contribution_amount)}</div>
+                        <div className="browse-metric-label">Contribution</div>
+                        <div className="browse-metric-val">{formatCurrency(chama.contribution_amount)}</div>
                     </div>
                     <div>
-                        <div style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "1px", color: "var(--text-secondary)", marginBottom: "4px" }}>Frequency</div>
-                        <div style={{ fontSize: "0.9rem", fontWeight: 800 }}>{chama.contribution_frequency}</div>
+                        <div className="browse-metric-label">Frequency</div>
+                        <div className="browse-metric-val">{chama.contribution_frequency}</div>
                     </div>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "24px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.8rem", fontWeight: 700 }}>
-                        <Users size={14} color="#D4AF37" /> {chama.member_count || chama.total_members || 0} Members
+                <div className="browse-network-bar">
+                    <div className="browse-network-item">
+                        <Users size={16} color="var(--lux-gold)" /> {chama.member_count || chama.total_members || 0} Members
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.8rem", fontWeight: 700 }}>
-                        <Globe size={14} color="#D4AF37" /> Public Access
+                    <div className="browse-network-item">
+                        <Globe size={16} color="var(--lux-gold)" /> Public Access
                     </div>
                 </div>
+            </div>
 
-                <div style={{ display: "flex", gap: "12px" }}>
-                    <button
-                        className="btn-action-secondary"
-                        onClick={() => onDetails(chama.chama_id)}
-                        style={{ flex: 1, padding: "10px", fontSize: "0.85rem" }}
-                    >
-                        View Details
-                    </button>
-                    <button
-                        className={isRequested ? "btn-action-secondary" : "btn-action-primary"}
-                        onClick={() => !isRequested && onRequest(chama.chama_id)}
-                        disabled={requestingId === chama.chama_id || isRequested}
-                        style={{ 
-                            flex: 1.5, 
-                            padding: "10px", 
-                            fontSize: "0.85rem",
-                            background: isRequested ? "rgba(16, 185, 129, 0.1)" : "var(--gold-gradient)",
-                            color: isRequested ? "#10b981" : "white",
-                            border: isRequested ? "1px solid rgba(16, 185, 129, 0.2)" : "none",
-                            fontWeight: 800
-                        }}
-                    >
-                        {requestingId === chama.chama_id ? "Syncing..." : isRequested ? "Pending Approval" : "Request to Join"}
-                    </button>
-                </div>
+            <div className="browse-actions-grid">
+                <button
+                    className="btn-browse-view"
+                    onClick={() => onDetails(chama.chama_id)}
+                >
+                    View Details
+                </button>
+                <button
+                    className={isRequested ? "btn-browse-requested" : "btn-browse-join"}
+                    onClick={() => !isRequested && onRequest(chama.chama_id)}
+                    disabled={requestingId === chama.chama_id || isRequested}
+                >
+                    {requestingId === chama.chama_id ? "Syncing..." : isRequested ? "Pending Approval" : "Request to Join"}
+                </button>
             </div>
         </motion.div>
     );
@@ -183,7 +152,7 @@ const BrowseChamas = () => {
     }[type] || type);
 
     return (
-        <div className="page">
+        <div className="manage-page-root">
             <div className="ambient-blob blob-gold" />
             <div className="ambient-blob blob-blue" />
 
@@ -241,35 +210,33 @@ const BrowseChamas = () => {
 
                         {/* Search & Filter Bar */}
                         <div className="filter-bar-lux" style={{ 
-                            background: "rgba(255, 255, 255, 0.02)", 
-                            padding: "24px", 
-                            borderRadius: "24px", 
-                            border: "1px solid var(--glass-border)",
+                            alignItems: "center",
+                            marginBottom: "40px",
                             display: "grid",
                             gridTemplateColumns: "1fr auto auto",
                             gap: "20px",
-                            alignItems: "center",
-                            marginBottom: "40px"
+                            padding: "20px 28px",
+                            borderRadius: "24px"
                         }}>
-                            <div className="input-with-icon" style={{ flex: 1 }}>
-                                <Search size={18} className="input-prefix-icon" style={{ left: '16px', color: 'var(--text-secondary)' }} />
+                            <div className="input-with-icon" style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                <Search size={18} style={{ position: 'absolute', left: '16px', color: 'var(--lux-text-secondary)' }} />
                                 <input
                                     type="text"
-                                    className="lux-input"
+                                    className="filter-input-lux"
                                     placeholder="Search by name, objective, or keyword..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    style={{ paddingLeft: '48px', borderRadius: '16px' }}
+                                    style={{ width: '100%', paddingLeft: '48px', paddingRight: '20px', borderRadius: '16px', height: '52px', fontSize: '0.95rem' }}
                                 />
                             </div>
                             
-                            <div className="input-with-icon" style={{ minWidth: "200px" }}>
-                                <Filter size={18} className="input-prefix-icon" style={{ left: '16px', color: 'var(--text-secondary)' }} />
+                            <div className="input-with-icon" style={{ minWidth: "220px", position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                <Filter size={18} style={{ position: 'absolute', left: '16px', color: 'var(--lux-text-secondary)' }} />
                                 <select
-                                    className="lux-input"
+                                    className="filter-input-lux"
                                     value={chamaType}
                                     onChange={(e) => setChamaType(e.target.value)}
-                                    style={{ paddingLeft: '48px', borderRadius: '16px' }}
+                                    style={{ width: '100%', paddingLeft: '48px', paddingRight: '20px', borderRadius: '16px', height: '52px', fontSize: '0.95rem', cursor: 'pointer' }}
                                 >
                                     <option value="">All Architectures</option>
                                     <option value="ROSCA">Merry-Go-Round</option>
@@ -280,8 +247,8 @@ const BrowseChamas = () => {
                             </div>
 
                             <div style={{ display: 'flex', gap: '8px' }}>
-                                <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '12px', borderRadius: '12px', color: 'var(--text-primary)' }}>
-                                    <LayoutGrid size={20} />
+                                <div style={{ background: 'var(--lux-card-bg)', border: '1px solid var(--lux-border)', padding: '14px', borderRadius: '16px', color: 'var(--lux-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '52px', width: '52px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+                                    <LayoutGrid size={22} />
                                 </div>
                             </div>
                         </div>
