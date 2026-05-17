@@ -41,8 +41,26 @@ spring:
 app:
   security:
     jwt:
-      secret: ${JWT_SECRET:9b72cfb8b9012a613d5289f8125890b98213749128374981273981273918273918273981273}
+      secret: ${JWT_SECRET:your_jwt_secret_placeholder_replace_in_render_environment}
       expiration-ms: 86400000 # 24 hours
+  cors:
+    allowed-origins: ${CORS_ORIGIN:http://localhost:5173,http://localhost:3000,https://chamasmart-xcym.onrender.com}
+  mpesa:
+    env: ${MPESA_ENV:sandbox}
+    consumer-key: ${MPESA_CONSUMER_KEY:cpQnnxLsrtEU7WQ94G5XwfBGG11yUckjQAnAJPQXM9JkHycV}
+    consumer-secret: ${MPESA_CONSUMER_SECRET:}
+    shortcode: ${MPESA_SHORTCODE:174379}
+    passkey: ${MPESA_PASSKEY:}
+    callback-url: ${MPESA_CALLBACK_URL:https://chamasmart-xcym.onrender.com/api/v1/mpesa/callback}
+  firebase:
+    project-id: ${FIREBASE_PROJECT_ID:chamasmart-1c600}
+    client-email: ${FIREBASE_CLIENT_EMAIL:firebase-adminsdk-fbsvc@chamasmart-1c600.iam.gserviceaccount.com}
+    private-key: ${FIREBASE_PRIVATE_KEY:}
+  ai:
+    gemini-key: ${GEMINI_API_KEY:}
+    groq-key: ${GROQ_API_KEY:}
+  mail:
+    resend-key: ${RESEND_API_KEY:}
 
 management:
   endpoints:
