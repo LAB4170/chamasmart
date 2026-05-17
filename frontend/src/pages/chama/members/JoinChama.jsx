@@ -123,23 +123,21 @@ const JoinChama = () => {
                                         </p>
                                     </div>
 
-                                    <div style={{ display: 'flex', gap: '16px', marginTop: '40px' }}>
-                                        <button
-                                            type="submit"
-                                            className="btn-action-primary"
-                                            disabled={loading || !inviteCode}
-                                            style={{ flex: 2, padding: '16px', fontSize: '1rem', fontWeight: 800 }}
-                                        >
-                                            {loading ? 'Verifying Identity...' : 'Initialize Membership'}
-                                            {!loading && <ArrowRight size={20} style={{ marginLeft: '12px' }} />}
-                                        </button>
+                                    <div style={{ display: 'flex', gap: '16px', marginTop: '36px' }}>
                                         <button
                                             type="button"
-                                            className="btn-action-secondary"
+                                            className="join-btn-secondary"
                                             onClick={() => navigate('/dashboard')}
-                                            style={{ flex: 1, padding: '16px' }}
                                         >
                                             Back
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="join-btn-primary"
+                                            disabled={loading || !inviteCode}
+                                        >
+                                            {loading ? 'Verifying...' : 'Join Group'}
+                                            {!loading && <ArrowRight size={18} />}
                                         </button>
                                     </div>
                                 </form>
@@ -270,6 +268,59 @@ const JoinChama = () => {
                     text-align: center;
                     font-size: 0.9rem;
                     color: var(--text-secondary);
+                }
+
+                /* Renovated Buttons */
+                .join-btn-primary {
+                    flex: 1;
+                    padding: 16px 28px;
+                    background: linear-gradient(135deg, #D4AF37 0%, #AA7C11 100%);
+                    color: #000;
+                    border: none;
+                    border-radius: 20px;
+                    font-weight: 800;
+                    font-size: 1.05rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 10px;
+                    cursor: pointer;
+                    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                    box-shadow: 0 10px 25px rgba(212, 175, 55, 0.3);
+                }
+                .join-btn-primary:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 15px 35px rgba(212, 175, 55, 0.4);
+                    filter: brightness(1.1);
+                }
+                .join-btn-primary:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                    transform: none;
+                    box-shadow: none;
+                }
+                .join-btn-secondary {
+                    flex: 1;
+                    padding: 16px 28px;
+                    background: transparent;
+                    border: 1.5px solid var(--lux-border, rgba(212, 175, 55, 0.3));
+                    color: var(--text-primary);
+                    border-radius: 20px;
+                    font-weight: 800;
+                    font-size: 1.05rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                    cursor: pointer;
+                    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+                }
+                .join-btn-secondary:hover {
+                    background: var(--lux-card-bg, rgba(212, 175, 55, 0.05));
+                    border-color: var(--lux-gold, #D4AF37);
+                    transform: translateY(-2px);
+                    box-shadow: 0 8px 25px rgba(212, 175, 55, 0.15);
                 }
             `}} />
         </div>
