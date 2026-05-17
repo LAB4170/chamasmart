@@ -1,0 +1,27 @@
+# ============================================================================
+# RENDER BLUEPRINT SPECIFICATION (render.yaml)
+# ============================================================================
+# This file allows Render.com to automatically detect, configure, and deploy
+# your Spring Boot backend as a Docker Web Service with zero manual UI configuration.
+
+services:
+  - type: web
+    name: chamasmart-springboot-backend
+    runtime: docker
+    rootDir: springboot-backend
+    dockerfilePath: ./Dockerfile
+    plan: starter # Can be upgraded to standard/pro in Render dashboard
+    region: oregon # Choose oregon, frankfurt, ohio, singapore, etc.
+    envVars:
+      - key: PORT
+        value: 5006
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: SPRING_DATASOURCE_URL
+        sync: false # Set your Neon Serverless Connection String in Render Dashboard E.g. jdbc:postgresql://ep-xxx.us-east-2.aws.neon.tech/neondb?sslmode=require
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false # Set your Neon DB Username in Render Dashboard
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false # Set your Neon DB Password in Render Dashboard
+      - key: JWT_SECRET
+        sync: false # Set your secure HMAC-SHA JWT Secret in Render Dashboard
