@@ -47,17 +47,17 @@ export const SocketProvider = ({ children }) => {
       const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '/api' : 'http://127.0.0.1:5005/api');
       const baseUrl = apiUrl.replace(/\/api\/?$/, "");
 
-      console.log("Creating new socket connection to:", baseUrl);
-      const newSocket = io(baseUrl, {
-        path: "/socket.io",
-        auth: { token },
-        autoConnect: false, // We'll connect manually
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        timeout: 20000,
-      });
+      console.log("Mocking socket connection for Spring Boot backend compatibility");
+      const newSocket = {
+        on: () => {},
+        off: () => {},
+        emit: () => {},
+        connect: () => {},
+        disconnect: () => {},
+        close: () => {},
+        removeAllListeners: () => {},
+        connected: false,
+      };
 
       // Set up event listeners
       const onConnect = () => {

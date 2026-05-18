@@ -1,15 +1,14 @@
 import axios from "axios";
 import { Capacitor } from "@capacitor/core";
 
-// Use environment variable, production relative path, or default to localhost:5005 for development
-let API_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '/api' : 'http://127.0.0.1:5005/api');
+let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5006/api/v1';
 
 // Adjust API_URL for mobile devices in development
 if (Capacitor.isNativePlatform() && !import.meta.env.VITE_API_URL) {
     // If on Android Emulator, localhost is 10.0.2.2
     // If on a real device, you need to use your machine's local IP (e.g., 192.168.x.x)
     // We'll default to the emulator IP for now, but allow easy override
-    API_URL = "http://10.0.2.2:5005/api";
+    API_URL = "http://10.0.2.2:5006/api/v1";
     console.log("Axios: Native platform detected, using mobile API URL:", API_URL);
 }
 
@@ -71,31 +70,37 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
-        // Only handle 401 Unauthorized errors
+        // Handle 401 Unauthorized errors (expired or invalid token)
         if (error.response?.status === 401) {
             // Check if this is a "soft" 401 that shouldn't trigger full logout
-            // e.g. checking for invite codes shouldn't kill the session if it fails
-            const softFailUrls = ["/invites", "/notifications"];
-            const isSoftFail = softFailUrls.some(url => error.config.url.includes(url));
+            const softFailUrls = [
+                "/invites", "/notifications", "/join-requests",
+                "/stats", "/members", "/cycles", "/roster", "/loans", 
+                "/meetings", "/welfare", "/proposals", "/claims", "/cycles"
+            ];
+            const isSoftFail = softFailUrls.some(url => error.config?.url?.includes(url));
 
             if (isSoftFail) {
                 console.warn(`[Axios] Suppressing logout for soft 401 failure at ${error.config.url}`);
                 return Promise.reject(error);
             }
 
-            console.error(`[Axios] 401 Unauthorized at ${error.config.url}`);
+            console.error(`[Axios] 401 Unauthorized at ${error.config.url} — Clearing session`);
 
             // Only clear and redirect if we're not already on the login/register page
             if (
                 window.location.pathname !== "/login" &&
                 window.location.pathname !== "/register"
             ) {
-                // Optional: Show a toast or alert before logging out?
-                // For now, we stick to the existing behavior but with the soft-fail guard
                 localStorage.removeItem("token");
                 localStorage.removeItem("user");
                 window.location.replace("/login");
             }
+        }
+        // Handle 403 Forbidden errors (user is logged in, but just doesn't have access to this resource)
+        if (error.response?.status === 403) {
+            console.warn(`[Axios] 403 Forbidden at ${error.config.url} — User is authenticated, access denied to this resource.`);
+            return Promise.reject(error);
         }
         // For 404 errors, just return the error without redirecting
         return Promise.reject(error);

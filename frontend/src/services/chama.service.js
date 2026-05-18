@@ -7,7 +7,9 @@ export const chamaAPI = {
   create: (chamaData) => api.post("/chamas", chamaData),
   update: (id, chamaData) => api.put(`/chamas/${id}`, chamaData),
   delete: (id) => api.delete(`/chamas/${id}`),
+  // Matches @GetMapping({"/my", "/user/my-chamas"}) in ChamaController
   getMyChamas: () => api.get("/chamas/user/my-chamas"),
+  // Meetings are under GovernanceController -> /governance/chamas/{id}/meetings
   getMembers: (id) => api.get(`/chamas/${id}/members`),
   getStats: (id) => api.get(`/chamas/${id}/stats`),
   getPublicChamas: (params) => api.get("/chamas/public", { params }),
@@ -15,23 +17,25 @@ export const chamaAPI = {
   analyzeReliability: (id) => api.post(`/chamas/${id}/analyze-reliability`),
 };
 
-// Member API calls
+// Member API calls — managed via ChamaController or GovernanceController
 export const memberAPI = {
-  add: (chamaId, memberData) => api.post(`/members/${chamaId}/add`, memberData),
+  add: (chamaId, memberData) => api.post(`/chamas/${chamaId}/members/add`, memberData),
   updateRole: (chamaId, userId, roleData) =>
-    api.put(`/members/${chamaId}/role/${userId}`, roleData),
+    api.put(`/chamas/${chamaId}/members/${userId}/role`, roleData),
   remove: (chamaId, userId) =>
-    api.delete(`/members/${chamaId}/remove/${userId}`),
+    api.delete(`/chamas/${chamaId}/members/${userId}`),
   getContributions: (chamaId, userId) =>
     api.get(`/contributions/${chamaId}`, { params: { userId } }),
 };
 
-// Invite API calls
+// Invite API calls — GovernanceController: /governance/chamas/{id}/invites
 export const inviteAPI = {
   generate: (chamaId, inviteData) =>
-    api.post(`/invites/${chamaId}/generate`, inviteData),
-  join: (inviteCode) => api.post("/invites/join", { inviteCode }),
-  getAll: (chamaId) => api.get(`/invites/${chamaId}`),
-  deactivate: (inviteId) => api.delete(`/invites/${inviteId}`),
-  send: (chamaId, email, role = 'MEMBER') => api.post(`/invites/${chamaId}/send`, { email, role }),
+    api.post(`/governance/chamas/${chamaId}/invites`, inviteData),
+  // Accept invite by code: /governance/invites/{code}/accept
+  join: (inviteCode) => api.post(`/governance/invites/${inviteCode}/accept`),
+  getAll: (chamaId) => api.get(`/governance/chamas/${chamaId}/invites`),
+  deactivate: (inviteId) => api.delete(`/governance/invites/${inviteId}`),
+  send: (chamaId, email, role = "MEMBER") =>
+    api.post(`/governance/chamas/${chamaId}/invites`, { email, role }),
 };

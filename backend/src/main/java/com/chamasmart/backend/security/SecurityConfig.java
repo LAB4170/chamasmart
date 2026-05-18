@@ -56,10 +56,12 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/auth/**").permitAll()
-                .requestMatchers("/api/v1/public/**").permitAll()
+                .requestMatchers("/auth/login", "/auth/register", "/auth/firebase-sync").permitAll()
+                .requestMatchers("/public/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
+                .requestMatchers("/mpesa/callback", "/payments/mpesa/callback").permitAll()
+                .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()
             );
 
