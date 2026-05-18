@@ -1,10 +1,10 @@
 import api from "./axios";
 
-// ROSCA API calls
+// ROSCA API calls — RoscaController: /rosca/chamas/{id}/cycles
 export const roscaAPI = {
-    getCycles: (chamaId) => api.get(`/rosca/chama/${chamaId}/cycles`),
+    getCycles: (chamaId) => api.get(`/rosca/chamas/${chamaId}/cycles`),
     createCycle: (cycleData) =>
-        api.post(`/rosca/chama/${cycleData.chama_id}/cycles`, cycleData),
+        api.post(`/rosca/chamas/${cycleData.chama_id}/cycles`, cycleData),
     getCycle: (cycleId) => api.get(`/rosca/cycles/${cycleId}`),
     getRoster: (cycleId) => api.get(`/rosca/cycles/${cycleId}/roster`),
     requestSwap: (cycleId, swapData) =>
@@ -20,20 +20,21 @@ export const roscaAPI = {
         api.put(`/rosca/cycles/${cycleId}/cancel`),
     deleteCycle: (cycleId) => api.delete(`/rosca/cycles/${cycleId}`),
     makeContribution: (chamaId, cycleId, payload) =>
-        api.post(`/rosca/chama/${chamaId}/cycles/${cycleId}/contributions`, payload),
+        api.post(`/rosca/chamas/${chamaId}/cycles/${cycleId}/contributions`, payload),
     getContributions: (cycleId) =>
         api.get(`/rosca/cycles/${cycleId}/contributions`),
     getMemberStatement: (cycleId, memberId) =>
         api.get(`/rosca/cycles/${cycleId}/members/${memberId}/statement`),
     getRosterPreview: (chamaId) =>
-        api.get(`/rosca/chama/${chamaId}/roster-preview`),
+        api.get(`/rosca/chamas/${chamaId}/roster-preview`),
 };
 
-// ASCA API calls
+// ASCA API calls — AscaController: /asca/chamas/{id}/cycles
 export const ascaAPI = {
+    // Matches /asca/chamas/{chamaId}/cycles
     buyShares: (chamaId, payload) =>
-        api.post(`/asca/${chamaId}/buy-shares`, payload),
-    getEquity: (chamaId) => api.get(`/asca/${chamaId}/equity`),
+        api.post(`/asca/cycles/${payload.cycleId}/shares/purchase`, payload),
+    getEquity: (chamaId) => api.get(`/asca/chamas/${chamaId}/cycles`),
     getProposals: (chamaId) => api.get(`/asca/${chamaId}/proposals`),
     createProposal: (chamaId, payload) =>
         api.post(`/asca/${chamaId}/proposals`, payload),
@@ -42,22 +43,24 @@ export const ascaAPI = {
     getAssets: (chamaId) => api.get(`/asca/${chamaId}/assets`),
     createAsset: (chamaId, payload) =>
         api.post(`/asca/${chamaId}/assets`, payload),
-    getReportsSummary: (chamaId, cycleId) => 
+    getReportsSummary: (chamaId, cycleId) =>
         api.get(`/asca/${chamaId}/reports/summary`, { params: { cycleId } }),
-    getMemberStatement: (chamaId, cycleId) => 
+    getMemberStatement: (chamaId, cycleId) =>
         api.get(`/asca/${chamaId}/reports/member-statement`, { params: { cycleId } }),
     getMemberStanding: (chamaId) =>
         api.get(`/asca/${chamaId}/reports/standing`),
 };
 
-// Welfare API calls
+// Welfare API calls — WelfareController: /welfare/chamas/{chamaId}/...
 export const welfareAPI = {
-    getConfig: (chamaId) => api.get(`/welfare/${chamaId}/config`),
+    // GET /welfare/chamas/{chamaId}/configs
+    getConfig: (chamaId) => api.get(`/welfare/chamas/${chamaId}/configs`),
     updateConfig: (chamaId, config) =>
-        api.put(`/welfare/${chamaId}/config`, config),
-    getFund: (chamaId) => api.get(`/welfare/${chamaId}/fund`),
+        api.post(`/welfare/chamas/${chamaId}/configs`, config),
+    getFund: (chamaId) => api.get(`/welfare/chamas/${chamaId}/configs`),
     makeContribution: (chamaId, payload) =>
-        api.post(`/welfare/${chamaId}/contributions`, payload),
+        api.post(`/welfare/chamas/${chamaId}/contributions`, payload),
+    // POST /welfare/claims
     submitClaim: (chamaId, claimData) => {
         const formData = new FormData();
         Object.keys(claimData).forEach((key) => {
@@ -67,25 +70,24 @@ export const welfareAPI = {
                 formData.append(key, claimData[key]);
             }
         });
-        return api.post(`/welfare/${chamaId}/claims`, formData, {
+        return api.post(`/welfare/claims`, formData, {
             headers: { "Content-Type": "multipart/form-data" },
         });
     },
-    getChamaClaims: (chamaId) => api.get(`/welfare/${chamaId}/claims`),
+    // GET /welfare/chamas/{chamaId}/claims
+    getChamaClaims: (chamaId) => api.get(`/welfare/chamas/${chamaId}/claims`),
     getMemberClaims: (chamaId, memberId) => {
-        const id = memberId || JSON.parse(localStorage.getItem('user'))?.user_id;
-        return api.get(`/welfare/${chamaId}/members/${id}/claims`);
+        return api.get(`/welfare/claims/my`);
     },
+    // POST /welfare/claims/{claimId}/approve
     approveClaim: (claimId, decision) =>
         api.post(`/welfare/claims/${claimId}/approve`, decision),
-    // Emergency Drives
+    // Emergency Drives (not yet in Spring Boot — stubs)
     getEmergencyDrives: (chamaId) => api.get(`/welfare/${chamaId}/emergency-drives`),
     createEmergencyDrive: (chamaId, payload) =>
         api.post(`/welfare/${chamaId}/emergency-drives`, payload),
     contributeToEmergencyDrive: (driveId, payload) =>
         api.post(`/welfare/emergency-drives/${driveId}/contribute`, payload),
-        
-    // Payout Ledger (Phase 23 Transparency)
+    // Payout Ledger (stub)
     getPayoutLedger: (chamaId) => api.get(`/welfare/${chamaId}/ledger`),
 };
-

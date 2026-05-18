@@ -17,13 +17,13 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("/mpesa")
+@RequestMapping({"/mpesa", "/payments/mpesa"})
 @RequiredArgsConstructor
 public class MpesaController {
 
     private final MpesaService mpesaService;
 
-    @PostMapping("/stkpush")
+    @PostMapping({"/stkpush", "/stk-push"})
     public ResponseEntity<ApiResponse<Map<String, String>>> initiateStkPush(@RequestBody MpesaStkPushRequestDto requestDto,
                                                                             @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to initiate STK Push by user ID: {}", currentUser.getUserId());

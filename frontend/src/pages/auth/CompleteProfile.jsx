@@ -6,14 +6,14 @@ import { User, Sparkles, ArrowRight, Mail, Phone } from "lucide-react";
 import { useEffect } from "react";
 
 const CompleteProfile = () => {
-  const { user, isAuthenticated, updateUser } = useAuth();
+  const { user, isAuthenticated, loading, updateUser } = useAuth();
   const navigate = useNavigate();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -32,9 +32,22 @@ const CompleteProfile = () => {
     }
   }, [user]);
 
-  // If not authenticated, go to login
+  // If not authenticated, safely redirect via useEffect
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      navigate("/login");
+    }
+  }, [isAuthenticated, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0f172a" }}>
+        <span className="spinner" style={{ width: "40px", height: "40px", borderWidth: "3px" }}></span>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
-    navigate("/login");
     return null;
   }
 
@@ -45,7 +58,7 @@ const CompleteProfile = () => {
       setError("Please enter your first name");
       return;
     }
-    setLoading(true);
+    setLoadingProfile(true);
     try {
       await userAPI.updateProfile({ 
         firstName: firstName.trim(), 
@@ -67,7 +80,7 @@ const CompleteProfile = () => {
       const message = err.response?.data?.message || err.message || "Failed to save profile";
       setError(message);
     } finally {
-      setLoading(false);
+      setLoadingProfile(false);
     }
   };
 
@@ -348,15 +361,14 @@ const CompleteProfile = () => {
                 </div>
               </div>
 
-              {/* CTA Buttons */}
               <button
                 type="submit"
-                disabled={loading || !firstName.trim()}
+                disabled={loadingProfile || !firstName.trim()}
                 style={{
                   width: "100%",
                   padding: "16px",
                   background:
-                    loading || !firstName.trim()
+                    loadingProfile || !firstName.trim()
                       ? "rgba(16, 185, 129, 0.3)"
                       : "linear-gradient(135deg, #10b981, #059669)",
                   color: "white",
@@ -364,19 +376,19 @@ const CompleteProfile = () => {
                   fontWeight: "700",
                   borderRadius: "16px",
                   border: "none",
-                  cursor: loading || !firstName.trim() ? "not-allowed" : "pointer",
+                  cursor: loadingProfile || !firstName.trim() ? "not-allowed" : "pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   transition: "all 0.3s",
                   boxShadow:
-                    loading || !firstName.trim()
+                    loadingProfile || !firstName.trim()
                       ? "none"
                       : "0 10px 30px rgba(16, 185, 129, 0.4)",
                   marginBottom: "16px",
                 }}
               >
-                {loading ? (
+                {loadingProfile ? (
                   <span
                     className="spinner"
                     style={{ width: "20px", height: "20px", borderWidth: "2px" }}

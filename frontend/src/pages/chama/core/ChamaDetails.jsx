@@ -388,8 +388,10 @@ const ChamaDetails = () => {
   });
 
   useEffect(() => {
-    fetchChamaData();
-  }, [id]);
+    if (user) {
+      fetchChamaData();
+    }
+  }, [id, user]);
 
   useEffect(() => {
     // Socket.io real-time  useEffect(() => {
@@ -525,7 +527,6 @@ const ChamaDetails = () => {
       setError("");
 
       if (!user) {
-        navigate("/login");
         return;
       }
 

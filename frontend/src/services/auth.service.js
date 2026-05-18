@@ -22,6 +22,7 @@ export const authAPI = {
     firebaseSync: (idToken, userData = {}) =>
         api.post("/auth/firebase-sync", {
             idToken,
+            email: userData.email,
             firstName: userData.firstName,
             lastName: userData.lastName,
             phoneNumber: userData.phoneNumber
