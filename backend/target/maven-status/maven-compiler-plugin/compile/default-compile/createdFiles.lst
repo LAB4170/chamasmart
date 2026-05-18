@@ -125,6 +125,7 @@ com\chamasmart\backend\domain\Meeting.class
 com\chamasmart\backend\repository\LoanGuarantorRepository.class
 com\chamasmart\backend\controller\GovernanceController.class
 com\chamasmart\backend\dto\JoinRequestDto$JoinRequestDtoBuilder.class
+com\chamasmart\backend\controller\ChamaController$1.class
 com\chamasmart\backend\dto\NotificationDto.class
 com\chamasmart\backend\controller\ContributionController$BulkContributionRequest.class
 com\chamasmart\backend\dto\GuarantorSummaryDto$GuarantorSummaryDtoBuilder.class

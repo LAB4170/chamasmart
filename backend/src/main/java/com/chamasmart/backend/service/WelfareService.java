@@ -84,8 +84,26 @@ public class WelfareService {
         Chama chama = chamaRepository.findById(requestDto.getChama_id())
                 .orElseThrow(() -> new RuntimeException("Chama not found"));
 
-        WelfareConfig eventType = welfareConfigRepository.findById(requestDto.getEvent_type_id())
-                .orElseThrow(() -> new RuntimeException("Welfare event type not found"));
+        WelfareConfig eventType;
+        if (requestDto.getEvent_type_id() != null) {
+            eventType = welfareConfigRepository.findById(requestDto.getEvent_type_id())
+                    .orElseThrow(() -> new RuntimeException("Welfare event type not found"));
+        } else {
+            String customName = requestDto.getCustom_event_name() != null ? requestDto.getCustom_event_name().trim() : "CUSTOM";
+            eventType = welfareConfigRepository.findByChamaChamaIdAndEventType(requestDto.getChama_id(), customName)
+                    .orElseGet(() -> {
+                        WelfareConfig newConfig = WelfareConfig.builder()
+                                .chama(chama)
+                                .eventType(customName)
+                                .description("Custom event: " + customName)
+                                .payoutAmount(requestDto.getClaim_amount() != null ? requestDto.getClaim_amount() : BigDecimal.ZERO)
+                                .contributionType("ONE_TIME")
+                                .contributionAmount(BigDecimal.ZERO)
+                                .isActive(true)
+                                .build();
+                        return welfareConfigRepository.save(newConfig);
+                    });
+        }
 
         WelfareClaim claim = WelfareClaim.builder()
                 .chama(chama)

@@ -33,14 +33,6 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
-  data:
-    redis:
-      # Optimized for Upstash / Render Redis & Local Fallback
-      host: ${SPRING_REDIS_HOST:${REDIS_HOST:localhost}}
-      port: ${SPRING_REDIS_PORT:${REDIS_PORT:6379}}
-      password: ${SPRING_REDIS_PASSWORD:${REDIS_PASSWORD:}}
-      ssl:
-        enabled: ${SPRING_REDIS_SSL:false}
 
 app:
   security:
@@ -64,8 +56,6 @@ app:
   ai:
     gemini-key: ${GEMINI_API_KEY:}
     groq-key: ${GROQ_API_KEY:}
-  mail:
-    resend-key: ${RESEND_API_KEY:}
 
 management:
   endpoints:
