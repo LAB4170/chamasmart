@@ -55,6 +55,8 @@ public class ChamaService {
                 .contributionAmount(dto.getContribution_amount() != null ? dto.getContribution_amount() : BigDecimal.ZERO)
                 .contributionFrequency(dto.getContribution_frequency() != null ? dto.getContribution_frequency() : "MONTHLY")
                 .visibility(dto.getVisibility() != null ? dto.getVisibility() : "PRIVATE")
+                .meetingDay(dto.getMeeting_day())
+                .meetingTime(dto.getMeeting_time())
                 .totalMembers(1) // Creator is first member
                 .currentFund(BigDecimal.ZERO)
                 .isActive(true)

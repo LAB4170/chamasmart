@@ -44,7 +44,7 @@ public class Chama {
     @Builder.Default
     private Integer contributionDay = 1;
 
-    @Column(name = "meeting_day", length = 20)
+    @Column(name = "meeting_day")
     private String meetingDay;
 
     @Column(name = "meeting_time")
