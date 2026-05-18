@@ -41,6 +41,14 @@ public class ChamaSmartApplication {
                 System.out.println("Could not ensure meetings columns: " + e.getMessage());
             }
 
+            // Ensure chamas meeting_day length is expanded to varchar(255)
+            try {
+                jdbcTemplate.execute("ALTER TABLE chamas ALTER COLUMN meeting_day TYPE varchar(255)");
+                System.out.println("Successfully altered chamas.meeting_day length to 255");
+            } catch (Exception e) {
+                System.out.println("Could not alter chamas.meeting_day length: " + e.getMessage());
+            }
+
             // Second, reset the serial sequences
             String[] tables = {"users", "chamas", "chama_members", "loans", "contributions", "meetings", "welfare_fund", "welfare_claims", "asca_cycles"};
             String[] idColumns = {"user_id", "chama_id", "membership_id", "loan_id", "contribution_id", "meeting_id", "fund_id", "claim_id", "cycle_id"};

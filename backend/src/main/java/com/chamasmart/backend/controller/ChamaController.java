@@ -172,7 +172,7 @@ public class ChamaController {
         java.util.Optional<Chama> chamaOpt = chamaRepository.findById(id);
         if (chamaOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), "Chama not found"));
+                    .body(ApiResponse.error("Chama not found"));
         }
         Chama chama = chamaOpt.get();
 
@@ -306,7 +306,7 @@ public class ChamaController {
         ResponseEntity<ApiResponse<Map<String, Object>>> scoreResponse = getChamaScore(id);
         if (scoreResponse.getStatusCode() == HttpStatus.NOT_FOUND) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), "Chama not found"));
+                    .body(ApiResponse.error("Chama not found"));
         }
         
         Map<String, Object> scoreBody = scoreResponse.getBody().getData();

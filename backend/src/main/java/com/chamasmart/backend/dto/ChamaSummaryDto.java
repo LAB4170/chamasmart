@@ -8,13 +8,16 @@ import lombok.NoArgsConstructor;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.math.BigDecimal;
+import java.time.LocalTime;
 import java.time.ZonedDateTime;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ChamaSummaryDto {
     @JsonProperty("chama_id")
     @JsonAlias({"chamaId", "chama_id"})
@@ -56,6 +59,12 @@ public class ChamaSummaryDto {
     @JsonAlias({"createdAt", "created_at"})
     private ZonedDateTime created_at;
 
+    @JsonProperty("meeting_day")
+    private String meeting_day;
+
+    @JsonProperty("meeting_time")
+    private LocalTime meeting_time;
+
     public static ChamaSummaryDto fromEntity(Chama chama) {
         return ChamaSummaryDto.builder()
                 .chama_id(chama.getChamaId())
@@ -69,6 +78,8 @@ public class ChamaSummaryDto {
                 .visibility(chama.getVisibility())
                 .is_active(chama.getIsActive())
                 .created_at(chama.getCreatedAt())
+                .meeting_day(chama.getMeetingDay())
+                .meeting_time(chama.getMeetingTime())
                 .build();
     }
 }

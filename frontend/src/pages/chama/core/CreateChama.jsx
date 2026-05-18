@@ -130,13 +130,19 @@ const CreateChama = () => {
     const finalMeetingDay = `${dayName} (${typeLabel})${locationInfo}`;
 
     const submissionData = {
-      ...formData,
-      sharePrice: formData.sharePrice === "" ? null : parseFloat(formData.sharePrice),
-      meetingDay: meetingPattern === "CUSTOM" ? formData.meetingDay : finalMeetingDay,
-      meetingTime: formData.meetingTime || null,
+      chama_name: formData.chamaName,
+      chama_type: formData.chamaType,
+      description: formData.description,
+      contribution_amount: formData.contributionAmount,
+      contribution_frequency: formData.contributionFrequency,
+      visibility: formData.visibility,
+      share_price: formData.sharePrice === "" ? null : parseFloat(formData.sharePrice),
+      meeting_day: meetingPattern === "CUSTOM" ? formData.meetingDay : finalMeetingDay,
+      meeting_time: formData.meetingTime || null,
+      payment_methods: formData.paymentMethods
     };
 
-    if (formData.chamaType !== "ASCA") delete submissionData.sharePrice;
+    if (formData.chamaType !== "ASCA") delete submissionData.share_price;
 
     try {
       const response = await chamaAPI.create(submissionData);
