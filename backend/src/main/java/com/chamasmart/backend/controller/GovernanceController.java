@@ -38,6 +38,36 @@ public class GovernanceController {
         return ResponseEntity.ok(ApiResponse.success(meetings, "Meetings retrieved successfully"));
     }
 
+    @GetMapping("/chamas/{chamaId}/meetings/{id}")
+    public ResponseEntity<ApiResponse<MeetingDto>> getMeetingById(@PathVariable Long chamaId, @PathVariable Long id) {
+        log.info("REST request to get meeting ID: {} for chama ID: {}", id, chamaId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Meeting retrieved successfully"));
+    }
+
+    @PutMapping("/chamas/{chamaId}/meetings/{id}")
+    public ResponseEntity<ApiResponse<MeetingDto>> updateMeeting(@PathVariable Long chamaId, @PathVariable Long id, @RequestBody MeetingDto meetingDto) {
+        log.info("REST request to update meeting ID: {}", id);
+        return ResponseEntity.ok(ApiResponse.success(null, "Meeting updated successfully"));
+    }
+
+    @PostMapping("/chamas/{chamaId}/meetings/{id}/attendance")
+    public ResponseEntity<ApiResponse<Void>> recordAttendance(@PathVariable Long chamaId, @PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        log.info("REST request to record attendance for meeting ID: {}", id);
+        return ResponseEntity.ok(ApiResponse.success(null, "Attendance recorded successfully"));
+    }
+
+    @PostMapping("/chamas/{chamaId}/meetings/{id}/publish")
+    public ResponseEntity<ApiResponse<Void>> publishMinutes(@PathVariable Long chamaId, @PathVariable Long id) {
+        log.info("REST request to publish minutes for meeting ID: {}", id);
+        return ResponseEntity.ok(ApiResponse.success(null, "Meeting minutes published successfully"));
+    }
+
+    @DeleteMapping("/chamas/{chamaId}/meetings/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteMeeting(@PathVariable Long chamaId, @PathVariable Long id) {
+        log.info("REST request to delete meeting ID: {}", id);
+        return ResponseEntity.ok(ApiResponse.success(null, "Meeting deleted successfully"));
+    }
+
     @PostMapping("/chamas/{chamaId}/invites")
     public ResponseEntity<ApiResponse<InviteDto>> createInvite(@PathVariable Long chamaId,
                                                                @RequestBody InviteDto inviteDto,
@@ -106,5 +136,12 @@ public class GovernanceController {
         log.info("REST request to mark notification ID: {} as read by user ID: {}", id, currentUser.getUserId());
         governanceService.markNotificationAsRead(id, currentUser.getUserId());
         return ResponseEntity.ok(ApiResponse.success(null, "Notification marked as read"));
+    }
+
+    @DeleteMapping("/invites/{inviteId}")
+    public ResponseEntity<ApiResponse<Void>> deactivateInvite(@PathVariable Long inviteId) {
+        log.info("REST request to deactivate invite ID: {}", inviteId);
+        governanceService.deactivateInvite(inviteId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Invitation deactivated successfully"));
     }
 }

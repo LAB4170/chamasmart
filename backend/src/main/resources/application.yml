@@ -6,6 +6,9 @@ server:
 spring:
   application:
     name: chamasmart-backend
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
   
   datasource:
     # Optimized for Neon Serverless PostgreSQL & Local Fallback

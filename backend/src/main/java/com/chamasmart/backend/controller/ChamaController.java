@@ -11,6 +11,7 @@ import com.chamasmart.backend.repository.ChamaMemberRepository;
 import com.chamasmart.backend.repository.ChamaRepository;
 import com.chamasmart.backend.repository.ContributionRepository;
 import com.chamasmart.backend.repository.LoanRepository;
+import com.chamasmart.backend.repository.UserRepository;
 import com.chamasmart.backend.repository.MeetingRepository;
 import com.chamasmart.backend.security.CustomUserDetails;
 import com.chamasmart.backend.service.ChamaService;
@@ -41,6 +42,7 @@ public class ChamaController {
     private final ContributionRepository contributionRepository;
     private final LoanRepository loanRepository;
     private final MeetingRepository meetingRepository;
+    private final UserRepository userRepository;
 
     /** GET /chamas/user/my-chamas  OR  /chamas/my */
     @GetMapping({"/my", "/user/my-chamas"})
@@ -162,6 +164,82 @@ public class ChamaController {
         Map<String, Object> response = new HashMap<>();
         response.put("status", "Analyzed");
         return ResponseEntity.ok(ApiResponse.success(response, "Chama reliability analyzed"));
+    }
+
+    /** POST /chamas/{chamaId}/members/add */
+    @PostMapping("/{chamaId}/members/add")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> addMember(
+            @PathVariable Long chamaId,
+            @RequestBody Map<String, Object> body,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        log.info("REST request to add member to chama ID: {}", chamaId);
+        Long userId = body.containsKey("user_id") ? Long.valueOf(body.get("user_id").toString())
+                : Long.valueOf(body.get("userId").toString());
+        String role = body.containsKey("role") ? body.get("role").toString() : "MEMBER";
+
+        java.util.Optional<com.chamasmart.backend.domain.ChamaMember> existing =
+                chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId);
+
+        if (existing.isPresent()) {
+            ChamaMember m = existing.get();
+            m.setIsActive(true);
+            chamaMemberRepository.save(m);
+        } else {
+            Chama chama = chamaRepository.findById(chamaId)
+                    .orElseThrow(() -> new RuntimeException("Chama not found"));
+            com.chamasmart.backend.domain.User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            ChamaMember newMember = ChamaMember.builder()
+                    .chama(chama)
+                    .user(user)
+                    .role(role)
+                    .isActive(true)
+                    .build();
+            chamaMemberRepository.save(newMember);
+        }
+
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("chama_id", chamaId);
+        resp.put("user_id", userId);
+        resp.put("role", role);
+        resp.put("status", "ACTIVE");
+        return ResponseEntity.ok(ApiResponse.success(resp, "Member added successfully"));
+    }
+
+    /** DELETE /chamas/{chamaId}/members/{userId} */
+    @DeleteMapping("/{chamaId}/members/{userId}")
+    public ResponseEntity<ApiResponse<Void>> removeMember(
+            @PathVariable Long chamaId,
+            @PathVariable Long userId,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        log.info("REST request to remove member user ID: {} from chama ID: {}", userId, chamaId);
+        chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
+                .ifPresent(m -> {
+                    m.setIsActive(false);
+                    chamaMemberRepository.save(m);
+                });
+        return ResponseEntity.ok(ApiResponse.success(null, "Member removed successfully"));
+    }
+
+    /** PUT /chamas/{chamaId}/members/{userId}/role */
+    @PutMapping("/{chamaId}/members/{userId}/role")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateMemberRole(
+            @PathVariable Long chamaId,
+            @PathVariable Long userId,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        log.info("REST request to update role for user ID: {} in chama ID: {}", userId, chamaId);
+        String newRole = body.get("role");
+        chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
+                .ifPresent(m -> {
+                    m.setRole(newRole);
+                    chamaMemberRepository.save(m);
+                });
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("chama_id", chamaId);
+        resp.put("user_id", userId);
+        resp.put("role", newRole);
+        return ResponseEntity.ok(ApiResponse.success(resp, "Member role updated successfully"));
     }
 
     /** GET /chamas/{id}/score */

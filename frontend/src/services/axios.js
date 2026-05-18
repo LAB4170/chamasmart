@@ -73,10 +73,13 @@ api.interceptors.response.use(
         // Handle 401 Unauthorized errors (expired or invalid token)
         if (error.response?.status === 401) {
             // Check if this is a "soft" 401 that shouldn't trigger full logout
+            // Broadened soft failures to avoid logout loops during backend transition
             const softFailUrls = [
                 "/invites", "/notifications", "/join-requests",
                 "/stats", "/members", "/cycles", "/roster", "/loans", 
-                "/meetings", "/welfare", "/proposals", "/claims", "/cycles"
+                "/meetings", "/welfare", "/proposals", "/claims", 
+                "/contributions", "/emergency-drives", "/verify-email", 
+                "/verify-phone", "/resend", "/ledger", "/chamas"
             ];
             const isSoftFail = softFailUrls.some(url => error.config?.url?.includes(url));
 

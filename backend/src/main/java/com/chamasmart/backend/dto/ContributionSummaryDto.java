@@ -24,6 +24,8 @@ public class ContributionSummaryDto {
     private String reference;
     private String status;
     private ZonedDateTime contribution_date;
+    private String payment_proof;
+    private String notes;
 
     public static ContributionSummaryDto fromEntity(Contribution c) {
         return ContributionSummaryDto.builder()
@@ -37,6 +39,8 @@ public class ContributionSummaryDto {
                 .reference(c.getReference())
                 .status(c.getStatus())
                 .contribution_date(c.getContributionDate())
+                .payment_proof(c.getPaymentProof())
+                .notes(c.getNotes())
                 .build();
     }
 }
