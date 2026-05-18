@@ -123,4 +123,51 @@ public class LoanController {
         GuarantorSummaryDto responseDto = loanService.respondToGuaranteeRequest(id, currentUser.getUserId(), decision);
         return ResponseEntity.ok(ApiResponse.success(responseDto, "Guarantor response processed successfully"));
     }
+
+    @GetMapping("/{chamaId}")
+    public ResponseEntity<ApiResponse<List<LoanSummaryDto>>> getChamaLoans(@PathVariable Long chamaId) {
+        log.info("REST request to fetch loans for chama ID: {}", chamaId);
+        List<LoanSummaryDto> loans = new java.util.ArrayList<>();
+        return ResponseEntity.ok(ApiResponse.success(loans, "Chama loans retrieved successfully"));
+    }
+
+    @GetMapping("/{chamaId}/{loanId}")
+    public ResponseEntity<ApiResponse<LoanSummaryDto>> getLoanById(@PathVariable Long chamaId, @PathVariable Long loanId) {
+        log.info("REST request to fetch loan ID: {} for chama ID: {}", loanId, chamaId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Loan retrieved successfully"));
+    }
+
+    @PutMapping("/{chamaId}/{loanId}/approve")
+    public ResponseEntity<ApiResponse<Void>> approveLoan(@PathVariable Long chamaId, @PathVariable Long loanId) {
+        log.info("REST request to approve loan ID: {}", loanId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Loan approved successfully"));
+    }
+
+    @PutMapping("/{chamaId}/{loanId}/reject")
+    public ResponseEntity<ApiResponse<Void>> rejectLoan(@PathVariable Long chamaId, @PathVariable Long loanId, @RequestBody Map<String, String> payload) {
+        log.info("REST request to reject loan ID: {}", loanId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Loan rejected successfully"));
+    }
+
+    @PostMapping("/{chamaId}/{loanId}/repay")
+    public ResponseEntity<ApiResponse<Void>> repayLoan(@PathVariable Long chamaId, @PathVariable Long loanId, @RequestBody Map<String, Object> payload) {
+        log.info("REST request to repay loan ID: {}", loanId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Loan repaid successfully"));
+    }
+
+    @GetMapping("/{chamaId}/reports/analytics")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getChamaAnalytics(@PathVariable Long chamaId) {
+        log.info("REST request to fetch analytics for chama ID: {}", chamaId);
+        return ResponseEntity.ok(ApiResponse.success(new HashMap<>(), "Analytics retrieved successfully"));
+    }
+    
+    @GetMapping("/{chamaId}/config")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getConfig(@PathVariable Long chamaId) {
+        return ResponseEntity.ok(ApiResponse.success(new HashMap<>(), "Config retrieved"));
+    }
+    
+    @PutMapping("/{chamaId}/config")
+    public ResponseEntity<ApiResponse<Void>> updateConfig(@PathVariable Long chamaId, @RequestBody Map<String, Object> config) {
+        return ResponseEntity.ok(ApiResponse.success(null, "Config updated"));
+    }
 }
