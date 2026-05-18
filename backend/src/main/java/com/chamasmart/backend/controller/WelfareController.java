@@ -68,10 +68,20 @@ public class WelfareController {
         return ResponseEntity.ok(ApiResponse.success(null, "Welfare ledger retrieved"));
     }
 
-    @PostMapping("/claims")
-    public ResponseEntity<ApiResponse<WelfareClaimSummaryDto>> fileClaim(@RequestBody WelfareClaimRequestDto requestDto,
+    @PostMapping(value = "/claims")
+    public ResponseEntity<ApiResponse<WelfareClaimSummaryDto>> fileClaim(@ModelAttribute WelfareClaimRequestDto requestDto,
+                                                                         @RequestParam(value = "proof_document", required = false) org.springframework.web.multipart.MultipartFile proofDocument,
                                                                          @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to file welfare claim by user ID: {}", currentUser.getUserId());
+        
+        if (proofDocument != null && !proofDocument.isEmpty()) {
+            String mockUrl = "https://chamasmart-storage.s3.amazonaws.com/claims/proof_" 
+                    + java.util.UUID.randomUUID().toString().substring(0, 8) 
+                    + "_" + proofDocument.getOriginalFilename();
+            requestDto.setProof_document_url(mockUrl);
+            log.info("Uploaded proof document '{}' to mock storage: {}", proofDocument.getOriginalFilename(), mockUrl);
+        }
+        
         WelfareClaimSummaryDto filedClaim = welfareService.fileClaim(requestDto, currentUser.getUserId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(filedClaim, "Welfare claim submitted successfully"));
