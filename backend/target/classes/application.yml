@@ -52,9 +52,10 @@ app:
   mpesa:
     env: ${MPESA_ENV:sandbox}
     consumer-key: ${MPESA_CONSUMER_KEY:cpQnnxLsrtEU7WQ94G5XwfBGG11yUckjQAnAJPQXM9JkHycV}
-    consumer-secret: ${MPESA_CONSUMER_SECRET:}
+    consumer-secret: ${MPESA_CONSUMER_SECRET:YOUR_DARAJA_SANDBOX_CONSUMER_SECRET}
     shortcode: ${MPESA_SHORTCODE:174379}
-    passkey: ${MPESA_PASSKEY:}
+    # Official Safaricom Sandbox Passkey (public for sandbox use)
+    passkey: ${MPESA_PASSKEY:bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919}
     callback-url: ${MPESA_CALLBACK_URL:https://chamasmart-xcym.onrender.com/api/v1/mpesa/callback}
   firebase:
     project-id: ${FIREBASE_PROJECT_ID:chamasmart-1c600}

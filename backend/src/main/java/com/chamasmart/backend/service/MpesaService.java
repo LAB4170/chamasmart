@@ -28,12 +28,12 @@ public class MpesaService {
 
     @Transactional
     public MpesaTransaction initiateStkPush(MpesaStkPushRequestDto requestDto, Long userId) {
-        log.info("Initiating M-Pesa STK Push for user ID: {}, chama ID: {}, amount: {}", userId, requestDto.getChama_id(), requestDto.getAmount());
+        log.info("Initiating M-Pesa STK Push for user ID: {}, chama ID: {}, amount: {}", userId, requestDto.getChamaId(), requestDto.getAmount());
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Chama chama = chamaRepository.findById(requestDto.getChama_id())
+        Chama chama = chamaRepository.findById(requestDto.getChamaId())
                 .orElseThrow(() -> new RuntimeException("Chama not found"));
 
         // Mocking Safaricom Daraja STK Push CheckoutRequestID generation
@@ -46,7 +46,7 @@ public class MpesaService {
                 .user(user)
                 .chama(chama)
                 .amount(requestDto.getAmount())
-                .phoneNumber(requestDto.getPhone_number())
+                .phoneNumber(requestDto.getPhoneNumber())
                 .status("PENDING")
                 .build();
 

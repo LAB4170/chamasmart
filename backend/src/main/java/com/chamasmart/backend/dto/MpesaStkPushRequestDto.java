@@ -1,5 +1,6 @@
 package com.chamasmart.backend.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,8 +13,14 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MpesaStkPushRequestDto {
-    private Long chama_id;
+    @JsonProperty("chamaId")
+    private Long chamaId;
+
     private BigDecimal amount;
-    private String phone_number;
-    private String contribution_type; // REGULAR, PENALTY, WELFARE
+
+    @JsonProperty("phoneNumber")
+    private String phoneNumber;
+
+    @JsonProperty("contributionType")
+    private String contributionType;
 }
