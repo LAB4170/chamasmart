@@ -252,4 +252,13 @@ public class GovernanceService {
                 .map(JoinRequestDto::fromEntity)
                 .collect(Collectors.toList());
     }
+
+    @Transactional
+    public void deactivateInvite(Long inviteId) {
+        log.info("Deactivating invite ID: {}", inviteId);
+        inviteRepository.findById(inviteId).ifPresent(invite -> {
+            invite.setStatus("REVOKED");
+            inviteRepository.save(invite);
+        });
+    }
 }

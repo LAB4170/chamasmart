@@ -1,0 +1,206 @@
+[
+  {
+    "method": "GET",
+    "path": "/chamas",
+    "file": "chama.service.js",
+    "line": 5
+  },
+  {
+    "method": "POST",
+    "path": "/chamas",
+    "file": "chama.service.js",
+    "line": 7
+  },
+  {
+    "method": "GET",
+    "path": "/chat/channels/{channelId}/messages?page={page}&limit={limit}",
+    "file": "chat.service.js",
+    "line": 6
+  },
+  {
+    "method": "GET",
+    "path": "/asca/{chamaId}/proposals",
+    "file": "features.service.js",
+    "line": 38
+  },
+  {
+    "method": "POST",
+    "path": "/asca/{chamaId}/proposals",
+    "file": "features.service.js",
+    "line": 40
+  },
+  {
+    "method": "POST",
+    "path": "/asca/{chamaId}/proposals/{proposalId}/vote",
+    "file": "features.service.js",
+    "line": 42
+  },
+  {
+    "method": "GET",
+    "path": "/asca/{chamaId}/assets",
+    "file": "features.service.js",
+    "line": 43
+  },
+  {
+    "method": "POST",
+    "path": "/asca/{chamaId}/assets",
+    "file": "features.service.js",
+    "line": 45
+  },
+  {
+    "method": "GET",
+    "path": "/asca/{chamaId}/reports/summary",
+    "file": "features.service.js",
+    "line": 47
+  },
+  {
+    "method": "GET",
+    "path": "/asca/{chamaId}/reports/member-statement",
+    "file": "features.service.js",
+    "line": 49
+  },
+  {
+    "method": "GET",
+    "path": "/asca/{chamaId}/reports/standing",
+    "file": "features.service.js",
+    "line": 51
+  },
+  {
+    "method": "POST",
+    "path": "/payments/mpesa/stk-push",
+    "file": "finance.service.js",
+    "line": 16
+  },
+  {
+    "method": "GET",
+    "path": "/payouts/{chamaId}/eligible",
+    "file": "finance.service.js",
+    "line": 50
+  },
+  {
+    "method": "POST",
+    "path": "/payouts/{chamaId}/process",
+    "file": "finance.service.js",
+    "line": 52
+  },
+  {
+    "method": "GET",
+    "path": "/payouts/{chamaId}",
+    "file": "finance.service.js",
+    "line": 53
+  },
+  {
+    "method": "POST",
+    "path": "/users/profile-picture",
+    "file": "firebaseStorage.js",
+    "line": 17
+  },
+  {
+    "method": "PUT",
+    "path": "/auth/change-password",
+    "file": "utils.service.js",
+    "line": 7
+  },
+  {
+    "method": "DELETE",
+    "path": "/users/account",
+    "file": "utils.service.js",
+    "line": 8
+  },
+  {
+    "method": "GET",
+    "path": "/audit/users/{userId}",
+    "file": "utils.service.js",
+    "line": 31
+  },
+  {
+    "method": "GET",
+    "path": "/audit/chamas/{chamaId}",
+    "file": "utils.service.js",
+    "line": 33
+  },
+  {
+    "method": "GET",
+    "path": "/audit/security",
+    "file": "utils.service.js",
+    "line": 34
+  },
+  {
+    "method": "GET",
+    "path": "/audit/chamas/{chamaId}/summary",
+    "file": "utils.service.js",
+    "line": 35
+  },
+  {
+    "method": "GET",
+    "path": "/audit/chamas/{chamaId}/export",
+    "file": "utils.service.js",
+    "line": 37
+  },
+  {
+    "method": "GET",
+    "path": "/notifications",
+    "file": "utils.service.js",
+    "line": 45
+  },
+  {
+    "method": "POST",
+    "path": "/api-keys",
+    "file": "utils.service.js",
+    "line": 63
+  },
+  {
+    "method": "GET",
+    "path": "/api-keys",
+    "file": "utils.service.js",
+    "line": 64
+  },
+  {
+    "method": "POST",
+    "path": "/api-keys/{keyId}/revoke",
+    "file": "utils.service.js",
+    "line": 65
+  },
+  {
+    "method": "DELETE",
+    "path": "/api-keys/{keyId}",
+    "file": "utils.service.js",
+    "line": 66
+  },
+  {
+    "method": "POST",
+    "path": "/api-keys/{keyId}/rotate",
+    "file": "utils.service.js",
+    "line": 67
+  },
+  {
+    "method": "POST",
+    "path": "/sessions/{chamaId}/{meetingId}/open",
+    "file": "utils.service.js",
+    "line": 73
+  },
+  {
+    "method": "GET",
+    "path": "/sessions/{chamaId}/{meetingId}/data",
+    "file": "utils.service.js",
+    "line": 75
+  },
+  {
+    "method": "POST",
+    "path": "/sessions/{chamaId}/{meetingId}/close",
+    "file": "utils.service.js",
+    "line": 77
+  },
+  {
+    "method": "POST",
+    "path": "/sessions/{chamaId}/{meetingId}/penalties",
+    "file": "utils.service.js",
+    "line": 79
+  },
+  {
+    "method": "GET",
+    "path": "/sessions/{chamaId}/{meetingId}/penalties",
+    "file": "utils.service.js",
+    "line": 81
+  }
+]

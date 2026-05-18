@@ -51,6 +51,12 @@ public class Contribution {
     @Column(name = "created_at", updatable = false)
     private ZonedDateTime createdAt;
 
+    @Column(name = "payment_proof", length = 500)
+    private String paymentProof;
+
+    @Column(columnDefinition = "TEXT")
+    private String notes;
+
     @Column(name = "is_deleted")
     @Builder.Default
     private Boolean isDeleted = false;

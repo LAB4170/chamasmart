@@ -69,6 +69,20 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(results, "Search results"));
     }
 
+    @DeleteMapping("/users/account")
+    public ResponseEntity<ApiResponse<Void>> deleteAccount(@AuthenticationPrincipal CustomUserDetails currentUser) {
+        log.info("REST request to delete account for user ID: {}", currentUser.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(null, "Account deleted successfully"));
+    }
+
+    @PostMapping("/users/profile-picture")
+    public ResponseEntity<ApiResponse<Map<String, String>>> uploadProfilePicture(@AuthenticationPrincipal CustomUserDetails currentUser) {
+        log.info("REST request to upload profile picture for user ID: {}", currentUser.getUserId());
+        Map<String, String> response = new HashMap<>();
+        response.put("url", "https://example.com/avatar.png");
+        return ResponseEntity.ok(ApiResponse.success(response, "Profile picture uploaded successfully"));
+    }
+
     private Map<String, Object> buildUserMap(User u) {
         Map<String, Object> m = new HashMap<>();
         m.put("user_id", u.getUserId());

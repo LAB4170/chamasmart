@@ -5,8 +5,11 @@ com\chamasmart\backend\service\AscaService.class
 com\chamasmart\backend\dto\WelfareClaimSummaryDto$WelfareClaimSummaryDtoBuilder.class
 com\chamasmart\backend\domain\Notification.class
 com\chamasmart\backend\dto\WelfareClaimSummaryDto.class
+com\chamasmart\backend\controller\ContributionController$ContributionRequest.class
+com\chamasmart\backend\controller\ContributionController$SingleContributionRequest.class
 com\chamasmart\backend\domain\RoscaRoster.class
 com\chamasmart\backend\dto\InviteDto.class
+com\chamasmart\backend\controller\ContributionController.class
 com\chamasmart\backend\domain\AscaMember$AscaMemberBuilder.class
 com\chamasmart\backend\dto\AscaCycleDto$AscaMemberDto.class
 com\chamasmart\backend\repository\WelfareFundRepository.class
@@ -25,6 +28,7 @@ com\chamasmart\backend\dto\MpesaCallbackDto$Item.class
 com\chamasmart\backend\domain\ChamaMember.class
 com\chamasmart\backend\domain\Contribution$ContributionBuilder.class
 com\chamasmart\backend\controller\LoanController.class
+com\chamasmart\backend\controller\SessionController.class
 com\chamasmart\backend\dto\WelfareConfigDto.class
 com\chamasmart\backend\dto\ApiResponse.class
 com\chamasmart\backend\repository\ContributionRepository.class
@@ -34,6 +38,7 @@ com\chamasmart\backend\domain\WelfareClaim.class
 com\chamasmart\backend\controller\MpesaController.class
 com\chamasmart\backend\dto\LoanSummaryDto$LoanSummaryDtoBuilder.class
 com\chamasmart\backend\dto\RoscaCycleDto$RosterPositionDto.class
+com\chamasmart\backend\controller\AuditController.class
 com\chamasmart\backend\domain\Loan.class
 com\chamasmart\backend\domain\WelfareConfig.class
 com\chamasmart\backend\repository\ChamaRepository.class
@@ -71,7 +76,9 @@ com\chamasmart\backend\ChamaSmartApplication.class
 com\chamasmart\backend\security\SecurityConfig.class
 com\chamasmart\backend\dto\AscaCycleDto.class
 com\chamasmart\backend\dto\MpesaCallbackDto$MpesaCallbackDtoBuilder.class
+com\chamasmart\backend\controller\ApiKeyController.class
 com\chamasmart\backend\dto\LoanApplicationRequestDto$GuarantorPledgeDto.class
+com\chamasmart\backend\controller\PayoutController.class
 com\chamasmart\backend\domain\AscaMember.class
 com\chamasmart\backend\dto\ApiResponse$ApiResponseBuilder.class
 com\chamasmart\backend\repository\RoscaRosterRepository.class
@@ -119,6 +126,7 @@ com\chamasmart\backend\repository\LoanGuarantorRepository.class
 com\chamasmart\backend\controller\GovernanceController.class
 com\chamasmart\backend\dto\JoinRequestDto$JoinRequestDtoBuilder.class
 com\chamasmart\backend\dto\NotificationDto.class
+com\chamasmart\backend\controller\ContributionController$BulkContributionRequest.class
 com\chamasmart\backend\dto\GuarantorSummaryDto$GuarantorSummaryDtoBuilder.class
 com\chamasmart\backend\domain\AscaCycle$AscaCycleBuilder.class
 com\chamasmart\backend\dto\LoanApplicationRequestDto.class

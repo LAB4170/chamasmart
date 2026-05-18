@@ -41,6 +41,15 @@ public class ChamaSmartApplication {
                 System.out.println("Could not ensure meetings columns: " + e.getMessage());
             }
 
+            // Ensure contributions table has payment_proof and notes columns
+            try {
+                jdbcTemplate.execute("ALTER TABLE contributions ADD COLUMN IF NOT EXISTS payment_proof varchar(500)");
+                jdbcTemplate.execute("ALTER TABLE contributions ADD COLUMN IF NOT EXISTS notes text");
+                System.out.println("Successfully ensured contributions payment_proof and notes columns exist");
+            } catch (Exception e) {
+                System.out.println("Could not ensure contributions payment_proof and notes columns: " + e.getMessage());
+            }
+
             // Ensure chamas meeting_day length is expanded to varchar(255)
             try {
                 jdbcTemplate.execute("ALTER TABLE chamas ALTER COLUMN meeting_day TYPE varchar(255)");

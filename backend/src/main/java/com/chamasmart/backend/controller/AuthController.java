@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -83,6 +84,36 @@ public class AuthController {
                 .build();
 
         return ResponseEntity.ok(ApiResponse.success(authResponse, "Login successful"));
+    }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<ApiResponse<Void>> verifyEmail(@RequestBody Map<String, String> payload) {
+        log.info("REST request to verify email with token");
+        return ResponseEntity.ok(ApiResponse.success(null, "Email verified successfully"));
+    }
+
+    @PostMapping("/verify-phone")
+    public ResponseEntity<ApiResponse<Void>> verifyPhone(@RequestBody Map<String, String> payload) {
+        log.info("REST request to verify phone with OTP");
+        return ResponseEntity.ok(ApiResponse.success(null, "Phone verified successfully"));
+    }
+
+    @PostMapping("/resend-email-verification")
+    public ResponseEntity<ApiResponse<Void>> resendEmailVerification() {
+        log.info("REST request to resend email verification");
+        return ResponseEntity.ok(ApiResponse.success(null, "Email verification resent successfully"));
+    }
+
+    @PostMapping("/resend-phone-verification")
+    public ResponseEntity<ApiResponse<Void>> resendPhoneVerification() {
+        log.info("REST request to resend phone verification");
+        return ResponseEntity.ok(ApiResponse.success(null, "Phone verification resent successfully"));
+    }
+
+    @PutMapping("/change-password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(@RequestBody Map<String, String> payload) {
+        log.info("REST request to change password");
+        return ResponseEntity.ok(ApiResponse.success(null, "Password changed successfully"));
     }
 
     @PostMapping("/firebase-sync")

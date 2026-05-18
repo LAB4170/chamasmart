@@ -22,7 +22,7 @@ public class LoanController {
 
     private final LoanService loanService;
 
-    @PostMapping("/apply")
+    @PostMapping({"/apply", "/{chamaId}/apply"})
     public ResponseEntity<ApiResponse<LoanSummaryDto>> applyForLoan(@RequestBody LoanApplicationRequestDto requestDto,
                                                                     @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to apply for loan by user ID: {}", currentUser.getUserId());
