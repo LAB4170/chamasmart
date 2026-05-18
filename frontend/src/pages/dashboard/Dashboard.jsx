@@ -324,13 +324,57 @@ const Dashboard = () => {
             {loading ? (
               <LoadingSkeleton type="card" count={3} />
             ) : chamas.length === 0 ? (
-              <div className="card-modern text-center" style={{ padding: "4rem 2rem" }}>
-                <Activity size={56} strokeWidth={1} style={{ marginBottom: "1rem" }} />
-                <h2>Start Your Journey</h2>
-                <Link to="/chamas/create" className="btn-action-primary" style={{ marginTop: "2rem" }}>
-                  <Plus size={18} /> Create Your First Chama
-                </Link>
-              </div>
+              <motion.div 
+                className="card-modern text-center" 
+                style={{ 
+                  padding: "0", 
+                  overflow: "hidden",
+                  background: "linear-gradient(145deg, var(--card-bg) 0%, rgba(20,20,20,0.4) 100%)",
+                  border: "1px solid var(--glass-border)",
+                  borderRadius: "24px",
+                  position: "relative",
+                  boxShadow: "0 20px 40px -10px rgba(0,0,0,0.1)"
+                }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                {/* Decorative background glow */}
+                <div style={{ position: "absolute", top: "-20%", right: "-10%", width: "50%", height: "50%", background: "radial-gradient(circle, var(--gold-soft) 0%, transparent 70%)", opacity: 0.15, filter: "blur(60px)", pointerEvents: "none" }} />
+                
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "4rem 2rem", position: "relative", zIndex: 1 }}>
+                  <motion.img 
+                    src="/journey_illustration.png" 
+                    alt="Start Your Journey" 
+                    style={{ 
+                      width: "180px", 
+                      height: "180px", 
+                      objectFit: "contain",
+                      marginBottom: "1.5rem",
+                      filter: "drop-shadow(0px 20px 30px rgba(0,0,0,0.15))"
+                    }}
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 100, delay: 0.2 }}
+                  />
+                  
+                  <h2 style={{ fontSize: "2rem", fontWeight: 800, marginBottom: "0.5rem", background: "var(--gold-gradient)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                    Your Wealth Journey Starts Here
+                  </h2>
+                  <p style={{ color: "var(--text-secondary)", fontSize: "1rem", maxWidth: "450px", lineHeight: 1.6, marginBottom: "2.5rem" }}>
+                    Create your first high-end Chama to pool resources, track financial goals, and build collective prosperity securely.
+                  </p>
+                  
+                  <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", justifyContent: "center" }}>
+                    <Link to="/join-chama" className="btn-action-secondary" style={{ borderRadius: "14px", padding: "12px 24px", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px" }}>
+                      <Search size={18} /> Discover Groups
+                    </Link>
+                    <Link to="/chamas/create" className="btn-action-primary" style={{ background: "var(--gold-gradient)", border: "none", color: "white", borderRadius: "14px", padding: "12px 24px", fontWeight: 700, display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 8px 20px -6px rgba(212, 175, 55, 0.4)" }}>
+                      <Plus size={18} /> Create First Chama
+                    </Link>
+                  </div>
+                </div>
+              </motion.div>
             ) : (
               <>
                 <div className="portfolio-grid">

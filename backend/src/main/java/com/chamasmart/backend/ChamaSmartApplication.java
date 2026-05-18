@@ -59,17 +59,4 @@ public class ChamaSmartApplication {
         };
     }
 
-    @Bean
-    public CommandLineRunner testScore(com.chamasmart.backend.controller.ChamaController chamaController) {
-        return args -> {
-            try {
-                System.out.println("====== STARTING TEST FOR GET SCORE ======");
-                chamaController.getChamaScore(46L);
-                System.out.println("====== TEST GET SCORE PASSED SUCCESSFULLY ======");
-            } catch (Exception e) {
-                System.out.println("====== TEST GET SCORE FAILED ======");
-                e.printStackTrace(System.out);
-            }
-        };
-    }
 }
