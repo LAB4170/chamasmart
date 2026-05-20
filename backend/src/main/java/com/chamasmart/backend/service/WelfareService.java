@@ -25,6 +25,7 @@ public class WelfareService {
     private final ChamaRepository chamaRepository;
     private final UserRepository userRepository;
     private final ChamaMemberRepository chamaMemberRepository;
+    private final FinancialAuditLogRepository auditLogRepository;
 
     private ChamaMember validateUserMembershipAndActiveStatus(Long chamaId, Long userId) {
         return chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
@@ -171,6 +172,20 @@ public class WelfareService {
                 fund.setBalance(fund.getBalance().subtract(claim.getClaimAmount()));
                 welfareFundRepository.save(fund);
                 claim.setStatus("PAID");
+
+                // Write Financial Audit Log
+                FinancialAuditLog auditLog = FinancialAuditLog.builder()
+                        .user(claim.getMember())
+                        .transactionType("WELFARE_DISBURSEMENT")
+                        .amount(claim.getClaimAmount())
+                        .chama(claim.getChama())
+                        .referenceId(claim.getClaimId())
+                        .description("Welfare claim disbursed. Claim ID: " + claim.getClaimId() + ", Reason: " + claim.getDescription())
+                        .ipAddress("127.0.0.1")
+                        .userAgent("System-Service")
+                        .build();
+                auditLogRepository.save(auditLog);
+
                 log.info("Welfare claim ID: {} fully approved and disbursed from fund.", claimId);
             }
         }
@@ -201,5 +216,27 @@ public class WelfareService {
         return welfareClaimRepository.findByMemberUserId(userId).stream()
                 .map(WelfareClaimSummaryDto::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Object> getLedger(Long chamaId) {
+        log.info("Fetching welfare ledger for chama ID: {}", chamaId);
+        Chama chama = chamaRepository.findById(chamaId)
+                .orElseThrow(() -> new RuntimeException("Chama not found"));
+
+        WelfareFund fund = welfareFundRepository.findByChamaChamaId(chamaId)
+                .orElseGet(() -> {
+                    WelfareFund newFund = WelfareFund.builder()
+                            .chama(chama)
+                            .balance(BigDecimal.ZERO)
+                            .build();
+                    return welfareFundRepository.save(newFund);
+                });
+
+        return java.util.Map.of(
+                "chama_id", chamaId,
+                "welfare_balance", fund.getBalance(),
+                "balance", fund.getBalance()
+        );
     }
 }

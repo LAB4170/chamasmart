@@ -6,6 +6,7 @@ C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\
 C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\controller\ChamaController.java
 C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\controller\ChatController.java
 C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\controller\ContributionController.java
+C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\controller\GlobalExceptionHandler.java
 C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\controller\GovernanceController.java
 C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\controller\LoanController.java
 C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\controller\MpesaController.java
@@ -19,6 +20,7 @@ C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\
 C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\domain\AscaMember.java
 C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\domain\Chama.java
 C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\domain\ChamaMember.java
+C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\domain\ChamaPaymentConfig.java
 C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\domain\Contribution.java
 C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\domain\FinancialAuditLog.java
 C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\domain\Invite.java
@@ -59,6 +61,7 @@ C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\
 C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\repository\AscaCycleRepository.java
 C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\repository\AscaMemberRepository.java
 C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\repository\ChamaMemberRepository.java
+C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\repository\ChamaPaymentConfigRepository.java
 C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\repository\ChamaRepository.java
 C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\repository\ContributionRepository.java
 C:\Users\Eobord\Desktop\chamasmart\backend\src\main\java\com\chamasmart\backend\repository\FinancialAuditLogRepository.java

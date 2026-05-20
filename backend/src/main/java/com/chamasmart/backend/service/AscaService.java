@@ -23,6 +23,7 @@ public class AscaService {
     private final ChamaRepository chamaRepository;
     private final UserRepository userRepository;
     private final ChamaMemberRepository chamaMemberRepository;
+    private final FinancialAuditLogRepository auditLogRepository;
 
     private ChamaMember validateUserMembershipAndActiveStatus(Long chamaId, Long userId) {
         return chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
@@ -75,7 +76,10 @@ public class AscaService {
         AscaCycle cycle = ascaCycleRepository.findByIdWithPessimisticLock(cycleId)
                 .orElseThrow(() -> new RuntimeException("ASCA cycle not found"));
 
-        validateUserMembershipAndActiveStatus(cycle.getChama().getChamaId(), userId);
+        Chama chama = chamaRepository.findByIdWithPessimisticLock(cycle.getChama().getChamaId())
+                .orElseThrow(() -> new RuntimeException("Chama not found"));
+
+        validateUserMembershipAndActiveStatus(chama.getChamaId(), userId);
 
         if (!"ACTIVE".equals(cycle.getStatus())) {
             throw new RuntimeException("Cannot purchase shares in an inactive cycle");
@@ -106,6 +110,23 @@ public class AscaService {
 
         cycle.setAvailableShares(cycle.getAvailableShares() - sharesToPurchase);
         AscaCycle updatedCycle = ascaCycleRepository.save(cycle);
+
+        // Credit the investment amount to the Chama's current fund balance
+        chama.setCurrentFund(chama.getCurrentFund().add(investmentAmount));
+        chamaRepository.save(chama);
+
+        // Record Financial Audit Log
+        FinancialAuditLog auditLog = FinancialAuditLog.builder()
+                .user(user)
+                .transactionType("ASCA_SHARE_PURCHASE")
+                .amount(investmentAmount)
+                .chama(chama)
+                .referenceId(cycle.getCycleId())
+                .description("ASCA shares purchased: " + sharesToPurchase + " shares. Total Invested: KES " + investmentAmount)
+                .ipAddress("127.0.0.1")
+                .userAgent("System-Service")
+                .build();
+        auditLogRepository.save(auditLog);
 
         log.info("Successfully processed share purchase. Remaining available shares: {}", updatedCycle.getAvailableShares());
         List<AscaMember> members = ascaMemberRepository.findByCycleCycleId(updatedCycle.getCycleId());

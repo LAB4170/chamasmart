@@ -35,6 +35,7 @@ public class ContributionController {
     private final UserRepository userRepository;
     private final ChamaMemberRepository chamaMemberRepository;
     private final FinancialAuditLogRepository auditLogRepository;
+    private final WelfareFundRepository welfareFundRepository;
 
     @Data
     @NoArgsConstructor
@@ -136,9 +137,19 @@ public class ContributionController {
                         chamaMemberRepository.save(member);
                     });
 
-            // Update Chama current fund
-            chama.setCurrentFund(chama.getCurrentFund().add(request.getAmount()));
-            chamaRepository.save(chama);
+            if ("WELFARE".equalsIgnoreCase(type)) {
+                WelfareFund fund = welfareFundRepository.findByChamaIdWithPessimisticLock(chamaId)
+                        .orElseGet(() -> welfareFundRepository.save(WelfareFund.builder()
+                                .chama(chama)
+                                .balance(BigDecimal.ZERO)
+                                .build()));
+                fund.setBalance(fund.getBalance().add(request.getAmount()));
+                welfareFundRepository.save(fund);
+            } else {
+                // Update Chama current fund
+                chama.setCurrentFund(chama.getCurrentFund().add(request.getAmount()));
+                chamaRepository.save(chama);
+            }
 
             // Write Financial Audit Log
             FinancialAuditLog auditLog = FinancialAuditLog.builder()
@@ -307,10 +318,20 @@ public class ContributionController {
                         chamaMemberRepository.save(member);
                     });
 
-            // Update Chama current fund
             Chama chama = contribution.getChama();
-            chama.setCurrentFund(chama.getCurrentFund().add(contribution.getAmount()));
-            chamaRepository.save(chama);
+            if ("WELFARE".equalsIgnoreCase(contribution.getContributionType())) {
+                WelfareFund fund = welfareFundRepository.findByChamaIdWithPessimisticLock(chamaId)
+                        .orElseGet(() -> welfareFundRepository.save(WelfareFund.builder()
+                                .chama(chama)
+                                .balance(BigDecimal.ZERO)
+                                .build()));
+                fund.setBalance(fund.getBalance().add(contribution.getAmount()));
+                welfareFundRepository.save(fund);
+            } else {
+                // Update Chama current fund
+                chama.setCurrentFund(chama.getCurrentFund().add(contribution.getAmount()));
+                chamaRepository.save(chama);
+            }
 
             // Write Financial Audit Log
             FinancialAuditLog auditLog = FinancialAuditLog.builder()
@@ -369,6 +390,53 @@ public class ContributionController {
 
         if (!contribution.getChama().getChamaId().equals(chamaId)) {
             throw new RuntimeException("Contribution does not belong to this chama");
+        }
+
+        if ("COMPLETED".equalsIgnoreCase(contribution.getStatus())) {
+            // Deduct from member totalContributions
+            chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, contribution.getUser().getUserId())
+                    .ifPresent(member -> {
+                        BigDecimal updatedTotal = member.getTotalContributions().subtract(contribution.getAmount());
+                        if (updatedTotal.compareTo(BigDecimal.ZERO) < 0) {
+                            updatedTotal = BigDecimal.ZERO;
+                        }
+                        member.setTotalContributions(updatedTotal);
+                        chamaMemberRepository.save(member);
+                    });
+
+            // Deduct from Chama or Welfare fund
+            if ("WELFARE".equalsIgnoreCase(contribution.getContributionType())) {
+                welfareFundRepository.findByChamaIdWithPessimisticLock(chamaId)
+                        .ifPresent(fund -> {
+                            BigDecimal updatedBalance = fund.getBalance().subtract(contribution.getAmount());
+                            if (updatedBalance.compareTo(BigDecimal.ZERO) < 0) {
+                                updatedBalance = BigDecimal.ZERO;
+                            }
+                            fund.setBalance(updatedBalance);
+                            welfareFundRepository.save(fund);
+                        });
+            } else {
+                Chama chama = contribution.getChama();
+                BigDecimal updatedFund = chama.getCurrentFund().subtract(contribution.getAmount());
+                if (updatedFund.compareTo(BigDecimal.ZERO) < 0) {
+                    updatedFund = BigDecimal.ZERO;
+                }
+                chama.setCurrentFund(updatedFund);
+                chamaRepository.save(chama);
+            }
+
+            // Write Financial Audit Log reversal entry
+            FinancialAuditLog auditLog = FinancialAuditLog.builder()
+                    .user(contribution.getUser())
+                    .transactionType("CONTRIBUTION_REVERSAL")
+                    .amount(contribution.getAmount())
+                    .chama(contribution.getChama())
+                    .referenceId(contribution.getContributionId())
+                    .description("Contribution deleted/reversed. Original Ref: " + contribution.getReference())
+                    .ipAddress("127.0.0.1")
+                    .userAgent("System-Admin-Console")
+                    .build();
+            auditLogRepository.save(auditLog);
         }
 
         contribution.setIsDeleted(true);

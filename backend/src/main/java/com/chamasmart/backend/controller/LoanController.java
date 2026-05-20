@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,9 +24,13 @@ public class LoanController {
     private final LoanService loanService;
 
     @PostMapping({"/apply", "/{chamaId}/apply"})
-    public ResponseEntity<ApiResponse<LoanSummaryDto>> applyForLoan(@RequestBody LoanApplicationRequestDto requestDto,
+    public ResponseEntity<ApiResponse<LoanSummaryDto>> applyForLoan(@PathVariable(value = "chamaId", required = false) Long chamaId,
+                                                                    @RequestBody LoanApplicationRequestDto requestDto,
                                                                     @AuthenticationPrincipal CustomUserDetails currentUser) {
-        log.info("REST request to apply for loan by user ID: {}", currentUser.getUserId());
+        log.info("REST request to apply for loan by user ID: {} in chama ID: {}", currentUser.getUserId(), chamaId);
+        if (chamaId != null && requestDto.getChama_id() == null) {
+            requestDto.setChama_id(chamaId);
+        }
         LoanSummaryDto loanSummary = loanService.applyForLoan(requestDto, currentUser.getUserId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(loanSummary, "Loan application submitted successfully"));
@@ -138,20 +143,50 @@ public class LoanController {
     }
 
     @PutMapping("/{chamaId}/{loanId}/approve")
-    public ResponseEntity<ApiResponse<Void>> approveLoan(@PathVariable Long chamaId, @PathVariable Long loanId) {
-        log.info("REST request to approve loan ID: {}", loanId);
+    public ResponseEntity<ApiResponse<Void>> approveLoan(
+            @PathVariable Long chamaId, 
+            @PathVariable Long loanId,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        log.info("REST request to approve loan ID: {} by user ID: {}", loanId, currentUser.getUserId());
+        loanService.approveLoan(loanId, currentUser.getUserId());
         return ResponseEntity.ok(ApiResponse.success(null, "Loan approved successfully"));
     }
 
     @PutMapping("/{chamaId}/{loanId}/reject")
-    public ResponseEntity<ApiResponse<Void>> rejectLoan(@PathVariable Long chamaId, @PathVariable Long loanId, @RequestBody Map<String, String> payload) {
-        log.info("REST request to reject loan ID: {}", loanId);
+    public ResponseEntity<ApiResponse<Void>> rejectLoan(
+            @PathVariable Long chamaId, 
+            @PathVariable Long loanId, 
+            @RequestBody Map<String, String> payload,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        log.info("REST request to reject loan ID: {} by user ID: {}", loanId, currentUser.getUserId());
+        String reason = payload.get("reason");
+        if (reason == null) {
+            reason = payload.get("comments");
+        }
+        loanService.rejectLoan(loanId, currentUser.getUserId(), reason);
         return ResponseEntity.ok(ApiResponse.success(null, "Loan rejected successfully"));
     }
 
     @PostMapping("/{chamaId}/{loanId}/repay")
-    public ResponseEntity<ApiResponse<Void>> repayLoan(@PathVariable Long chamaId, @PathVariable Long loanId, @RequestBody Map<String, Object> payload) {
-        log.info("REST request to repay loan ID: {}", loanId);
+    public ResponseEntity<ApiResponse<Void>> repayLoan(
+            @PathVariable Long chamaId, 
+            @PathVariable Long loanId, 
+            @RequestBody Map<String, Object> payload,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        log.info("REST request to repay loan ID: {} by user ID: {}", loanId, currentUser.getUserId());
+        Object amountObj = payload.get("amount");
+        if (amountObj == null) {
+            throw new RuntimeException("Repayment amount parameter is missing");
+        }
+        
+        BigDecimal amount;
+        if (amountObj instanceof Number) {
+            amount = BigDecimal.valueOf(((Number) amountObj).doubleValue());
+        } else {
+            amount = new BigDecimal(amountObj.toString());
+        }
+
+        loanService.repayLoan(loanId, amount, currentUser.getUserId());
         return ResponseEntity.ok(ApiResponse.success(null, "Loan repaid successfully"));
     }
 
