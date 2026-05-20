@@ -25,11 +25,20 @@ public class LoanService {
     private final ChamaRepository chamaRepository;
     private final UserRepository userRepository;
     private final ChamaMemberRepository chamaMemberRepository;
+    private final FinancialAuditLogRepository auditLogRepository;
 
     private ChamaMember validateUserMembershipAndActiveStatus(Long chamaId, Long userId) {
         return chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
                 .filter(ChamaMember::getIsActive)
                 .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("Security Violation: User ID " + userId + " is not an active member of Chama ID " + chamaId));
+    }
+
+    private ChamaMember validateUserIsOfficial(Long chamaId, Long userId) {
+        ChamaMember member = validateUserMembershipAndActiveStatus(chamaId, userId);
+        if (!"CHAIRPERSON".equalsIgnoreCase(member.getRole()) && !"TREASURER".equalsIgnoreCase(member.getRole()) && !"SECRETARY".equalsIgnoreCase(member.getRole())) {
+            throw new org.springframework.security.access.AccessDeniedException("Security Violation: User ID " + userId + " lacks official administrative privileges for Chama ID " + chamaId);
+        }
+        return member;
     }
 
     @Transactional
@@ -146,5 +155,112 @@ public class LoanService {
         }
 
         return GuarantorSummaryDto.fromEntity(updatedLg);
+    }
+
+    @Transactional
+    public void approveLoan(Long loanId, Long officerUserId) {
+        log.info("Officer ID {} approving loan ID: {}", officerUserId, loanId);
+        
+        Loan loan = loanRepository.findByIdWithPessimisticLock(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found"));
+
+        if (!"PENDING".equalsIgnoreCase(loan.getStatus())) {
+            throw new RuntimeException("Loan is not in a PENDING state. Current status: " + loan.getStatus());
+        }
+
+        Chama chama = chamaRepository.findByIdWithPessimisticLock(loan.getChama().getChamaId())
+                .orElseThrow(() -> new RuntimeException("Chama not found"));
+
+        validateUserIsOfficial(chama.getChamaId(), officerUserId);
+
+        BigDecimal amount = loan.getLoanAmount();
+        if (chama.getCurrentFund().compareTo(amount) < 0) {
+            throw new RuntimeException("Insufficient chama funds for loan disbursement. Available: " 
+                    + chama.getCurrentFund() + ", Requested: " + amount);
+        }
+
+        // Deduct from chama funds
+        chama.setCurrentFund(chama.getCurrentFund().subtract(amount));
+        chamaRepository.save(chama);
+
+        loan.setStatus("APPROVED");
+        loan.setApprovedAt(ZonedDateTime.now());
+        loan.setApprovedBy(userRepository.getReferenceById(officerUserId));
+        loanRepository.save(loan);
+
+        // Write Financial Audit Log
+        FinancialAuditLog auditLog = FinancialAuditLog.builder()
+                .user(userRepository.getReferenceById(officerUserId))
+                .transactionType("LOAN_DISBURSEMENT")
+                .amount(amount)
+                .chama(chama)
+                .referenceId(loan.getLoanId())
+                .description("Loan approved and disbursed. Borrower ID: " + loan.getBorrower().getUserId() + ", Amount: KES " + amount)
+                .ipAddress("127.0.0.1")
+                .userAgent("System-Service")
+                .build();
+        auditLogRepository.save(auditLog);
+    }
+
+    @Transactional
+    public void rejectLoan(Long loanId, Long officerUserId, String reason) {
+        log.info("Officer ID {} rejecting loan ID: {} with reason: {}", officerUserId, loanId, reason);
+
+        Loan loan = loanRepository.findByIdWithPessimisticLock(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found"));
+
+        if (!"PENDING".equalsIgnoreCase(loan.getStatus())) {
+            throw new RuntimeException("Loan is not in a PENDING state. Current status: " + loan.getStatus());
+        }
+
+        validateUserIsOfficial(loan.getChama().getChamaId(), officerUserId);
+
+        loan.setStatus("REJECTED");
+        loan.setRejectionReason(reason != null ? reason : "Administrative rejection.");
+        loan.setRejectedAt(ZonedDateTime.now());
+        loan.setRejectedBy(userRepository.getReferenceById(officerUserId));
+        loanRepository.save(loan);
+    }
+
+    @Transactional
+    public void repayLoan(Long loanId, BigDecimal amount, Long payerUserId) {
+        log.info("Payer ID {} repaying KES {} for loan ID: {}", payerUserId, amount, loanId);
+
+        Loan loan = loanRepository.findByIdWithPessimisticLock(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found"));
+
+        if (!"APPROVED".equalsIgnoreCase(loan.getStatus()) && !"ACTIVE".equalsIgnoreCase(loan.getStatus())) {
+            throw new RuntimeException("Loan is not ACTIVE or APPROVED. Current status: " + loan.getStatus());
+        }
+
+        validateUserMembershipAndActiveStatus(loan.getChama().getChamaId(), payerUserId);
+
+        BigDecimal currentPaid = loan.getAmountPaid() != null ? loan.getAmountPaid() : BigDecimal.ZERO;
+        loan.setAmountPaid(currentPaid.add(amount));
+
+        // Add back to chama fund
+        Chama chama = chamaRepository.findByIdWithPessimisticLock(loan.getChama().getChamaId())
+                .orElseThrow(() -> new RuntimeException("Chama not found"));
+        chama.setCurrentFund(chama.getCurrentFund().add(amount));
+        chamaRepository.save(chama);
+
+        // Check if fully repaid
+        if (loan.getAmountPaid().compareTo(loan.getTotalRepayable()) >= 0) {
+            loan.setStatus("COMPLETED");
+        }
+        loanRepository.save(loan);
+
+        // Write Financial Audit Log
+        FinancialAuditLog auditLog = FinancialAuditLog.builder()
+                .user(userRepository.getReferenceById(payerUserId))
+                .transactionType("LOAN_REPAYMENT")
+                .amount(amount)
+                .chama(chama)
+                .referenceId(loan.getLoanId())
+                .description("Loan repayment recorded. Borrower ID: " + loan.getBorrower().getUserId() + ", Amount Paid: KES " + amount)
+                .ipAddress("127.0.0.1")
+                .userAgent("System-Service")
+                .build();
+        auditLogRepository.save(auditLog);
     }
 }

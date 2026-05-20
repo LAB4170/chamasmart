@@ -65,7 +65,8 @@ public class WelfareController {
     @GetMapping("/{chamaId}/ledger")
     public ResponseEntity<ApiResponse<Object>> getLedger(@PathVariable Long chamaId) {
         log.info("REST request to get welfare ledger for chama ID: {}", chamaId);
-        return ResponseEntity.ok(ApiResponse.success(null, "Welfare ledger retrieved"));
+        Object ledger = welfareService.getLedger(chamaId);
+        return ResponseEntity.ok(ApiResponse.success(ledger, "Welfare ledger retrieved"));
     }
 
     @PostMapping(value = "/claims")

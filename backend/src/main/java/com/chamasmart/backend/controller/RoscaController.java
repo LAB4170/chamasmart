@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Slf4j
@@ -64,8 +65,13 @@ public class RoscaController {
     }
 
     @PostMapping("/cycles/{cycleId}/payout")
-    public ResponseEntity<ApiResponse<Void>> processPayout(@PathVariable Long cycleId, @RequestBody java.util.Map<String, Object> payload) {
-        return ResponseEntity.ok(ApiResponse.success(null, "Payout processed"));
+    public ResponseEntity<ApiResponse<Void>> processPayout(
+            @PathVariable Long cycleId, 
+            @RequestBody(required = false) java.util.Map<String, Object> payload,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        log.info("REST request to process payout for cycle ID: {} by user ID: {}", cycleId, currentUser.getUserId());
+        roscaService.processPayout(cycleId, currentUser.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(null, "Payout processed successfully"));
     }
 
     @PutMapping("/cycles/{cycleId}/activate")
@@ -84,8 +90,26 @@ public class RoscaController {
     }
 
     @PostMapping("/chamas/{chamaId}/cycles/{cycleId}/contributions")
-    public ResponseEntity<ApiResponse<Void>> makeContribution(@PathVariable Long chamaId, @PathVariable Long cycleId, @RequestBody java.util.Map<String, Object> payload) {
-        return ResponseEntity.ok(ApiResponse.success(null, "Contribution recorded"));
+    public ResponseEntity<ApiResponse<Void>> makeContribution(
+            @PathVariable Long chamaId, 
+            @PathVariable Long cycleId, 
+            @RequestBody java.util.Map<String, Object> payload,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        log.info("REST request to record ROSCA contribution for cycle ID: {} by user ID: {}", cycleId, currentUser.getUserId());
+        Object amountObj = payload.get("amount");
+        if (amountObj == null) {
+            throw new RuntimeException("Contribution amount is required");
+        }
+        
+        BigDecimal amount;
+        if (amountObj instanceof Number) {
+            amount = BigDecimal.valueOf(((Number) amountObj).doubleValue());
+        } else {
+            amount = new BigDecimal(amountObj.toString());
+        }
+
+        roscaService.makeContribution(cycleId, currentUser.getUserId(), amount);
+        return ResponseEntity.ok(ApiResponse.success(null, "Contribution recorded successfully"));
     }
 
     @GetMapping("/cycles/{cycleId}/contributions")

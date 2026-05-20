@@ -20,6 +20,7 @@ com\chamasmart\backend\domain\Chama.class
 com\chamasmart\backend\domain\User.class
 com\chamasmart\backend\domain\WelfareClaim$WelfareClaimBuilder.class
 com\chamasmart\backend\domain\Invite$InviteBuilder.class
+com\chamasmart\backend\domain\ChamaPaymentConfig$ChamaPaymentConfigBuilder.class
 com\chamasmart\backend\dto\ChamaSummaryDto$ChamaSummaryDtoBuilder.class
 com\chamasmart\backend\dto\LoanSummaryDto.class
 com\chamasmart\backend\dto\ContributionSummaryDto$ContributionSummaryDtoBuilder.class
@@ -37,6 +38,7 @@ com\chamasmart\backend\dto\AuthResponse$AuthResponseBuilder.class
 com\chamasmart\backend\domain\WelfareClaim.class
 com\chamasmart\backend\controller\MpesaController.class
 com\chamasmart\backend\dto\LoanSummaryDto$LoanSummaryDtoBuilder.class
+com\chamasmart\backend\controller\GlobalExceptionHandler.class
 com\chamasmart\backend\dto\RoscaCycleDto$RosterPositionDto.class
 com\chamasmart\backend\controller\AuditController.class
 com\chamasmart\backend\domain\Loan.class
@@ -105,6 +107,7 @@ com\chamasmart\backend\dto\LoanApplicationRequestDto$LoanApplicationRequestDtoBu
 com\chamasmart\backend\dto\MpesaStkPushRequestDto.class
 com\chamasmart\backend\security\JwtAuthenticationFilter.class
 com\chamasmart\backend\domain\LoanGuarantor$LoanGuarantorBuilder.class
+com\chamasmart\backend\dto\ChamaSummaryDto$PaymentMethodDto.class
 com\chamasmart\backend\domain\Notification$NotificationBuilder.class
 com\chamasmart\backend\domain\WelfareFund.class
 com\chamasmart\backend\controller\NotificationController.class
@@ -115,6 +118,7 @@ com\chamasmart\backend\controller\AuthController.class
 com\chamasmart\backend\repository\MpesaTransactionRepository.class
 com\chamasmart\backend\domain\MpesaTransaction$MpesaTransactionBuilder.class
 com\chamasmart\backend\repository\InviteRepository.class
+com\chamasmart\backend\domain\ChamaPaymentConfig.class
 com\chamasmart\backend\controller\ChatController.class
 com\chamasmart\backend\dto\MeetingDto.class
 com\chamasmart\backend\controller\AscaController.class
@@ -130,7 +134,9 @@ com\chamasmart\backend\dto\NotificationDto.class
 com\chamasmart\backend\controller\ContributionController$BulkContributionRequest.class
 com\chamasmart\backend\dto\GuarantorSummaryDto$GuarantorSummaryDtoBuilder.class
 com\chamasmart\backend\domain\AscaCycle$AscaCycleBuilder.class
+com\chamasmart\backend\dto\ChamaSummaryDto$PaymentMethodDto$PaymentMethodDtoBuilder.class
 com\chamasmart\backend\dto\LoanApplicationRequestDto.class
+com\chamasmart\backend\repository\ChamaPaymentConfigRepository.class
 com\chamasmart\backend\dto\MpesaCallbackDto$Body$BodyBuilder.class
 com\chamasmart\backend\repository\AscaCycleRepository.class
 com\chamasmart\backend\dto\WelfareClaimRequestDto$WelfareClaimRequestDtoBuilder.class
