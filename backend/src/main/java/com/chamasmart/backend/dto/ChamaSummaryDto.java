@@ -65,6 +65,67 @@ public class ChamaSummaryDto {
     @JsonProperty("meeting_time")
     private LocalTime meeting_time;
 
+    // Caller-specific role inside this Chama (CHAIRPERSON, TREASURER, SECRETARY, MEMBER).
+    // Populated by the service layer — not stored on the Chama entity itself.
+    private String role;
+
+    @JsonProperty("custody_type")
+    @JsonAlias({"custodyType", "custody_type"})
+    private String custody_type;
+
+    @JsonProperty("virtual_account_ref")
+    @JsonAlias({"virtualAccountRef", "virtual_account_ref"})
+    private String virtual_account_ref;
+
+    @JsonProperty("payment_methods")
+    @JsonAlias({"paymentMethods", "payment_methods"})
+    private PaymentMethodDto payment_methods;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PaymentMethodDto {
+        private String type;
+        
+        @JsonProperty("businessNumber")
+        @JsonAlias({"businessNumber", "business_number"})
+        private String businessNumber;
+
+        @JsonProperty("accountNumber")
+        @JsonAlias({"accountNumber", "account_ref", "account_number"})
+        private String accountNumber;
+
+        @JsonProperty("tillNumber")
+        @JsonAlias({"tillNumber", "till_number"})
+        private String tillNumber;
+
+        @JsonProperty("phoneNumber")
+        @JsonAlias({"phoneNumber", "phone_number"})
+        private String phoneNumber;
+
+        @JsonProperty("recipientName")
+        @JsonAlias({"recipientName", "recipient_name"})
+        private String recipientName;
+
+        @JsonProperty("bankName")
+        @JsonAlias({"bankName", "bank_name"})
+        private String bankName;
+
+        @JsonProperty("bankAccount")
+        @JsonAlias({"bankAccount", "bank_account_number", "bankAccount"})
+        private String bankAccount;
+
+        @JsonProperty("bankAccountName")
+        @JsonAlias({"bankAccountName", "bank_account_name"})
+        private String bankAccountName;
+
+        @JsonProperty("bankBranch")
+        @JsonAlias({"bankBranch", "bank_branch"})
+        private String bankBranch;
+    }
+
     public static ChamaSummaryDto fromEntity(Chama chama) {
         return ChamaSummaryDto.builder()
                 .chama_id(chama.getChamaId())
@@ -80,6 +141,27 @@ public class ChamaSummaryDto {
                 .created_at(chama.getCreatedAt())
                 .meeting_day(chama.getMeetingDay())
                 .meeting_time(chama.getMeetingTime())
+                .custody_type(chama.getCustodyType())
+                .virtual_account_ref(chama.getVirtualAccountRef())
                 .build();
+    }
+
+    public static ChamaSummaryDto fromEntity(Chama chama, com.chamasmart.backend.domain.ChamaPaymentConfig config) {
+        ChamaSummaryDto dto = fromEntity(chama);
+        if (config != null) {
+            dto.setPayment_methods(PaymentMethodDto.builder()
+                    .type(config.getPaymentType())
+                    .businessNumber(config.getBusinessNumber())
+                    .accountNumber(config.getAccountNumber())
+                    .tillNumber(config.getPaymentType().equals("TILL") ? config.getBusinessNumber() : null)
+                    .phoneNumber(config.getPhoneNumber())
+                    .recipientName(config.getRecipientName())
+                    .bankName(config.getBankName())
+                    .bankAccount(config.getBankAccountNumber())
+                    .bankAccountName(config.getBankAccountName())
+                    .bankBranch(config.getBankBranch())
+                    .build());
+        }
+        return dto;
     }
 }
