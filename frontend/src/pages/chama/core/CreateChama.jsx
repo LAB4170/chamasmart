@@ -76,6 +76,7 @@ const CreateChama = () => {
     meetingDay: "",
     meetingTime: "",
     visibility: "PRIVATE",
+    custodyType: "MANAGED",
     paymentMethods: {
       type: "PAYBILL",
       // Paybill
@@ -139,7 +140,8 @@ const CreateChama = () => {
       share_price: formData.sharePrice === "" ? null : parseFloat(formData.sharePrice),
       meeting_day: meetingPattern === "CUSTOM" ? formData.meetingDay : finalMeetingDay,
       meeting_time: formData.meetingTime || null,
-      payment_methods: formData.paymentMethods
+      custody_type: formData.custodyType,
+      payment_methods: formData.custodyType === "SELF_MANAGED" ? formData.paymentMethods : null
     };
 
     if (formData.chamaType !== "ASCA") delete submissionData.share_price;
@@ -354,215 +356,281 @@ const CreateChama = () => {
                           </div>
                         )}
 
-                        <div className="cc-divider"><span>Payment Collection Method</span></div>
+                        <div className="cc-divider"><span>Fund Custody Profile</span></div>
 
-                        {/* 5-Method Selector */}
                         <div className="cc-field-group">
-                          <label className="cc-label"><Zap size={13} /> How will members send contributions?</label>
-                          <div className="cc-pm5-grid">
-                            {[
-                              {
-                                id: "PAYBILL",
-                                icon: CreditCard,
-                                label: "M-Pesa Paybill",
-                                sub: "Pay Bill → Business No.",
-                                badge: "STK-Ready",
-                                badgeColor: "#10b981",
-                              },
-                              {
-                                id: "TILL",
-                                icon: Banknote,
-                                label: "M-Pesa Till",
-                                sub: "Buy Goods & Services",
-                                badge: "STK-Ready",
-                                badgeColor: "#10b981",
-                              },
-                              {
-                                id: "POCHI",
-                                icon: Smartphone,
-                                label: "Pochi la Biashara",
-                                sub: "Business mobile wallet",
-                                badge: "Manual",
-                                badgeColor: "#f59e0b",
-                              },
-                              {
-                                id: "SEND_MONEY",
-                                icon: Send,
-                                label: "Send Money",
-                                sub: "Direct M-Pesa transfer",
-                                badge: "Manual",
-                                badgeColor: "#f59e0b",
-                              },
-                              {
-                                id: "BANK",
-                                icon: Building2,
-                                label: "Bank Transfer",
-                                sub: "EFT / account deposit",
-                                badge: "Manual",
-                                badgeColor: "#3b82f6",
-                              },
-                            ].map((pm) => {
-                              const isActive = formData.paymentMethods.type === pm.id;
-                              const Icon = pm.icon;
-                              return (
-                                <div
-                                  key={pm.id}
-                                  className={`cc-pm5-card ${isActive ? "active" : ""}`}
-                                  onClick={() => setFormData((prev) => ({
-                                    ...prev,
-                                    paymentMethods: { ...prev.paymentMethods, type: pm.id },
-                                  }))}
-                                >
-                                  <div className="cc-pm5-icon">
-                                    <Icon size={20} />
-                                  </div>
-                                  <div className="cc-pm5-info">
-                                    <span className="cc-pm5-label">{pm.label}</span>
-                                    <span className="cc-pm5-sub">{pm.sub}</span>
-                                  </div>
-                                  <span className="cc-pm5-badge" style={{ color: pm.badgeColor, background: `${pm.badgeColor}18`, borderColor: `${pm.badgeColor}33` }}>
-                                    {pm.badge}
-                                  </span>
-                                  {isActive && <CheckCircle2 size={14} className="cc-pm5-check" />}
-                                </div>
-                              );
-                            })}
+                          <label className="cc-label"><Shield size={13} /> Choose how group funds are managed</label>
+                          <div className="cc-custody-grid">
+                            <div
+                              className={`cc-custody-card ${formData.custodyType === "MANAGED" ? "active" : ""}`}
+                              onClick={() => setFormData({ ...formData, custodyType: "MANAGED" })}
+                            >
+                              <div className="cc-custody-header">
+                                <span className="cc-custody-badge managed">AUTOMATED VAULT</span>
+                                {formData.custodyType === "MANAGED" && <CheckCircle2 size={16} className="cc-custody-check text-emerald" />}
+                              </div>
+                              <h4 className="cc-custody-title">
+                                <Zap size={14} className="text-emerald" /> ChamaSmart Wallet
+                              </h4>
+                              <p className="cc-custody-desc">
+                                We act as custodian. Zero setup required. Automatically assigns a unique reference. STK push prompts and real-time reconciliation.
+                              </p>
+                            </div>
+
+                            <div
+                              className={`cc-custody-card ${formData.custodyType === "SELF_MANAGED" ? "active" : ""}`}
+                              onClick={() => setFormData({ ...formData, custodyType: "SELF_MANAGED" })}
+                            >
+                              <div className="cc-custody-header">
+                                <span className="cc-custody-badge self-managed">INDEPENDENT WALLET</span>
+                                {formData.custodyType === "SELF_MANAGED" && <CheckCircle2 size={16} className="cc-custody-check text-blue" />}
+                              </div>
+                              <h4 className="cc-custody-title">
+                                <Building2 size={14} className="text-blue" /> Treasurer Account
+                              </h4>
+                              <p className="cc-custody-desc">
+                                Connect your own bank account, Till, or Paybill. Members pay you directly. Treasurer manually reviews and approves contribution receipts.
+                              </p>
+                            </div>
                           </div>
                         </div>
 
-                        {/* Dynamic Fields */}
-                        <AnimatePresence mode="wait">
-                          <motion.div
-                            key={formData.paymentMethods.type}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -8 }}
-                            transition={{ duration: 0.2 }}
-                            className="cc-pm-fields"
-                          >
-                            {formData.paymentMethods.type === "PAYBILL" && (
-                              <div className="cc-field-row">
-                                <div className="cc-field-group">
-                                  <label className="cc-label">Business Number</label>
-                                  <input type="text" name="pm_businessNumber" className="cc-input"
-                                    placeholder="e.g. 247247" value={formData.paymentMethods.businessNumber} onChange={handleChange} />
-                                </div>
-                                <div className="cc-field-group">
-                                  <label className="cc-label">Account Reference</label>
-                                  <input type="text" name="pm_accountNumber" className="cc-input"
-                                    placeholder="e.g. Chama Name" value={formData.paymentMethods.accountNumber} onChange={handleChange} />
-                                </div>
+                        {formData.custodyType === "MANAGED" && (
+                          <div className="cc-managed-info-card">
+                            <div className="cc-managed-info-header">
+                              <Sparkles size={16} className="text-emerald" />
+                              <span>Platform Wallet Benefits</span>
+                            </div>
+                            <div className="cc-managed-info-body">
+                              <div className="cc-managed-feature-item">
+                                <CheckCircle2 size={14} className="text-emerald" />
+                                <span>No Paybill registration required — set up instantly.</span>
                               </div>
-                            )}
-                            {formData.paymentMethods.type === "TILL" && (
-                              <div className="cc-field-group">
-                                <label className="cc-label">Till Number</label>
-                                <input type="text" name="pm_tillNumber" className="cc-input"
-                                  placeholder="e.g. 123456" value={formData.paymentMethods.tillNumber} onChange={handleChange} />
+                              <div className="cc-managed-feature-item">
+                                <CheckCircle2 size={14} className="text-emerald" />
+                                <span>Direct STK push integration — tap to pay on M-Pesa.</span>
                               </div>
-                            )}
-                            {(formData.paymentMethods.type === "POCHI" || formData.paymentMethods.type === "SEND_MONEY") && (
-                              <div className="cc-field-row">
-                                <div className="cc-field-group">
-                                  <label className="cc-label">
-                                    {formData.paymentMethods.type === "POCHI" ? "Pochi Phone Number" : "Treasurer's Number"}
-                                  </label>
-                                  <input type="tel" name="pm_phoneNumber" className="cc-input"
-                                    placeholder="07XX XXX XXX" value={formData.paymentMethods.phoneNumber} onChange={handleChange} />
-                                </div>
-                                <div className="cc-field-group">
-                                  <label className="cc-label">Recipient Name <span className="cc-optional">(shown to members)</span></label>
-                                  <input type="text" name="pm_recipientName" className="cc-input"
-                                    placeholder="e.g. Jane Treasurer" value={formData.paymentMethods.recipientName} onChange={handleChange} />
-                                </div>
+                              <div className="cc-managed-feature-item">
+                                <CheckCircle2 size={14} className="text-emerald" />
+                                <span>Automatic database ledger updates via webhooks.</span>
                               </div>
-                            )}
-                            {formData.paymentMethods.type === "BANK" && (
-                              <>
-                                <div className="cc-field-row">
-                                  <div className="cc-field-group">
-                                    <label className="cc-label">Bank Name</label>
-                                    <select name="pm_bankName" className="cc-select"
-                                      value={formData.paymentMethods.bankName} onChange={handleChange}>
-                                      <option value="">Select bank...</option>
-                                      {["Equity Bank","KCB Bank","Co-operative Bank","NCBA Bank",
-                                        "Absa Bank","Standard Chartered","DTB Bank","Family Bank",
-                                        "I&M Bank","Stanbic Bank","Gulf African Bank","Prime Bank","Other"
-                                      ].map(b => <option key={b} value={b}>{b}</option>)}
-                                    </select>
-                                  </div>
-                                  <div className="cc-field-group">
-                                    <label className="cc-label">Account Number</label>
-                                    <input type="text" name="pm_bankAccount" className="cc-input"
-                                      placeholder="e.g. 0123456789" value={formData.paymentMethods.bankAccount} onChange={handleChange} />
-                                  </div>
-                                </div>
-                                <div className="cc-field-row">
-                                  <div className="cc-field-group">
-                                    <label className="cc-label">Account Name</label>
-                                    <input type="text" name="pm_bankAccountName" className="cc-input"
-                                      placeholder="e.g. Tumaini Savings Group" value={formData.paymentMethods.bankAccountName} onChange={handleChange} />
-                                  </div>
-                                  <div className="cc-field-group">
-                                    <label className="cc-label">Branch <span className="cc-optional">(optional)</span></label>
-                                    <input type="text" name="pm_bankBranch" className="cc-input"
-                                      placeholder="e.g. Nairobi CBD" value={formData.paymentMethods.bankBranch} onChange={handleChange} />
-                                  </div>
-                                </div>
-                              </>
-                            )}
+                            </div>
+                          </div>
+                        )}
 
-                            {/* Live Instruction Preview */}
-                            {(formData.paymentMethods.type === "PAYBILL" && formData.paymentMethods.businessNumber) ||
-                             (formData.paymentMethods.type === "TILL" && formData.paymentMethods.tillNumber) ||
-                             ((formData.paymentMethods.type === "POCHI" || formData.paymentMethods.type === "SEND_MONEY") && formData.paymentMethods.phoneNumber) ||
-                             (formData.paymentMethods.type === "BANK" && formData.paymentMethods.bankAccount)
-                              ? (
-                                <div className="cc-pm-preview">
-                                  <div className="cc-pm-preview-header">
-                                    <ArrowUpRight size={14} />
-                                    <span>Member will see this instruction</span>
+                        {formData.custodyType === "SELF_MANAGED" && (
+                          <>
+                            <div className="cc-divider"><span>Payment Collection Method</span></div>
+
+                            {/* 5-Method Selector */}
+                            <div className="cc-field-group">
+                              <label className="cc-label"><Zap size={13} /> How will members send contributions?</label>
+                              <div className="cc-pm5-grid">
+                                {[
+                                  {
+                                    id: "PAYBILL",
+                                    icon: CreditCard,
+                                    label: "M-Pesa Paybill",
+                                    sub: "Pay Bill → Business No.",
+                                    badge: "STK-Ready",
+                                    badgeColor: "#10b981",
+                                  },
+                                  {
+                                    id: "TILL",
+                                    icon: Banknote,
+                                    label: "M-Pesa Till",
+                                    sub: "Buy Goods & Services",
+                                    badge: "STK-Ready",
+                                    badgeColor: "#10b981",
+                                  },
+                                  {
+                                    id: "POCHI",
+                                    icon: Smartphone,
+                                    label: "Pochi la Biashara",
+                                    sub: "Business mobile wallet",
+                                    badge: "Manual",
+                                    badgeColor: "#f59e0b",
+                                  },
+                                  {
+                                    id: "SEND_MONEY",
+                                    icon: Send,
+                                    label: "Send Money",
+                                    sub: "Direct M-Pesa transfer",
+                                    badge: "Manual",
+                                    badgeColor: "#f59e0b",
+                                  },
+                                  {
+                                    id: "BANK",
+                                    icon: Building2,
+                                    label: "Bank Transfer",
+                                    sub: "EFT / account deposit",
+                                    badge: "Manual",
+                                    badgeColor: "#3b82f6",
+                                  },
+                                ].map((pm) => {
+                                  const isActive = formData.paymentMethods.type === pm.id;
+                                  const Icon = pm.icon;
+                                  return (
+                                    <div
+                                      key={pm.id}
+                                      className={`cc-pm5-card ${isActive ? "active" : ""}`}
+                                      onClick={() => setFormData((prev) => ({
+                                        ...prev,
+                                        paymentMethods: { ...prev.paymentMethods, type: pm.id },
+                                      }))}
+                                    >
+                                      <div className="cc-pm5-icon">
+                                        <Icon size={20} />
+                                      </div>
+                                      <div className="cc-pm5-info">
+                                        <span className="cc-pm5-label">{pm.label}</span>
+                                        <span className="cc-pm5-sub">{pm.sub}</span>
+                                      </div>
+                                      <span className="cc-pm5-badge" style={{ color: pm.badgeColor, background: `${pm.badgeColor}18`, borderColor: `${pm.badgeColor}33` }}>
+                                        {pm.badge}
+                                      </span>
+                                      {isActive && <CheckCircle2 size={14} className="cc-pm5-check" />}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Dynamic Fields */}
+                            <AnimatePresence mode="wait">
+                              <motion.div
+                                key={formData.paymentMethods.type}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -8 }}
+                                transition={{ duration: 0.2 }}
+                                className="cc-pm-fields"
+                              >
+                                {formData.paymentMethods.type === "PAYBILL" && (
+                                  <div className="cc-field-row">
+                                    <div className="cc-field-group">
+                                      <label className="cc-label">Business Number</label>
+                                      <input type="text" name="pm_businessNumber" className="cc-input"
+                                        placeholder="e.g. 247247" value={formData.paymentMethods.businessNumber} onChange={handleChange} />
+                                    </div>
+                                    <div className="cc-field-group">
+                                      <label className="cc-label">Account Reference</label>
+                                      <input type="text" name="pm_accountNumber" className="cc-input"
+                                        placeholder="e.g. Chama Name" value={formData.paymentMethods.accountNumber} onChange={handleChange} />
+                                    </div>
                                   </div>
-                                  <div className="cc-pm-preview-body">
-                                    {formData.paymentMethods.type === "PAYBILL" && (
-                                      <>
-                                        <span>M-Pesa → Lipa na M-Pesa → <strong>Pay Bill</strong></span>
-                                        <span>Business No: <strong>{formData.paymentMethods.businessNumber}</strong></span>
-                                        <span>Account: <strong>{formData.paymentMethods.accountNumber || "[Your Ref]"}</strong></span>
-                                      </>
-                                    )}
-                                    {formData.paymentMethods.type === "TILL" && (
-                                      <>
-                                        <span>M-Pesa → Lipa na M-Pesa → <strong>Buy Goods</strong></span>
-                                        <span>Till No: <strong>{formData.paymentMethods.tillNumber}</strong></span>
-                                      </>
-                                    )}
-                                    {formData.paymentMethods.type === "POCHI" && (
-                                      <>
-                                        <span>M-Pesa → <strong>Send Money</strong></span>
-                                        <span>To Pochi: <strong>{formData.paymentMethods.phoneNumber}</strong> {formData.paymentMethods.recipientName && `(${formData.paymentMethods.recipientName})`}</span>
-                                      </>
-                                    )}
-                                    {formData.paymentMethods.type === "SEND_MONEY" && (
-                                      <>
-                                        <span>M-Pesa → <strong>Send Money</strong></span>
-                                        <span>To: <strong>{formData.paymentMethods.recipientName || "Treasurer"}</strong> — {formData.paymentMethods.phoneNumber}</span>
-                                      </>
-                                    )}
-                                    {formData.paymentMethods.type === "BANK" && (
-                                      <>
-                                        <span>Bank: <strong>{formData.paymentMethods.bankName}</strong></span>
-                                        <span>Account: <strong>{formData.paymentMethods.bankAccount}</strong></span>
-                                        <span>Name: <strong>{formData.paymentMethods.bankAccountName}</strong></span>
-                                        {formData.paymentMethods.bankBranch && <span>Branch: <strong>{formData.paymentMethods.bankBranch}</strong></span>}
-                                      </>
-                                    )}
+                                )}
+                                {formData.paymentMethods.type === "TILL" && (
+                                  <div className="cc-field-group">
+                                    <label className="cc-label">Till Number</label>
+                                    <input type="text" name="pm_tillNumber" className="cc-input"
+                                      placeholder="e.g. 123456" value={formData.paymentMethods.tillNumber} onChange={handleChange} />
                                   </div>
-                                </div>
-                              ) : null
-                            }
-                          </motion.div>
-                        </AnimatePresence>
+                                )}
+                                {(formData.paymentMethods.type === "POCHI" || formData.paymentMethods.type === "SEND_MONEY") && (
+                                  <div className="cc-field-row">
+                                    <div className="cc-field-group">
+                                      <label className="cc-label">
+                                        {formData.paymentMethods.type === "POCHI" ? "Pochi Phone Number" : "Treasurer's Number"}
+                                      </label>
+                                      <input type="tel" name="pm_phoneNumber" className="cc-input"
+                                        placeholder="07XX XXX XXX" value={formData.paymentMethods.phoneNumber} onChange={handleChange} />
+                                    </div>
+                                    <div className="cc-field-group">
+                                      <label className="cc-label">Recipient Name <span className="cc-optional">(shown to members)</span></label>
+                                      <input type="text" name="pm_recipientName" className="cc-input"
+                                        placeholder="e.g. Jane Treasurer" value={formData.paymentMethods.recipientName} onChange={handleChange} />
+                                    </div>
+                                  </div>
+                                )}
+                                {formData.paymentMethods.type === "BANK" && (
+                                  <>
+                                    <div className="cc-field-row">
+                                      <div className="cc-field-group">
+                                        <label className="cc-label">Bank Name</label>
+                                        <select name="pm_bankName" className="cc-select"
+                                          value={formData.paymentMethods.bankName} onChange={handleChange}>
+                                          <option value="">Select bank...</option>
+                                          {["Equity Bank","KCB Bank","Co-operative Bank","NCBA Bank",
+                                            "Absa Bank","Standard Chartered","DTB Bank","Family Bank",
+                                            "I&M Bank","Stanbic Bank","Gulf African Bank","Prime Bank","Other"
+                                          ].map(b => <option key={b} value={b}>{b}</option>)}
+                                        </select>
+                                      </div>
+                                      <div className="cc-field-group">
+                                        <label className="cc-label">Account Number</label>
+                                        <input type="text" name="pm_bankAccount" className="cc-input"
+                                          placeholder="e.g. 0123456789" value={formData.paymentMethods.bankAccount} onChange={handleChange} />
+                                      </div>
+                                    </div>
+                                    <div className="cc-field-row">
+                                      <div className="cc-field-group">
+                                        <label className="cc-label">Account Name</label>
+                                        <input type="text" name="pm_bankAccountName" className="cc-input"
+                                          placeholder="e.g. Tumaini Savings Group" value={formData.paymentMethods.bankAccountName} onChange={handleChange} />
+                                      </div>
+                                      <div className="cc-field-group">
+                                        <label className="cc-label">Branch <span className="cc-optional">(optional)</span></label>
+                                        <input type="text" name="pm_bankBranch" className="cc-input"
+                                          placeholder="e.g. Nairobi CBD" value={formData.paymentMethods.bankBranch} onChange={handleChange} />
+                                      </div>
+                                    </div>
+                                  </>
+                                )}
+
+                                {/* Live Instruction Preview */}
+                                {(formData.paymentMethods.type === "PAYBILL" && formData.paymentMethods.businessNumber) ||
+                                 (formData.paymentMethods.type === "TILL" && formData.paymentMethods.tillNumber) ||
+                                 ((formData.paymentMethods.type === "POCHI" || formData.paymentMethods.type === "SEND_MONEY") && formData.paymentMethods.phoneNumber) ||
+                                 (formData.paymentMethods.type === "BANK" && formData.paymentMethods.bankAccount)
+                                  ? (
+                                    <div className="cc-pm-preview">
+                                      <div className="cc-pm-preview-header">
+                                        <ArrowUpRight size={14} />
+                                        <span>Member will see this instruction</span>
+                                      </div>
+                                      <div className="cc-pm-preview-body">
+                                        {formData.paymentMethods.type === "PAYBILL" && (
+                                          <>
+                                            <span>M-Pesa → Lipa na M-Pesa → <strong>Pay Bill</strong></span>
+                                            <span>Business No: <strong>{formData.paymentMethods.businessNumber}</strong></span>
+                                            <span>Account: <strong>{formData.paymentMethods.accountNumber || "[Your Ref]"}</strong></span>
+                                          </>
+                                        )}
+                                        {formData.paymentMethods.type === "TILL" && (
+                                          <>
+                                            <span>M-Pesa → Lipa na M-Pesa → <strong>Buy Goods</strong></span>
+                                            <span>Till No: <strong>{formData.paymentMethods.tillNumber}</strong></span>
+                                          </>
+                                        )}
+                                        {formData.paymentMethods.type === "POCHI" && (
+                                          <>
+                                            <span>M-Pesa → <strong>Send Money</strong></span>
+                                            <span>To Pochi: <strong>{formData.paymentMethods.phoneNumber}</strong> {formData.paymentMethods.recipientName && `(${formData.paymentMethods.recipientName})`}</span>
+                                          </>
+                                        )}
+                                        {formData.paymentMethods.type === "SEND_MONEY" && (
+                                          <>
+                                            <span>M-Pesa → <strong>Send Money</strong></span>
+                                            <span>To: <strong>{formData.paymentMethods.recipientName || "Treasurer"}</strong> — {formData.paymentMethods.phoneNumber}</span>
+                                          </>
+                                        )}
+                                        {formData.paymentMethods.type === "BANK" && (
+                                          <>
+                                            <span>Bank: <strong>{formData.paymentMethods.bankName}</strong></span>
+                                            <span>Account: <strong>{formData.paymentMethods.bankAccount}</strong></span>
+                                            <span>Name: <strong>{formData.paymentMethods.bankAccountName}</strong></span>
+                                            {formData.paymentMethods.bankBranch && <span>Branch: <strong>{formData.paymentMethods.bankBranch}</strong></span>}
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ) : null
+                                }
+                              </motion.div>
+                            </AnimatePresence>
+                          </>
+                        )}
                       </div>
                     )}
 

@@ -52,6 +52,39 @@ public class ChamaController {
     @Value("${app.ai.groq-key:}")
     private String groqApiKey;
 
+    // ── Role-validation helpers ────────────────────────────────────────────────
+
+    /** Throws 403 if the caller is not an active official of the chama. */
+    private ChamaMember validateIsOfficial(Long chamaId, Long userId) {
+        ChamaMember member = chamaMemberRepository
+                .findByChamaChamaIdAndUserUserId(chamaId, userId)
+                .filter(ChamaMember::getIsActive)
+                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException(
+                        "Access denied: you are not an active member of chama " + chamaId));
+        String role = member.getRole() == null ? "" : member.getRole().toUpperCase();
+        if (!role.equals("CHAIRPERSON") && !role.equals("TREASURER") && !role.equals("SECRETARY")) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Access denied: only officials (Chairperson, Treasurer, Secretary) may perform this action.");
+        }
+        return member;
+    }
+
+    /** Throws 403 if the caller is not the CHAIRPERSON of the chama. */
+    private void validateIsChairperson(Long chamaId, Long userId) {
+        ChamaMember member = chamaMemberRepository
+                .findByChamaChamaIdAndUserUserId(chamaId, userId)
+                .filter(ChamaMember::getIsActive)
+                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException(
+                        "Access denied: you are not an active member of chama " + chamaId));
+        String role = member.getRole() == null ? "" : member.getRole().toUpperCase();
+        if (!role.equals("CHAIRPERSON")) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Access denied: only the Chairperson may perform this action.");
+        }
+    }
+
+    // ── Endpoints ─────────────────────────────────────────────────────────────
+
     /** GET /chamas/user/my-chamas  OR  /chamas/my */
     @GetMapping({"/my", "/user/my-chamas"})
     public ResponseEntity<ApiResponse<List<ChamaSummaryDto>>> getMyChamas(
@@ -84,9 +117,17 @@ public class ChamaController {
 
     /** GET /chamas/{id} */
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<ChamaSummaryDto>> getChamaById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ChamaSummaryDto>> getChamaById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to get chama details for ID: {}", id);
         ChamaSummaryDto chama = chamaService.getChamaById(id);
+        
+        if (currentUser != null) {
+            chamaMemberRepository.findByChamaChamaIdAndUserUserId(id, currentUser.getUserId())
+                    .ifPresent(m -> chama.setRole(m.getRole()));
+        }
+        
         return ResponseEntity.ok(ApiResponse.success(chama, "Chama details retrieved successfully"));
     }
 
@@ -142,16 +183,33 @@ public class ChamaController {
                 .body(ApiResponse.success(createdChama, "Chama created successfully"));
     }
 
-    /** PUT /chamas/{id} */
+    /** PUT /chamas/{id} — only CHAIRPERSON may update chama settings */
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<ChamaSummaryDto>> updateChama(
             @PathVariable Long id,
             @RequestBody ChamaSummaryDto chamaDto,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to update chama ID: {} by user ID: {}", id, currentUser.getUserId());
-        // Return current state — full update logic can be added to service later
-        ChamaSummaryDto existing = chamaService.getChamaById(id);
-        return ResponseEntity.ok(ApiResponse.success(existing, "Chama updated successfully"));
+        validateIsChairperson(id, currentUser.getUserId());
+
+        Chama chama = chamaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Chama not found"));
+        if (chamaDto.getChama_name() != null && !chamaDto.getChama_name().isBlank())
+            chama.setChamaName(chamaDto.getChama_name());
+        if (chamaDto.getDescription() != null)
+            chama.setDescription(chamaDto.getDescription());
+        if (chamaDto.getVisibility() != null)
+            chama.setVisibility(chamaDto.getVisibility());
+        if (chamaDto.getMeeting_day() != null)
+            chama.setMeetingDay(chamaDto.getMeeting_day());
+        if (chamaDto.getMeeting_time() != null)
+            chama.setMeetingTime(chamaDto.getMeeting_time());
+        if (chamaDto.getContribution_amount() != null)
+            chama.setContributionAmount(chamaDto.getContribution_amount());
+        if (chamaDto.getContribution_frequency() != null)
+            chama.setContributionFrequency(chamaDto.getContribution_frequency());
+        chamaRepository.save(chama);
+        return ResponseEntity.ok(ApiResponse.success(chamaService.getChamaById(id), "Chama updated successfully"));
     }
 
     @DeleteMapping("/{id}")
@@ -174,13 +232,15 @@ public class ChamaController {
         return ResponseEntity.ok(ApiResponse.success(response, "Chama reliability analyzed"));
     }
 
-    /** POST /chamas/{chamaId}/members/add */
+    /** POST /chamas/{chamaId}/members/add — only officials may add members */
     @PostMapping("/{chamaId}/members/add")
     public ResponseEntity<ApiResponse<Map<String, Object>>> addMember(
             @PathVariable Long chamaId,
             @RequestBody Map<String, Object> body,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to add member to chama ID: {}", chamaId);
+        validateIsOfficial(chamaId, currentUser.getUserId());
+
         Long userId = body.containsKey("user_id") ? Long.valueOf(body.get("user_id").toString())
                 : Long.valueOf(body.get("userId").toString());
         String role = body.containsKey("role") ? body.get("role").toString() : "MEMBER";
@@ -204,6 +264,9 @@ public class ChamaController {
                     .isActive(true)
                     .build();
             chamaMemberRepository.save(newMember);
+            // keep totalMembers in sync
+            chama.setTotalMembers((chama.getTotalMembers() == null ? 0 : chama.getTotalMembers()) + 1);
+            chamaRepository.save(chama);
         }
 
         Map<String, Object> resp = new HashMap<>();
@@ -214,13 +277,14 @@ public class ChamaController {
         return ResponseEntity.ok(ApiResponse.success(resp, "Member added successfully"));
     }
 
-    /** DELETE /chamas/{chamaId}/members/{userId} */
+    /** DELETE /chamas/{chamaId}/members/{userId} — only officials may remove members */
     @DeleteMapping("/{chamaId}/members/{userId}")
     public ResponseEntity<ApiResponse<Void>> removeMember(
             @PathVariable Long chamaId,
             @PathVariable Long userId,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to remove member user ID: {} from chama ID: {}", userId, chamaId);
+        validateIsOfficial(chamaId, currentUser.getUserId());
         chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
                 .ifPresent(m -> {
                     m.setIsActive(false);
@@ -229,7 +293,7 @@ public class ChamaController {
         return ResponseEntity.ok(ApiResponse.success(null, "Member removed successfully"));
     }
 
-    /** PUT /chamas/{chamaId}/members/{userId}/role */
+    /** PUT /chamas/{chamaId}/members/{userId}/role — only CHAIRPERSON may reassign roles */
     @PutMapping("/{chamaId}/members/{userId}/role")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateMemberRole(
             @PathVariable Long chamaId,
@@ -237,16 +301,20 @@ public class ChamaController {
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to update role for user ID: {} in chama ID: {}", userId, chamaId);
+        validateIsChairperson(chamaId, currentUser.getUserId());
         String newRole = body.get("role");
+        if (newRole == null || newRole.isBlank()) {
+            throw new RuntimeException("role must be provided in request body");
+        }
         chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
                 .ifPresent(m -> {
-                    m.setRole(newRole);
+                    m.setRole(newRole.toUpperCase());
                     chamaMemberRepository.save(m);
                 });
         Map<String, Object> resp = new HashMap<>();
         resp.put("chama_id", chamaId);
         resp.put("user_id", userId);
-        resp.put("role", newRole);
+        resp.put("role", newRole.toUpperCase());
         return ResponseEntity.ok(ApiResponse.success(resp, "Member role updated successfully"));
     }
 

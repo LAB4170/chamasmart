@@ -172,7 +172,9 @@ function AppContent() {
                                 path="/chamas/:id/meetings/create"
                                 element={
                                     <ProtectedRoute>
-                                        <PageTransition><CreateMeeting /></PageTransition>
+                                        <RoleRoute allowedRoles={['chairperson', 'treasurer', 'secretary']}>
+                                            <PageTransition><CreateMeeting /></PageTransition>
+                                        </RoleRoute>
                                     </ProtectedRoute>
                                 }
                             />
@@ -196,7 +198,9 @@ function AppContent() {
                                 path="/chamas/:id/invites"
                                 element={
                                     <ProtectedRoute>
-                                        <PageTransition><InviteManagement /></PageTransition>
+                                        <RoleRoute allowedRoles={['chairperson', 'treasurer', 'secretary']}>
+                                            <PageTransition><InviteManagement /></PageTransition>
+                                        </RoleRoute>
                                     </ProtectedRoute>
                                 }
                             />
@@ -300,7 +304,9 @@ function AppContent() {
                                 path="/chamas/:id/welfare/admin"
                                 element={
                                     <ProtectedRoute>
-                                        <PageTransition><WelfareAdmin /></PageTransition>
+                                        <RoleRoute allowedRoles={['chairperson', 'treasurer', 'secretary']}>
+                                            <PageTransition><WelfareAdmin /></PageTransition>
+                                        </RoleRoute>
                                     </ProtectedRoute>
                                 }
                             />
@@ -308,7 +314,9 @@ function AppContent() {
                                 path="/chamas/:id/manage"
                                 element={
                                     <ProtectedRoute>
-                                        <PageTransition><ManageChama /></PageTransition>
+                                        <RoleRoute allowedRoles={['chairperson', 'treasurer', 'secretary']}>
+                                            <PageTransition><ManageChama /></PageTransition>
+                                        </RoleRoute>
                                     </ProtectedRoute>
                                 }
                             />
@@ -340,7 +348,9 @@ function AppContent() {
                                 path="/chamas/:id/add-member"
                                 element={
                                     <ProtectedRoute>
-                                        <PageTransition><AddMember /></PageTransition>
+                                        <RoleRoute allowedRoles={['chairperson', 'treasurer', 'secretary']}>
+                                            <PageTransition><AddMember /></PageTransition>
+                                        </RoleRoute>
                                     </ProtectedRoute>
                                 }
                             />
@@ -356,7 +366,9 @@ function AppContent() {
                                 path="/chamas/:id/payouts/process"
                                 element={
                                     <ProtectedRoute>
-                                        <PageTransition><ProcessPayout /></PageTransition>
+                                        <RoleRoute allowedRoles={['chairperson', 'treasurer', 'secretary']}>
+                                            <PageTransition><ProcessPayout /></PageTransition>
+                                        </RoleRoute>
                                     </ProtectedRoute>
                                 }
                             />
@@ -388,7 +400,9 @@ function AppContent() {
                                 path="/chamas/:id/audit-logs"
                                 element={
                                     <ProtectedRoute>
-                                        <PageTransition><AuditLogs /></PageTransition>
+                                        <RoleRoute allowedRoles={['chairperson', 'treasurer', 'secretary']}>
+                                            <PageTransition><AuditLogs /></PageTransition>
+                                        </RoleRoute>
                                     </ProtectedRoute>
                                 }
                             />

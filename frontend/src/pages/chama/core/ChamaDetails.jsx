@@ -743,12 +743,15 @@ const ChamaDetails = () => {
   }, []);
 
   const userRole = useMemo(() => {
+    // Backend now returns the role directly on the chama object
+    if (chama?.role) return chama.role.toUpperCase();
+    
+    // Fallback just in case
     if (!Array.isArray(members)) return "MEMBER";
-    // Fix: Handle both 'id' and 'user_id' from auth context
     const currentUserId = user?.user_id || user?.id;
     const member = members.find((m) => m.user_id === currentUserId);
-    return member?.role || "MEMBER";
-  }, [members, user]);
+    return member?.role ? member.role.toUpperCase() : "MEMBER";
+  }, [chama, members, user]);
 
   const officialStatus = useMemo(() => {
     return ["CHAIRPERSON", "SECRETARY", "TREASURER"].includes(userRole);

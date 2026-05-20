@@ -27,9 +27,29 @@ public class GovernanceService {
     private final UserRepository userRepository;
     private final ChamaMemberRepository chamaMemberRepository;
 
+    // ── Role guard ──────────────────────────────────────────────────────────────
+
+    /** Asserts that userId is an active CHAIRPERSON, SECRETARY, or TREASURER of chamaId. */
+    private void validateIsOfficial(Long chamaId, Long userId) {
+        ChamaMember member = chamaMemberRepository
+                .findByChamaChamaIdAndUserUserId(chamaId, userId)
+                .filter(ChamaMember::getIsActive)
+                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException(
+                        "Access denied: you are not an active member of chama " + chamaId));
+        String role = member.getRole() == null ? "" : member.getRole().toUpperCase();
+        if (!role.equals("CHAIRPERSON") && !role.equals("TREASURER") && !role.equals("SECRETARY")) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Access denied: only officials (Chairperson, Treasurer, Secretary) may perform this action.");
+        }
+    }
+
+    // ── Meeting ─────────────────────────────────────────────────────────────────
+
     @Transactional
     public MeetingDto createMeeting(MeetingDto dto, Long chamaId, Long creatorUserId) {
         log.info("Creating meeting '{}' for chama ID: {} by user ID: {}", dto.getTitle(), chamaId, creatorUserId);
+        validateIsOfficial(chamaId, creatorUserId);
+
         Chama chama = chamaRepository.findById(chamaId)
                 .orElseThrow(() -> new RuntimeException("Chama not found"));
 
@@ -69,9 +89,13 @@ public class GovernanceService {
         return MeetingDto.fromEntity(savedMeeting);
     }
 
+    // ── Invite ──────────────────────────────────────────────────────────────────
+
     @Transactional
     public InviteDto createInvite(InviteDto dto, Long chamaId, Long inviterUserId) {
         log.info("Creating invite for chama ID: {} by user ID: {}", chamaId, inviterUserId);
+        validateIsOfficial(chamaId, inviterUserId);
+
         Chama chama = chamaRepository.findById(chamaId)
                 .orElseThrow(() -> new RuntimeException("Chama not found"));
 

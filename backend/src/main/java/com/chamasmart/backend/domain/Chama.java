@@ -78,6 +78,13 @@ public class Chama {
     @Column(name = "updated_at")
     private ZonedDateTime updatedAt;
 
+    @Column(name = "custody_type", length = 20)
+    @Builder.Default
+    private String custodyType = "MANAGED";
+
+    @Column(name = "virtual_account_ref", unique = true, length = 50)
+    private String virtualAccountRef;
+
     @Version
     @Column(name = "version")
     private Long version;
