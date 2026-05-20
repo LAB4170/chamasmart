@@ -513,9 +513,14 @@ const ChamaDetails = () => {
     if (location.state?.refresh) {
       fetchChamaData();
     }
+    if (location.state?.openManualPayment) {
+      setShowManualPaymentModal(true);
+    }
     // Restore tab from navigation state (e.g., back from management sub-sections)
-    if (location.state?.tab) {
-      setActiveTab(location.state.tab);
+    if (location.state?.tab || location.state?.openManualPayment) {
+      if (location.state?.tab) {
+        setActiveTab(location.state.tab);
+      }
       // Clear state to prevent loop
       window.history.replaceState({}, document.title);
     }
@@ -1684,7 +1689,7 @@ const ChamaDetails = () => {
                     <CreditCard size={20} /> Financial Ledger ({contributions.length})
                   </h3>
                   <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                    {officialStatus && (
+                    {officialStatus && chama.custody_type === "SELF_MANAGED" && (
                       <button 
                         className="btn-lux btn-lux-outline"
                         onClick={() => setShowPendingContributionsModal(true)}
@@ -1692,18 +1697,19 @@ const ChamaDetails = () => {
                         <Shield size={16} /> Verify Payments
                       </button>
                     )}
-                    <button 
-                      className="btn-lux btn-lux-primary" 
-                      onClick={() => navigate(`/chamas/${id}/submit-contribution`)}
-                    >
-                      <Smartphone size={16} /> Pay M-Pesa
-                    </button>
-                    {chama.accepts_manual_payment && (
+                    {chama.custody_type === "MANAGED" ? (
                       <button 
-                        className="btn-lux btn-lux-outline"
+                        className="btn-lux btn-lux-primary" 
+                        onClick={() => navigate(`/chamas/${id}/submit-contribution`)}
+                      >
+                        <Smartphone size={16} /> Pay M-Pesa
+                      </button>
+                    ) : (
+                      <button 
+                        className="btn-lux btn-lux-primary" 
                         onClick={() => setShowManualPaymentModal(true)}
                       >
-                        <FileText size={16} /> Receipt
+                        <FileText size={16} /> Pay Treasurer
                       </button>
                     )}
                   </div>

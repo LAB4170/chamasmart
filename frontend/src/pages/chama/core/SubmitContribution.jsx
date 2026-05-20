@@ -148,6 +148,39 @@ const SubmitContribution = () => {
     );
   }
 
+  if (chama?.custody_type === "SELF_MANAGED") {
+    return (
+      <div className="page">
+        <div className="container">
+          <div className="page-header">
+            <div>
+              <h1>Treasurer Managed Group</h1>
+              <p className="text-muted">{chama?.chama_name}</p>
+            </div>
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => navigate(`/chamas/${id}`)}
+            >
+              ← Back to Chama
+            </button>
+          </div>
+          <div className="card text-center p-5" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', padding: '3rem' }}>
+            <div className="alert alert-warning mb-4" style={{ width: '100%' }}>
+              <strong>Treasurer Custody Active:</strong> This Chama is managed by the treasurer directly. Automatic platform payments are disabled.
+            </div>
+            <p className="mb-4">Please make your payment directly using the treasurer's configured details and submit the receipt for verification.</p>
+            <button 
+              className="btn btn-primary"
+              onClick={() => navigate(`/chamas/${id}`, { state: { openManualPayment: true } })}
+            >
+              Go to Payout/Receipt Submission
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <div className="container">
