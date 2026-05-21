@@ -94,6 +94,13 @@ public class ChatController {
     @PostMapping("/ai-support")
     public ResponseEntity<Map<String, Object>> aiSupport(@RequestBody Map<String, Object> payload) {
         log.info("REST request for AI support");
+        String apiKey = (groqApiKey != null && !groqApiKey.isBlank()) ? groqApiKey : System.getenv("GROQ_API_KEY");
+        if (apiKey == null || apiKey.isBlank()) {
+            log.warn("Groq API key is missing");
+            Map<String, Object> err = new HashMap<>();
+            err.put("reply", "AI service is not configured. Please provide a valid Groq API key.");
+            return ResponseEntity.ok(err);
+        }
         String userMessage = (String) payload.get("message");
         
         try {
@@ -102,7 +109,7 @@ public class ChatController {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(groqApiKey);
+            headers.setBearerAuth(apiKey);
 
             Map<String, Object> systemMessage = new HashMap<>();
             systemMessage.put("role", "system");
@@ -126,8 +133,7 @@ public class ChatController {
             Map<String, Object> body = new HashMap<>();
             body.put("model", "llama3-8b-8192");
             body.put("messages", messages);
-            body.put("temperature", 0.3);
-
+            
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
             Map<String, Object> response = restTemplate.postForObject(url, request, Map.class);
 
