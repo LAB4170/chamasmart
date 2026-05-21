@@ -110,3 +110,8 @@ credentials/
 *.backup
 .env.backup
 .env.*.backup
+
+# Scripts & Local Runners
+*.bat
+*.cmd
+restart_backend.bat

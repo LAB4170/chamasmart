@@ -53,4 +53,8 @@ public class ChamaMember {
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;
+
+    @Column(name = "trust_score", precision = 5, scale = 2)
+    @Builder.Default
+    private BigDecimal trustScore = BigDecimal.ZERO;
 }
