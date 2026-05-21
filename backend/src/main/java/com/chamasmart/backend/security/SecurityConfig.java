@@ -18,6 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -30,6 +31,17 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
     private final JwtAuthenticationFilter jwtAuthFilter;
+
+    @Value("${app.ai.groq-key:}")
+    private String groqApiKey;
+
+    // Fallback to system environment variable if property is empty
+    private String getGroqKey() {
+        if (groqApiKey != null && !groqApiKey.isBlank()) {
+            return groqApiKey;
+        }
+        return System.getenv("GROQ_API_KEY");
+    }
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
@@ -62,6 +74,7 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/mpesa/callback", "/payments/mpesa/callback").permitAll()
                 .requestMatchers("/error").permitAll()
+                .requestMatchers("/chat/ai-support").permitAll()
                 .anyRequest().authenticated()
             );
 
