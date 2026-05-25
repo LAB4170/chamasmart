@@ -6,10 +6,11 @@ server:
 spring:
   application:
     name: chamasmart-backend
+  flyway:
+    enabled: false
   jackson:
     deserialization:
       fail-on-unknown-properties: false
-  
   datasource:
     # Optimized for Neon Serverless PostgreSQL & Local Fallback
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:chamasmart}?sslmode=prefer}
@@ -26,12 +27,14 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: ${SPRING_JPA_DDL_AUTO:none} # Validates existing schema without altering tables
+      ddl-auto: ${SPRING_JPA_DDL_AUTO:update} # Auto-create/update schema on startup
     show-sql: ${SPRING_JPA_SHOW_SQL:false}
     properties:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        flyway:
+          enabled: false
 
 
 app:

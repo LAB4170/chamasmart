@@ -5,7 +5,8 @@ import React, {
   useState,
   useRef,
 } from "react";
-import { io } from "socket.io-client";
+import { Client as StompClient } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 import { useAuth } from "./AuthContext";
 
 const SocketContext = createContext();
@@ -25,6 +26,69 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const socketRef = useRef(null);
 
+  // Helper to create a socket.io‑like wrapper around a Stomp client
+  const createStompWrapper = (stomp) => {
+    const subscriptions = {};
+    const pendingSubscriptions = [];
+
+    // When connected, process any pending subscriptions
+    stomp.onConnect = (frame) => {
+      console.log("Connected to socket server");
+      pendingSubscriptions.forEach(({ event, callback }) => {
+        const sub = stomp.subscribe(event, (msg) => {
+          try {
+            const data = JSON.parse(msg.body);
+            callback(data);
+          } catch {
+            callback(msg.body);
+          }
+        });
+        subscriptions[event] = sub;
+      });
+      pendingSubscriptions.length = 0; // clear queue
+    };
+
+    return {
+      on(event, callback) {
+        if (stomp.connected) {
+          const sub = stomp.subscribe(event, (msg) => {
+            try {
+              const data = JSON.parse(msg.body);
+              callback(data);
+            } catch {
+              callback(msg.body);
+            }
+          });
+          subscriptions[event] = sub;
+        } else {
+          pendingSubscriptions.push({ event, callback });
+        }
+      },
+      off(event) {
+        // Remove from pending if not connected yet
+        const pendingIndex = pendingSubscriptions.findIndex(s => s.event === event);
+        if (pendingIndex !== -1) {
+          pendingSubscriptions.splice(pendingIndex, 1);
+        }
+        const sub = subscriptions[event];
+        if (sub) {
+          sub.unsubscribe();
+          delete subscriptions[event];
+        }
+      },
+      emit(event, data) {
+        if (stomp.connected) {
+          stomp.publish({ destination: event, body: JSON.stringify(data) });
+        } else {
+          console.warn("STOMP not connected, cannot emit", event);
+        }
+      },
+      disconnect() {
+        stomp.deactivate();
+      },
+    };
+  };
+
   useEffect(() => {
     // Only connect if user is authenticated
     if (user) {
@@ -39,73 +103,58 @@ export const SocketProvider = ({ children }) => {
         console.log("Cleaning up existing socket connection");
         socketRef.current.off("connect");
         socketRef.current.off("connect_error");
-        socketRef.current.close();
+        socketRef.current.disconnect();
       }
 
-      // Align with axios.js logic: Use env var or default to /api for production, localhost:5005 for dev
-      // We must strip '/api' because socket.io connects to the root
-      const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '/api' : 'http://127.0.0.1:5005/api');
+      const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '/api' : 'http://localhost:8081/api');
       const baseUrl = apiUrl.replace(/\/api\/?$/, "");
 
-      console.log("Mocking socket connection for Spring Boot backend compatibility");
-      const newSocket = {
-        on: () => {},
-        off: () => {},
-        emit: () => {},
-        connect: () => {},
-        disconnect: () => {},
-        close: () => {},
-        removeAllListeners: () => {},
-        connected: false,
-      };
+              // Create a SockJS endpoint for STOMP over WebSocket
+        const stomp = new StompClient({
+          webSocketFactory: () => new SockJS(`${baseUrl}/socket.io?token=${token}`),
+          reconnectDelay: 5000,
+          debug: (str) => console.debug('[STOMP]', str),
+          // Pass JWT token for authentication if available
+          connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
+          onConnect: () => console.log('Connected to socket server'),
+          onStompError: (frame) => console.error('STOMP error:', frame),
+          onWebSocketError: (event) => console.error('WebSocket error:', event),
+        });
+      stomp.activate();
+      const newSocket = createStompWrapper(stomp);
 
       // Set up event listeners
-      const onConnect = () => {
-        console.log("Connected to socket server");
-      };
-
+      // Connection callbacks for STOMP client
       const onConnectError = (error) => {
         console.error("Socket connection error:", error);
       };
 
-      newSocket.on("connect", onConnect);
-      newSocket.on("connect_error", onConnectError);
+      stomp.onStompError = onConnectError;
+      stomp.onWebSocketError = onConnectError;
 
       // Store the socket in the ref and state
       socketRef.current = newSocket;
       setSocket(newSocket);
 
       // Connect after setting up listeners
-      console.log("Connecting socket...");
-      newSocket.connect();
+      console.log("STOMP client activated and wrapper ready");
+      // No explicit connect call needed; wrapper is ready
 
       // Cleanup function
       return () => {
-        console.log("Cleaning up socket connection");
+        console.log("Cleaning up STOMP wrapper and client");
         if (socketRef.current) {
-          // Remove specific listeners first
-          socketRef.current.off("connect", onConnect);
-          socketRef.current.off("connect_error", onConnectError);
-
-          // Remove any other listeners that might have been added
-          socketRef.current.removeAllListeners();
-
-          // Disconnect if connected
-          if (socketRef.current.connected) {
-            socketRef.current.disconnect();
-          }
-
-          // Close the socket
-          socketRef.current.close();
+          // Stomp client wrapper only needs deactivate
+          socketRef.current.disconnect();
           socketRef.current = null;
         }
         setSocket(null);
       };
     } else {
-      // If user logs out, clean up the socket
+      // If user logs out, clean up the socket wrapper
       if (socketRef.current) {
-        console.log("User logged out, cleaning up socket");
-        socketRef.current.close();
+        console.log("User logged out, cleaning up STOMP client");
+        socketRef.current.disconnect();
         socketRef.current = null;
         setSocket(null);
       }

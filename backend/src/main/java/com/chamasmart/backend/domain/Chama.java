@@ -62,9 +62,13 @@ public class Chama {
     @Builder.Default
     private String visibility = "PRIVATE";
 
+    @Column(name = "accepts_manual_payment")
+    @Builder.Default
+    private Boolean acceptsManualPayment = false;
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;
+
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")

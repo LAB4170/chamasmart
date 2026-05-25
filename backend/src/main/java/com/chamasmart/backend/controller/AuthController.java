@@ -43,7 +43,6 @@ public class AuthController {
                 .emailVerified(false)
                 .phoneVerified(false)
                 .authMethod("email")
-                .trustScore(50)
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -139,7 +138,6 @@ public class AuthController {
                         .emailVerified(true)
                         .phoneVerified(true)
                         .authMethod("google")
-                        .trustScore(60)
                         .build();
                 user = userRepository.save(user);
             }
@@ -166,19 +164,21 @@ public class AuthController {
         }
 
         if (user == null) {
+            String cleanPhone = (request.getPhoneNumber() != null && !request.getPhoneNumber().trim().isEmpty())
+                    ? request.getPhoneNumber().trim()
+                    : null;
             // Create user dynamically for flawless dev testing!
             user = User.builder()
                     .firstName(request.getFirstName())
                     .lastName(request.getLastName() != null && !request.getLastName().isEmpty() ? request.getLastName() : "OAuth")
                     .email(email)
-                    .phoneNumber(request.getPhoneNumber() != null ? request.getPhoneNumber() : "+254700000000")
+                    .phoneNumber(cleanPhone)
                     .passwordHash(passwordEncoder.encode("OAuthUserSecureLocalFallbackPwd123!"))
                     .role("MEMBER")
                     .isActive(true)
                     .emailVerified(true)
                     .phoneVerified(true)
                     .authMethod("google")
-                    .trustScore(60)
                     .build();
             user = userRepository.save(user);
         }

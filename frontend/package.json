@@ -22,6 +22,7 @@
     "@mui/icons-material": "^7.3.7",
     "@mui/lab": "^7.0.1-beta.21",
     "@mui/material": "^7.3.7",
+    "@stomp/stompjs": "^7.3.0",
     "axios": "1.13.6",
     "firebase": "^12.8.0",
     "framer-motion": "^12.29.2",
@@ -37,6 +38,7 @@
     "react-window": "^1.8.10",
     "recharts": "^3.7.0",
     "socket.io-client": "^4.8.1",
+    "sockjs-client": "^1.6.1",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz",
     "yup": "^1.7.1",
     "zustand": "^5.0.10"

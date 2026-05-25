@@ -1,5 +1,10 @@
 const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '/api' : 'http://127.0.0.1:5005/api');
-const BACKEND_URL = API_URL.replace(/\/api\/?$/, "");
+// Derive backend base URL by stripping any "/api" segment (including version)
+let BACKEND_URL = API_URL.split('/api')[0];
+// Fallback to window origin if resolution fails (e.g., during SSR)
+if (!BACKEND_URL) {
+  BACKEND_URL = typeof window !== 'undefined' ? window.location.origin : '';
+}
 
 // Firebase Storage / GCS domains that need to be proxied
 const FIREBASE_DOMAINS = [
@@ -14,8 +19,7 @@ const FIREBASE_DOMAINS = [
  * @returns {string|null} - The formatted URL or null.
  */
 export const getImageUrl = (url) => {
-    if (!url) return null;
-    if (url === 'profilePictureUrl') return null;
+    if (!url) return '/default-avatar.png';
 
     // Route Firebase/GCS URLs through backend proxy to avoid CORS
     const isFirebaseUrl = FIREBASE_DOMAINS.some(domain => url.includes(domain));

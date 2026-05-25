@@ -53,7 +53,18 @@ export const AuthProvider = ({ children }) => {
         const savedUser = localStorage.getItem("user");
 
         if (token && savedUser) {
-          setUser(JSON.parse(savedUser));
+          try {
+            const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+            const isExpired = tokenPayload.exp * 1000 < Date.now();
+            
+            if (isExpired) {
+              throw new Error("Token expired");
+            }
+            setUser(JSON.parse(savedUser));
+          } catch (e) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+          }
         }
       } catch (err) {
         console.error("Auth initialization error:", err);

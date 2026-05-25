@@ -1,4 +1,5 @@
 package com.chamasmart.backend.controller;
+import com.chamasmart.backend.repository.ChamaPaymentConfigRepository;
 
 import com.chamasmart.backend.domain.ChamaMember;
 import com.chamasmart.backend.domain.Chama;
@@ -42,6 +43,7 @@ import java.util.stream.Collectors;
 public class ChamaController {
 
     private final ChamaService chamaService;
+    private final ChamaPaymentConfigRepository chamaPaymentConfigRepository;
     private final ChamaRepository chamaRepository;
     private final ChamaMemberRepository chamaMemberRepository;
     private final ContributionRepository contributionRepository;
@@ -143,12 +145,14 @@ public class ChamaController {
             entry.put("chama_id", id);
             entry.put("first_name", m.getUser().getFirstName());
             entry.put("last_name", m.getUser().getLastName());
-            entry.put("email", m.getUser().getEmail());
-            entry.put("phone_number", m.getUser().getPhoneNumber());
+            entry.put("email", maskEmail(m.getUser().getEmail()));
+            entry.put("phone_number", maskString(m.getUser().getPhoneNumber(), 4, 2));
+            entry.put("national_id", maskString(m.getUser().getNationalId(), 2, 2));
             entry.put("role", m.getRole());
             entry.put("status", m.getStatus());
             entry.put("is_active", m.getIsActive());
             entry.put("total_contributions", m.getTotalContributions());
+            entry.put("trust_score", m.getTrustScore());
             entry.put("joined_at", m.getJoinDate());
             return entry;
         }).collect(Collectors.toList());
@@ -208,7 +212,27 @@ public class ChamaController {
             chama.setContributionAmount(chamaDto.getContribution_amount());
         if (chamaDto.getContribution_frequency() != null)
             chama.setContributionFrequency(chamaDto.getContribution_frequency());
+        if (chamaDto.getAcceptsManualPayment() != null)
+            chama.setAcceptsManualPayment(chamaDto.getAcceptsManualPayment());
         chamaRepository.save(chama);
+        // Persist or update payment configuration if provided
+        if (chamaDto.getPayment_methods() != null) {
+            var configOpt = chamaPaymentConfigRepository.findByChamaChamaId(chama.getChamaId());
+            var config = configOpt.orElseGet(() -> com.chamasmart.backend.domain.ChamaPaymentConfig.builder()
+                    .chama(chama)
+                    .build());
+            var pm = chamaDto.getPayment_methods();
+            config.setPaymentType(pm.getType() != null ? pm.getType() : "PAYBILL");
+            config.setBusinessNumber(pm.getBusinessNumber());
+            config.setAccountNumber(pm.getAccountNumber());
+            config.setPhoneNumber(pm.getPhoneNumber());
+            config.setRecipientName(pm.getRecipientName());
+            config.setBankName(pm.getBankName());
+            config.setBankAccountNumber(pm.getBankAccount());
+            config.setBankAccountName(pm.getBankAccountName());
+            config.setBankBranch(pm.getBankBranch());
+            chamaPaymentConfigRepository.save(config);
+        }
         return ResponseEntity.ok(ApiResponse.success(chamaService.getChamaById(id), "Chama updated successfully"));
     }
 
@@ -331,7 +355,7 @@ public class ChamaController {
         Chama chama = chamaOpt.get();
 
         // 1. Savings Ratio calculation (35% weight)
-        double savingsScore = 85.0; // default baseline for empty/new groups
+        double savingsScore = 10.0; // baseline for new groups
         List<Contribution> contributions = contributionRepository.findByChamaChamaIdAndIsDeletedFalse(id);
         
         BigDecimal totalSavings = BigDecimal.ZERO;
@@ -357,7 +381,7 @@ public class ChamaController {
         savingsScore = Math.max(30.0, Math.min(100.0, savingsScore));
 
         // 2. Repayment Health calculation (45% weight)
-        double repaymentScore = 100.0; // Default to perfect if zero active/historical loans
+        double repaymentScore = 10.0; // baseline when no loan data
         List<Loan> loans = loanRepository.findByChamaChamaId(id);
         
         BigDecimal expectedRepayments = BigDecimal.ZERO;
@@ -391,7 +415,7 @@ public class ChamaController {
         repaymentScore = Math.max(30.0, Math.min(100.0, repaymentScore));
 
         // 3. Meeting Attendance/Participation calculation (20% weight)
-        double attendanceScore = 90.0; // Default high participation for new chamas
+        double attendanceScore = 10.0; // baseline attendance for new groups
         List<Meeting> meetings = meetingRepository.findByChamaChamaIdOrderByScheduledDateDesc(id);
         
         if (!meetings.isEmpty()) {
@@ -660,5 +684,23 @@ public class ChamaController {
         }
 
         return ResponseEntity.ok(ApiResponse.success(alerts, "Health alerts retrieved successfully"));
+    }
+
+    private String maskString(String str, int startVisible, int endVisible) {
+        if (str == null || str.length() <= (startVisible + endVisible)) return str;
+        StringBuilder masked = new StringBuilder();
+        masked.append(str.substring(0, startVisible));
+        masked.append("***");
+        masked.append(str.substring(str.length() - endVisible));
+        return masked.toString();
+    }
+
+    private String maskEmail(String email) {
+        if (email == null || !email.contains("@")) return email;
+        String[] parts = email.split("@");
+        if (parts[0].length() <= 2) {
+            return parts[0] + "***@" + parts[1];
+        }
+        return parts[0].substring(0, 2) + "***@" + parts[1];
     }
 }
