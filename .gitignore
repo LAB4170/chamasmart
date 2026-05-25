@@ -115,3 +115,7 @@ credentials/
 *.bat
 *.cmd
 restart_backend.bat
+
+# Build artifact directories
+backend/target/
+frontend/dist/

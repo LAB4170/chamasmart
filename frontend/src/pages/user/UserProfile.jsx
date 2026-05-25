@@ -26,6 +26,14 @@ const UserProfile = () => {
         national_id: "",
         profile_picture_url: ""
     });
+    // State to handle editing of national ID for masking
+    const [isEditingNationalId, setIsEditingNationalId] = useState(false);
+    // Utility to mask national ID e.g., 07968***05
+    const maskNationalId = (id) => {
+        if (!id) return "";
+        if (id.length <= 7) return id;
+        return `${id.slice(0,5)}***${id.slice(-2)}`;
+    };
 
     const [passwordData, setPasswordData] = useState({
         currentPassword: "",
@@ -36,6 +44,8 @@ const UserProfile = () => {
     const [updating, setUpdating] = useState(false);
     const [changingPassword, setChangingPassword] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [showTerminateModal, setShowTerminateModal] = useState(false);
+    const [deleteConfirmation, setDeleteConfirmation] = useState("");
     const fileInputRef = useRef(null);
 
     useEffect(() => {
@@ -76,26 +86,29 @@ const UserProfile = () => {
         }
     };
 
-    const handleImageUpload = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+const handleImageUpload = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-        if (!file.type.startsWith('image/')) return toast.error("Invalid image file");
-        if (file.size > 5 * 1024 * 1024) return toast.error("Image too large (max 5MB)");
+  if (!file.type.startsWith('image/')) return toast.error('Invalid image file');
+  if (file.size > 5 * 1024 * 1024) return toast.error('Image too large (max 5MB)');
 
-        setUploadingImage(true);
-        try {
-            const downloadUrl = await uploadMediaToFirebase(file, 'avatars');
-            setProfile(prev => ({ ...prev, profile_picture_url: downloadUrl }));
-            toast.success("Identity updated! Save changes to apply permanently.");
-        } catch (err) {
-            toast.error("Cloud sync failed");
-            console.error(err);
-        } finally {
-            setUploadingImage(false);
-            if (fileInputRef.current) fileInputRef.current.value = "";
-        }
-    };
+  setUploadingImage(true);
+  try {
+    const form = new FormData();
+    form.append('file', file);
+    const { data } = await userAPI.uploadProfilePicture(form);
+    // backend returns { url: 'uploads/avatars/...'}
+    setProfile(prev => ({ ...prev, profile_picture_url: data.url }));
+    toast.success('Profile picture updated successfully');
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Upload failed');
+    console.error(err);
+  } finally {
+    setUploadingImage(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+};
 
     const handleProfileUpdate = async (e) => {
         e.preventDefault();
@@ -139,8 +152,15 @@ const UserProfile = () => {
         }
     };
 
-    const handleDeleteAccount = async () => {
-        if (!window.confirm("CRITICAL: Permanent account deletion. Proceed?")) return;
+    const handleDeleteAccount = (e) => {
+        e.preventDefault();
+        setShowTerminateModal(true);
+    };
+
+    const executeTerminateAccount = async () => {
+        if (deleteConfirmation !== "DELETE") {
+            return toast.error("Type DELETE to confirm");
+        }
         try {
             await userAPI.deleteAccount();
             toast.success("Account terminated");
@@ -256,8 +276,10 @@ const UserProfile = () => {
                                     <label className="lux-label">National ID</label>
                                     <input 
                                         className="lux-input" 
-                                        value={profile.national_id} 
-                                        onChange={e => setProfile({...profile, national_id: e.target.value})}
+                                        value={isEditingNationalId ? profile.national_id : maskNationalId(profile.national_id)} 
+                                        onChange={e => setProfile({ ...profile, national_id: e.target.value })}
+                                        onFocus={() => setIsEditingNationalId(true)}
+                                        onBlur={() => setIsEditingNationalId(false)}
                                         placeholder="Identification Number"
                                     />
                                 </div>
@@ -341,6 +363,66 @@ const UserProfile = () => {
                 </main>
             </motion.div>
           </div>
+
+          {/* Terminate Account Modal */}
+          <AnimatePresence>
+              {showTerminateModal && (
+                  <motion.div 
+                      className="modal-overlay"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                  >
+                      <motion.div 
+                          className="modal-content danger-modal"
+                          initial={{ scale: 0.9, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.9, opacity: 0 }}
+                      >
+                          <div className="modal-header">
+                              <Trash2 size={24} className="text-danger" />
+                              <h3>Confirm Permanent Termination</h3>
+                          </div>
+                          <div className="modal-body">
+                              <p style={{ color: "var(--text-secondary)", marginBottom: "1.5rem" }}>
+                                  This action is <strong>irreversible</strong>. All your personal data, group associations, and contribution history will be permanently anonymized or removed.
+                              </p>
+                              <div className="lux-input-group">
+                                  <label className="lux-label" style={{ color: "var(--danger)" }}>Type DELETE to confirm</label>
+                                  <input 
+                                      type="text" 
+                                      className="lux-input" 
+                                      value={deleteConfirmation}
+                                      onChange={(e) => setDeleteConfirmation(e.target.value)}
+                                      placeholder="DELETE"
+                                      style={{ border: "1px solid var(--danger)", background: "rgba(220, 38, 38, 0.05)" }}
+                                  />
+                              </div>
+                          </div>
+                          <div className="modal-actions" style={{ marginTop: "2rem", display: "flex", gap: "1rem" }}>
+                              <button 
+                                  className="btn-lux-secondary" 
+                                  onClick={() => {
+                                      setShowTerminateModal(false);
+                                      setDeleteConfirmation("");
+                                  }}
+                                  style={{ flex: 1 }}
+                              >
+                                  Cancel
+                              </button>
+                              <button 
+                                  className="btn-lux-danger" 
+                                  onClick={executeTerminateAccount}
+                                  disabled={deleteConfirmation !== "DELETE"}
+                                  style={{ flex: 1, opacity: deleteConfirmation !== "DELETE" ? 0.5 : 1 }}
+                              >
+                                  Confirm Deletion
+                              </button>
+                          </div>
+                      </motion.div>
+                  </motion.div>
+              )}
+          </AnimatePresence>
         </div>
     );
 };

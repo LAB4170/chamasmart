@@ -23,6 +23,10 @@ public class ChamaSummaryDto {
     @JsonAlias({"chamaId", "chama_id"})
     private Long chama_id;
 
+    @JsonProperty("accepts_manual_payment")
+    @JsonAlias({"acceptsManualPayment", "accepts_manual_payment"})
+    private Boolean acceptsManualPayment;
+
     @JsonProperty("chama_name")
     @JsonAlias({"chamaName", "chama_name"})
     private String chama_name;
@@ -143,11 +147,13 @@ public class ChamaSummaryDto {
                 .meeting_time(chama.getMeetingTime())
                 .custody_type(chama.getCustodyType())
                 .virtual_account_ref(chama.getVirtualAccountRef())
+                .acceptsManualPayment(chama.getAcceptsManualPayment())
                 .build();
     }
 
     public static ChamaSummaryDto fromEntity(Chama chama, com.chamasmart.backend.domain.ChamaPaymentConfig config) {
         ChamaSummaryDto dto = fromEntity(chama);
+        dto.setAcceptsManualPayment(chama.getAcceptsManualPayment());
         if (config != null) {
             dto.setPayment_methods(PaymentMethodDto.builder()
                     .type(config.getPaymentType())

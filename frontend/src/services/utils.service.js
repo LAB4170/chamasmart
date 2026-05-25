@@ -7,6 +7,7 @@ export const userAPI = {
     changePassword: (passwordData) => api.put("/auth/change-password", passwordData),
     deleteAccount: () => api.delete("/users/account"),
     search: (query) => api.get("/users/search", { params: { query } }),
+    uploadProfilePicture: (formData) => api.post("/users/profile-picture", formData, { headers: { "Content-Type": "multipart/form-data" } })
 };
 
 // Meeting API calls — GovernanceController: /governance/chamas/{chamaId}/meetings

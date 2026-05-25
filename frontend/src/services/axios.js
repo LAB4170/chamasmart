@@ -1,7 +1,7 @@
 import axios from "axios";
 import { Capacitor } from "@capacitor/core";
 
-let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5006/api/v1';
+let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081/api/v1';
 
 // Adjust API_URL for mobile devices in development
 if (Capacitor.isNativePlatform() && !import.meta.env.VITE_API_URL) {
@@ -16,6 +16,19 @@ if (Capacitor.isNativePlatform() && !import.meta.env.VITE_API_URL) {
 const pendingRequests = new Map();
 
 // Create axios instance
+/* Helper to decode JWT and check expiration */
+function isTokenExpired(token) {
+  if (!token) return true;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    // exp is in seconds since epoch
+    return payload.exp * 1000 < Date.now();
+  } catch (e) {
+    console.warn('Failed to parse JWT', e);
+    return true;
+  }
+}
+
 const api = axios.create({
     baseURL: API_URL,
     headers: {
@@ -27,6 +40,17 @@ const api = axios.create({
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem("token");
+        // If token exists but is expired, clear storage and redirect to login
+        if (token && isTokenExpired(token)) {
+            console.warn('[Axios] Token expired – clearing session');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+                window.location.replace('/login');
+            }
+            // Reject the request to avoid sending an expired token
+            return Promise.reject(new Error('Session expired'));
+        }
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -52,60 +76,41 @@ api.interceptors.request.use(
 // Handle response errors and cleanup
 api.interceptors.response.use(
     (response) => {
-        // Remove from pending requests on success
         const requestKey = `${response.config.method}_${response.config.url}`;
         pendingRequests.delete(requestKey);
         return response;
     },
     (error) => {
-        // Remove from pending requests on error
         if (error.config) {
             const requestKey = `${error.config.method}_${error.config.url}`;
             pendingRequests.delete(requestKey);
         }
 
-        // Don't show error for cancelled requests
         if (axios.isCancel(error)) {
-            console.log('Request cancelled:', error.message);
             return Promise.reject(error);
         }
 
-        // Handle 401 Unauthorized errors (expired or invalid token)
-        if (error.response?.status === 401) {
-            // Check if this is a "soft" 401 that shouldn't trigger full logout
-            // Broadened soft failures to avoid logout loops during backend transition
-            const softFailUrls = [
-                "/invites", "/notifications", "/join-requests",
-                "/stats", "/members", "/cycles", "/roster", "/loans", 
-                "/meetings", "/welfare", "/proposals", "/claims", 
-                "/contributions", "/emergency-drives", "/verify-email", 
-                "/verify-phone", "/resend", "/ledger", "/chamas"
-            ];
-            const isSoftFail = softFailUrls.some(url => error.config?.url?.includes(url));
-
-            if (isSoftFail) {
-                console.warn(`[Axios] Suppressing logout for soft 401 failure at ${error.config.url}`);
-                return Promise.reject(error);
+        if (!error.response) {
+            console.error("[Axios] Network error or server down");
+            if (window.location.pathname !== "/login" && window.location.pathname !== "/register") {
+                window.location.replace("/login");
             }
+            return Promise.reject(error);
+        }
 
-            console.error(`[Axios] 401 Unauthorized at ${error.config.url} — Clearing session`);
-
-            // Only clear and redirect if we're not already on the login/register page
-            if (
-                window.location.pathname !== "/login" &&
-                window.location.pathname !== "/register"
-            ) {
-                localStorage.removeItem("token");
-                localStorage.removeItem("user");
+        if (error.response?.status === 401) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            if (window.location.pathname !== "/login" && window.location.pathname !== "/register") {
                 window.location.replace("/login");
             }
         }
+
         // Handle 403 Forbidden errors (user is logged in, but just doesn't have access to this resource)
         if (error.response?.status === 403) {
             console.warn(`[Axios] 403 Forbidden at ${error.config.url} — User is authenticated, access denied to this resource.`);
-            return Promise.reject(error);
         }
-        // For 404 errors, just return the error without redirecting
+        
         return Promise.reject(error);
     },
 );

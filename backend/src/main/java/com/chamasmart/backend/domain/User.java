@@ -1,6 +1,7 @@
 package com.chamasmart.backend.domain;
 
 import jakarta.persistence.*;
+import jakarta.persistence.Convert;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -59,6 +60,13 @@ public class User {
     @Column(name = "trust_score")
     @Builder.Default
     private Integer trustScore = 50;
+
+    @Column(name = "national_id", length = 50)
+    @Convert(converter = com.chamasmart.backend.util.NationalIdEncryptor.class)
+    private String nationalId;
+
+    @Column(name = "profile_picture_url", length = 1000)
+    private String profilePictureUrl;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

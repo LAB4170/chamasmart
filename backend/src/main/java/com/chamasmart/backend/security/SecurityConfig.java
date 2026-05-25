@@ -75,6 +75,8 @@ public class SecurityConfig {
                 .requestMatchers("/mpesa/callback", "/payments/mpesa/callback").permitAll()
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/chat/ai-support").permitAll()
+                .requestMatchers("/socket.io/**").permitAll()
+                .requestMatchers("/notifications/**", "/chamas/**", "/loans/**", "/finance/**").authenticated()
                 .anyRequest().authenticated()
             );
 
