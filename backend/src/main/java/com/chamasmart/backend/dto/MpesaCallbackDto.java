@@ -1,4 +1,4 @@
-package com.chamasmart.backend.dto;
+﻿package com.chamasmart.backend.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
@@ -13,6 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MpesaCallbackDto {
+    private static final Logger log = LoggerFactory.getLogger(MpesaCallbackDto.class);
 
     @JsonProperty("Body")
     private Body body;
@@ -68,3 +69,5 @@ public class MpesaCallbackDto {
         private Object value;
     }
 }
+
+

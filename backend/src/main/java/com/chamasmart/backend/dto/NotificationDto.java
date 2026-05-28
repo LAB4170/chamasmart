@@ -1,4 +1,4 @@
-package com.chamasmart.backend.dto;
+﻿package com.chamasmart.backend.dto;
 
 import com.chamasmart.backend.domain.Notification;
 import lombok.AllArgsConstructor;
@@ -13,6 +13,7 @@ import java.time.ZonedDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NotificationDto {
+    private static final Logger log = LoggerFactory.getLogger(NotificationDto.class);
     private Long notification_id;
     private Long user_id;
     private String title;
@@ -41,3 +42,5 @@ public class NotificationDto {
                 .build();
     }
 }
+
+

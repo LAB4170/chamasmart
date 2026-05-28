@@ -6,7 +6,8 @@ import com.chamasmart.backend.repository.UserRepository;
 import com.chamasmart.backend.security.CustomUserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -18,16 +19,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@Slf4j
+
 @RestController
 @RequiredArgsConstructor
 public class UserController {
+    private static final Logger log = LoggerFactory.getLogger(UserController.class);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final ProfilePictureService profilePictureService;
 
-    /** GET /users/profile — returns the currently authenticated user's profile */
+    /** GET /users/profile â€” returns the currently authenticated user's profile */
     @GetMapping("/users/profile")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getProfile(
             @AuthenticationPrincipal CustomUserDetails currentUser) {
@@ -37,7 +39,7 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(buildUserMap(user), "Profile retrieved successfully"));
     }
 
-    /** PUT /users/profile — update name and phone */
+    /** PUT /users/profile â€” update name and phone */
     @PutMapping("/users/profile")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateProfile(
             @AuthenticationPrincipal CustomUserDetails currentUser,
@@ -173,3 +175,5 @@ public class UserController {
         return parts[0].substring(0, 2) + "***@" + parts[1];
     }
 }
+
+

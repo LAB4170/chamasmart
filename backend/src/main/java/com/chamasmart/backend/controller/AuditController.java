@@ -23,6 +23,8 @@ import java.util.Map;
 public class AuditController {
     private static final Logger log = LoggerFactory.getLogger(AuditController.class);
 
+
+
     @GetMapping("/users/{userId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUserAudit(@PathVariable Long userId, @RequestParam(required = false) Map<String, String> params) {
         log.info("REST request to get audit logs for user ID: {}", userId);
@@ -53,3 +55,5 @@ public class AuditController {
         return ResponseEntity.ok(new byte[0]);
     }
 }
+
+

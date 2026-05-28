@@ -1,4 +1,4 @@
-package com.chamasmart.backend.repository;
+﻿package com.chamasmart.backend.repository;
 
 import com.chamasmart.backend.domain.ChamaPaymentConfig;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,3 +10,5 @@ import java.util.Optional;
 public interface ChamaPaymentConfigRepository extends JpaRepository<ChamaPaymentConfig, Long> {
     Optional<ChamaPaymentConfig> findByChamaChamaId(Long chamaId);
 }
+
+

@@ -1,4 +1,4 @@
-package com.chamasmart.backend.dto;
+﻿package com.chamasmart.backend.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MpesaStkPushRequestDto {
+    private static final Logger log = LoggerFactory.getLogger(MpesaStkPushRequestDto.class);
     @JsonProperty("chamaId")
     private Long chamaId;
 
@@ -24,3 +25,5 @@ public class MpesaStkPushRequestDto {
     @JsonProperty("contributionType")
     private String contributionType;
 }
+
+

@@ -1,4 +1,4 @@
-package com.chamasmart.backend.security;
+﻿package com.chamasmart.backend.security;
 
 import com.chamasmart.backend.domain.User;
 import lombok.AllArgsConstructor;
@@ -70,3 +70,5 @@ import java.util.Collections;
         return isActive;
     }
 }
+
+

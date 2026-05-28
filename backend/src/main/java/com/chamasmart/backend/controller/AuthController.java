@@ -21,6 +21,8 @@ import java.util.Map;
 public class AuthController {
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
+
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
@@ -121,7 +123,7 @@ public class AuthController {
                 : request.getFirstName().toLowerCase().replaceAll("\\s+", "") + "@chamasmart.com"; // Default local email if not provided
         if (request.getPhoneNumber() != null && !request.getPhoneNumber().isEmpty()) {
             // Check if user exists by phone or local search
-            User user = userRepository.findByEmail(email).orElse(null);
+            user = userRepository.findByEmail(email).orElse(null);
             if (user == null) {
                 user = new User(
         request.getFirstName(),
@@ -185,3 +187,5 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(authResponse, "Firebase user synced successfully"));
     }
 }
+
+

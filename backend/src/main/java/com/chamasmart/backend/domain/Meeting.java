@@ -1,4 +1,4 @@
-package com.chamasmart.backend.domain;
+﻿package com.chamasmart.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -16,6 +16,7 @@ import java.time.ZonedDateTime;
 @AllArgsConstructor
 @Builder
 public class Meeting {
+    private static final Logger log = LoggerFactory.getLogger(Meeting.class);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -76,3 +77,5 @@ public class Meeting {
     @Column(name = "updated_at")
     private ZonedDateTime updatedAt;
 }
+
+

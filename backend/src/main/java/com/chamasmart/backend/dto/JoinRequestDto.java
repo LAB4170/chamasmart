@@ -1,4 +1,4 @@
-package com.chamasmart.backend.dto;
+﻿package com.chamasmart.backend.dto;
 
 import com.chamasmart.backend.domain.JoinRequest;
 import lombok.AllArgsConstructor;
@@ -13,6 +13,7 @@ import java.time.ZonedDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class JoinRequestDto {
+    private static final Logger log = LoggerFactory.getLogger(JoinRequestDto.class);
     private Long request_id;
     private Long chama_id;
     private String chama_name;
@@ -41,3 +42,5 @@ public class JoinRequestDto {
                 .build();
     }
 }
+
+

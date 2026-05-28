@@ -1,4 +1,4 @@
-package com.chamasmart.backend.domain;
+﻿package com.chamasmart.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -17,6 +17,7 @@ import java.time.ZonedDateTime;
 @AllArgsConstructor
 @Builder
 public class LoanGuarantor {
+    private static final Logger log = LoggerFactory.getLogger(LoanGuarantor.class);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,3 +46,5 @@ public class LoanGuarantor {
     @Column(name = "approved_at")
     private ZonedDateTime approvedAt;
 }
+
+

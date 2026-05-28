@@ -1,4 +1,4 @@
-package com.chamasmart.backend.dto;
+﻿package com.chamasmart.backend.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LoginRequest {
+    private static final Logger log = LoggerFactory.getLogger(LoginRequest.class);
     private String email;
     private String password;
     public String getEmail() {
@@ -20,4 +21,6 @@ public class LoginRequest {
         return password;
     }
 }
+
+
 

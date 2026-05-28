@@ -1,4 +1,4 @@
-package com.chamasmart.backend.dto;
+﻿package com.chamasmart.backend.dto;
 
 import com.chamasmart.backend.domain.Meeting;
 import lombok.AllArgsConstructor;
@@ -14,6 +14,7 @@ import java.time.ZonedDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MeetingDto {
+    private static final Logger log = LoggerFactory.getLogger(MeetingDto.class);
     private Long meeting_id;
     private Long chama_id;
     private String title;
@@ -50,3 +51,5 @@ public class MeetingDto {
                 .build();
     }
 }
+
+

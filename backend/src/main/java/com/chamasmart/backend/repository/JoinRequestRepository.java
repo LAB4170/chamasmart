@@ -1,4 +1,4 @@
-package com.chamasmart.backend.repository;
+﻿package com.chamasmart.backend.repository;
 
 import com.chamasmart.backend.domain.JoinRequest;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,3 +18,5 @@ public interface JoinRequestRepository extends JpaRepository<JoinRequest, Long> 
     @Query("SELECT jr FROM JoinRequest jr JOIN FETCH jr.chama JOIN FETCH jr.user WHERE jr.chama.chamaId = :chamaId AND jr.user.userId = :userId")
     Optional<JoinRequest> findByChamaChamaIdAndUserUserId(@Param("chamaId") Long chamaId, @Param("userId") Long userId);
 }
+
+

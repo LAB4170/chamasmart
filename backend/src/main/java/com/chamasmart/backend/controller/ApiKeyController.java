@@ -1,4 +1,4 @@
-package com.chamasmart.backend.controller;
+﻿package com.chamasmart.backend.controller;
 
 import com.chamasmart.backend.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +17,7 @@ import java.util.Map;
 @RequestMapping("/api-keys")
 @RequiredArgsConstructor
 public class ApiKeyController {
+    private static final Logger log = LoggerFactory.getLogger(ApiKeyController.class);
     private static final Logger log = LoggerFactory.getLogger(ApiKeyController.class);
 
     @PostMapping
@@ -49,3 +50,5 @@ public class ApiKeyController {
         return ResponseEntity.ok(ApiResponse.success(new HashMap<>(), "API key rotated successfully"));
     }
 }
+
+

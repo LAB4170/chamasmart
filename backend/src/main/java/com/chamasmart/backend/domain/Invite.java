@@ -1,4 +1,4 @@
-package com.chamasmart.backend.domain;
+﻿package com.chamasmart.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -14,6 +14,7 @@ import java.time.ZonedDateTime;
 @AllArgsConstructor
 @Builder
 public class Invite {
+    private static final Logger log = LoggerFactory.getLogger(Invite.class);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -59,3 +60,5 @@ public class Invite {
     @JoinColumn(name = "accepted_by")
     private User acceptedBy;
 }
+
+

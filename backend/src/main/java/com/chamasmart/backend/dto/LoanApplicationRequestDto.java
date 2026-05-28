@@ -1,4 +1,4 @@
-package com.chamasmart.backend.dto;
+﻿package com.chamasmart.backend.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,6 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LoanApplicationRequestDto {
+    private static final Logger log = LoggerFactory.getLogger(LoanApplicationRequestDto.class);
     @com.fasterxml.jackson.annotation.JsonAlias({"chama_id", "chamaId"})
     private Long chama_id;
 
@@ -39,3 +40,5 @@ public class LoanApplicationRequestDto {
         private BigDecimal guarantee_amount;
     }
 }
+
+

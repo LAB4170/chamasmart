@@ -2,7 +2,8 @@ package com.chamasmart.backend.controller;
 
 import com.chamasmart.backend.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,11 +12,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Slf4j
+
 @RestController
 @RequestMapping("/sessions")
 @RequiredArgsConstructor
 public class SessionController {
+    private static final Logger log = LoggerFactory.getLogger(SessionController.class);
 
     @PostMapping("/{chamaId}/{meetingId}/open")
     public ResponseEntity<ApiResponse<Void>> openSession(@PathVariable Long chamaId, @PathVariable Long meetingId, @RequestBody Map<String, Object> payload) {
@@ -47,3 +49,5 @@ public class SessionController {
         return ResponseEntity.ok(ApiResponse.success(new ArrayList<>(), "Penalties retrieved successfully"));
     }
 }
+
+

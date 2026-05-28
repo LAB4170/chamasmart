@@ -1,4 +1,4 @@
-package com.chamasmart.backend.repository;
+﻿package com.chamasmart.backend.repository;
 
 import com.chamasmart.backend.domain.WelfareClaim;
 import jakarta.persistence.LockModeType;
@@ -24,3 +24,5 @@ public interface WelfareClaimRepository extends JpaRepository<WelfareClaim, Long
     @Query("SELECT wc FROM WelfareClaim wc WHERE wc.claimId = :claimId")
     Optional<WelfareClaim> findByIdWithPessimisticLock(@Param("claimId") Long claimId);
 }
+
+

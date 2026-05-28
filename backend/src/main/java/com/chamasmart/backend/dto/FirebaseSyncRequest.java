@@ -1,4 +1,4 @@
-package com.chamasmart.backend.dto;
+﻿package com.chamasmart.backend.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class FirebaseSyncRequest {
+    private static final Logger log = LoggerFactory.getLogger(FirebaseSyncRequest.class);
     private String idToken;
     private String email;
     private String firstName;
@@ -35,4 +36,6 @@ public class FirebaseSyncRequest {
         return phoneNumber;
     }
 }
+
+
 

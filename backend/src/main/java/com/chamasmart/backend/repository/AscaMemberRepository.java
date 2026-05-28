@@ -1,4 +1,4 @@
-package com.chamasmart.backend.repository;
+﻿package com.chamasmart.backend.repository;
 
 import com.chamasmart.backend.domain.AscaMember;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,3 +17,5 @@ public interface AscaMemberRepository extends JpaRepository<AscaMember, Long> {
 
     Optional<AscaMember> findByCycleCycleIdAndUserUserId(Long cycleId, Long userId);
 }
+
+

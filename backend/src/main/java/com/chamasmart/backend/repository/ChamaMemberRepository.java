@@ -1,4 +1,4 @@
-package com.chamasmart.backend.repository;
+﻿package com.chamasmart.backend.repository;
 
 import com.chamasmart.backend.domain.ChamaMember;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -21,3 +21,5 @@ public interface ChamaMemberRepository extends JpaRepository<ChamaMember, Long> 
     
     boolean existsByChamaChamaIdAndUserUserIdAndIsActiveTrue(Long chamaId, Long userId);
 }
+
+

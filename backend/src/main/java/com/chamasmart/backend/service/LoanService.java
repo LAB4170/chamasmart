@@ -4,7 +4,8 @@ import com.chamasmart.backend.domain.*;
 import com.chamasmart.backend.dto.*;
 import com.chamasmart.backend.repository.*;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,10 +16,11 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Slf4j
+
 @Service
 @RequiredArgsConstructor
 public class LoanService {
+    private static final Logger log = LoggerFactory.getLogger(LoanService.class);
 
     private final LoanRepository loanRepository;
     private final LoanGuarantorRepository loanGuarantorRepository;
@@ -264,3 +266,5 @@ public class LoanService {
         auditLogRepository.save(auditLog);
     }
 }
+
+

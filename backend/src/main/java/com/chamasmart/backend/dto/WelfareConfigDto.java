@@ -1,4 +1,4 @@
-package com.chamasmart.backend.dto;
+﻿package com.chamasmart.backend.dto;
 
 import com.chamasmart.backend.domain.WelfareConfig;
 import lombok.AllArgsConstructor;
@@ -14,6 +14,7 @@ import java.time.ZonedDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class WelfareConfigDto {
+    private static final Logger log = LoggerFactory.getLogger(WelfareConfigDto.class);
     private Long config_id;
     private Long chama_id;
     private String event_type;
@@ -38,3 +39,5 @@ public class WelfareConfigDto {
                 .build();
     }
 }
+
+

@@ -1,4 +1,4 @@
-package com.chamasmart.backend.repository;
+﻿package com.chamasmart.backend.repository;
 
 import com.chamasmart.backend.domain.LoanGuarantor;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,3 +19,5 @@ public interface LoanGuarantorRepository extends JpaRepository<LoanGuarantor, Lo
 
     Optional<LoanGuarantor> findByLoanLoanIdAndGuarantorUserUserId(Long loanId, Long guarantorUserId);
 }
+
+

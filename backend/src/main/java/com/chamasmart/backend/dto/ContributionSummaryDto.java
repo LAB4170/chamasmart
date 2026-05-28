@@ -1,4 +1,4 @@
-package com.chamasmart.backend.dto;
+﻿package com.chamasmart.backend.dto;
 
 import com.chamasmart.backend.domain.Contribution;
 import lombok.AllArgsConstructor;
@@ -14,6 +14,7 @@ import java.time.ZonedDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ContributionSummaryDto {
+    private static final Logger log = LoggerFactory.getLogger(ContributionSummaryDto.class);
     private Long contribution_id;
     private Long chama_id;
     private String chama_name;
@@ -44,3 +45,5 @@ public class ContributionSummaryDto {
                 .build();
     }
 }
+
+

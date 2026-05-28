@@ -1,4 +1,4 @@
-package com.chamasmart.backend.dto;
+﻿package com.chamasmart.backend.dto;
 
 import com.chamasmart.backend.domain.AscaCycle;
 import com.chamasmart.backend.domain.AscaMember;
@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AscaCycleDto {
+    private static final Logger log = LoggerFactory.getLogger(AscaCycleDto.class);
     private Long cycle_id;
     private Long chama_id;
     private String cycle_name;
@@ -74,3 +75,5 @@ public class AscaCycleDto {
         );
     }
 }
+
+

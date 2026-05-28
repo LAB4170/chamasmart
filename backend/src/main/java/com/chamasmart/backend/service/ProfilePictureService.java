@@ -1,4 +1,4 @@
-package com.chamasmart.backend.service;
+﻿package com.chamasmart.backend.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +19,7 @@ import java.util.UUID;
 
 @Service
 public class ProfilePictureService {
+    private static final Logger log = LoggerFactory.getLogger(ProfilePictureService.class);
     private static final Logger log = LoggerFactory.getLogger(ProfilePictureService.class);
     private static final long MAX_SIZE_BYTES = 5L * 1024 * 1024; // 5 MB
     private static final int TARGET_WIDTH = 256;
@@ -78,3 +79,5 @@ public class ProfilePictureService {
         return resized;
     }
 }
+
+

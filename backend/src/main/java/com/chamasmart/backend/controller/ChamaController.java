@@ -1,4 +1,4 @@
-package com.chamasmart.backend.controller;
+﻿package com.chamasmart.backend.controller;
 import com.chamasmart.backend.repository.ChamaPaymentConfigRepository;
 
 import com.chamasmart.backend.domain.ChamaMember;
@@ -17,7 +17,8 @@ import com.chamasmart.backend.repository.MeetingRepository;
 import com.chamasmart.backend.security.CustomUserDetails;
 import com.chamasmart.backend.service.ChamaService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -36,11 +37,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@Slf4j
+
 @RestController
 @RequestMapping("/chamas")
 @RequiredArgsConstructor
 public class ChamaController {
+    private static final Logger log = LoggerFactory.getLogger(ChamaController.class);
+    private static final Logger log = LoggerFactory.getLogger(ChamaController.class);
 
     private final ChamaService chamaService;
     private final ChamaPaymentConfigRepository chamaPaymentConfigRepository;
@@ -54,7 +57,7 @@ public class ChamaController {
     @Value("${app.ai.groq-key:}")
     private String groqApiKey;
 
-    // ── Role-validation helpers ────────────────────────────────────────────────
+    // â”€â”€ Role-validation helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /** Throws 403 if the caller is not an active official of the chama. */
     private ChamaMember validateIsOfficial(Long chamaId, Long userId) {
@@ -85,7 +88,7 @@ public class ChamaController {
         }
     }
 
-    // ── Endpoints ─────────────────────────────────────────────────────────────
+    // â”€â”€ Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /** GET /chamas/user/my-chamas  OR  /chamas/my */
     @GetMapping({"/my", "/user/my-chamas"})
@@ -96,7 +99,7 @@ public class ChamaController {
         return ResponseEntity.ok(ApiResponse.success(chamas, "Chamas retrieved successfully"));
     }
 
-    /** GET /chamas  — all active chamas */
+    /** GET /chamas  â€” all active chamas */
     @GetMapping
     public ResponseEntity<ApiResponse<List<ChamaSummaryDto>>> getAllChamas() {
         log.info("REST request to get all active chamas");
@@ -106,7 +109,7 @@ public class ChamaController {
         return ResponseEntity.ok(ApiResponse.success(chamas, "All chamas retrieved successfully"));
     }
 
-    /** GET /chamas/public  — publicly visible chamas */
+    /** GET /chamas/public  â€” publicly visible chamas */
     @GetMapping("/public")
     public ResponseEntity<ApiResponse<List<ChamaSummaryDto>>> getPublicChamas(
             @RequestParam(required = false) String search) {
@@ -187,7 +190,7 @@ public class ChamaController {
                 .body(ApiResponse.success(createdChama, "Chama created successfully"));
     }
 
-    /** PUT /chamas/{id} — only CHAIRPERSON may update chama settings */
+    /** PUT /chamas/{id} â€” only CHAIRPERSON may update chama settings */
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<ChamaSummaryDto>> updateChama(
             @PathVariable Long id,
@@ -256,7 +259,7 @@ public class ChamaController {
         return ResponseEntity.ok(ApiResponse.success(response, "Chama reliability analyzed"));
     }
 
-    /** POST /chamas/{chamaId}/members/add — only officials may add members */
+    /** POST /chamas/{chamaId}/members/add â€” only officials may add members */
     @PostMapping("/{chamaId}/members/add")
     public ResponseEntity<ApiResponse<Map<String, Object>>> addMember(
             @PathVariable Long chamaId,
@@ -301,7 +304,7 @@ public class ChamaController {
         return ResponseEntity.ok(ApiResponse.success(resp, "Member added successfully"));
     }
 
-    /** DELETE /chamas/{chamaId}/members/{userId} — only officials may remove members */
+    /** DELETE /chamas/{chamaId}/members/{userId} â€” only officials may remove members */
     @DeleteMapping("/{chamaId}/members/{userId}")
     public ResponseEntity<ApiResponse<Void>> removeMember(
             @PathVariable Long chamaId,
@@ -317,7 +320,7 @@ public class ChamaController {
         return ResponseEntity.ok(ApiResponse.success(null, "Member removed successfully"));
     }
 
-    /** PUT /chamas/{chamaId}/members/{userId}/role — only CHAIRPERSON may reassign roles */
+    /** PUT /chamas/{chamaId}/members/{userId}/role â€” only CHAIRPERSON may reassign roles */
     @PutMapping("/{chamaId}/members/{userId}/role")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateMemberRole(
             @PathVariable Long chamaId,
@@ -638,7 +641,7 @@ public class ChamaController {
             Map<String, Object> alert = new HashMap<>();
             alert.put("id", idCounter++);
             alert.put("severity", "CRITICAL");
-            alert.put("icon", "🚨");
+            alert.put("icon", "ðŸš¨");
             alert.put("title", "Loan Defaults Flagged");
             alert.put("detail", defaultedLoansCount + " loan(s) are currently marked as defaulted within this cycle. This negatively affects the group's lending capacity.");
             alert.put("action", "Initiate welfare fund recovery protocols or schedule immediate group arbitration meetings with affected members.");
@@ -647,7 +650,7 @@ public class ChamaController {
             Map<String, Object> alert = new HashMap<>();
             alert.put("id", idCounter++);
             alert.put("severity", "WARNING");
-            alert.put("icon", "💡");
+            alert.put("icon", "ðŸ’¡");
             alert.put("title", "Active Capital Outstanding");
             alert.put("detail", activeLoansCount + " member loan(s) currently active. High outstanding balance requires repayment monitoring.");
             alert.put("action", "Send courtesy reminders 3 days prior to due dates via mobile channels to maintain high repayment velocities.");
@@ -656,7 +659,7 @@ public class ChamaController {
             Map<String, Object> alert = new HashMap<>();
             alert.put("id", idCounter++);
             alert.put("severity", "TIP");
-            alert.put("icon", "🌟");
+            alert.put("icon", "ðŸŒŸ");
             alert.put("title", "Lending Liquidity High");
             alert.put("detail", "All member loans have been settled. Capital reserve is fully liquid.");
             alert.put("action", "Encourage group members to propose new ASCA project funding rounds or table-banking cycles.");
@@ -667,7 +670,7 @@ public class ChamaController {
             Map<String, Object> alert = new HashMap<>();
             alert.put("id", idCounter++);
             alert.put("severity", "TIP");
-            alert.put("icon", "⚡");
+            alert.put("icon", "âš¡");
             alert.put("title", "Healthy Capital Accumulation");
             alert.put("detail", "Accumulated savings rounds show high velocity. Reserve capital is safely backed by validated transactions.");
             alert.put("action", "Allocate excess capital into short-term welfare funds or increase the group lending limit multiplier.");
@@ -676,7 +679,7 @@ public class ChamaController {
             Map<String, Object> alert = new HashMap<>();
             alert.put("id", idCounter++);
             alert.put("severity", "WARNING");
-            alert.put("icon", "⚠️");
+            alert.put("icon", "âš ï¸");
             alert.put("title", "No Active Contribution Found");
             alert.put("detail", "No completed group savings contributions recorded yet. Initial capital pool is inactive.");
             alert.put("action", "Establish immediate welfare limits and schedule the launch of the first table-banking contribution cycle.");
@@ -704,3 +707,5 @@ public class ChamaController {
         return parts[0].substring(0, 2) + "***@" + parts[1];
     }
 }
+
+

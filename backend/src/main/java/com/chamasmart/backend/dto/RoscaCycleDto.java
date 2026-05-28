@@ -1,4 +1,4 @@
-package com.chamasmart.backend.dto;
+﻿package com.chamasmart.backend.dto;
 
 import com.chamasmart.backend.domain.RoscaCycle;
 import com.chamasmart.backend.domain.RoscaRoster;
@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RoscaCycleDto {
+    private static final Logger log = LoggerFactory.getLogger(RoscaCycleDto.class);
     private Long cycle_id;
     private Long chama_id;
     private String cycle_name;
@@ -70,3 +71,5 @@ public class RoscaCycleDto {
                 .build();
     }
 }
+
+

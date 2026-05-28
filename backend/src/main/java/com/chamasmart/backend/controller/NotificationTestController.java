@@ -1,4 +1,4 @@
-package com.chamasmart.backend.controller;
+﻿package com.chamasmart.backend.controller;
 
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
@@ -13,6 +13,7 @@ import lombok.Data;
 @RestController
 @AllArgsConstructor
 public class NotificationTestController {
+    private static final Logger log = LoggerFactory.getLogger(NotificationTestController.class);
 
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -35,3 +36,5 @@ public class NotificationTestController {
         return message;
     }
 }
+
+

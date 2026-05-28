@@ -7,7 +7,9 @@ import com.chamasmart.backend.repository.NotificationRepository;
 import com.chamasmart.backend.security.CustomUserDetails;
 import com.chamasmart.backend.service.GovernanceService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -18,11 +20,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@Slf4j
+
 @RestController
 @RequestMapping("/notifications")
 @RequiredArgsConstructor
 public class NotificationController {
+    private static final Logger log = LoggerFactory.getLogger(NotificationController.class);
 
     private final GovernanceService governanceService;
     private final NotificationRepository notificationRepository;
@@ -73,3 +76,5 @@ public class NotificationController {
         return ResponseEntity.ok(ApiResponse.success(null, "All notifications marked as read"));
     }
 }
+
+

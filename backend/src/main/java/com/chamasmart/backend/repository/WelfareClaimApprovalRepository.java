@@ -1,4 +1,4 @@
-package com.chamasmart.backend.repository;
+﻿package com.chamasmart.backend.repository;
 
 import com.chamasmart.backend.domain.WelfareClaimApproval;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,3 +12,5 @@ public interface WelfareClaimApprovalRepository extends JpaRepository<WelfareCla
     List<WelfareClaimApproval> findByClaimClaimId(Long claimId);
     Optional<WelfareClaimApproval> findByClaimClaimIdAndApproverUserId(Long claimId, Long approverId);
 }
+
+

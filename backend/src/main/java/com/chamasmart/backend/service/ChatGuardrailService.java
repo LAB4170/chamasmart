@@ -3,16 +3,18 @@ package com.chamasmart.backend.service;
 import com.chamasmart.backend.domain.ChamaMember;
 import com.chamasmart.backend.repository.ChamaMemberRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.regex.Pattern;
 
-@Slf4j
+
 @Service
 @RequiredArgsConstructor
 public class ChatGuardrailService {
+    private static final Logger log = LoggerFactory.getLogger(ChatGuardrailService.class);
 
     private final ChamaMemberRepository chamaMemberRepository;
 
@@ -126,3 +128,5 @@ public class ChatGuardrailService {
         return sanitized;
     }
 }
+
+

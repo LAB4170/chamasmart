@@ -1,4 +1,4 @@
-package com.chamasmart.backend.repository;
+﻿package com.chamasmart.backend.repository;
 
 import com.chamasmart.backend.domain.RoscaRoster;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,3 +19,5 @@ public interface RoscaRosterRepository extends JpaRepository<RoscaRoster, Long> 
 
     Optional<RoscaRoster> findByCycleCycleIdAndPosition(Long cycleId, Integer position);
 }
+
+

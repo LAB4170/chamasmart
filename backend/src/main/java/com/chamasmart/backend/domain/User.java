@@ -1,4 +1,4 @@
-package com.chamasmart.backend.domain;
+﻿package com.chamasmart.backend.domain;
 
 import jakarta.persistence.*;
 import jakarta.persistence.Convert;
@@ -16,6 +16,7 @@ import java.time.ZonedDateTime;
 @AllArgsConstructor
 @Builder
 public class User {
+    private static final Logger log = LoggerFactory.getLogger(User.class);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -111,3 +112,5 @@ public class User {
     public ZonedDateTime getCreatedAt() { return createdAt; }
     public ZonedDateTime getUpdatedAt() { return updatedAt; }
 }
+
+

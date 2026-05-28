@@ -1,4 +1,4 @@
-package com.chamasmart.backend.domain;
+﻿package com.chamasmart.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -15,6 +15,7 @@ import java.time.ZonedDateTime;
 @AllArgsConstructor
 @Builder
 public class ChamaPaymentConfig {
+    private static final Logger log = LoggerFactory.getLogger(ChamaPaymentConfig.class);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -60,3 +61,5 @@ public class ChamaPaymentConfig {
     @Column(name = "updated_at")
     private ZonedDateTime updatedAt;
 }
+
+

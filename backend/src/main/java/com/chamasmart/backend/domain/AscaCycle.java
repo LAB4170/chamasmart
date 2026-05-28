@@ -1,4 +1,4 @@
-package com.chamasmart.backend.domain;
+﻿package com.chamasmart.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -18,6 +18,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class AscaCycle {
+    private static final Logger log = LoggerFactory.getLogger(AscaCycle.class);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -80,3 +81,5 @@ public class AscaCycle {
     @Builder.Default
     private List<AscaMember> members = new ArrayList<>();
 }
+
+

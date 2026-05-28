@@ -1,4 +1,4 @@
-package com.chamasmart.backend.repository;
+﻿package com.chamasmart.backend.repository;
 
 import com.chamasmart.backend.domain.FinancialAuditLog;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,3 +10,5 @@ import java.util.List;
 public interface FinancialAuditLogRepository extends JpaRepository<FinancialAuditLog, Long> {
     List<FinancialAuditLog> findByChamaChamaIdOrderByCreatedAtDesc(Long chamaId);
 }
+
+

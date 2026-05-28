@@ -1,4 +1,4 @@
-package com.chamasmart.backend.repository;
+﻿package com.chamasmart.backend.repository;
 
 import com.chamasmart.backend.domain.MpesaTransaction;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,3 +10,5 @@ import java.util.Optional;
 public interface MpesaTransactionRepository extends JpaRepository<MpesaTransaction, Long> {
     Optional<MpesaTransaction> findByCheckoutRequestId(String checkoutRequestId);
 }
+
+

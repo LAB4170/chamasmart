@@ -1,4 +1,4 @@
-package com.chamasmart.backend.repository;
+﻿package com.chamasmart.backend.repository;
 
 import com.chamasmart.backend.domain.Contribution;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,3 +17,5 @@ public interface ContributionRepository extends JpaRepository<Contribution, Long
     @Query("SELECT c FROM Contribution c JOIN FETCH c.chama WHERE c.user.userId = :userId AND c.isDeleted = false ORDER BY c.contributionDate DESC")
     List<Contribution> findByUserUserIdAndIsDeletedFalse(@Param("userId") Long userId);
 }
+
+

@@ -1,4 +1,4 @@
-package com.chamasmart.backend.repository;
+﻿package com.chamasmart.backend.repository;
 
 import com.chamasmart.backend.domain.Chama;
 import jakarta.persistence.LockModeType;
@@ -21,3 +21,5 @@ public interface ChamaRepository extends JpaRepository<Chama, Long> {
     @Query("SELECT c FROM Chama c WHERE c.chamaId = :chamaId")
     Optional<Chama> findByIdWithPessimisticLock(@Param("chamaId") Long chamaId);
 }
+
+

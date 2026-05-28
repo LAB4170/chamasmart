@@ -1,4 +1,4 @@
-package com.chamasmart.backend.domain;
+﻿package com.chamasmart.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -17,6 +17,7 @@ import java.time.ZonedDateTime;
 @AllArgsConstructor
 @Builder
 public class WelfareFund {
+    private static final Logger log = LoggerFactory.getLogger(WelfareFund.class);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,3 +40,5 @@ public class WelfareFund {
     @Column(name = "version")
     private Long version;
 }
+
+

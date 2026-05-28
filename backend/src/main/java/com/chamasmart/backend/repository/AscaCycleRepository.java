@@ -1,4 +1,4 @@
-package com.chamasmart.backend.repository;
+﻿package com.chamasmart.backend.repository;
 
 import com.chamasmart.backend.domain.AscaCycle;
 import jakarta.persistence.LockModeType;
@@ -23,3 +23,5 @@ public interface AscaCycleRepository extends JpaRepository<AscaCycle, Long> {
     @Query("SELECT ac FROM AscaCycle ac WHERE ac.cycleId = :cycleId")
     Optional<AscaCycle> findByIdWithPessimisticLock(@Param("cycleId") Long cycleId);
 }
+
+

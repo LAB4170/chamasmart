@@ -1,4 +1,4 @@
-package com.chamasmart.backend.domain;
+﻿package com.chamasmart.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -18,6 +18,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class RoscaCycle {
+    private static final Logger log = LoggerFactory.getLogger(RoscaCycle.class);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -59,3 +60,5 @@ public class RoscaCycle {
     @Builder.Default
     private List<RoscaRoster> roster = new ArrayList<>();
 }
+
+

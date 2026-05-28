@@ -1,4 +1,4 @@
-package com.chamasmart.backend.repository;
+﻿package com.chamasmart.backend.repository;
 
 import com.chamasmart.backend.domain.RoscaCycle;
 import jakarta.persistence.LockModeType;
@@ -23,3 +23,5 @@ public interface RoscaCycleRepository extends JpaRepository<RoscaCycle, Long> {
     @Query("SELECT rc FROM RoscaCycle rc WHERE rc.cycleId = :cycleId")
     Optional<RoscaCycle> findByIdWithPessimisticLock(@Param("cycleId") Long cycleId);
 }
+
+

@@ -1,4 +1,4 @@
-package com.chamasmart.backend;
+﻿package com.chamasmart.backend;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableTransactionManagement
 @EnableScheduling
 public class ChamaSmartApplication {
+    private static final Logger log = LoggerFactory.getLogger(ChamaSmartApplication.class);
 
     public static void main(String[] args) {
         SpringApplication.run(ChamaSmartApplication.class, args);
@@ -84,3 +85,5 @@ public class ChamaSmartApplication {
     }
 
 }
+
+

@@ -1,4 +1,4 @@
-package com.chamasmart.backend.service;
+﻿package com.chamasmart.backend.service;
 
 import com.chamasmart.backend.domain.ChamaMember;
 import com.chamasmart.backend.domain.Loan;
@@ -20,6 +20,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class TrustScoreService {
+    private static final Logger log = LoggerFactory.getLogger(TrustScoreService.class);
 
     private final ChamaMemberRepository memberRepository;
     private final LoanRepository loanRepository;
@@ -29,7 +30,7 @@ public class TrustScoreService {
      * loan repayment, and account age.
      *
      * @param member the ChamaMember whose trust score should be recomputed
-     * @return the newly calculated trust score as a percentage (0‑100)
+     * @return the newly calculated trust score as a percentage (0â€‘100)
      */
     @Transactional
     public int recomputeTrustScore(ChamaMember member) {
@@ -85,4 +86,6 @@ public class TrustScoreService {
         return finalScore;
     }
 }
+
+
 

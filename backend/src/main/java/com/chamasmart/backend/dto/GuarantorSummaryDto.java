@@ -1,4 +1,4 @@
-package com.chamasmart.backend.dto;
+﻿package com.chamasmart.backend.dto;
 
 import com.chamasmart.backend.domain.LoanGuarantor;
 import lombok.AllArgsConstructor;
@@ -14,6 +14,7 @@ import java.time.ZonedDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class GuarantorSummaryDto {
+    private static final Logger log = LoggerFactory.getLogger(GuarantorSummaryDto.class);
     private Long guarantor_id;
     private Long loan_id;
     private Long chama_id;
@@ -44,3 +45,5 @@ public class GuarantorSummaryDto {
                 .build();
     }
 }
+
+

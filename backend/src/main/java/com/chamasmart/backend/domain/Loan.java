@@ -1,4 +1,4 @@
-package com.chamasmart.backend.domain;
+﻿package com.chamasmart.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -18,6 +18,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class Loan {
+    private static final Logger log = LoggerFactory.getLogger(Loan.class);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -110,3 +111,5 @@ public class Loan {
     @Column(name = "version")
     private Long version;
 }
+
+

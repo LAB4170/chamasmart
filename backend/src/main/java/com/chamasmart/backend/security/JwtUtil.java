@@ -1,4 +1,4 @@
-package com.chamasmart.backend.security;
+﻿package com.chamasmart.backend.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -16,6 +16,7 @@ import java.util.function.Function;
 
 @Component
 public class JwtUtil {
+    private static final Logger log = LoggerFactory.getLogger(JwtUtil.class);
 
     @Value("${app.security.jwt.secret}")
     private String jwtSecret;
@@ -84,3 +85,5 @@ public class JwtUtil {
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
     }
 }
+
+

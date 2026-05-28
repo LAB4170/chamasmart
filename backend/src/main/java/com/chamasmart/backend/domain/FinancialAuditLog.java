@@ -1,4 +1,4 @@
-package com.chamasmart.backend.domain;
+﻿package com.chamasmart.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -15,6 +15,7 @@ import java.time.ZonedDateTime;
 @AllArgsConstructor
 @Builder
 public class FinancialAuditLog {
+    private static final Logger log = LoggerFactory.getLogger(FinancialAuditLog.class);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -51,3 +52,5 @@ public class FinancialAuditLog {
     @Column(name = "created_at", updatable = false)
     private ZonedDateTime createdAt;
 }
+
+

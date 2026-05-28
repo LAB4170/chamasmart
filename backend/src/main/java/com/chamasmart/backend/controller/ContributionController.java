@@ -1,4 +1,4 @@
-package com.chamasmart.backend.controller;
+﻿package com.chamasmart.backend.controller;
 
 import com.chamasmart.backend.domain.*;
 import com.chamasmart.backend.dto.*;
@@ -9,7 +9,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,11 +25,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@Slf4j
+
 @RestController
 @RequestMapping("/contributions")
 @RequiredArgsConstructor
 public class ContributionController {
+    private static final Logger log = LoggerFactory.getLogger(ContributionController.class);
+    private static final Logger log = LoggerFactory.getLogger(ContributionController.class);
 
     private final ContributionRepository contributionRepository;
     private final ChamaRepository chamaRepository;
@@ -446,3 +449,5 @@ public class ContributionController {
         return ResponseEntity.ok(ApiResponse.success(null, "Contribution deleted successfully"));
     }
 }
+
+

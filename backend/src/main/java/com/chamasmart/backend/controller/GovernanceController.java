@@ -1,10 +1,11 @@
-package com.chamasmart.backend.controller;
+﻿package com.chamasmart.backend.controller;
 
 import com.chamasmart.backend.dto.*;
 import com.chamasmart.backend.security.CustomUserDetails;
 import com.chamasmart.backend.service.GovernanceService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -13,11 +14,13 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-@Slf4j
+
 @RestController
 @RequestMapping("/governance")
 @RequiredArgsConstructor
 public class GovernanceController {
+    private static final Logger log = LoggerFactory.getLogger(GovernanceController.class);
+    private static final Logger log = LoggerFactory.getLogger(GovernanceController.class);
 
     private final GovernanceService governanceService;
 
@@ -145,3 +148,5 @@ public class GovernanceController {
         return ResponseEntity.ok(ApiResponse.success(null, "Invitation deactivated successfully"));
     }
 }
+
+

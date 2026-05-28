@@ -4,7 +4,8 @@ import com.chamasmart.backend.domain.*;
 import com.chamasmart.backend.dto.*;
 import com.chamasmart.backend.repository.*;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,10 +15,11 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-@Slf4j
+
 @Service
 @RequiredArgsConstructor
 public class GovernanceService {
+    private static final Logger log = LoggerFactory.getLogger(GovernanceService.class);
 
     private final MeetingRepository meetingRepository;
     private final NotificationRepository notificationRepository;
@@ -27,7 +29,7 @@ public class GovernanceService {
     private final UserRepository userRepository;
     private final ChamaMemberRepository chamaMemberRepository;
 
-    // ── Role guard ──────────────────────────────────────────────────────────────
+    // â”€â”€ Role guard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /** Asserts that userId is an active CHAIRPERSON, SECRETARY, or TREASURER of chamaId. */
     private void validateIsOfficial(Long chamaId, Long userId) {
@@ -43,7 +45,7 @@ public class GovernanceService {
         }
     }
 
-    // ── Meeting ─────────────────────────────────────────────────────────────────
+    // â”€â”€ Meeting â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     @Transactional
     public MeetingDto createMeeting(MeetingDto dto, Long chamaId, Long creatorUserId) {
@@ -89,7 +91,7 @@ public class GovernanceService {
         return MeetingDto.fromEntity(savedMeeting);
     }
 
-    // ── Invite ──────────────────────────────────────────────────────────────────
+    // â”€â”€ Invite â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     @Transactional
     public InviteDto createInvite(InviteDto dto, Long chamaId, Long inviterUserId) {
@@ -286,3 +288,5 @@ public class GovernanceService {
         });
     }
 }
+
+

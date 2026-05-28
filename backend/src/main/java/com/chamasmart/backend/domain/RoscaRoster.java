@@ -1,4 +1,4 @@
-package com.chamasmart.backend.domain;
+﻿package com.chamasmart.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -18,6 +18,7 @@ import java.time.ZonedDateTime;
 @AllArgsConstructor
 @Builder
 public class RoscaRoster {
+    private static final Logger log = LoggerFactory.getLogger(RoscaRoster.class);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -46,3 +47,5 @@ public class RoscaRoster {
     @Column(name = "created_at", updatable = false)
     private ZonedDateTime createdAt;
 }
+
+

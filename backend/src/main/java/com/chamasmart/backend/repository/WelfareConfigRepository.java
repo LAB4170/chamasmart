@@ -1,4 +1,4 @@
-package com.chamasmart.backend.repository;
+﻿package com.chamasmart.backend.repository;
 
 import com.chamasmart.backend.domain.WelfareConfig;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,3 +17,5 @@ public interface WelfareConfigRepository extends JpaRepository<WelfareConfig, Lo
 
     Optional<WelfareConfig> findByChamaChamaIdAndEventType(Long chamaId, String eventType);
 }
+
+

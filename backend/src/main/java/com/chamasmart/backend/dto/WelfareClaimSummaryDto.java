@@ -1,4 +1,4 @@
-package com.chamasmart.backend.dto;
+﻿package com.chamasmart.backend.dto;
 
 import com.chamasmart.backend.domain.WelfareClaim;
 import lombok.AllArgsConstructor;
@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 @NoArgsConstructor
 @AllArgsConstructor
 public class WelfareClaimSummaryDto {
+    private static final Logger log = LoggerFactory.getLogger(WelfareClaimSummaryDto.class);
     private Long claim_id;
     private Long chama_id;
     private String chama_name;
@@ -71,3 +72,5 @@ public class WelfareClaimSummaryDto {
                 .build();
     }
 }
+
+

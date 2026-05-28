@@ -1,4 +1,4 @@
-package com.chamasmart.backend.domain;
+﻿package com.chamasmart.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -17,6 +17,7 @@ import java.time.ZonedDateTime;
 @AllArgsConstructor
 @Builder
 public class ChamaMember {
+    private static final Logger log = LoggerFactory.getLogger(ChamaMember.class);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -58,3 +59,5 @@ public class ChamaMember {
     @Builder.Default
     private BigDecimal trustScore = BigDecimal.ZERO;
 }
+
+

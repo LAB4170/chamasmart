@@ -2,7 +2,8 @@ package com.chamasmart.backend.controller;
 
 import com.chamasmart.backend.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,11 +12,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Slf4j
+
 @RestController
 @RequestMapping("/payouts")
 @RequiredArgsConstructor
 public class PayoutController {
+    private static final Logger log = LoggerFactory.getLogger(PayoutController.class);
 
     @GetMapping("/{chamaId}")
     public ResponseEntity<ApiResponse<List<Object>>> getPayouts(@PathVariable Long chamaId) {
@@ -35,3 +37,5 @@ public class PayoutController {
         return ResponseEntity.ok(ApiResponse.success(null, "Payout processed successfully"));
     }
 }
+
+

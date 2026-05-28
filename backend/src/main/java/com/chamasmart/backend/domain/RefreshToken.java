@@ -1,4 +1,4 @@
-package com.chamasmart.backend.domain;
+﻿package com.chamasmart.backend.domain;
 
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -6,6 +6,7 @@ import java.time.Instant;
 @Entity
 @Table(name = "refresh_tokens")
 public class RefreshToken {
+    private static final Logger log = LoggerFactory.getLogger(RefreshToken.class);
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -35,3 +36,5 @@ public class RefreshToken {
     public boolean isRevoked() { return revoked; }
     public void setRevoked(boolean revoked) { this.revoked = revoked; }
 }
+
+

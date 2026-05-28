@@ -1,4 +1,4 @@
-package com.chamasmart.backend.security;
+﻿package com.chamasmart.backend.security;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -28,6 +28,7 @@ import java.util.Collections;
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
     private final CustomUserDetailsService userDetailsService;
     private final JwtAuthenticationFilter jwtAuthFilter;
@@ -101,3 +102,5 @@ public class SecurityConfig {
         return source;
     }
 }
+
+

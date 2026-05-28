@@ -1,4 +1,4 @@
-package com.chamasmart.backend.domain;
+﻿package com.chamasmart.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -16,6 +16,7 @@ import java.time.ZonedDateTime;
 @AllArgsConstructor
 @Builder
 public class MpesaTransaction {
+    private static final Logger log = LoggerFactory.getLogger(MpesaTransaction.class);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -67,3 +68,5 @@ public class MpesaTransaction {
     @Column(name = "updated_at")
     private ZonedDateTime updatedAt;
 }
+
+

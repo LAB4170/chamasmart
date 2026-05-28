@@ -1,4 +1,4 @@
-package com.chamasmart.backend.util;
+﻿package com.chamasmart.backend.util;
 
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
@@ -30,3 +30,5 @@ public class NationalIdEncryptor implements AttributeConverter<String, String> {
         }
     }
 }
+
+

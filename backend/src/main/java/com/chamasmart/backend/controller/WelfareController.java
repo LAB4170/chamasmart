@@ -4,7 +4,8 @@ import com.chamasmart.backend.dto.*;
 import com.chamasmart.backend.security.CustomUserDetails;
 import com.chamasmart.backend.service.WelfareService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -13,11 +14,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-@Slf4j
+
 @RestController
 @RequestMapping("/welfare")
 @RequiredArgsConstructor
 public class WelfareController {
+    private static final Logger log = LoggerFactory.getLogger(WelfareController.class);
 
     private final WelfareService welfareService;
 
@@ -113,3 +115,5 @@ public class WelfareController {
         return ResponseEntity.ok(ApiResponse.success(claims, "My welfare claims retrieved successfully"));
     }
 }
+
+

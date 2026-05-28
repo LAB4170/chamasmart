@@ -1,4 +1,4 @@
-package com.chamasmart.backend.domain;
+﻿package com.chamasmart.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -18,6 +18,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class WelfareClaim {
+    private static final Logger log = LoggerFactory.getLogger(WelfareClaim.class);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -81,3 +82,5 @@ public class WelfareClaim {
     @Column(name = "version")
     private Long version;
 }
+
+

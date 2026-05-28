@@ -1,4 +1,4 @@
-package com.chamasmart.backend.security;
+﻿package com.chamasmart.backend.security;
 
 import com.chamasmart.backend.domain.User;
 import com.chamasmart.backend.repository.UserRepository;
@@ -24,3 +24,5 @@ public class CustomUserDetailsService implements UserDetailsService {
         return CustomUserDetails.build(user);
     }
 }
+
+

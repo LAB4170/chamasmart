@@ -1,4 +1,4 @@
-package com.chamasmart.backend.controller;
+﻿package com.chamasmart.backend.controller;
 
 import com.chamasmart.backend.domain.User;
 import com.chamasmart.backend.dto.ApiResponse;
@@ -6,7 +6,8 @@ import com.chamasmart.backend.repository.UserRepository;
 import com.chamasmart.backend.security.CustomUserDetails;
 import com.chamasmart.backend.service.ChatGuardrailService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -22,11 +23,13 @@ import org.springframework.http.MediaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 
-@Slf4j
+
 @RestController
 @RequestMapping("/chat")
 @RequiredArgsConstructor
 public class ChatController {
+    private static final Logger log = LoggerFactory.getLogger(ChatController.class);
+    private static final Logger log = LoggerFactory.getLogger(ChatController.class);
 
     private final UserRepository userRepository;
     private final ChatGuardrailService chatGuardrailService;
@@ -100,7 +103,7 @@ public class ChatController {
             @RequestBody String rawPayload,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
         // Log the raw request body for debugging
-        log.info("REST request for AI support – raw payload: {}", rawPayload);
+        log.info("REST request for AI support â€“ raw payload: {}", rawPayload);
         String apiKey = (groqApiKey != null && !groqApiKey.isBlank()) ? groqApiKey : System.getenv("GROQ_API_KEY");
         if (apiKey == null || apiKey.isBlank()) {
             log.warn("Groq API key is missing");
@@ -189,3 +192,5 @@ public class ChatController {
         }
     }
 }
+
+

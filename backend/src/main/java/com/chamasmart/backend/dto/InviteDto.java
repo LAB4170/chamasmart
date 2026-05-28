@@ -1,4 +1,4 @@
-package com.chamasmart.backend.dto;
+﻿package com.chamasmart.backend.dto;
 
 import com.chamasmart.backend.domain.Invite;
 import lombok.AllArgsConstructor;
@@ -13,6 +13,7 @@ import java.time.ZonedDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class InviteDto {
+    private static final Logger log = LoggerFactory.getLogger(InviteDto.class);
     private Long invite_id;
     private Long chama_id;
     private String chama_name;
@@ -45,3 +46,5 @@ public class InviteDto {
                 .build();
     }
 }
+
+
