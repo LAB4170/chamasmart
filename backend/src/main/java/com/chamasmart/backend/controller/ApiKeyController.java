@@ -1,4 +1,4 @@
-﻿package com.chamasmart.backend.controller;
+package com.chamasmart.backend.controller;
 
 import com.chamasmart.backend.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ApiKeyController {
     private static final Logger log = LoggerFactory.getLogger(ApiKeyController.class);
-    private static final Logger log = LoggerFactory.getLogger(ApiKeyController.class);
+
 
     @PostMapping
     public ResponseEntity<ApiResponse<Map<String, Object>>> createApiKey(@RequestBody Map<String, Object> keyData) {
