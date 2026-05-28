@@ -1,4 +1,4 @@
-﻿package com.chamasmart.backend.dto;
+package com.chamasmart.backend.dto;
 
 import com.chamasmart.backend.domain.Loan;
 import lombok.AllArgsConstructor;

@@ -1,4 +1,4 @@
-﻿package com.chamasmart.backend.dto;
+package com.chamasmart.backend.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -7,13 +7,15 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class LoanApplicationRequestDto {
-    private static final Logger log = LoggerFactory.getLogger(LoanApplicationRequestDto.class);
+
     @com.fasterxml.jackson.annotation.JsonAlias({"chama_id", "chamaId"})
     private Long chama_id;
 
