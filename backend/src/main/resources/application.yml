@@ -29,7 +29,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: ${SPRING_JPA_DDL_AUTO:update} # Auto-create/update schema on startup
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    # database-platform removed
     properties:
       hibernate:
         format_sql: true
