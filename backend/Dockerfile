@@ -26,10 +26,10 @@ USER chamauser:chamagroup
 COPY --from=build /build/target/*.jar app.jar
 
 # Expose the production port
-EXPOSE 5006
+EXPOSE 8080
 
 # Define environment variables with default fallbacks (Overridden at runtime by Neon/Redis/Cloud configs)
-ENV PORT=5006 SPRING_PROFILES_ACTIVE=prod JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
+ENV SPRING_PROFILES_ACTIVE=prod JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
 
 # Execute the Spring Boot application
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "java -Dserver.port=$PORT $JAVA_OPTS -jar app.jar"]
