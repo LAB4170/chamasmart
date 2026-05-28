@@ -1,4 +1,4 @@
-﻿package com.chamasmart.backend.repository;
+package com.chamasmart.backend.repository;
 
 import com.chamasmart.backend.domain.Chama;
 import jakarta.persistence.LockModeType;

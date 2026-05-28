@@ -1,4 +1,4 @@
-﻿package com.chamasmart.backend.repository;
+package com.chamasmart.backend.repository;
 
 import com.chamasmart.backend.domain.FinancialAuditLog;
 import org.springframework.data.jpa.repository.JpaRepository;
