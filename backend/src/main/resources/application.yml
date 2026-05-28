@@ -14,8 +14,8 @@ spring:
   datasource:
     # Optimized for Neon Serverless PostgreSQL & Local Fallback
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/chamasmart?sslmode=prefer}
-    username: ${SPRING_DATASOURCE_USERNAME:${DB_USER:postgres}}
-    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:1234}}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:1234}
     driver-class-name: org.postgresql.Driver
     hikari:
       minimum-idle: 1
