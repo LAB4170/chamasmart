@@ -1,8 +1,10 @@
-﻿package com.chamasmart.backend.domain;
+package com.chamasmart.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
@@ -52,5 +54,3 @@ public class FinancialAuditLog {
     @Column(name = "created_at", updatable = false)
     private ZonedDateTime createdAt;
 }
-
-

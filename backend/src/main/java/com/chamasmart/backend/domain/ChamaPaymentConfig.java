@@ -1,9 +1,11 @@
-﻿package com.chamasmart.backend.domain;
+package com.chamasmart.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.ZonedDateTime;
 
@@ -61,5 +63,3 @@ public class ChamaPaymentConfig {
     @Column(name = "updated_at")
     private ZonedDateTime updatedAt;
 }
-
-
