@@ -2,7 +2,8 @@ package com.chamasmart.backend.controller;
 
 import com.chamasmart.backend.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,8 +19,9 @@ import java.util.Map;
 @RestController
 @RequestMapping("/audit")
 @RequiredArgsConstructor
-@Slf4j
+
 public class AuditController {
+    private static final Logger log = LoggerFactory.getLogger(AuditController.class);
 
     @GetMapping("/users/{userId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUserAudit(@PathVariable Long userId, @RequestParam(required = false) Map<String, String> params) {

@@ -1,4 +1,6 @@
-    @Data
+package com.chamasmart.backend.dto;
+
+import com.chamasmart.backend.domain.User;
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor

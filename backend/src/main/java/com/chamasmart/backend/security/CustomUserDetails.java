@@ -10,9 +10,13 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.Collections;
 
-@Getter
-@AllArgsConstructor
-public class CustomUserDetails implements UserDetails {
+    // Manual getters (Lombok @Getter not processed)
+    public Long getUserId() { return userId; }
+    public String getEmail() { return email; }
+    public String getPassword() { return password; }
+    public Collection<? extends GrantedAuthority> getAuthorities() { return authorities; }
+    public boolean isActive() { return isActive; }
+
 
     private final Long userId;
     private final String email;

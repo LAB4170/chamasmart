@@ -6,18 +6,20 @@ import com.chamasmart.backend.repository.UserRepository;
 import com.chamasmart.backend.security.CustomUserDetails;
 import com.chamasmart.backend.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
-@Slf4j
+
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthController {
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -71,13 +73,10 @@ public class AuthController {
 
         String token = jwtUtil.generateToken(CustomUserDetails.build(user));
 
-        AuthResponse authResponse = AuthResponse.builder()
-                .user(user)
-                .tokens(AuthResponse.TokenResponse.builder()
-                        .accessToken(token)
-                        .refreshToken(token)
-                        .build())
-                .build();
+        AuthResponse authResponse = new AuthResponse(
+        user,
+        new AuthResponse.TokenResponse(token, token)
+);
 
         return ResponseEntity.ok(ApiResponse.success(authResponse, "Login successful"));
     }
@@ -140,13 +139,10 @@ public class AuthController {
             }
 
             String token = jwtUtil.generateToken(CustomUserDetails.build(user));
-            AuthResponse authResponse = AuthResponse.builder()
-                    .user(user)
-                    .tokens(AuthResponse.TokenResponse.builder()
-                            .accessToken(token)
-                            .refreshToken(token)
-                            .build())
-                    .build();
+            AuthResponse authResponse = new AuthResponse(
+        user,
+        new AuthResponse.TokenResponse(token, token)
+);
 
             return ResponseEntity.ok(ApiResponse.success(authResponse, "Firebase user synced successfully"));
         }
@@ -181,13 +177,10 @@ public class AuthController {
         }
 
         String token = jwtUtil.generateToken(CustomUserDetails.build(user));
-        AuthResponse authResponse = AuthResponse.builder()
-                .user(user)
-                .tokens(AuthResponse.TokenResponse.builder()
-                        .accessToken(token)
-                        .refreshToken(token)
-                        .build())
-                .build();
+        AuthResponse authResponse = new AuthResponse(
+        user,
+        new AuthResponse.TokenResponse(token, token)
+);
 
         return ResponseEntity.ok(ApiResponse.success(authResponse, "Firebase user synced successfully"));
     }
