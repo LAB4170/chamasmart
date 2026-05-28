@@ -13,7 +13,7 @@ spring:
       fail-on-unknown-properties: false
   datasource:
     # Optimized for Neon Serverless PostgreSQL & Local Fallback
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:chamasmart}?sslmode=prefer
+    url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:postgresql://localhost:5432/chamasmart?sslmode=prefer}}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:1234}
     driver-class-name: org.postgresql.Driver
