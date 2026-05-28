@@ -15,7 +15,7 @@ import java.time.ZonedDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LoanSummaryDto {
-    private static final Logger log = LoggerFactory.getLogger(LoanSummaryDto.class);
+
     private Long loan_id;
     private Long chama_id;
     private String chama_name;

@@ -1,11 +1,11 @@
-﻿package com.chamasmart.backend.dto;
+package com.chamasmart.backend.dto;
 
 import com.chamasmart.backend.domain.User;
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public class AuthResponse {
-    private static final Logger log = LoggerFactory.getLogger(AuthResponse.class);
+
         private User user;
         private TokenResponse tokens;
 
