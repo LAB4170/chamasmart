@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LoginRequest {
-    private static final Logger log = LoggerFactory.getLogger(LoginRequest.class);
+
     private String email;
     private String password;
     public String getEmail() {

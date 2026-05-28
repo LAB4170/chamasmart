@@ -1,4 +1,4 @@
-﻿package com.chamasmart.backend.dto;
+package com.chamasmart.backend.dto;
 
 import com.chamasmart.backend.domain.Chama;
 import lombok.AllArgsConstructor;
@@ -19,7 +19,7 @@ import java.time.ZonedDateTime;
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ChamaSummaryDto {
-    private static final Logger log = LoggerFactory.getLogger(ChamaSummaryDto.class);
+
     @JsonProperty("chama_id")
     @JsonAlias({"chamaId", "chama_id"})
     private Long chama_id;
