@@ -124,7 +124,7 @@ public class AuthController {
             // Check if user exists by phone or local search
             User user = userRepository.findByEmail(email).orElse(null);
             if (user == null) {
-                User user = new User(
+                user = new User(
         request.getFirstName(),
         request.getLastName() != null ? request.getLastName() : "Member",
         email,
@@ -165,7 +165,7 @@ public class AuthController {
                     ? request.getPhoneNumber().trim()
                     : null;
             // Create user dynamically for flawless dev testing!
-            User user = new User(
+            user = new User(
         request.getFirstName(),
         request.getLastName() != null && !request.getLastName().isEmpty() ? request.getLastName() : "OAuth",
         email,
