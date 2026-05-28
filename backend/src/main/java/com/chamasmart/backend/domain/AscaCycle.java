@@ -62,6 +62,20 @@ public class AscaCycle {
     @Column(name = "version")
     private Long version;
 
+    // Explicit getters for fields used in DTO mapping (Lombok fallback)
+    public Long getCycleId() { return cycleId; }
+    public Chama getChama() { return chama; }
+    public String getCycleName() { return cycleName; }
+    public LocalDate getStartDate() { return startDate; }
+    public LocalDate getEndDate() { return endDate; }
+    public BigDecimal getSharePrice() { return sharePrice; }
+    public Integer getTotalShares() { return totalShares; }
+    public Integer getAvailableShares() { return availableShares; }
+    public BigDecimal getDividendRate() { return dividendRate; }
+    public String getStatus() { return status; }
+    public ZonedDateTime getCreatedAt() { return createdAt; }
+    public List<AscaMember> getMembers() { return members; }
+
     @OneToMany(mappedBy = "cycle", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<AscaMember> members = new ArrayList<>();

@@ -11,10 +11,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Slf4j
+
+
+
+
 @RestController
 @RequestMapping("/audit")
 @RequiredArgsConstructor
+@Slf4j
 public class AuditController {
 
     @GetMapping("/users/{userId}")

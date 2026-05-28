@@ -47,30 +47,30 @@ public class AscaCycleDto {
 
     public static AscaCycleDto fromEntity(AscaCycle cycle, List<AscaMember> memberList) {
         List<AscaMemberDto> memberDtos = memberList.stream()
-                .map(m -> AscaMemberDto.builder()
-                        .membership_id(m.getMembershipId())
-                        .user_id(m.getUser().getUserId())
-                        .member_name(m.getUser().getFirstName() + " " + m.getUser().getLastName())
-                        .shares_owned(m.getSharesOwned())
-                        .total_investment(m.getTotalInvestment())
-                        .dividends_earned(m.getDividendsEarned())
-                        .status(m.getStatus())
-                        .build())
+                .map(m -> new AscaMemberDto(
+                        m.getMembershipId(),
+                        m.getUser().getUserId(),
+                        m.getUser().getFirstName() + " " + m.getUser().getLastName(),
+                        m.getSharesOwned(),
+                        m.getTotalInvestment(),
+                        m.getDividendsEarned(),
+                        m.getStatus()
+                ))
                 .collect(Collectors.toList());
 
-        return AscaCycleDto.builder()
-                .cycle_id(cycle.getCycleId())
-                .chama_id(cycle.getChama().getChamaId())
-                .cycle_name(cycle.getCycleName())
-                .start_date(cycle.getStartDate())
-                .end_date(cycle.getEndDate())
-                .share_price(cycle.getSharePrice())
-                .total_shares(cycle.getTotalShares())
-                .available_shares(cycle.getAvailableShares())
-                .dividend_rate(cycle.getDividendRate())
-                .status(cycle.getStatus())
-                .created_at(cycle.getCreatedAt())
-                .members(memberDtos)
-                .build();
+        return new AscaCycleDto(
+                cycle.getCycleId(),
+                cycle.getChama().getChamaId(),
+                cycle.getCycleName(),
+                cycle.getStartDate(),
+                cycle.getEndDate(),
+                cycle.getSharePrice(),
+                cycle.getTotalShares(),
+                cycle.getAvailableShares(),
+                cycle.getDividendRate(),
+                cycle.getStatus(),
+                cycle.getCreatedAt(),
+                memberDtos
+        );
     }
 }

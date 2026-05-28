@@ -18,6 +18,14 @@ import java.time.ZonedDateTime;
 @Builder
 public class AscaMember {
 
+    // Explicit getters for DTO mapping (Lombok fallback)
+    public Long getMembershipId() { return membershipId; }
+    public User getUser() { return user; }
+    public Integer getSharesOwned() { return sharesOwned; }
+    public java.math.BigDecimal getTotalInvestment() { return totalInvestment; }
+    public java.math.BigDecimal getDividendsEarned() { return dividendsEarned; }
+    public String getStatus() { return status; }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "membership_id")

@@ -2609,24 +2609,25 @@ const ChamaDetails = () => {
 
                   <div className="form-group mb-6">
                     <label className="block mb-2" style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--lux-text-secondary)' }}>Rules & Bylaws</label>
-                    <textarea
-                      className="form-textarea"
-                      style={{
-                          width: '100%',
-                          background: 'var(--lux-bg-soft)',
-                          border: '1px solid var(--lux-border)',
-                          color: 'var(--lux-text-primary)',
-                          padding: '20px',
-                          borderRadius: '16px',
-                          fontSize: '1rem',
-                          lineHeight: '1.6'
-                      }}
-                      rows="10"
-                      value={constitutionText}
-                      onChange={(e) => setConstitutionText(e.target.value)}
-                      placeholder="Enter the full text of your constitution, bylaws, and rules here..."
-                      style={{ resize: 'vertical', minHeight: '150px' }}
-                    ></textarea>
+                                         <textarea
+                       className="form-textarea"
+                       style={{
+                           width: '100%',
+                           background: 'var(--lux-bg-soft)',
+                           border: '1px solid var(--lux-border)',
+                           color: 'var(--lux-text-primary)',
+                           padding: '20px',
+                           borderRadius: '16px',
+                           fontSize: '1rem',
+                           lineHeight: '1.6',
+                           resize: 'vertical',
+                           minHeight: '150px'
+                       }}
+                       rows="10"
+                       value={constitutionText}
+                       onChange={(e) => setConstitutionText(e.target.value)}
+                       placeholder="Enter the full text of your constitution, bylaws, and rules here..."
+                     ></textarea>
                   </div>
 
                   <div className="dashboard-card-lux" style={{ background: 'var(--lux-bg-soft)', padding: '24px', marginBottom: '24px' }}>

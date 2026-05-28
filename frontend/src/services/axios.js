@@ -1,7 +1,7 @@
 import axios from "axios";
 import { Capacitor } from "@capacitor/core";
 
-let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081/api/v1';
+let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
 
 // Adjust API_URL for mobile devices in development
 if (Capacitor.isNativePlatform() && !import.meta.env.VITE_API_URL) {
@@ -48,6 +48,8 @@ api.interceptors.request.use(
             if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
                 window.location.replace('/login');
             }
+            // Cancel any pending requests to prevent further API calls during logout
+            cancelPendingRequests();
             // Reject the request to avoid sending an expired token
             return Promise.reject(new Error('Session expired'));
         }
@@ -104,6 +106,8 @@ api.interceptors.response.use(
             if (window.location.pathname !== "/login" && window.location.pathname !== "/register") {
                 window.location.replace("/login");
             }
+            // Cancel any pending requests after unauthorized response
+            cancelPendingRequests();
         }
 
         // Handle 403 Forbidden errors (user is logged in, but just doesn't have access to this resource)

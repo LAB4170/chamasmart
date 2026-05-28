@@ -72,7 +72,42 @@ public class User {
     @Column(name = "created_at", updatable = false)
     private ZonedDateTime createdAt;
 
+    // No-args constructor (required by JPA)
+    public User() {}
+
+    // All-args constructor for manual creation (used in AuthController)
+    public User(String firstName, String lastName, String email, String phoneNumber, String passwordHash,
+                String role, Boolean isActive, Boolean emailVerified, Boolean phoneVerified, String authMethod) {
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.email = email;
+        this.phoneNumber = phoneNumber;
+        this.passwordHash = passwordHash;
+        this.role = role;
+        this.isActive = isActive;
+        this.emailVerified = emailVerified;
+        this.phoneVerified = phoneVerified;
+        this.authMethod = authMethod;
+    }
+
     @UpdateTimestamp
     @Column(name = "updated_at")
     private ZonedDateTime updatedAt;
+
+    // Explicit getters for fields used where Lombok failed
+    public Long getUserId() { return userId; }
+    public String getFirstName() { return firstName; }
+    public String getLastName() { return lastName; }
+    public String getEmail() { return email; }
+    public String getPasswordHash() { return passwordHash; }
+    public String getRole() { return role; }
+    public Boolean getIsActive() { return isActive; }
+    public Boolean getEmailVerified() { return emailVerified; }
+    public Boolean getPhoneVerified() { return phoneVerified; }
+    public String getAuthMethod() { return authMethod; }
+    public Integer getTrustScore() { return trustScore; }
+    public String getNationalId() { return nationalId; }
+    public String getProfilePictureUrl() { return profilePictureUrl; }
+    public ZonedDateTime getCreatedAt() { return createdAt; }
+    public ZonedDateTime getUpdatedAt() { return updatedAt; }
 }

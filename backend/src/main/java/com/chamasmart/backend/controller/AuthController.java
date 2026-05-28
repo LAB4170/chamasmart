@@ -32,29 +32,26 @@ public class AuthController {
                     .body(ApiResponse.error("Email is already in use"));
         }
 
-        User user = User.builder()
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .email(request.getEmail())
-                .phoneNumber(request.getPhoneNumber())
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .role("MEMBER")
-                .isActive(true)
-                .emailVerified(false)
-                .phoneVerified(false)
-                .authMethod("email")
-                .build();
+        User user = new User(
+                request.getFirstName(),
+                request.getLastName(),
+                request.getEmail(),
+                request.getPhoneNumber(),
+                passwordEncoder.encode(request.getPassword()),
+                "MEMBER",
+                true,
+                false,
+                false,
+                "email"
+        );
 
         User savedUser = userRepository.save(user);
         String token = jwtUtil.generateToken(CustomUserDetails.build(savedUser));
 
-        AuthResponse authResponse = AuthResponse.builder()
-                .user(savedUser)
-                .tokens(AuthResponse.TokenResponse.builder()
-                        .accessToken(token)
-                        .refreshToken(token) // Use standard token for refresh locally
-                        .build())
-                .build();
+        AuthResponse authResponse = new AuthResponse(
+        savedUser,
+        new AuthResponse.TokenResponse(token, token)
+);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(authResponse, "User registered successfully"));
@@ -127,18 +124,18 @@ public class AuthController {
             // Check if user exists by phone or local search
             User user = userRepository.findByEmail(email).orElse(null);
             if (user == null) {
-                user = User.builder()
-                        .firstName(request.getFirstName())
-                        .lastName(request.getLastName() != null ? request.getLastName() : "Member")
-                        .email(email)
-                        .phoneNumber(request.getPhoneNumber())
-                        .passwordHash(passwordEncoder.encode("OAuthUserSecureLocalFallbackPwd123!"))
-                        .role("MEMBER")
-                        .isActive(true)
-                        .emailVerified(true)
-                        .phoneVerified(true)
-                        .authMethod("google")
-                        .build();
+                User user = new User(
+        request.getFirstName(),
+        request.getLastName() != null ? request.getLastName() : "Member",
+        email,
+        request.getPhoneNumber(),
+        passwordEncoder.encode("OAuthUserSecureLocalFallbackPwd123!"),
+        "MEMBER",
+        true,
+        true,
+        true,
+        "google"
+);
                 user = userRepository.save(user);
             }
 
@@ -168,18 +165,18 @@ public class AuthController {
                     ? request.getPhoneNumber().trim()
                     : null;
             // Create user dynamically for flawless dev testing!
-            user = User.builder()
-                    .firstName(request.getFirstName())
-                    .lastName(request.getLastName() != null && !request.getLastName().isEmpty() ? request.getLastName() : "OAuth")
-                    .email(email)
-                    .phoneNumber(cleanPhone)
-                    .passwordHash(passwordEncoder.encode("OAuthUserSecureLocalFallbackPwd123!"))
-                    .role("MEMBER")
-                    .isActive(true)
-                    .emailVerified(true)
-                    .phoneVerified(true)
-                    .authMethod("google")
-                    .build();
+            User user = new User(
+        request.getFirstName(),
+        request.getLastName() != null && !request.getLastName().isEmpty() ? request.getLastName() : "OAuth",
+        email,
+        cleanPhone,
+        passwordEncoder.encode("OAuthUserSecureLocalFallbackPwd123!"),
+        "MEMBER",
+        true,
+        true,
+        true,
+        "google"
+);
             user = userRepository.save(user);
         }
 
