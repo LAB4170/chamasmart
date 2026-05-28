@@ -1,4 +1,4 @@
-﻿package com.chamasmart.backend.controller;
+package com.chamasmart.backend.controller;
 
 import com.chamasmart.backend.dto.*;
 import com.chamasmart.backend.security.CustomUserDetails;
@@ -20,7 +20,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class GovernanceController {
     private static final Logger log = LoggerFactory.getLogger(GovernanceController.class);
-    private static final Logger log = LoggerFactory.getLogger(GovernanceController.class);
+
 
     private final GovernanceService governanceService;
 

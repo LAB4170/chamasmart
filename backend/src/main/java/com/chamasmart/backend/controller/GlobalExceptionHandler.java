@@ -1,4 +1,4 @@
-﻿package com.chamasmart.backend.controller;
+package com.chamasmart.backend.controller;
 
 import com.chamasmart.backend.dto.ApiResponse;
 import org.slf4j.Logger;
@@ -15,7 +15,7 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
-    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
 
     /**
      * Handles role / permission violations thrown by service and controller helpers.

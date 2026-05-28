@@ -1,4 +1,4 @@
-﻿package com.chamasmart.backend.controller;
+package com.chamasmart.backend.controller;
 
 import com.chamasmart.backend.domain.*;
 import com.chamasmart.backend.dto.*;
@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ContributionController {
     private static final Logger log = LoggerFactory.getLogger(ContributionController.class);
-    private static final Logger log = LoggerFactory.getLogger(ContributionController.class);
+
 
     private final ContributionRepository contributionRepository;
     private final ChamaRepository chamaRepository;
