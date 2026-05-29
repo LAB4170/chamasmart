@@ -1,4 +1,4 @@
-﻿ckage com.chamasmart.backend.service;
+ckage com.chamasmart.backend.service;
 import com.chamasmart.backend.domain.Chama;
 import com.chamasmart.backend.domain.ChamaMember;
 import com.chamasmart.backend.domain.ChamaPaymentConfig;

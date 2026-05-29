@@ -1,4 +1,4 @@
-﻿ckage com.chamasmart.backend.util;
+ckage com.chamasmart.backend.util;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 import java.util.Base64;

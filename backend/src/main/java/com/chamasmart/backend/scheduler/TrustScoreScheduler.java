@@ -1,4 +1,4 @@
-﻿ckage com.chamasmart.backend.scheduler;
+ckage com.chamasmart.backend.scheduler;
 import com.chamasmart.backend.repository.ChamaMemberRepository;
 import com.chamasmart.backend.service.TrustScoreService;
 import lombok.RequiredArgsConstructor;

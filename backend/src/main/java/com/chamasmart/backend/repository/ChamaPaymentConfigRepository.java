@@ -1,4 +1,4 @@
-﻿ckage com.chamasmart.backend.repository;
+ckage com.chamasmart.backend.repository;
 import com.chamasmart.backend.domain.ChamaPaymentConfig;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;

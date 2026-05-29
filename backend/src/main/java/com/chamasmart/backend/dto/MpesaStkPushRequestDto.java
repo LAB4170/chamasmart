@@ -1,4 +1,4 @@
-﻿ckage com.chamasmart.backend.dto;
+ckage com.chamasmart.backend.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -1,4 +1,4 @@
-﻿ckage com.chamasmart.backend.repository;
+ckage com.chamasmart.backend.repository;
 import com.chamasmart.backend.domain.RoscaCycle;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;

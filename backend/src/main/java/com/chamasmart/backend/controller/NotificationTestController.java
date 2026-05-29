@@ -1,4 +1,4 @@
-﻿ckage com.chamasmart.backend.controller;
+ckage com.chamasmart.backend.controller;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessagingTemplate;

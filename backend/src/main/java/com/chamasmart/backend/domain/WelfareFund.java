@@ -1,4 +1,4 @@
-﻿ckage com.chamasmart.backend.domain;
+ckage com.chamasmart.backend.domain;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UpdateTimestamp;

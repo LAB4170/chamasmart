@@ -1,4 +1,4 @@
-﻿ckage com.chamasmart.backend.security;
+ckage com.chamasmart.backend.security;
 import com.chamasmart.backend.domain.User;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

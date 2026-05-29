@@ -1,4 +1,4 @@
-﻿ckage com.chamasmart.backend.security;
+ckage com.chamasmart.backend.security;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -1,4 +1,4 @@
-﻿ckage com.chamasmart.backend.domain;
+ckage com.chamasmart.backend.domain;
 import jakarta.persistence.*;
 import jakarta.persistence.Convert;
 import lombok.*;
