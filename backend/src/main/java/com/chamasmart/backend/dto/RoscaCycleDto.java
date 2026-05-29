@@ -1,24 +1,20 @@
-﻿package com.chamasmart.backend.dto;
-
+﻿ckage com.chamasmart.backend.dto;
 import com.chamasmart.backend.domain.RoscaCycle;
 import com.chamasmart.backend.domain.RoscaRoster;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class RoscaCycleDto {
-    private static final Logger log = LoggerFactory.getLogger(RoscaCycleDto.class);
     private Long cycle_id;
     private Long chama_id;
     private String cycle_name;
@@ -30,7 +26,6 @@ public class RoscaCycleDto {
     private String status;
     private ZonedDateTime created_at;
     private List<RosterPositionDto> roster;
-
     @Data
     @Builder
     @NoArgsConstructor
@@ -43,7 +38,6 @@ public class RoscaCycleDto {
         private String status;
         private LocalDate payout_date;
     }
-
     public static RoscaCycleDto fromEntity(RoscaCycle cycle, List<RoscaRoster> rosterList) {
         List<RosterPositionDto> rosterDtos = rosterList.stream()
                 .map(r -> RosterPositionDto.builder()
@@ -55,7 +49,6 @@ public class RoscaCycleDto {
                         .payout_date(r.getPayoutDate())
                         .build())
                 .collect(Collectors.toList());
-
         return RoscaCycleDto.builder()
                 .cycle_id(cycle.getCycleId())
                 .chama_id(cycle.getChama().getChamaId())
@@ -71,5 +64,4 @@ public class RoscaCycleDto {
                 .build();
     }
 }
-
 

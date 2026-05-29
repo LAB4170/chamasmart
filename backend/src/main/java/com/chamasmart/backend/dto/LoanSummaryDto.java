@@ -1,21 +1,17 @@
-package com.chamasmart.backend.dto;
-
+﻿ckage com.chamasmart.backend.dto;
 import com.chamasmart.backend.domain.Loan;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class LoanSummaryDto {
-
     private Long loan_id;
     private Long chama_id;
     private String chama_name;
@@ -33,12 +29,10 @@ public class LoanSummaryDto {
     private BigDecimal monthly_payment;
     private LocalDate due_date;
     private ZonedDateTime created_at;
-
     public static LoanSummaryDto fromEntity(Loan loan) {
         BigDecimal calcBalance = loan.getTotalRepayable() != null 
                 ? loan.getTotalRepayable().subtract(loan.getAmountPaid() != null ? loan.getAmountPaid() : BigDecimal.ZERO) 
                 : (loan.getLoanAmount() != null ? loan.getLoanAmount() : BigDecimal.ZERO);
-
         return LoanSummaryDto.builder()
                 .loan_id(loan.getLoanId())
                 .chama_id(loan.getChama().getChamaId())
@@ -60,5 +54,4 @@ public class LoanSummaryDto {
                 .build();
     }
 }
-
 

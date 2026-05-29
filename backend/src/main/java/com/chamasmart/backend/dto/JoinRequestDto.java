@@ -1,19 +1,15 @@
-﻿package com.chamasmart.backend.dto;
-
+﻿ckage com.chamasmart.backend.dto;
 import com.chamasmart.backend.domain.JoinRequest;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.time.ZonedDateTime;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class JoinRequestDto {
-    private static final Logger log = LoggerFactory.getLogger(JoinRequestDto.class);
     private Long request_id;
     private Long chama_id;
     private String chama_name;
@@ -25,7 +21,6 @@ public class JoinRequestDto {
     private ZonedDateTime reviewed_at;
     private String reviewed_by_name;
     private String review_comments;
-
     public static JoinRequestDto fromEntity(JoinRequest jr) {
         return JoinRequestDto.builder()
                 .request_id(jr.getRequestId())
@@ -42,5 +37,4 @@ public class JoinRequestDto {
                 .build();
     }
 }
-
 

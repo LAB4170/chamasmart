@@ -1,19 +1,15 @@
-﻿package com.chamasmart.backend.dto;
-
+﻿ckage com.chamasmart.backend.dto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class WelfareClaimRequestDto {
-    private static final Logger log = LoggerFactory.getLogger(WelfareClaimRequestDto.class);
     private Long chama_id;
     private Long event_type_id;
     private String custom_event_name;
@@ -22,5 +18,4 @@ public class WelfareClaimRequestDto {
     private LocalDate date_of_occurrence;
     private String proof_document_url;
 }
-
 

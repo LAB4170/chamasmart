@@ -1,24 +1,20 @@
-package com.chamasmart.backend.dto;
-
+﻿ckage com.chamasmart.backend.dto;
 import com.chamasmart.backend.domain.AscaCycle;
 import com.chamasmart.backend.domain.AscaMember;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class AscaCycleDto {
-
     private Long cycle_id;
     private Long chama_id;
     private String cycle_name;
@@ -31,7 +27,6 @@ public class AscaCycleDto {
     private String status;
     private ZonedDateTime created_at;
     private List<AscaMemberDto> members;
-
     @Data
     @Builder
     @NoArgsConstructor
@@ -45,7 +40,6 @@ public class AscaCycleDto {
         private BigDecimal dividends_earned;
         private String status;
     }
-
     public static AscaCycleDto fromEntity(AscaCycle cycle, List<AscaMember> memberList) {
         List<AscaMemberDto> memberDtos = memberList.stream()
                 .map(m -> new AscaMemberDto(
@@ -58,7 +52,6 @@ public class AscaCycleDto {
                         m.getStatus()
                 ))
                 .collect(Collectors.toList());
-
         return new AscaCycleDto(
                 cycle.getCycleId(),
                 cycle.getChama().getChamaId(),
@@ -75,5 +68,4 @@ public class AscaCycleDto {
         );
     }
 }
-
 

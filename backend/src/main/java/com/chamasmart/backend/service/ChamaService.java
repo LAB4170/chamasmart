@@ -1,5 +1,4 @@
-package com.chamasmart.backend.service;
-
+﻿ckage com.chamasmart.backend.service;
 import com.chamasmart.backend.domain.Chama;
 import com.chamasmart.backend.domain.ChamaMember;
 import com.chamasmart.backend.domain.ChamaPaymentConfig;
@@ -10,31 +9,22 @@ import com.chamasmart.backend.repository.ChamaPaymentConfigRepository;
 import com.chamasmart.backend.repository.ChamaRepository;
 import com.chamasmart.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
-
-
 @Service
 @RequiredArgsConstructor
 public class ChamaService {
-    private static final Logger log = LoggerFactory.getLogger(ChamaService.class);
-
     private final ChamaRepository chamaRepository;
     private final ChamaMemberRepository chamaMemberRepository;
     private final UserRepository userRepository;
     private final ChamaPaymentConfigRepository chamaPaymentConfigRepository;
-
     @Transactional(readOnly = true)
     public List<ChamaSummaryDto> getMyChamas(Long userId) {
         log.info("Fetching active chamas for user ID: {}", userId);
         List<ChamaMember> memberships = chamaMemberRepository.findActiveMembershipsByUserId(userId);
-
         return memberships.stream()
                 .map(member -> {
                     Chama chama = member.getChama();
@@ -45,7 +35,6 @@ public class ChamaService {
                 })
                 .collect(Collectors.toList());
     }
-
     @Transactional(readOnly = true)
     public ChamaSummaryDto getChamaById(Long chamaId) {
         Chama chama = chamaRepository.findById(chamaId)
@@ -53,13 +42,11 @@ public class ChamaService {
         ChamaPaymentConfig config = chamaPaymentConfigRepository.findByChamaChamaId(chamaId).orElse(null);
         return ChamaSummaryDto.fromEntity(chama, config);
     }
-
     @Transactional
     public ChamaSummaryDto createChama(ChamaSummaryDto dto, Long creatorUserId) {
         log.info("Creating new chama '{}' by user ID: {}", dto.getChama_name(), creatorUserId);
         User creator = userRepository.findById(creatorUserId)
                 .orElseThrow(() -> new RuntimeException("Creator user not found"));
-
         Chama chama = Chama.builder()
                 .chamaName(dto.getChama_name())
                 .chamaType(dto.getChama_type())
@@ -75,13 +62,10 @@ public class ChamaService {
                 .createdBy(creator)
                 .custodyType(dto.getCustody_type() != null ? dto.getCustody_type() : "MANAGED")
                 .build();
-
         Chama savedChama = chamaRepository.save(chama);
-
         // Assign a virtual account reference automatically
         savedChama.setVirtualAccountRef("CS-" + (1000 + savedChama.getChamaId()));
         savedChama = chamaRepository.save(savedChama);
-
         // Save self-managed configuration if requested
         ChamaPaymentConfig config = null;
         if ("SELF_MANAGED".equals(savedChama.getCustodyType()) && dto.getPayment_methods() != null) {
@@ -100,7 +84,6 @@ public class ChamaService {
                     .build();
             config = chamaPaymentConfigRepository.save(config);
         }
-
         ChamaMember chairperson = ChamaMember.builder()
                 .chama(savedChama)
                 .user(creator)
@@ -109,14 +92,11 @@ public class ChamaService {
                 .totalContributions(BigDecimal.ZERO)
                 .isActive(true)
                 .build();
-
         chamaMemberRepository.save(chairperson);
         log.info("Successfully created chama with ID: {}", savedChama.getChamaId());
-
         ChamaSummaryDto result = ChamaSummaryDto.fromEntity(savedChama, config);
         result.setRole("CHAIRPERSON"); // creator is always the chairperson
         return result;
     }
 }
-
 

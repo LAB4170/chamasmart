@@ -1,25 +1,17 @@
-package com.chamasmart.backend.service;
-
+﻿ckage com.chamasmart.backend.service;
 import com.chamasmart.backend.domain.*;
 import com.chamasmart.backend.dto.*;
 import com.chamasmart.backend.repository.*;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
-
-
 @Service
 @RequiredArgsConstructor
 public class WelfareService {
-    private static final Logger log = LoggerFactory.getLogger(WelfareService.class);
-
     private final WelfareConfigRepository welfareConfigRepository;
     private final WelfareFundRepository welfareFundRepository;
     private final WelfareClaimRepository welfareClaimRepository;
@@ -28,13 +20,11 @@ public class WelfareService {
     private final UserRepository userRepository;
     private final ChamaMemberRepository chamaMemberRepository;
     private final FinancialAuditLogRepository auditLogRepository;
-
     private ChamaMember validateUserMembershipAndActiveStatus(Long chamaId, Long userId) {
         return chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
                 .filter(ChamaMember::getIsActive)
                 .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("Security Violation: User ID " + userId + " is not an active member of Chama ID " + chamaId));
     }
-
     private ChamaMember validateUserIsOfficial(Long chamaId, Long userId) {
         ChamaMember member = validateUserMembershipAndActiveStatus(chamaId, userId);
         if (!"CHAIRPERSON".equalsIgnoreCase(member.getRole()) && !"TREASURER".equalsIgnoreCase(member.getRole()) && !"SECRETARY".equalsIgnoreCase(member.getRole())) {
@@ -42,14 +32,12 @@ public class WelfareService {
         }
         return member;
     }
-
     @Transactional
     public WelfareConfigDto createConfig(WelfareConfigDto dto, Long chamaId, Long userId) {
         log.info("Creating welfare config event '{}' for chama ID: {} by user ID: {}", dto.getEvent_type(), chamaId, userId);
         validateUserIsOfficial(chamaId, userId);
         Chama chama = chamaRepository.findById(chamaId)
                 .orElseThrow(() -> new RuntimeException("Chama not found"));
-
         WelfareConfig config = WelfareConfig.builder()
                 .chama(chama)
                 .eventType(dto.getEvent_type())
@@ -59,9 +47,7 @@ public class WelfareService {
                 .contributionAmount(dto.getContribution_amount() != null ? dto.getContribution_amount() : BigDecimal.ZERO)
                 .isActive(true)
                 .build();
-
         WelfareConfig savedConfig = welfareConfigRepository.save(config);
-
         // Ensure WelfareFund exists
         welfareFundRepository.findByChamaChamaId(chamaId).orElseGet(() -> {
             WelfareFund fund = WelfareFund.builder()
@@ -70,23 +56,17 @@ public class WelfareService {
                     .build();
             return welfareFundRepository.save(fund);
         });
-
         log.info("Successfully created welfare config ID: {}", savedConfig.getConfigId());
         return WelfareConfigDto.fromEntity(savedConfig);
     }
-
     @Transactional
     public WelfareClaimSummaryDto fileClaim(WelfareClaimRequestDto requestDto, Long memberUserId) {
         log.info("Filing welfare claim for user ID: {} in chama ID: {}", memberUserId, requestDto.getChama_id());
-
         validateUserMembershipAndActiveStatus(requestDto.getChama_id(), memberUserId);
-
         User member = userRepository.findById(memberUserId)
                 .orElseThrow(() -> new RuntimeException("Member user not found"));
-
         Chama chama = chamaRepository.findById(requestDto.getChama_id())
                 .orElseThrow(() -> new RuntimeException("Chama not found"));
-
         WelfareConfig eventType;
         if (requestDto.getEvent_type_id() != null) {
             eventType = welfareConfigRepository.findById(requestDto.getEvent_type_id())
@@ -107,7 +87,6 @@ public class WelfareService {
                         return welfareConfigRepository.save(newConfig);
                     });
         }
-
         WelfareClaim claim = WelfareClaim.builder()
                 .chama(chama)
                 .member(member)
@@ -118,42 +97,32 @@ public class WelfareService {
                 .proofDocumentUrl(requestDto.getProof_document_url())
                 .status("SUBMITTED")
                 .build();
-
         WelfareClaim savedClaim = welfareClaimRepository.save(claim);
         log.info("Successfully filed welfare claim ID: {}", savedClaim.getClaimId());
         return WelfareClaimSummaryDto.fromEntity(savedClaim);
     }
-
     @Transactional
     public WelfareClaimSummaryDto approveClaim(Long claimId, Long approverUserId, String decision, String comments) {
         log.info("Processing claim approval for claim ID: {} by approver ID: {}, decision: {}", claimId, approverUserId, decision);
-
         WelfareClaim claim = welfareClaimRepository.findByIdWithPessimisticLock(claimId)
                 .orElseThrow(() -> new RuntimeException("Welfare claim not found"));
-
         validateUserIsOfficial(claim.getChama().getChamaId(), approverUserId);
-
         if (!"SUBMITTED".equals(claim.getStatus()) && !"VERIFIED".equals(claim.getStatus())) {
             throw new RuntimeException("Claim is not in a valid state for approval. Current status: " + claim.getStatus());
         }
-
         User approver = userRepository.findById(approverUserId)
                 .orElseThrow(() -> new RuntimeException("Approver user not found"));
-
         WelfareClaimApproval approval = WelfareClaimApproval.builder()
                 .claim(claim)
                 .approver(approver)
                 .status(decision.toUpperCase()) // APPROVED, REJECTED
                 .comments(comments)
                 .build();
-
         welfareClaimApprovalRepository.save(approval);
-
         // Check consensus among officials
         List<WelfareClaimApproval> approvals = welfareClaimApprovalRepository.findByClaimClaimId(claimId);
         boolean anyRejected = approvals.stream().anyMatch(a -> "REJECTED".equals(a.getStatus()));
         boolean allApproved = approvals.stream().allMatch(a -> "APPROVED".equals(a.getStatus()));
-
         if (anyRejected) {
             claim.setStatus("REJECTED");
             claim.setRejectionReason(comments);
@@ -163,18 +132,15 @@ public class WelfareService {
             claim.setStatus("APPROVED");
             claim.setApprovedAt(ZonedDateTime.now());
             claim.setApprovedBy(approver);
-
             // Disburse from Welfare Fund
             WelfareFund fund = welfareFundRepository.findByChamaIdWithPessimisticLock(claim.getChama().getChamaId())
                     .orElseThrow(() -> new RuntimeException("Welfare fund not found"));
-
             if (fund.getBalance().compareTo(claim.getClaimAmount()) < 0) {
                 log.warn("Insufficient welfare funds for Chama ID: {}. Claim approved but awaiting fund replenishment.", claim.getChama().getChamaId());
             } else {
                 fund.setBalance(fund.getBalance().subtract(claim.getClaimAmount()));
                 welfareFundRepository.save(fund);
                 claim.setStatus("PAID");
-
                 // Write Financial Audit Log
                 FinancialAuditLog auditLog = FinancialAuditLog.builder()
                         .user(claim.getMember())
@@ -187,15 +153,12 @@ public class WelfareService {
                         .userAgent("System-Service")
                         .build();
                 auditLogRepository.save(auditLog);
-
                 log.info("Welfare claim ID: {} fully approved and disbursed from fund.", claimId);
             }
         }
-
         WelfareClaim updatedClaim = welfareClaimRepository.save(claim);
         return WelfareClaimSummaryDto.fromEntity(updatedClaim);
     }
-
     @Transactional(readOnly = true)
     public List<WelfareConfigDto> getConfigsByChamaId(Long chamaId) {
         log.info("Fetching welfare configs for chama ID: {}", chamaId);
@@ -203,7 +166,6 @@ public class WelfareService {
                 .map(WelfareConfigDto::fromEntity)
                 .collect(Collectors.toList());
     }
-
     @Transactional(readOnly = true)
     public List<WelfareClaimSummaryDto> getClaimsByChamaId(Long chamaId) {
         log.info("Fetching welfare claims for chama ID: {}", chamaId);
@@ -211,7 +173,6 @@ public class WelfareService {
                 .map(WelfareClaimSummaryDto::fromEntity)
                 .collect(Collectors.toList());
     }
-
     @Transactional(readOnly = true)
     public List<WelfareClaimSummaryDto> getMyClaims(Long userId) {
         log.info("Fetching welfare claims for user ID: {}", userId);
@@ -219,13 +180,11 @@ public class WelfareService {
                 .map(WelfareClaimSummaryDto::fromEntity)
                 .collect(Collectors.toList());
     }
-
     @Transactional(readOnly = true)
     public java.util.Map<String, Object> getLedger(Long chamaId) {
         log.info("Fetching welfare ledger for chama ID: {}", chamaId);
         Chama chama = chamaRepository.findById(chamaId)
                 .orElseThrow(() -> new RuntimeException("Chama not found"));
-
         WelfareFund fund = welfareFundRepository.findByChamaChamaId(chamaId)
                 .orElseGet(() -> {
                     WelfareFund newFund = WelfareFund.builder()
@@ -234,7 +193,6 @@ public class WelfareService {
                             .build();
                     return welfareFundRepository.save(newFund);
                 });
-
         return java.util.Map.of(
                 "chama_id", chamaId,
                 "welfare_balance", fund.getBalance(),
@@ -242,5 +200,4 @@ public class WelfareService {
         );
     }
 }
-
 

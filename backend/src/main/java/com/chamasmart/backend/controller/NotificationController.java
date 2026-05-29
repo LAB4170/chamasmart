@@ -1,5 +1,4 @@
-package com.chamasmart.backend.controller;
-
+﻿ckage com.chamasmart.backend.controller;
 import com.chamasmart.backend.domain.Notification;
 import com.chamasmart.backend.dto.ApiResponse;
 import com.chamasmart.backend.dto.NotificationDto;
@@ -7,29 +6,20 @@ import com.chamasmart.backend.repository.NotificationRepository;
 import com.chamasmart.backend.security.CustomUserDetails;
 import com.chamasmart.backend.service.GovernanceService;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
 import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-
 @RestController
 @RequestMapping("/notifications")
 @RequiredArgsConstructor
 public class NotificationController {
-    private static final Logger log = LoggerFactory.getLogger(NotificationController.class);
-
     private final GovernanceService governanceService;
     private final NotificationRepository notificationRepository;
-
     @GetMapping
     public ResponseEntity<ApiResponse<List<NotificationDto>>> getAllNotifications(
             @RequestParam(required = false) Integer limit,
@@ -41,19 +31,15 @@ public class NotificationController {
         }
         return ResponseEntity.ok(ApiResponse.success(notifications, "Notifications retrieved successfully"));
     }
-
     @GetMapping("/unread-count")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUnreadCount(
             @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to get unread notification count for user ID: {}", currentUser.getUserId());
         List<Notification> unread = notificationRepository.findByUserUserIdAndIsReadFalse(currentUser.getUserId());
-        
         Map<String, Object> responseData = new HashMap<>();
         responseData.put("unreadCount", unread.size());
-        
         return ResponseEntity.ok(ApiResponse.success(responseData, "Unread count retrieved successfully"));
     }
-
     @PutMapping("/{id}/read")
     public ResponseEntity<ApiResponse<Void>> markAsRead(
             @PathVariable Long id,
@@ -62,7 +48,6 @@ public class NotificationController {
         governanceService.markNotificationAsRead(id, currentUser.getUserId());
         return ResponseEntity.ok(ApiResponse.success(null, "Notification marked as read"));
     }
-
     @PutMapping("/read-all")
     public ResponseEntity<ApiResponse<Void>> markAllAsRead(
             @AuthenticationPrincipal CustomUserDetails currentUser) {
@@ -76,5 +61,4 @@ public class NotificationController {
         return ResponseEntity.ok(ApiResponse.success(null, "All notifications marked as read"));
     }
 }
-
 

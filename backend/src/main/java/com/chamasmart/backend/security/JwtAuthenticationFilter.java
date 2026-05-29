@@ -1,13 +1,10 @@
-package com.chamasmart.backend.security;
-
+﻿ckage com.chamasmart.backend.security;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,17 +13,12 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
-
 import java.io.IOException;
-
-
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
-
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
@@ -36,7 +28,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (jwt != null) {
                 String username = jwtUtil.extractUsername(jwt);
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                
                 if (jwtUtil.validateToken(jwt, userDetails)) {
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                             userDetails, null, userDetails.getAuthorities());
@@ -49,17 +40,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
             return;
         }
-
         filterChain.doFilter(request, response);
     }
-
     private String parseJwt(HttpServletRequest request) {
         String headerAuth = request.getHeader("Authorization");
-
         if (StringUtils.hasText(headerAuth) && headerAuth.startsWith("Bearer ")) {
             return headerAuth.substring(7);
         }
-
         // Check cookies if Authorization header is not present
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
@@ -68,9 +55,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         }
-
         return null;
     }
 }
-
 

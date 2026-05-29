@@ -1,20 +1,16 @@
-﻿package com.chamasmart.backend.dto;
-
+﻿ckage com.chamasmart.backend.dto;
 import com.chamasmart.backend.domain.WelfareConfig;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class WelfareConfigDto {
-    private static final Logger log = LoggerFactory.getLogger(WelfareConfigDto.class);
     private Long config_id;
     private Long chama_id;
     private String event_type;
@@ -24,7 +20,6 @@ public class WelfareConfigDto {
     private BigDecimal contribution_amount;
     private Boolean is_active;
     private ZonedDateTime created_at;
-
     public static WelfareConfigDto fromEntity(WelfareConfig wc) {
         return WelfareConfigDto.builder()
                 .config_id(wc.getConfigId())
@@ -39,5 +34,4 @@ public class WelfareConfigDto {
                 .build();
     }
 }
-
 

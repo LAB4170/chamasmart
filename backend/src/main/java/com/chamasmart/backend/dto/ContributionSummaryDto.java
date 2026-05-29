@@ -1,20 +1,16 @@
-﻿package com.chamasmart.backend.dto;
-
+﻿ckage com.chamasmart.backend.dto;
 import com.chamasmart.backend.domain.Contribution;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ContributionSummaryDto {
-    private static final Logger log = LoggerFactory.getLogger(ContributionSummaryDto.class);
     private Long contribution_id;
     private Long chama_id;
     private String chama_name;
@@ -27,7 +23,6 @@ public class ContributionSummaryDto {
     private ZonedDateTime contribution_date;
     private String payment_proof;
     private String notes;
-
     public static ContributionSummaryDto fromEntity(Contribution c) {
         return ContributionSummaryDto.builder()
                 .contribution_id(c.getContributionId())
@@ -45,5 +40,4 @@ public class ContributionSummaryDto {
                 .build();
     }
 }
-
 

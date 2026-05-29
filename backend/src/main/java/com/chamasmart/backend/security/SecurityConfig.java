@@ -1,5 +1,4 @@
-﻿package com.chamasmart.backend.security;
-
+﻿ckage com.chamasmart.backend.security;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,23 +18,17 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.beans.factory.annotation.Value;
-
 import java.util.Arrays;
 import java.util.Collections;
-
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
-    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
-
     private final CustomUserDetailsService userDetailsService;
     private final JwtAuthenticationFilter jwtAuthFilter;
-
     @Value("${app.ai.groq-key:}")
     private String groqApiKey;
-
     // Fallback to system environment variable if property is empty
     private String getGroqKey() {
         if (groqApiKey != null && !groqApiKey.isBlank()) {
@@ -43,7 +36,6 @@ public class SecurityConfig {
         }
         return System.getenv("GROQ_API_KEY");
     }
-
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
@@ -51,17 +43,14 @@ public class SecurityConfig {
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
-
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
         return authConfig.getAuthenticationManager();
     }
-
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -80,13 +69,10 @@ public class SecurityConfig {
                 .requestMatchers("/notifications/**", "/chamas/**", "/loans/**", "/finance/**").authenticated()
                 .anyRequest().authenticated()
             );
-
         http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
-
         return http.build();
     }
-
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
@@ -96,11 +82,9 @@ public class SecurityConfig {
         configuration.setExposedHeaders(Arrays.asList("Content-Range", "X-Total-Count"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(86400L);
-
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 }
-
 

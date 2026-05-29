@@ -1,23 +1,19 @@
-﻿package com.chamasmart.backend.dto;
-
+﻿ckage com.chamasmart.backend.dto;
 import com.chamasmart.backend.domain.WelfareClaim;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class WelfareClaimSummaryDto {
-    private static final Logger log = LoggerFactory.getLogger(WelfareClaimSummaryDto.class);
     private Long claim_id;
     private Long chama_id;
     private String chama_name;
@@ -31,7 +27,6 @@ public class WelfareClaimSummaryDto {
     private String proof_document_url;
     private ZonedDateTime created_at;
     private List<ClaimApprovalDto> approvals;
-
     @Data
     @Builder
     @NoArgsConstructor
@@ -43,7 +38,6 @@ public class WelfareClaimSummaryDto {
         private String comments;
         private ZonedDateTime created_at;
     }
-
     public static WelfareClaimSummaryDto fromEntity(WelfareClaim claim) {
         List<ClaimApprovalDto> approvalDtos = claim.getApprovals().stream()
                 .map(a -> ClaimApprovalDto.builder()
@@ -54,7 +48,6 @@ public class WelfareClaimSummaryDto {
                         .created_at(a.getCreatedAt())
                         .build())
                 .collect(Collectors.toList());
-
         return WelfareClaimSummaryDto.builder()
                 .claim_id(claim.getClaimId())
                 .chama_id(claim.getChama().getChamaId())
@@ -72,5 +65,4 @@ public class WelfareClaimSummaryDto {
                 .build();
     }
 }
-
 

@@ -1,19 +1,15 @@
-﻿package com.chamasmart.backend.dto;
-
+﻿ckage com.chamasmart.backend.dto;
 import com.chamasmart.backend.domain.Notification;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.time.ZonedDateTime;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class NotificationDto {
-    private static final Logger log = LoggerFactory.getLogger(NotificationDto.class);
     private Long notification_id;
     private Long user_id;
     private String title;
@@ -25,7 +21,6 @@ public class NotificationDto {
     private String metadata;
     private String entity_type;
     private Long entity_id;
-
     public static NotificationDto fromEntity(Notification n) {
         return NotificationDto.builder()
                 .notification_id(n.getNotificationId())
@@ -42,5 +37,4 @@ public class NotificationDto {
                 .build();
     }
 }
-
 

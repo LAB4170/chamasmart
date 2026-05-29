@@ -1,20 +1,16 @@
-﻿package com.chamasmart.backend.dto;
-
+﻿ckage com.chamasmart.backend.dto;
 import com.chamasmart.backend.domain.Meeting;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class MeetingDto {
-    private static final Logger log = LoggerFactory.getLogger(MeetingDto.class);
     private Long meeting_id;
     private Long chama_id;
     private String title;
@@ -30,7 +26,6 @@ public class MeetingDto {
     private String recorded_by_name;
     private String meeting_link;
     private ZonedDateTime created_at;
-
     public static MeetingDto fromEntity(Meeting m) {
         return MeetingDto.builder()
                 .meeting_id(m.getMeetingId())
@@ -51,5 +46,4 @@ public class MeetingDto {
                 .build();
     }
 }
-
 

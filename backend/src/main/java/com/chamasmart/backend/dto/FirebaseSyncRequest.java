@@ -1,16 +1,13 @@
-﻿package com.chamasmart.backend.dto;
-
+﻿ckage com.chamasmart.backend.dto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class FirebaseSyncRequest {
-    private static final Logger log = LoggerFactory.getLogger(FirebaseSyncRequest.class);
     private String idToken;
     private String email;
     private String firstName;
@@ -19,23 +16,17 @@ public class FirebaseSyncRequest {
     public String getIdToken() {
         return idToken;
     }
-
     public String getEmail() {
         return email;
     }
-
     public String getFirstName() {
         return firstName;
     }
-
     public String getLastName() {
         return lastName;
     }
-
     public String getPhoneNumber() {
         return phoneNumber;
     }
 }
-
-
 

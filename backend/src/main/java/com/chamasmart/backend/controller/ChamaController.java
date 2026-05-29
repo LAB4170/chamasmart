@@ -1,6 +1,5 @@
-package com.chamasmart.backend.controller;
+﻿ckage com.chamasmart.backend.controller;
 import com.chamasmart.backend.repository.ChamaPaymentConfigRepository;
-
 import com.chamasmart.backend.domain.ChamaMember;
 import com.chamasmart.backend.domain.Chama;
 import com.chamasmart.backend.domain.Contribution;
@@ -17,8 +16,6 @@ import com.chamasmart.backend.repository.MeetingRepository;
 import com.chamasmart.backend.security.CustomUserDetails;
 import com.chamasmart.backend.service.ChamaService;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,7 +25,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
-
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -36,15 +32,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-
 @RestController
 @RequestMapping("/chamas")
 @RequiredArgsConstructor
 public class ChamaController {
-    private static final Logger log = LoggerFactory.getLogger(ChamaController.class);
-    
-
     private final ChamaService chamaService;
     private final ChamaPaymentConfigRepository chamaPaymentConfigRepository;
     private final ChamaRepository chamaRepository;
@@ -53,12 +44,9 @@ public class ChamaController {
     private final LoanRepository loanRepository;
     private final MeetingRepository meetingRepository;
     private final UserRepository userRepository;
-
     @Value("${app.ai.groq-key:}")
     private String groqApiKey;
-
-    // â”€â”€ Role-validation helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Role-validation helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     /** Throws 403 if the caller is not an active official of the chama. */
     private ChamaMember validateIsOfficial(Long chamaId, Long userId) {
         ChamaMember member = chamaMemberRepository
@@ -73,7 +61,6 @@ public class ChamaController {
         }
         return member;
     }
-
     /** Throws 403 if the caller is not the CHAIRPERSON of the chama. */
     private void validateIsChairperson(Long chamaId, Long userId) {
         ChamaMember member = chamaMemberRepository
@@ -87,9 +74,7 @@ public class ChamaController {
                     "Access denied: only the Chairperson may perform this action.");
         }
     }
-
-    // â”€â”€ Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Endpoints Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     /** GET /chamas/user/my-chamas  OR  /chamas/my */
     @GetMapping({"/my", "/user/my-chamas"})
     public ResponseEntity<ApiResponse<List<ChamaSummaryDto>>> getMyChamas(
@@ -98,8 +83,7 @@ public class ChamaController {
         List<ChamaSummaryDto> chamas = chamaService.getMyChamas(currentUser.getUserId());
         return ResponseEntity.ok(ApiResponse.success(chamas, "Chamas retrieved successfully"));
     }
-
-    /** GET /chamas  â€” all active chamas */
+    /** GET /chamas  Ã¢â‚¬â€ all active chamas */
     @GetMapping
     public ResponseEntity<ApiResponse<List<ChamaSummaryDto>>> getAllChamas() {
         log.info("REST request to get all active chamas");
@@ -108,8 +92,7 @@ public class ChamaController {
                 .collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(chamas, "All chamas retrieved successfully"));
     }
-
-    /** GET /chamas/public  â€” publicly visible chamas */
+    /** GET /chamas/public  Ã¢â‚¬â€ publicly visible chamas */
     @GetMapping("/public")
     public ResponseEntity<ApiResponse<List<ChamaSummaryDto>>> getPublicChamas(
             @RequestParam(required = false) String search) {
@@ -119,7 +102,6 @@ public class ChamaController {
                 .collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(chamas, "Public chamas retrieved successfully"));
     }
-
     /** GET /chamas/{id} */
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ChamaSummaryDto>> getChamaById(
@@ -127,15 +109,12 @@ public class ChamaController {
             @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to get chama details for ID: {}", id);
         ChamaSummaryDto chama = chamaService.getChamaById(id);
-        
         if (currentUser != null) {
             chamaMemberRepository.findByChamaChamaIdAndUserUserId(id, currentUser.getUserId())
                     .ifPresent(m -> chama.setRole(m.getRole()));
         }
-        
         return ResponseEntity.ok(ApiResponse.success(chama, "Chama details retrieved successfully"));
     }
-
     /** GET /chamas/{id}/members */
     @GetMapping("/{id}/members")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getChamaMembers(@PathVariable Long id) {
@@ -161,24 +140,20 @@ public class ChamaController {
         }).collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(memberList, "Members retrieved successfully"));
     }
-
     /** GET /chamas/{id}/stats */
     @GetMapping("/{id}/stats")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getChamaStats(@PathVariable Long id) {
         log.info("REST request to get stats for chama ID: {}", id);
         ChamaSummaryDto chama = chamaService.getChamaById(id);
         List<ChamaMember> members = chamaMemberRepository.findByChamaChamaIdAndIsActiveTrue(id);
-
         Map<String, Object> stats = new HashMap<>();
         stats.put("chama_id", id);
         stats.put("total_members", members.size());
         stats.put("current_fund", chama.getCurrent_fund());
         stats.put("contribution_amount", chama.getContribution_amount());
         stats.put("chama_type", chama.getChama_type());
-
         return ResponseEntity.ok(ApiResponse.success(stats, "Stats retrieved successfully"));
     }
-
     /** POST /chamas */
     @PostMapping
     public ResponseEntity<ApiResponse<ChamaSummaryDto>> createChama(
@@ -189,8 +164,7 @@ public class ChamaController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(createdChama, "Chama created successfully"));
     }
-
-    /** PUT /chamas/{id} â€” only CHAIRPERSON may update chama settings */
+    /** PUT /chamas/{id} Ã¢â‚¬â€ only CHAIRPERSON may update chama settings */
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<ChamaSummaryDto>> updateChama(
             @PathVariable Long id,
@@ -198,7 +172,6 @@ public class ChamaController {
             @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to update chama ID: {} by user ID: {}", id, currentUser.getUserId());
         validateIsChairperson(id, currentUser.getUserId());
-
         Chama chama = chamaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Chama not found"));
         if (chamaDto.getChama_name() != null && !chamaDto.getChama_name().isBlank())
@@ -238,19 +211,16 @@ public class ChamaController {
         }
         return ResponseEntity.ok(ApiResponse.success(chamaService.getChamaById(id), "Chama updated successfully"));
     }
-
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteChama(@PathVariable Long id) {
         log.info("REST request to delete chama ID: {}", id);
         return ResponseEntity.ok(ApiResponse.success(null, "Chama deleted successfully"));
     }
-
     @PostMapping("/{id}/cancel-delete")
     public ResponseEntity<ApiResponse<Void>> cancelDelete(@PathVariable Long id) {
         log.info("REST request to cancel delete for chama ID: {}", id);
         return ResponseEntity.ok(ApiResponse.success(null, "Chama delete cancelled successfully"));
     }
-
     @PostMapping("/{id}/analyze-reliability")
     public ResponseEntity<ApiResponse<Map<String, Object>>> analyzeReliability(@PathVariable Long id) {
         log.info("REST request to analyze reliability for chama ID: {}", id);
@@ -258,8 +228,7 @@ public class ChamaController {
         response.put("status", "Analyzed");
         return ResponseEntity.ok(ApiResponse.success(response, "Chama reliability analyzed"));
     }
-
-    /** POST /chamas/{chamaId}/members/add â€” only officials may add members */
+    /** POST /chamas/{chamaId}/members/add Ã¢â‚¬â€ only officials may add members */
     @PostMapping("/{chamaId}/members/add")
     public ResponseEntity<ApiResponse<Map<String, Object>>> addMember(
             @PathVariable Long chamaId,
@@ -267,14 +236,11 @@ public class ChamaController {
             @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to add member to chama ID: {}", chamaId);
         validateIsOfficial(chamaId, currentUser.getUserId());
-
         Long userId = body.containsKey("user_id") ? Long.valueOf(body.get("user_id").toString())
                 : Long.valueOf(body.get("userId").toString());
         String role = body.containsKey("role") ? body.get("role").toString() : "MEMBER";
-
         java.util.Optional<com.chamasmart.backend.domain.ChamaMember> existing =
                 chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId);
-
         if (existing.isPresent()) {
             ChamaMember m = existing.get();
             m.setIsActive(true);
@@ -295,7 +261,6 @@ public class ChamaController {
             chama.setTotalMembers((chama.getTotalMembers() == null ? 0 : chama.getTotalMembers()) + 1);
             chamaRepository.save(chama);
         }
-
         Map<String, Object> resp = new HashMap<>();
         resp.put("chama_id", chamaId);
         resp.put("user_id", userId);
@@ -303,8 +268,7 @@ public class ChamaController {
         resp.put("status", "ACTIVE");
         return ResponseEntity.ok(ApiResponse.success(resp, "Member added successfully"));
     }
-
-    /** DELETE /chamas/{chamaId}/members/{userId} â€” only officials may remove members */
+    /** DELETE /chamas/{chamaId}/members/{userId} Ã¢â‚¬â€ only officials may remove members */
     @DeleteMapping("/{chamaId}/members/{userId}")
     public ResponseEntity<ApiResponse<Void>> removeMember(
             @PathVariable Long chamaId,
@@ -319,8 +283,7 @@ public class ChamaController {
                 });
         return ResponseEntity.ok(ApiResponse.success(null, "Member removed successfully"));
     }
-
-    /** PUT /chamas/{chamaId}/members/{userId}/role â€” only CHAIRPERSON may reassign roles */
+    /** PUT /chamas/{chamaId}/members/{userId}/role Ã¢â‚¬â€ only CHAIRPERSON may reassign roles */
     @PutMapping("/{chamaId}/members/{userId}/role")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateMemberRole(
             @PathVariable Long chamaId,
@@ -344,58 +307,47 @@ public class ChamaController {
         resp.put("role", newRole.toUpperCase());
         return ResponseEntity.ok(ApiResponse.success(resp, "Member role updated successfully"));
     }
-
     /** GET /chamas/{id}/score */
     @GetMapping("/{id}/score")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getChamaScore(@PathVariable Long id) {
         log.info("REST request to get chama credit score for ID: {}", id);
-        
         java.util.Optional<Chama> chamaOpt = chamaRepository.findById(id);
         if (chamaOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.error("Chama not found"));
         }
         Chama chama = chamaOpt.get();
-
         // 1. Savings Ratio calculation (35% weight)
         double savingsScore = 10.0; // baseline for new groups
         List<Contribution> contributions = contributionRepository.findByChamaChamaIdAndIsDeletedFalse(id);
-        
         BigDecimal totalSavings = BigDecimal.ZERO;
         for (Contribution c : contributions) {
             if ("COMPLETED".equalsIgnoreCase(c.getStatus()) && c.getAmount() != null) {
                 totalSavings = totalSavings.add(c.getAmount());
             }
         }
-        
         if (chama.getContributionAmount() != null && chama.getContributionAmount().compareTo(BigDecimal.ZERO) > 0 
                 && chama.getTotalMembers() != null && chama.getTotalMembers() > 0) {
-            
             // Expected baseline after 3 cycles/rounds of contribution
             BigDecimal expectedSavings = chama.getContributionAmount()
                     .multiply(BigDecimal.valueOf(chama.getTotalMembers()))
                     .multiply(BigDecimal.valueOf(3));
-            
             if (expectedSavings.compareTo(BigDecimal.ZERO) > 0) {
                 savingsScore = totalSavings.divide(expectedSavings, 4, java.math.RoundingMode.HALF_UP)
                         .multiply(BigDecimal.valueOf(100)).doubleValue();
             }
         }
         savingsScore = Math.max(30.0, Math.min(100.0, savingsScore));
-
         // 2. Repayment Health calculation (45% weight)
         double repaymentScore = 10.0; // baseline when no loan data
         List<Loan> loans = loanRepository.findByChamaChamaId(id);
-        
         BigDecimal expectedRepayments = BigDecimal.ZERO;
         BigDecimal actualRepayments = BigDecimal.ZERO;
         int defaultedCount = 0;
-        
         for (Loan l : loans) {
             String status = l.getStatus();
             if ("APPROVED".equalsIgnoreCase(status) || "DISBURSED".equalsIgnoreCase(status) 
                     || "COMPLETED".equalsIgnoreCase(status) || "DEFAULTED".equalsIgnoreCase(status)) {
-                
                 if (l.getTotalRepayable() != null) {
                     expectedRepayments = expectedRepayments.add(l.getTotalRepayable());
                 }
@@ -407,20 +359,16 @@ public class ChamaController {
                 }
             }
         }
-        
         if (expectedRepayments.compareTo(BigDecimal.ZERO) > 0) {
             repaymentScore = actualRepayments.divide(expectedRepayments, 4, java.math.RoundingMode.HALF_UP)
                     .multiply(BigDecimal.valueOf(100)).doubleValue();
-            
             // Subtract risk penalty for defaults
             repaymentScore -= (defaultedCount * 15.0);
         }
         repaymentScore = Math.max(30.0, Math.min(100.0, repaymentScore));
-
         // 3. Meeting Attendance/Participation calculation (20% weight)
         double attendanceScore = 10.0; // baseline attendance for new groups
         List<Meeting> meetings = meetingRepository.findByChamaChamaIdOrderByScheduledDateDesc(id);
-        
         if (!meetings.isEmpty()) {
             int completedMeetings = 0;
             for (Meeting m : meetings) {
@@ -431,12 +379,10 @@ public class ChamaController {
             attendanceScore = 75.0 + (completedMeetings * 5.0);
         }
         attendanceScore = Math.max(50.0, Math.min(98.0, attendanceScore));
-
         // 4. Weighted Composite score calculation out of 100%
         double compositeVal = (savingsScore * 0.35) + (repaymentScore * 0.45) + (attendanceScore * 0.20);
         int compositeScore = (int) Math.round(compositeVal);
         compositeScore = Math.max(30, Math.min(100, compositeScore));
-
         String tier = "FAIR";
         if (compositeScore >= 80) {
             tier = "EXCELLENT";
@@ -447,54 +393,42 @@ public class ChamaController {
         } else {
             tier = "AT_RISK";
         }
-
         Map<String, Object> data = new HashMap<>();
         data.put("chama_id", id);
         data.put("compositeScore", compositeScore);
         data.put("tier", tier);
         data.put("computedAt", ZonedDateTime.now().toString());
-        
         Map<String, Object> breakdown = new HashMap<>();
-        
         Map<String, Object> dim1 = new HashMap<>();
         dim1.put("label", "Savings Ratio");
         dim1.put("score", (int) Math.round(savingsScore));
         dim1.put("weight", 0.35);
         breakdown.put("savings", dim1);
-        
         Map<String, Object> dim2 = new HashMap<>();
         dim2.put("label", "Repayment Health");
         dim2.put("score", (int) Math.round(repaymentScore));
         dim2.put("weight", 0.45);
         breakdown.put("repayment", dim2);
-        
         Map<String, Object> dim3 = new HashMap<>();
         dim3.put("label", "Meeting Attendance");
         dim3.put("score", (int) Math.round(attendanceScore));
         dim3.put("weight", 0.20);
         breakdown.put("attendance", dim3);
-        
         data.put("breakdown", breakdown);
-        
         return ResponseEntity.ok(ApiResponse.success(data, "Credit score retrieved successfully"));
     }
-
     /** GET /chamas/{id}/score/history */
     @GetMapping("/{id}/score/history")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getChamaScoreHistory(@PathVariable Long id) {
         log.info("REST request to get chama credit score history for ID: {}", id);
-        
         ResponseEntity<ApiResponse<Map<String, Object>>> scoreResponse = getChamaScore(id);
         if (scoreResponse.getStatusCode() == HttpStatus.NOT_FOUND) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.error("Chama not found"));
         }
-        
         Map<String, Object> scoreBody = scoreResponse.getBody().getData();
         int currentScore = (int) scoreBody.get("compositeScore");
-        
         List<Map<String, Object>> history = new ArrayList<>();
-        
         String[] dates = {"2026-01-18", "2026-02-18", "2026-03-18", "2026-04-18", "2026-05-18"};
         // Create an organic historical curve ending at the current live calculated score
         int[] scores = {
@@ -504,30 +438,24 @@ public class ChamaController {
             Math.max(30, currentScore - 2),
             currentScore
         };
-        
         for (int i = 0; i < dates.length; i++) {
             Map<String, Object> point = new HashMap<>();
             point.put("date", dates[i]);
             point.put("composite_score", scores[i]);
             history.add(point);
         }
-        
         return ResponseEntity.ok(ApiResponse.success(history, "Credit score history retrieved successfully"));
     }
-
     /** GET /chamas/{id}/health-alerts */
     @GetMapping("/{id}/health-alerts")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getChamaHealthAlerts(@PathVariable Long id) {
         log.info("REST request to get chama health alerts for ID: {}", id);
-        
         List<Map<String, Object>> alerts = new ArrayList<>();
-        
         // Fetch real statistics for this Chama
         List<Loan> loans = loanRepository.findByChamaChamaId(id);
         int activeLoansCount = 0;
         int defaultedLoansCount = 0;
         BigDecimal totalActiveLoanBalance = BigDecimal.ZERO;
-        
         for (Loan l : loans) {
             if ("DISBURSED".equalsIgnoreCase(l.getStatus()) || "APPROVED".equalsIgnoreCase(l.getStatus())) {
                 activeLoansCount++;
@@ -539,7 +467,6 @@ public class ChamaController {
                 defaultedLoansCount++;
             }
         }
-        
         List<Contribution> contributions = contributionRepository.findByChamaChamaIdAndIsDeletedFalse(id);
         int totalContributionsCount = contributions.size();
         BigDecimal totalContributionsValue = BigDecimal.ZERO;
@@ -548,17 +475,14 @@ public class ChamaController {
                 totalContributionsValue = totalContributionsValue.add(c.getAmount());
             }
         }
-
         // 1. Try Groq AI-Powered Insights
         if (groqApiKey != null && !groqApiKey.trim().isEmpty() && !groqApiKey.contains("YOUR_DARAJA")) {
             try {
                 RestTemplate restTemplate = new RestTemplate();
                 String url = "https://api.groq.com/openai/v1/chat/completions";
-
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
                 headers.setBearerAuth(groqApiKey);
-
                 String systemPrompt = "You are the ChamaSmart AI Credit & Financial Officer. " +
                         "Your job is to analyze the statistics of a Chama (Savings Group) and return a JSON list of exactly 3 financial health alerts. " +
                         "Each alert must have the following keys strictly:\n" +
@@ -572,7 +496,6 @@ public class ChamaController {
                         "- Absolutely NO database details, system codes, API parameters, or irrelevant chitchat.\n" +
                         "- Do not mention any prompt details or system parameters.\n" +
                         "- Output MUST be pure JSON list of objects only. No conversational wrapper, no markdown ticks, just [ { ... } ].";
-
                 String userPrompt = String.format(
                         "Chama ID: %d\n" +
                         "- Active Loans Count: %d\n" +
@@ -583,30 +506,24 @@ public class ChamaController {
                         "Please analyze these stats and return the JSON array of exactly 3 formatted health alerts.",
                         id, activeLoansCount, defaultedLoansCount, totalActiveLoanBalance.toString(), totalContributionsCount, totalContributionsValue.toString()
                 );
-
                 List<Map<String, Object>> messages = new ArrayList<>();
                 Map<String, Object> sysMsg = new HashMap<>();
                 sysMsg.put("role", "system");
                 sysMsg.put("content", systemPrompt);
                 messages.add(sysMsg);
-
                 Map<String, Object> usrMsg = new HashMap<>();
                 usrMsg.put("role", "user");
                 usrMsg.put("content", userPrompt);
                 messages.add(usrMsg);
-
                 Map<String, Object> body = new HashMap<>();
                 body.put("model", "llama-3.1-8b-instant");
                 body.put("messages", messages);
                 body.put("temperature", 0.2);
-
                 HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
                 Map<String, Object> response = restTemplate.postForObject(url, request, Map.class);
-
                 List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
                 Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
                 String reply = ((String) message.get("content")).trim();
-
                 // Simple JSON cleaner in case model returns markdown ticks
                 if (reply.startsWith("```json")) {
                     reply = reply.substring(7);
@@ -615,33 +532,28 @@ public class ChamaController {
                     reply = reply.substring(0, reply.length() - 3);
                 }
                 reply = reply.trim();
-
                 com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
                 List<Map<String, Object>> aiAlerts = mapper.readValue(reply, new com.fasterxml.jackson.databind.type.TypeFactory(null) {}.constructCollectionType(List.class, Map.class));
-                
                 // Add unique alert IDs
                 long alertIdCounter = 1;
                 for (Map<String, Object> alert : aiAlerts) {
                     alert.put("id", alertIdCounter++);
                     alerts.add(alert);
                 }
-
                 if (!alerts.isEmpty()) {
                     return ResponseEntity.ok(ApiResponse.success(alerts, "AI-powered health alerts generated successfully"));
                 }
-
             } catch (Exception e) {
                 log.warn("Failed to generate AI health alerts via Groq, falling back to structured rules", e);
             }
         }
-
         // 2. High-Fidelity Rule-Based Fallback (Ensures zero failures and pristine UI display)
         long idCounter = 1;
         if (defaultedLoansCount > 0) {
             Map<String, Object> alert = new HashMap<>();
             alert.put("id", idCounter++);
             alert.put("severity", "CRITICAL");
-            alert.put("icon", "ðŸš¨");
+            alert.put("icon", "Ã°Å¸Å¡Â¨");
             alert.put("title", "Loan Defaults Flagged");
             alert.put("detail", defaultedLoansCount + " loan(s) are currently marked as defaulted within this cycle. This negatively affects the group's lending capacity.");
             alert.put("action", "Initiate welfare fund recovery protocols or schedule immediate group arbitration meetings with affected members.");
@@ -650,7 +562,7 @@ public class ChamaController {
             Map<String, Object> alert = new HashMap<>();
             alert.put("id", idCounter++);
             alert.put("severity", "WARNING");
-            alert.put("icon", "ðŸ’¡");
+            alert.put("icon", "Ã°Å¸â€™Â¡");
             alert.put("title", "Active Capital Outstanding");
             alert.put("detail", activeLoansCount + " member loan(s) currently active. High outstanding balance requires repayment monitoring.");
             alert.put("action", "Send courtesy reminders 3 days prior to due dates via mobile channels to maintain high repayment velocities.");
@@ -659,18 +571,17 @@ public class ChamaController {
             Map<String, Object> alert = new HashMap<>();
             alert.put("id", idCounter++);
             alert.put("severity", "TIP");
-            alert.put("icon", "ðŸŒŸ");
+            alert.put("icon", "Ã°Å¸Å’Å¸");
             alert.put("title", "Lending Liquidity High");
             alert.put("detail", "All member loans have been settled. Capital reserve is fully liquid.");
             alert.put("action", "Encourage group members to propose new ASCA project funding rounds or table-banking cycles.");
             alerts.add(alert);
         }
-
         if (totalContributionsCount > 0) {
             Map<String, Object> alert = new HashMap<>();
             alert.put("id", idCounter++);
             alert.put("severity", "TIP");
-            alert.put("icon", "âš¡");
+            alert.put("icon", "Ã¢Å¡Â¡");
             alert.put("title", "Healthy Capital Accumulation");
             alert.put("detail", "Accumulated savings rounds show high velocity. Reserve capital is safely backed by validated transactions.");
             alert.put("action", "Allocate excess capital into short-term welfare funds or increase the group lending limit multiplier.");
@@ -679,16 +590,14 @@ public class ChamaController {
             Map<String, Object> alert = new HashMap<>();
             alert.put("id", idCounter++);
             alert.put("severity", "WARNING");
-            alert.put("icon", "âš ï¸");
+            alert.put("icon", "Ã¢Å¡Â Ã¯Â¸Â");
             alert.put("title", "No Active Contribution Found");
             alert.put("detail", "No completed group savings contributions recorded yet. Initial capital pool is inactive.");
             alert.put("action", "Establish immediate welfare limits and schedule the launch of the first table-banking contribution cycle.");
             alerts.add(alert);
         }
-
         return ResponseEntity.ok(ApiResponse.success(alerts, "Health alerts retrieved successfully"));
     }
-
     private String maskString(String str, int startVisible, int endVisible) {
         if (str == null || str.length() <= (startVisible + endVisible)) return str;
         StringBuilder masked = new StringBuilder();
@@ -697,7 +606,6 @@ public class ChamaController {
         masked.append(str.substring(str.length() - endVisible));
         return masked.toString();
     }
-
     private String maskEmail(String email) {
         if (email == null || !email.contains("@")) return email;
         String[] parts = email.split("@");
@@ -707,5 +615,4 @@ public class ChamaController {
         return parts[0].substring(0, 2) + "***@" + parts[1];
     }
 }
-
 

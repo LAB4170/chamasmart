@@ -1,22 +1,13 @@
-package com.chamasmart.backend.controller;
-
+﻿ckage com.chamasmart.backend.controller;
 import com.chamasmart.backend.dto.ApiResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
 import java.util.Map;
-
-
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
-
-
     /**
      * Handles role / permission violations thrown by service and controller helpers.
      * Returns HTTP 403 with a JSON body matching the project's ApiResponse shape.
@@ -28,7 +19,6 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.error(ex.getMessage()));
     }
-
     /**
      * Catch-all for unhandled RuntimeExceptions so the client always gets JSON.
      */
@@ -40,5 +30,4 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage()));
     }
 }
-
 

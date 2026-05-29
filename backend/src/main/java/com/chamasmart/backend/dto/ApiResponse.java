@@ -1,10 +1,8 @@
-﻿package com.chamasmart.backend.dto;
-
+﻿ckage com.chamasmart.backend.dto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 @Data
 @Builder
 @NoArgsConstructor
@@ -13,7 +11,6 @@ public class ApiResponse<T> {
     private boolean success;
     private String message;
     private T data;
-
     public static <T> ApiResponse<T> success(T data, String message) {
         return ApiResponse.<T>builder()
                 .success(true)
@@ -21,7 +18,6 @@ public class ApiResponse<T> {
                 .data(data)
                 .build();
     }
-
     public static <T> ApiResponse<T> error(String message) {
         return ApiResponse.<T>builder()
                 .success(false)
@@ -30,5 +26,4 @@ public class ApiResponse<T> {
                 .build();
     }
 }
-
 

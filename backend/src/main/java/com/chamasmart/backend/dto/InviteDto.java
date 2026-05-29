@@ -1,19 +1,15 @@
-﻿package com.chamasmart.backend.dto;
-
+﻿ckage com.chamasmart.backend.dto;
 import com.chamasmart.backend.domain.Invite;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.time.ZonedDateTime;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class InviteDto {
-    private static final Logger log = LoggerFactory.getLogger(InviteDto.class);
     private Long invite_id;
     private Long chama_id;
     private String chama_name;
@@ -27,7 +23,6 @@ public class InviteDto {
     private ZonedDateTime created_at;
     private ZonedDateTime accepted_at;
     private String accepted_by_name;
-
     public static InviteDto fromEntity(Invite i) {
         return InviteDto.builder()
                 .invite_id(i.getInviteId())
@@ -46,5 +41,4 @@ public class InviteDto {
                 .build();
     }
 }
-
 
