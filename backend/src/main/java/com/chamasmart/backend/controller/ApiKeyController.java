@@ -1,4 +1,5 @@
-ckage com.chamasmart.backend.controller;
+package com.chamasmart.backend.controller;
+import lombok.extern.slf4j.Slf4j;
 import com.chamasmart.backend.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +11,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api-keys")
 @RequiredArgsConstructor
+@Slf4j
 public class ApiKeyController {
     @PostMapping
     public ResponseEntity<ApiResponse<Map<String, Object>>> createApiKey(@RequestBody Map<String, Object> keyData) {

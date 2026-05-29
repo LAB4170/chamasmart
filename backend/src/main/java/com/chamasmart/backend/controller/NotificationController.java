@@ -1,4 +1,5 @@
-ckage com.chamasmart.backend.controller;
+package com.chamasmart.backend.controller;
+import lombok.extern.slf4j.Slf4j;
 import com.chamasmart.backend.domain.Notification;
 import com.chamasmart.backend.dto.ApiResponse;
 import com.chamasmart.backend.dto.NotificationDto;
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/notifications")
 @RequiredArgsConstructor
+@Slf4j
 public class NotificationController {
     private final GovernanceService governanceService;
     private final NotificationRepository notificationRepository;

@@ -1,4 +1,5 @@
-ckage com.chamasmart.backend.controller;
+package com.chamasmart.backend.controller;
+import lombok.extern.slf4j.Slf4j;
 import com.chamasmart.backend.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +11,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/payouts")
 @RequiredArgsConstructor
+@Slf4j
 public class PayoutController {
     @GetMapping("/{chamaId}")
     public ResponseEntity<ApiResponse<List<Object>>> getPayouts(@PathVariable Long chamaId) {

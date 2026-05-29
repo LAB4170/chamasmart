@@ -1,4 +1,4 @@
-ckage com.chamasmart.backend.repository;
+package com.chamasmart.backend.repository;
 import com.chamasmart.backend.domain.AscaMember;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

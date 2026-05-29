@@ -1,4 +1,5 @@
-ckage com.chamasmart.backend.controller;
+package com.chamasmart.backend.controller;
+import lombok.extern.slf4j.Slf4j;
 import com.chamasmart.backend.dto.ApiResponse;
 import com.chamasmart.backend.dto.RoscaCycleDto;
 import com.chamasmart.backend.security.CustomUserDetails;
@@ -13,6 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/rosca")
 @RequiredArgsConstructor
+@Slf4j
 public class RoscaController {
     private final RoscaService roscaService;
     @PostMapping("/chamas/{chamaId}/cycles")

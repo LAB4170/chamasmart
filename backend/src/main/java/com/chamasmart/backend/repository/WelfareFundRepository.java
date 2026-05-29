@@ -1,4 +1,4 @@
-ckage com.chamasmart.backend.repository;
+package com.chamasmart.backend.repository;
 import com.chamasmart.backend.domain.WelfareFund;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -10,9 +10,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
+@Slf4j
 public class AuthController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -95,7 +97,7 @@ public class AuthController {
                 : request.getFirstName().toLowerCase().replaceAll("\\s+", "") + "@chamasmart.com"; // Default local email if not provided
         if (request.getPhoneNumber() != null && !request.getPhoneNumber().isEmpty()) {
             // Check if user exists by phone or local search
-            user = userRepository.findByEmail(email).orElse(null);
+            User user = userRepository.findByEmail(email).orElse(null);
             if (user == null) {
                 user = new User(
         request.getFirstName(),

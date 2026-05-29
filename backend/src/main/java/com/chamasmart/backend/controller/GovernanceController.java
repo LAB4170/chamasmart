@@ -1,4 +1,5 @@
-ckage com.chamasmart.backend.controller;
+package com.chamasmart.backend.controller;
+import lombok.extern.slf4j.Slf4j;
 import com.chamasmart.backend.dto.*;
 import com.chamasmart.backend.security.CustomUserDetails;
 import com.chamasmart.backend.service.GovernanceService;
@@ -12,6 +13,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/governance")
 @RequiredArgsConstructor
+@Slf4j
 public class GovernanceController {
     private final GovernanceService governanceService;
     @PostMapping("/chamas/{chamaId}/meetings")

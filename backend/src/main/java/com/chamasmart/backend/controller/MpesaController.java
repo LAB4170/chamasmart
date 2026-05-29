@@ -1,4 +1,5 @@
-ckage com.chamasmart.backend.controller;
+package com.chamasmart.backend.controller;
+import lombok.extern.slf4j.Slf4j;
 import com.chamasmart.backend.domain.MpesaTransaction;
 import com.chamasmart.backend.dto.*;
 import com.chamasmart.backend.security.CustomUserDetails;
@@ -14,6 +15,7 @@ import java.util.Map;
 @RestController
 @RequestMapping({"/mpesa", "/payments/mpesa"})
 @RequiredArgsConstructor
+@Slf4j
 public class MpesaController {
     private final MpesaService mpesaService;
     @PostMapping({"/stkpush", "/stk-push"})

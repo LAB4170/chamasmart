@@ -1,4 +1,4 @@
-ckage com.chamasmart.backend.security;
+package com.chamasmart.backend.security;
 import com.chamasmart.backend.domain.User;
 import com.chamasmart.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;

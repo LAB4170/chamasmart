@@ -1,4 +1,4 @@
-ckage com.chamasmart.backend.config;
+package com.chamasmart.backend.config;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;

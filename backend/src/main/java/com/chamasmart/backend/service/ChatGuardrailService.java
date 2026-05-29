@@ -1,4 +1,5 @@
-ckage com.chamasmart.backend.service;
+package com.chamasmart.backend.service;
+import lombok.extern.slf4j.Slf4j;
 import com.chamasmart.backend.domain.ChamaMember;
 import com.chamasmart.backend.repository.ChamaMemberRepository;
 import lombok.RequiredArgsConstructor;
@@ -7,6 +8,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ChatGuardrailService {
     private final ChamaMemberRepository chamaMemberRepository;
     // Pattern to detect common jailbreak attempts and prompt injections

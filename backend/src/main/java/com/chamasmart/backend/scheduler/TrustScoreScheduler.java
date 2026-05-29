@@ -1,4 +1,5 @@
-ckage com.chamasmart.backend.scheduler;
+package com.chamasmart.backend.scheduler;
+import lombok.extern.slf4j.Slf4j;
 import com.chamasmart.backend.repository.ChamaMemberRepository;
 import com.chamasmart.backend.service.TrustScoreService;
 import lombok.RequiredArgsConstructor;
@@ -6,6 +7,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class TrustScoreScheduler {
     private final ChamaMemberRepository memberRepo;
     private final TrustScoreService trustScoreService;

@@ -1,4 +1,4 @@
-ckage com.chamasmart.backend.config;
+package com.chamasmart.backend.config;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;

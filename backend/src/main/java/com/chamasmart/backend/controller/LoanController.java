@@ -1,4 +1,5 @@
-ckage com.chamasmart.backend.controller;
+package com.chamasmart.backend.controller;
+import lombok.extern.slf4j.Slf4j;
 import com.chamasmart.backend.dto.*;
 import com.chamasmart.backend.security.CustomUserDetails;
 import com.chamasmart.backend.service.LoanService;
@@ -14,6 +15,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/loans")
 @RequiredArgsConstructor
+@Slf4j
 public class LoanController {
     private final LoanService loanService;
     @PostMapping({"/apply", "/{chamaId}/apply"})

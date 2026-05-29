@@ -1,4 +1,4 @@
-ckage com.chamasmart.backend.service;
+package com.chamasmart.backend.service;
 import com.chamasmart.backend.domain.ChamaMember;
 import com.chamasmart.backend.domain.Loan;
 import com.chamasmart.backend.repository.ChamaMemberRepository;

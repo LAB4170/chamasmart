@@ -1,4 +1,5 @@
-ckage com.chamasmart.backend.service;
+package com.chamasmart.backend.service;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.multipart.MultipartFile;
@@ -13,6 +14,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.UUID;
 @Service
+@Slf4j
 public class ProfilePictureService {
     private static final long MAX_SIZE_BYTES = 5L * 1024 * 1024; // 5 MB
     private static final int TARGET_WIDTH = 256;

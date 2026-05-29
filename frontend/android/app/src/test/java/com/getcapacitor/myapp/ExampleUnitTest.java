@@ -1,4 +1,4 @@
-package com.getcapacitor.myapp;
+﻿package com.getcapacitor.myapp;
 
 import static org.junit.Assert.*;
 
@@ -16,3 +16,4 @@ public class ExampleUnitTest {
         assertEquals(4, 2 + 2);
     }
 }
+

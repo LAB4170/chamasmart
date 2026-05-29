@@ -1,4 +1,5 @@
-ckage com.chamasmart.backend.controller;
+package com.chamasmart.backend.controller;
+import lombok.extern.slf4j.Slf4j;
 import com.chamasmart.backend.dto.*;
 import com.chamasmart.backend.security.CustomUserDetails;
 import com.chamasmart.backend.service.WelfareService;
@@ -12,6 +13,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/welfare")
 @RequiredArgsConstructor
+@Slf4j
 public class WelfareController {
     private final WelfareService welfareService;
     @PostMapping("/chamas/{chamaId}/configs")

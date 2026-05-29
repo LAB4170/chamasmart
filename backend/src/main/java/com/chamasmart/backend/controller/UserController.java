@@ -1,4 +1,5 @@
-ckage com.chamasmart.backend.controller;
+package com.chamasmart.backend.controller;
+import lombok.extern.slf4j.Slf4j;
 import com.chamasmart.backend.domain.User;
 import com.chamasmart.backend.dto.ApiResponse;
 import com.chamasmart.backend.repository.UserRepository;
@@ -17,6 +18,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 public class UserController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;

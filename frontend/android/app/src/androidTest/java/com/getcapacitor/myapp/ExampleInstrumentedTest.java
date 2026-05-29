@@ -1,4 +1,4 @@
-package com.getcapacitor.myapp;
+﻿package com.getcapacitor.myapp;
 
 import static org.junit.Assert.*;
 
@@ -24,3 +24,4 @@ public class ExampleInstrumentedTest {
         assertEquals("com.getcapacitor.app", appContext.getPackageName());
     }
 }
+

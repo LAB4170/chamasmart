@@ -1,4 +1,5 @@
-ckage com.chamasmart.backend.controller;
+package com.chamasmart.backend.controller;
+import lombok.extern.slf4j.Slf4j;
 import com.chamasmart.backend.domain.ChamaMember;
 import com.chamasmart.backend.dto.ApiResponse;
 import com.chamasmart.backend.repository.ChamaMemberRepository;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/trust")
 @RequiredArgsConstructor
+@Slf4j
 public class TrustScoreController {
     private final TrustScoreService trustScoreService;
     private final ChamaMemberRepository memberRepo;

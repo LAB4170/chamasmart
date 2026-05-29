@@ -1,4 +1,5 @@
 package com.chamasmart.backend.controller;
+import lombok.extern.slf4j.Slf4j;
 import com.chamasmart.backend.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +11,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/audit")
 @RequiredArgsConstructor
+@Slf4j
 public class AuditController {
     @GetMapping("/users/{userId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUserAudit(@PathVariable Long userId, @RequestParam(required = false) Map<String, String> params) {

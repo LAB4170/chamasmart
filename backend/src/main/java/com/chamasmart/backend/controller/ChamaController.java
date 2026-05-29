@@ -1,4 +1,4 @@
-ckage com.chamasmart.backend.controller;
+package com.chamasmart.backend.controller;
 import com.chamasmart.backend.repository.ChamaPaymentConfigRepository;
 import com.chamasmart.backend.domain.ChamaMember;
 import com.chamasmart.backend.domain.Chama;
@@ -32,9 +32,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 @RestController
 @RequestMapping("/chamas")
 @RequiredArgsConstructor
+@Slf4j
 public class ChamaController {
     private final ChamaService chamaService;
     private final ChamaPaymentConfigRepository chamaPaymentConfigRepository;

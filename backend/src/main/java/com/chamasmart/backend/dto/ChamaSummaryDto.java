@@ -1,4 +1,4 @@
-ckage com.chamasmart.backend.dto;
+package com.chamasmart.backend.dto;
 import com.chamasmart.backend.domain.Chama;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

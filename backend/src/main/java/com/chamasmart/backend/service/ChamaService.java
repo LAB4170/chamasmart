@@ -1,4 +1,5 @@
-ckage com.chamasmart.backend.service;
+package com.chamasmart.backend.service;
+import lombok.extern.slf4j.Slf4j;
 import com.chamasmart.backend.domain.Chama;
 import com.chamasmart.backend.domain.ChamaMember;
 import com.chamasmart.backend.domain.ChamaPaymentConfig;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ChamaService {
     private final ChamaRepository chamaRepository;
     private final ChamaMemberRepository chamaMemberRepository;

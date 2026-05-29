@@ -1,4 +1,5 @@
-ckage com.chamasmart.backend.controller;
+package com.chamasmart.backend.controller;
+import lombok.extern.slf4j.Slf4j;
 import com.chamasmart.backend.dto.ApiResponse;
 import com.chamasmart.backend.dto.AscaCycleDto;
 import com.chamasmart.backend.security.CustomUserDetails;
@@ -13,6 +14,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/asca")
 @RequiredArgsConstructor
+@Slf4j
 public class AscaController {
     private final AscaService ascaService;
     @PostMapping("/chamas/{chamaId}/cycles")

@@ -1,4 +1,5 @@
-ckage com.chamasmart.backend.service;
+package com.chamasmart.backend.service;
+import lombok.extern.slf4j.Slf4j;
 import com.chamasmart.backend.domain.*;
 import com.chamasmart.backend.dto.*;
 import com.chamasmart.backend.repository.*;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class LoanService {
     private final LoanRepository loanRepository;
     private final LoanGuarantorRepository loanGuarantorRepository;

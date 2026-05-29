@@ -1,4 +1,5 @@
-ckage com.chamasmart.backend.controller;
+package com.chamasmart.backend.controller;
+import lombok.extern.slf4j.Slf4j;
 import com.chamasmart.backend.domain.*;
 import com.chamasmart.backend.dto.*;
 import com.chamasmart.backend.repository.*;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/contributions")
 @RequiredArgsConstructor
+@Slf4j
 public class ContributionController {
     private final ContributionRepository contributionRepository;
     private final ChamaRepository chamaRepository;

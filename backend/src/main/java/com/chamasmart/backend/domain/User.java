@@ -1,4 +1,4 @@
-ckage com.chamasmart.backend.domain;
+package com.chamasmart.backend.domain;
 import jakarta.persistence.*;
 import jakarta.persistence.Convert;
 import lombok.*;
@@ -53,8 +53,6 @@ public class User {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private ZonedDateTime createdAt;
-    // No-args constructor (required by JPA)
-    public User() {}
     // All-args constructor for manual creation (used in AuthController)
     public User(String firstName, String lastName, String email, String phoneNumber, String passwordHash,
                 String role, Boolean isActive, Boolean emailVerified, Boolean phoneVerified, String authMethod) {

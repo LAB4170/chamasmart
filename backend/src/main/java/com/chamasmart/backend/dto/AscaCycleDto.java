@@ -1,4 +1,4 @@
-ckage com.chamasmart.backend.dto;
+package com.chamasmart.backend.dto;
 import com.chamasmart.backend.domain.AscaCycle;
 import com.chamasmart.backend.domain.AscaMember;
 import lombok.AllArgsConstructor;

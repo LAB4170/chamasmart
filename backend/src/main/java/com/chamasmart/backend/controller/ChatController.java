@@ -1,4 +1,5 @@
-ckage com.chamasmart.backend.controller;
+package com.chamasmart.backend.controller;
+import lombok.extern.slf4j.Slf4j;
 import com.chamasmart.backend.domain.User;
 import com.chamasmart.backend.dto.ApiResponse;
 import com.chamasmart.backend.repository.UserRepository;
@@ -21,6 +22,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 @RestController
 @RequestMapping("/chat")
 @RequiredArgsConstructor
+@Slf4j
 public class ChatController {
     private final UserRepository userRepository;
     private final ChatGuardrailService chatGuardrailService;
