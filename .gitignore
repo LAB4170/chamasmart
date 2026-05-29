@@ -119,3 +119,7 @@ restart_backend.bat
 # Build artifact directories
 backend/target/
 frontend/dist/
+
+# Local JDK
+backend/jdk17/
+backend/.gitignore
