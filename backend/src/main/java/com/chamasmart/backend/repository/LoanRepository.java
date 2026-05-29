@@ -1,4 +1,4 @@
-﻿package com.chamasmart.backend.repository;
+package com.chamasmart.backend.repository;
 
 import com.chamasmart.backend.domain.Loan;
 import jakarta.persistence.LockModeType;
@@ -13,7 +13,7 @@ import java.util.Optional;
 
 @Repository
 public interface LoanRepository extends JpaRepository<Loan, Long> {
-    
+
     @Query("SELECT l FROM Loan l JOIN FETCH l.chama JOIN FETCH l.borrower WHERE l.borrower.userId = :borrowerId ORDER BY l.createdAt DESC")
     List<Loan> findByBorrowerUserId(@Param("borrowerId") Long borrowerId);
 
@@ -26,5 +26,3 @@ public interface LoanRepository extends JpaRepository<Loan, Long> {
     @Query("SELECT l FROM Loan l WHERE l.loanId = :loanId")
     Optional<Loan> findByIdWithPessimisticLock(@Param("loanId") Long loanId);
 }
-
-
