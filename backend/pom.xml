@@ -90,7 +90,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.36</version>
+            <version>1.18.40</version>
         </dependency>
 
         <!-- Test Starters -->
@@ -138,9 +138,15 @@
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
-                            <version>1.18.36</version>
+                            <version>1.18.40</version>
                         </path>
                     </annotationProcessorPaths>
+                        <compilerArgs>
+                            <arg>--add-opens</arg>
+                            <arg>java.base/java.lang=ALL-UNNAMED</arg>
+                            <arg>--add-opens</arg>
+                            <arg>jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
+                        </compilerArgs>
                 </configuration>
             </plugin>
         </plugins>

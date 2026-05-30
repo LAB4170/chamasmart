@@ -90,68 +90,37 @@ public class AuthController {
     }
     @PostMapping("/firebase-sync")
     public ResponseEntity<ApiResponse<AuthResponse>> firebaseSync(@RequestBody FirebaseSyncRequest request) {
-        log.info("Received Firebase OAuth sync request for email: {}", request.getFirstName() + " (" + request.getPhoneNumber() + ")");
-        // Look up by email (fallback to request properties)
-        String email = (request.getEmail() != null && !request.getEmail().isEmpty())
-                ? request.getEmail()
-                : request.getFirstName().toLowerCase().replaceAll("\\s+", "") + "@chamasmart.com"; // Default local email if not provided
-        if (request.getPhoneNumber() != null && !request.getPhoneNumber().isEmpty()) {
-            // Check if user exists by phone or local search
-            User user = userRepository.findByEmail(email).orElse(null);
-            if (user == null) {
-                user = new User(
-        request.getFirstName(),
-        request.getLastName() != null ? request.getLastName() : "Member",
-        email,
-        request.getPhoneNumber(),
-        passwordEncoder.encode("OAuthUserSecureLocalFallbackPwd123!"),
-        "MEMBER",
-        true,
-        true,
-        true,
-        "google"
-);
-                user = userRepository.save(user);
-            }
-            String token = jwtUtil.generateToken(CustomUserDetails.build(user));
-            AuthResponse authResponse = new AuthResponse(
-        user,
-        new AuthResponse.TokenResponse(token, token)
-);
-            return ResponseEntity.ok(ApiResponse.success(authResponse, "Firebase user synced successfully"));
+        log.info("Firebase OAuth sync for email: {}", request.getEmail());
+
+        // Always resolve email first — it is the canonical identifier from Firebase
+        String email = (request.getEmail() != null && !request.getEmail().trim().isEmpty())
+                ? request.getEmail().trim().toLowerCase()
+                : null;
+
+        if (email == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("Email is required for Firebase sync"));
         }
-        // Standard lookup/sync if email can be determined
-        User user = userRepository.findByEmail(email).orElse(null);
-        if (user == null) {
-            user = userRepository.findAll().stream()
-                    .filter(u -> u.getFirstName().equalsIgnoreCase(request.getFirstName()))
-                    .findFirst()
-                    .orElse(null);
-        }
-        if (user == null) {
-            String cleanPhone = (request.getPhoneNumber() != null && !request.getPhoneNumber().trim().isEmpty())
-                    ? request.getPhoneNumber().trim()
-                    : null;
-            // Create user dynamically for flawless dev testing!
-            user = new User(
-        request.getFirstName(),
-        request.getLastName() != null && !request.getLastName().isEmpty() ? request.getLastName() : "OAuth",
-        email,
-        cleanPhone,
-        passwordEncoder.encode("OAuthUserSecureLocalFallbackPwd123!"),
-        "MEMBER",
-        true,
-        true,
-        true,
-        "google"
-);
-            user = userRepository.save(user);
-        }
+
+        // Find existing user by email or create a new one
+        User user = userRepository.findByEmail(email).orElseGet(() -> {
+            String firstName  = (request.getFirstName()  != null && !request.getFirstName().isBlank())
+                    ? request.getFirstName().trim() : "User";
+            String lastName   = (request.getLastName()   != null && !request.getLastName().isBlank())
+                    ? request.getLastName().trim()  : "";
+            String phone      = (request.getPhoneNumber() != null && !request.getPhoneNumber().trim().isEmpty())
+                    ? request.getPhoneNumber().trim() : null;
+
+            User newUser = new User(
+                    firstName, lastName, email, phone,
+                    passwordEncoder.encode("OAuthUserSecureLocalFallbackPwd123!"),
+                    "MEMBER", true, true, phone != null, "google"
+            );
+            return userRepository.save(newUser);
+        });
+
         String token = jwtUtil.generateToken(CustomUserDetails.build(user));
-        AuthResponse authResponse = new AuthResponse(
-        user,
-        new AuthResponse.TokenResponse(token, token)
-);
+        AuthResponse authResponse = new AuthResponse(user, new AuthResponse.TokenResponse(token, token));
         return ResponseEntity.ok(ApiResponse.success(authResponse, "Firebase user synced successfully"));
     }
 }

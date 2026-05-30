@@ -38,9 +38,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception e) {
-            log.error("Cannot set user authentication: {}", e.getMessage());
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
-            return;
+            log.warn("JWT authentication failed (will proceed unauthenticated): {}", e.getMessage());
+            // Do NOT send 401 here — let Spring Security's authorization layer handle it.
+            // Sending 401 from the filter breaks the filter chain for public endpoints too.
         }
         filterChain.doFilter(request, response);
     }

@@ -54,7 +54,12 @@ export const AuthProvider = ({ children }) => {
 
         if (token && savedUser) {
           try {
-            const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            const tokenPayload = JSON.parse(jsonPayload);
             const isExpired = tokenPayload.exp * 1000 < Date.now();
             
             if (isExpired) {
@@ -81,7 +86,6 @@ export const AuthProvider = ({ children }) => {
   // Standard Login (Email/Password)
   const login = async (email, password) => {
     try {
-      setLoading(true);
       setError(null);
       const response = await authAPI.login({ email, password });
       
@@ -97,15 +101,12 @@ export const AuthProvider = ({ children }) => {
       const message = err.response?.data?.message || err.message || "Login failed";
       setError(message);
       return { success: false, error: message };
-    } finally {
-      setLoading(false);
     }
   };
 
   // Standard Register (Name/Email/Phone/Password)
   const register = async (userData) => {
     try {
-      setLoading(true);
       setError(null);
 
       const response = await authAPI.register(userData);
@@ -121,15 +122,12 @@ export const AuthProvider = ({ children }) => {
       const message = err.response?.data?.message || err.message || "Registration failed";
       setError(message);
       return { success: false, error: message };
-    } finally {
-      setLoading(false);
     }
   };
 
   // Google Login
   const loginWithGoogle = async () => {
     try {
-      setLoading(true);
       setError(null);
       
       let result;
@@ -167,8 +165,6 @@ export const AuthProvider = ({ children }) => {
       const message = err.response?.data?.message || err.message || "Google login failed";
       setError(message);
       return { success: false, error: message };
-    } finally {
-      setLoading(false);
     }
   };
 

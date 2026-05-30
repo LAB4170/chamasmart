@@ -168,7 +168,7 @@ export default defineConfig({
 
     proxy: {
       "/api": {
-        target: "http://localhost:5005",
+        target: "http://localhost:8080",
 
         changeOrigin: true,
 
@@ -176,13 +176,13 @@ export default defineConfig({
       },
 
       "/socket.io": {
-        target: "http://localhost:5005",
+        target: "http://localhost:8080",
         changeOrigin: true,
         ws: true,
       },
 
       "/uploads": {
-        target: "http://localhost:5005",
+        target: "http://localhost:8080",
         changeOrigin: true,
         secure: false,
       },

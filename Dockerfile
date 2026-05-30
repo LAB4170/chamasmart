@@ -29,7 +29,7 @@ COPY --from=build /build/target/*.jar app.jar
 EXPOSE 5006
 
 # Define environment variables with default fallbacks (overridden at runtime)
-ENV PORT=5006 SPRING_PROFILES_ACTIVE=prod JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
+ENV PORT=5006 SPRING_PROFILES_ACTIVE=prod JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
 
 # Execute the Spring Boot application
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

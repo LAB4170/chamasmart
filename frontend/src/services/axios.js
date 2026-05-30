@@ -8,7 +8,7 @@ if (Capacitor.isNativePlatform() && !import.meta.env.VITE_API_URL) {
     // If on Android Emulator, localhost is 10.0.2.2
     // If on a real device, you need to use your machine's local IP (e.g., 192.168.x.x)
     // We'll default to the emulator IP for now, but allow easy override
-    API_URL = "http://10.0.2.2:5006/api/v1";
+    API_URL = "http://10.0.2.2:8080/api/v1";
     console.log("Axios: Native platform detected, using mobile API URL:", API_URL);
 }
 
@@ -20,7 +20,12 @@ const pendingRequests = new Map();
 function isTokenExpired(token) {
   if (!token) return true;
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    const payload = JSON.parse(jsonPayload);
     // exp is in seconds since epoch
     return payload.exp * 1000 < Date.now();
   } catch (e) {
@@ -94,19 +99,24 @@ api.interceptors.response.use(
 
         if (!error.response) {
             console.error("[Axios] Network error or server down");
-            if (window.location.pathname !== "/login" && window.location.pathname !== "/register") {
-                window.location.replace("/login");
-            }
+            // Do NOT redirect here — a transient network error should not force logout.
+            // The UI components handle errors via the returned rejected promise.
             return Promise.reject(error);
         }
 
         if (error.response?.status === 401) {
             localStorage.removeItem("token");
             localStorage.removeItem("user");
-            if (window.location.pathname !== "/login" && window.location.pathname !== "/register") {
-                window.location.replace("/login");
+            // Use a short delay so in-flight React renders finish before redirecting.
+            // This prevents a flash-redirect when the dashboard loads and fires
+            // multiple simultaneous API calls — only redirect if we're not already
+            // on the login / register page.
+            const currentPath = window.location.pathname;
+            if (currentPath !== '/login' && currentPath !== '/register') {
+                setTimeout(() => {
+                    window.location.replace('/login');
+                }, 300);
             }
-            // Cancel any pending requests after unauthorized response
             cancelPendingRequests();
         }
 
