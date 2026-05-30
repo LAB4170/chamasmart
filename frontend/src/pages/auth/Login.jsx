@@ -30,13 +30,17 @@ const Login = () => {
     }
 
     setLoading(true);
-    const result = await login(email, password);
-    setLoading(false);
-
-    if (result.success) {
-      navigate("/dashboard");
-    } else {
-      setError(result.error || "Invalid email or password");
+    try {
+      const result = await login(email, password);
+      if (result.success) {
+        navigate("/dashboard");
+      } else {
+        setError(result.error || "Invalid email or password. Please try again.");
+      }
+    } catch (err) {
+      setError("Unable to connect to the server. Please wait a moment and try again — the server may be waking up.");
+    } finally {
+      setLoading(false);
     }
   };
 
