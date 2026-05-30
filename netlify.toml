@@ -5,7 +5,7 @@
 
 [build.environment]
   VITE_API_URL = "https://chamasmart-khrb.onrender.com/api/v1"
-  VITE_FIREBASE_API_KEY = "AIzaSyDxYXUzrY5rjLewcFb_SIJOa0eRiLWSdak"
+  VITE_FIREBASE_API_KEY = "AIzaSyAKZb39OLyjc3JsJW_7J7Xk3J3sa6BUXqA"
   VITE_FIREBASE_AUTH_DOMAIN = "chamasmart-1c600.firebaseapp.com"
   VITE_FIREBASE_PROJECT_ID = "chamasmart-1c600"
   VITE_FIREBASE_STORAGE_BUCKET = "chamasmart-1c600.firebasestorage.app"
