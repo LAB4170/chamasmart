@@ -724,7 +724,7 @@ p {
   }
 
   .page {
-    padding: 1rem 0;
+    padding: 100px 0 1rem 0;
   }
 
   .grid-2,

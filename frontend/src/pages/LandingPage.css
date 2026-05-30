@@ -393,7 +393,7 @@
 
 @media (max-width: 768px) {
     .landing-lux-wrapper {
-        padding: 1rem 0.5rem;
+        padding: 100px 0.5rem 1rem 0.5rem;
     }
     .landing-lux-section {
         border-radius: 20px;
