@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '/api' : 'http://127.0.0.1:5005/api');
+const API_URL = 'https://chamasmart-khrb.onrender.com/api/v1';
 // Derive backend base URL by stripping any "/api" segment (including version)
 let BACKEND_URL = API_URL.split('/api')[0];
 // Fallback to window origin if resolution fails (e.g., during SSR)

@@ -1,10 +1,10 @@
 import axios from "axios";
 import { Capacitor } from "@capacitor/core";
 
-let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
+let API_URL = 'https://chamasmart-khrb.onrender.com/api/v1';
 
 // Adjust API_URL for mobile devices in development
-if (Capacitor.isNativePlatform() && !import.meta.env.VITE_API_URL) {
+if (Capacitor.isNativePlatform() && window.location.hostname === "localhost") {
     // If on Android Emulator, localhost is 10.0.2.2
     // If on a real device, you need to use your machine's local IP (e.g., 192.168.x.x)
     // We'll default to the emulator IP for now, but allow easy override

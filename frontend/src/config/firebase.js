@@ -4,20 +4,13 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 // Your web app's Firebase configuration
 // These should be added to your .env file
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    apiKey: "AIzaSyAKZb39OLyjc3JsJW_7J7Xk3J3sa6BUXqA",
+    authDomain: "chamasmart-1c600.firebaseapp.com",
+    projectId: "chamasmart-1c600",
+    storageBucket: "chamasmart-1c600.firebasestorage.app",
+    messagingSenderId: "475835064239",
+    appId: "1:475835064239:web:f75f507997a83be468195a"
 };
-
-// Debug Firebase Config (Will remove later)
-console.log("Firebase Config Loaded:", {
-    hasApiKey: !!firebaseConfig.apiKey,
-    authDomain: firebaseConfig.authDomain,
-    projectId: firebaseConfig.projectId
-});
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
