@@ -18,6 +18,9 @@ const SubmitContribution = () => {
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState("");
+  // Prevent double submission via a ref (optional, kept for future use)
+  // const submitInProgressRef = useRef(false);
+
   const [success, setSuccess] = useState("");
 
   const { socket } = useSocket();
@@ -107,6 +110,8 @@ const SubmitContribution = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Guard against double submit
+    if (loading) return;
     setError("");
     setSuccess("");
     setLoading(true);
@@ -123,7 +128,7 @@ const SubmitContribution = () => {
       setPaymentStage("waiting");
       setSuccess("STK Push initiated. Please enter your PIN on your phone.");
 
-      // Set a safety timeout for 60 seconds
+      // Safety timeout for 60 seconds
       setTimeout(() => {
         if (paymentStage === "waiting") {
           setPaymentStage("idle");
