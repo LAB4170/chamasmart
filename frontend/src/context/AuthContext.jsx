@@ -32,8 +32,8 @@ export const AuthProvider = ({ children }) => {
         if (redirectResult) {
           const idToken = await redirectResult.user.getIdToken();
           const userData = {
-            firstName: redirectResult.user.displayName ? redirectResult.user.displayName.split(" ")[0] : "",
-            lastName: redirectResult.user.displayName ? redirectResult.user.displayName.split(" ").slice(1).join(" ") : "",
+            firstName: redirectResult.user.displayName?.split(" ")[0] || "",
+            lastName: redirectResult.user.displayName?.split(" ").slice(1).join(" ") || "",
             email: redirectResult.user.email,
             phoneNumber: redirectResult.user.phoneNumber || ""
           };
@@ -146,8 +146,8 @@ export const AuthProvider = ({ children }) => {
       const idToken = await result.user.getIdToken();
       
       const userData = {
-        firstName: result.user.displayName ? result.user.displayName.split(" ")[0] : "",
-        lastName: result.user.displayName ? result.user.displayName.split(" ").slice(1).join(" ") : "",
+        firstName: result.user.displayName?.split(" ")[0] || "",
+        lastName: result.user.displayName?.split(" ").slice(1).join(" ") || "",
         email: result.user.email,
         phoneNumber: result.user.phoneNumber || ""
       };

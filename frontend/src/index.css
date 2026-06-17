@@ -1551,8 +1551,7 @@ button:focus,
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow);
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 100;
   border-bottom: 1px solid var(--border);
   transition: var(--transition);

@@ -3,8 +3,16 @@ import { useParams, useNavigate } from "react-router-dom";
 import { auditAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import { toast } from "react-toastify";
-import { Download, ArrowLeft } from 'lucide-react';
+import { Download, ArrowLeft, Activity, Users, Zap, AlertTriangle } from 'lucide-react';
 import "../core/ChamaDetailsLux.css";
+
+const ACTION_META = {
+    CREATE:  { color: '#10b981', bg: 'rgba(16,185,129,0.1)',  label: 'Creation'     },
+    UPDATE:  { color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  label: 'Modification' },
+    DELETE:  { color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   label: 'Termination'  },
+    APPROVE: { color: '#a78bfa', bg: 'rgba(167,139,250,0.1)', label: 'Authorized'   },
+    REJECT:  { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  label: 'Denied'       },
+};
 
 const AuditLogs = () => {
     const { id } = useParams();
@@ -12,18 +20,11 @@ const AuditLogs = () => {
     const { user } = useAuth();
 
     const [loading, setLoading] = useState(true);
-    const [logs, setLogs] = useState([]);
+    const [logs, setLogs]       = useState([]);
     const [summary, setSummary] = useState(null);
-    const [filter, setFilter] = useState({
-        action: "",
-        user: "",
-        startDate: "",
-        endDate: ""
-    });
+    const [filter, setFilter]   = useState({ action: "", user: "", startDate: "", endDate: "" });
 
-    useEffect(() => {
-        fetchAuditData();
-    }, [id, filter]);
+    useEffect(() => { fetchAuditData(); }, [id, filter]);
 
     const fetchAuditData = async () => {
         try {
@@ -33,12 +34,16 @@ const AuditLogs = () => {
                 auditAPI.getChamaSummary(id)
             ]);
 
-            setLogs(logsRes.data.data || logsRes.data);
-            setSummary(summaryRes.data.data || summaryRes.data);
-            setLoading(false);
+            // Safely extract the logs array regardless of API envelope shape
+            const raw = logsRes.data?.data ?? logsRes.data ?? [];
+            setLogs(Array.isArray(raw) ? raw : Object.values(raw));
+
+            const s = summaryRes.data?.data ?? summaryRes.data ?? {};
+            setSummary(s);
         } catch (err) {
             console.error(err);
             toast.error("Failed to load audit logs");
+        } finally {
             setLoading(false);
         }
     };
@@ -51,164 +56,145 @@ const AuditLogs = () => {
     const handleExport = async () => {
         try {
             const response = await auditAPI.exportChamaLogs(id, "csv");
-            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const url  = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
-            link.href = url;
+            link.href  = url;
             link.setAttribute('download', `audit_logs_${id}.csv`);
             document.body.appendChild(link);
             link.click();
             link.remove();
         } catch (err) {
-            console.error(err);
             toast.error("Failed to export logs");
         }
     };
 
-    if (loading) return <div className="loading-spinner">Loading Audit Logs...</div>;
+    if (loading) return (
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'60vh', color:'var(--lux-text-secondary)' }}>
+            <Activity className="animate-spin" size={32} style={{ marginRight: '1rem', color: 'var(--lux-gold)' }} />
+            Loading audit trail…
+        </div>
+    );
 
     return (
         <div className="manage-page-root">
             <div className="container">
-                <div className="page-frame-lux" style={{ background: 'var(--lux-card-bg)', border: '1px solid var(--lux-border)' }}>
-                    <div className="flex flex-between align-center mb-8">
+                <div className="page-frame-lux" style={{ background:'var(--lux-card-bg)', border:'1px solid var(--lux-border)' }}>
+
+                    {/* ── HEADER ── */}
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'2rem', flexWrap:'wrap', gap:'1rem' }}>
                         <div>
-                            <h1 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0, color: 'var(--lux-text-primary)' }}>Audit Trail</h1>
-                            <p style={{ color: 'var(--lux-text-secondary)', marginTop: '4px', fontSize: '0.95rem' }}>Immutable record of all <strong style={{ color: 'var(--lux-text-primary)' }}>System Events</strong></p>
+                            <h1 style={{ fontSize:'1.75rem', fontWeight:900, margin:0, color:'var(--lux-text-primary)', display:'flex', alignItems:'center', gap:'0.75rem' }}>
+                                <span style={{ display:'inline-flex', padding:'0.45rem', borderRadius:'12px', background:'rgba(167,139,250,0.12)', border:'1px solid rgba(167,139,250,0.2)' }}>
+                                    <Activity size={22} style={{ color:'#a78bfa' }} />
+                                </span>
+                                Audit Trail
+                            </h1>
+                            <p style={{ color:'var(--lux-text-secondary)', marginTop:'6px', fontSize:'0.9rem' }}>
+                                Immutable, tamper-proof log of every action inside this chama.
+                            </p>
                         </div>
-                        <div className="flex gap-4 items-center">
-                            <button className="btn-return-lux" onClick={() => navigate(`/chamas/${id}`, { state: { tab: 'management' } })}>
-                                <ArrowLeft size={16} /> Return to Vault
+                        <div style={{ display:'flex', gap:'0.75rem', flexWrap:'wrap' }}>
+                            <button className="btn-return-lux" onClick={() => navigate(`/chamas/${id}`, { state:{ tab:'management' } })}>
+                                <ArrowLeft size={15} /> Back to Management
                             </button>
-                            <button className="btn-lux flex items-center gap-2" onClick={handleExport} aria-label="Export audit logs">
-                                <Download size={16} /> Export CSV
+                            <button className="btn-lux btn-lux-primary" style={{ display:'flex', alignItems:'center', gap:'0.5rem' }} onClick={handleExport}>
+                                <Download size={15} /> Export CSV
                             </button>
                         </div>
                     </div>
 
-                    {/* Summary Cards */}
-                    {summary && (
-                        <div className="grid grid-cols-4 gap-6 mb-8">
-                            <div className="dashboard-card-lux" style={{ padding: '24px', textAlign: 'center', background: 'var(--lux-bg-soft)' }}>
-                                <h3 style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--lux-gold)', margin: '0 0 4px 0' }}>{summary.total_actions || 0}</h3>
-                                <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 800, color: 'var(--lux-text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Events</p>
+                    {/* ── SUMMARY STATS ── */}
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'1rem', marginBottom:'2rem' }}>
+                        {[
+                            { icon: Activity,      value: summary?.total_actions   ?? 0, label:'Total Events',   color:'var(--lux-gold)'  },
+                            { icon: Users,         value: summary?.unique_users    ?? 0, label:'Operators',      color:'#3b82f6'          },
+                            { icon: Zap,           value: summary?.today_actions   ?? 0, label:'Today\'s Events',color:'#10b981'          },
+                            { icon: AlertTriangle, value: summary?.critical_actions?? 0, label:'Critical Flags', color:'#ef4444'          },
+                        ].map(({ icon: Icon, value, label, color }) => (
+                            <div key={label} style={{ background:'var(--lux-bg-soft)', border:'1px solid var(--lux-border)', borderRadius:'16px', padding:'20px', textAlign:'center' }}>
+                                <Icon size={20} style={{ color, marginBottom:'8px' }} />
+                                <div style={{ fontSize:'1.75rem', fontWeight:900, color, lineHeight:1 }}>{value}</div>
+                                <div style={{ fontSize:'0.7rem', fontWeight:800, color:'var(--lux-text-secondary)', textTransform:'uppercase', letterSpacing:'1px', marginTop:'4px' }}>{label}</div>
                             </div>
-                            <div className="dashboard-card-lux" style={{ padding: '24px', textAlign: 'center', background: 'var(--lux-bg-soft)' }}>
-                                <h3 style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--lux-text-primary)', margin: '0 0 4px 0' }}>{summary.unique_users || 0}</h3>
-                                <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 800, color: 'var(--lux-text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Operators</p>
-                            </div>
-                            <div className="dashboard-card-lux" style={{ padding: '24px', textAlign: 'center', background: 'var(--lux-bg-soft)' }}>
-                                <h3 style={{ fontSize: '1.8rem', fontWeight: 900, color: '#3b82f6', margin: '0 0 4px 0' }}>{summary.today_actions || 0}</h3>
-                                <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 800, color: 'var(--lux-text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Daily Activity</p>
-                            </div>
-                            <div className="dashboard-card-lux" style={{ padding: '24px', textAlign: 'center', background: 'var(--lux-bg-soft)' }}>
-                                <h3 style={{ fontSize: '1.8rem', fontWeight: 900, color: '#ef4444', margin: '0 0 4px 0' }}>{summary.critical_actions || 0}</h3>
-                                <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 800, color: 'var(--lux-text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Critical Flags</p>
-                            </div>
-                        </div>
-                    )}
+                        ))}
+                    </div>
 
-                    {/* Filters */}
-                    <div className="dashboard-card-lux mb-8" style={{ padding: '24px', background: 'var(--lux-bg-soft)' }}>
-                        <div className="grid grid-cols-3 gap-6">
-                            <div className="form-group mb-0">
-                                <label style={{ color: 'var(--lux-text-secondary)', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px', display: 'block' }}>Event Protocol</label>
-                                <select
-                                    name="action"
-                                    className="form-input"
-                                    style={{ width: '100%', background: 'var(--lux-card-bg)', border: '1px solid var(--lux-border)', color: 'var(--lux-text-primary)' }}
-                                    value={filter.action}
-                                    onChange={handleFilterChange}
-                                >
-                                    <option value="">All Protocols</option>
-                                    <option value="CREATE">Creation</option>
-                                    <option value="UPDATE">Modification</option>
-                                    <option value="DELETE">Termination</option>
-                                    <option value="APPROVE">Authorization</option>
-                                    <option value="REJECT">Denial</option>
-                                </select>
-                            </div>
-                            <div className="form-group mb-0">
-                                <label style={{ color: 'var(--lux-text-secondary)', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px', display: 'block' }}>Start Sequence</label>
-                                <input
-                                    type="date"
-                                    name="startDate"
-                                    className="form-input"
-                                    style={{ width: '100%', background: 'var(--lux-card-bg)', border: '1px solid var(--lux-border)', color: 'var(--lux-text-primary)' }}
-                                    value={filter.startDate}
-                                    onChange={handleFilterChange}
-                                />
-                            </div>
-                            <div className="form-group mb-0">
-                                <label style={{ color: 'var(--lux-text-secondary)', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px', display: 'block' }}>End Sequence</label>
-                                <input
-                                    type="date"
-                                    name="endDate"
-                                    className="form-input"
-                                    style={{ width: '100%', background: 'var(--lux-card-bg)', border: '1px solid var(--lux-border)', color: 'var(--lux-text-primary)' }}
-                                    value={filter.endDate}
-                                    onChange={handleFilterChange}
-                                />
-                            </div>
+                    {/* ── FILTERS ── */}
+                    <div style={{ background:'var(--lux-bg-soft)', border:'1px solid var(--lux-border)', borderRadius:'16px', padding:'20px', marginBottom:'2rem', display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'1rem' }}>
+                        <div>
+                            <label style={{ display:'block', fontSize:'0.7rem', fontWeight:800, textTransform:'uppercase', letterSpacing:'1px', color:'var(--lux-text-secondary)', marginBottom:'8px' }}>Event Type</label>
+                            <select name="action" className="form-input" style={{ width:'100%', background:'var(--lux-card-bg)', border:'1px solid var(--lux-border)', color:'var(--lux-text-primary)', borderRadius:'10px' }} value={filter.action} onChange={handleFilterChange}>
+                                <option value="">All Types</option>
+                                <option value="CREATE">Creation</option>
+                                <option value="UPDATE">Modification</option>
+                                <option value="DELETE">Termination</option>
+                                <option value="APPROVE">Authorization</option>
+                                <option value="REJECT">Denial</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style={{ display:'block', fontSize:'0.7rem', fontWeight:800, textTransform:'uppercase', letterSpacing:'1px', color:'var(--lux-text-secondary)', marginBottom:'8px' }}>From Date</label>
+                            <input type="date" name="startDate" className="form-input" style={{ width:'100%', background:'var(--lux-card-bg)', border:'1px solid var(--lux-border)', color:'var(--lux-text-primary)', borderRadius:'10px' }} value={filter.startDate} onChange={handleFilterChange} />
+                        </div>
+                        <div>
+                            <label style={{ display:'block', fontSize:'0.7rem', fontWeight:800, textTransform:'uppercase', letterSpacing:'1px', color:'var(--lux-text-secondary)', marginBottom:'8px' }}>To Date</label>
+                            <input type="date" name="endDate" className="form-input" style={{ width:'100%', background:'var(--lux-card-bg)', border:'1px solid var(--lux-border)', color:'var(--lux-text-primary)', borderRadius:'10px' }} value={filter.endDate} onChange={handleFilterChange} />
                         </div>
                     </div>
 
-                    {/* Logs Table */}
-                    <div className="table-responsive-lux">
-                        <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 4px' }}>
+                    {/* ── LOGS TABLE ── */}
+                    <div style={{ overflowX:'auto' }}>
+                        <table style={{ width:'100%', borderCollapse:'separate', borderSpacing:'0 6px' }}>
                             <thead>
-                                <tr style={{ textAlign: 'left', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--lux-text-secondary)', letterSpacing: '1px' }}>
-                                    <th style={{ padding: '12px 20px' }}>Timestamp</th>
-                                    <th>Operator</th>
-                                    <th>Protocol</th>
-                                    <th>Resource</th>
-                                    <th>Metadata</th>
-                                    <th style={{ paddingRight: '20px' }}>Network IP</th>
+                                <tr style={{ fontSize:'0.68rem', textTransform:'uppercase', letterSpacing:'1px', color:'var(--lux-text-secondary)' }}>
+                                    {['Timestamp','Operator','Event','Resource','Details','IP Address'].map(h => (
+                                        <th key={h} style={{ padding:'10px 16px', textAlign:'left', fontWeight:800 }}>{h}</th>
+                                    ))}
                                 </tr>
                             </thead>
                             <tbody>
                                 {logs.length === 0 ? (
                                     <tr>
-                                        <td colSpan="6" style={{ textAlign: 'center', padding: '60px', color: 'var(--lux-text-secondary)', background: 'var(--lux-bg-soft)', borderRadius: '16px' }}>
-                                            No system logs detected within current filter parameters.
+                                        <td colSpan="6" style={{ textAlign:'center', padding:'60px', color:'var(--lux-text-secondary)', background:'var(--lux-bg-soft)', borderRadius:'16px' }}>
+                                            <Activity size={32} style={{ opacity:0.3, marginBottom:'1rem', display:'block', margin:'0 auto 1rem' }} />
+                                            No audit events found for the current filters.
                                         </td>
                                     </tr>
-                                ) : (
-                                    logs.map(log => (
-                                        <tr key={log.audit_id} style={{ background: 'var(--lux-bg-soft)' }}>
-                                            <td style={{ padding: '16px 20px', borderRadius: '12px 0 0 12px', fontSize: '0.85rem', color: 'var(--lux-text-secondary)' }}>
-                                                {new Date(log.created_at).toLocaleString()}
+                                ) : logs.map((log, i) => {
+                                    const meta = ACTION_META[log.action] || { color:'var(--lux-text-secondary)', bg:'var(--lux-card-bg)', label: log.action };
+                                    return (
+                                        <tr key={log.audit_id ?? i} style={{ background:'var(--lux-bg-soft)' }}>
+                                            <td style={{ padding:'14px 16px', borderRadius:'12px 0 0 12px', fontSize:'0.8rem', color:'var(--lux-text-secondary)', whiteSpace:'nowrap' }}>
+                                                {log.created_at ? new Date(log.created_at).toLocaleString() : '—'}
                                             </td>
-                                            <td>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-lux-card-bg flex items-center justify-center border border-lux-border text-lux-gold font-bold text-xs">
-                                                        {(log.user_name || "S").charAt(0)}
+                                            <td style={{ padding:'14px 16px' }}>
+                                                <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+                                                    <div style={{ width:34, height:34, borderRadius:'50%', background:'var(--lux-card-bg)', border:'1px solid var(--lux-border)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:'0.8rem', color:'var(--lux-gold)', flexShrink:0 }}>
+                                                        {(log.user_name || 'S').charAt(0).toUpperCase()}
                                                     </div>
                                                     <div>
-                                                        <div style={{ fontWeight: 700, color: 'var(--lux-text-primary)', fontSize: '0.9rem' }}>{log.user_name || "System"}</div>
-                                                        <div style={{ fontSize: '0.75rem', color: 'var(--lux-text-secondary)' }}>{log.user_email || "Automated Protocol"}</div>
+                                                        <div style={{ fontWeight:700, color:'var(--lux-text-primary)', fontSize:'0.85rem' }}>{log.user_name || 'System'}</div>
+                                                        <div style={{ fontSize:'0.72rem', color:'var(--lux-text-secondary)' }}>{log.user_email || 'Automated'}</div>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td>
-                                                <div style={{ 
-                                                    display: 'inline-flex', padding: '4px 12px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 800,
-                                                    background: log.action?.includes('CREATE') ? 'rgba(16, 185, 129, 0.1)' : log.action?.includes('DELETE') ? 'rgba(239, 68, 68, 0.1)' : 'var(--lux-card-bg)',
-                                                    color: log.action?.includes('CREATE') ? '#10b981' : log.action?.includes('DELETE') ? '#ef4444' : 'var(--lux-text-secondary)',
-                                                    border: '1px solid var(--lux-border)', textTransform: 'uppercase'
-                                                }}>
-                                                    {log.action}
-                                                </div>
+                                            <td style={{ padding:'14px 16px' }}>
+                                                <span style={{ display:'inline-flex', padding:'3px 10px', borderRadius:'20px', fontSize:'0.68rem', fontWeight:800, background:meta.bg, color:meta.color, border:`1px solid ${meta.color}33`, textTransform:'uppercase', letterSpacing:'0.5px' }}>
+                                                    {meta.label}
+                                                </span>
                                             </td>
-                                            <td style={{ fontSize: '0.85rem', color: 'var(--lux-text-primary)', fontWeight: 600 }}>{log.entity_type || log.resource}</td>
-                                            <td style={{ fontSize: '0.8rem', color: 'var(--lux-text-secondary)', maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={log.details || log.metadata ? JSON.stringify(log.metadata) : ""}>
-                                                {log.details || (log.metadata ? JSON.stringify(log.metadata) : "-")}
+                                            <td style={{ padding:'14px 16px', fontSize:'0.85rem', color:'var(--lux-text-primary)', fontWeight:600 }}>
+                                                {log.entity_type || log.resource || '—'}
                                             </td>
-                                            <td style={{ paddingRight: '20px', borderRadius: '0 12px 12px 0', fontSize: '0.8rem', color: 'var(--lux-text-secondary)', fontFamily: 'monospace' }}>
-                                                {log.ip_address}
+                                            <td style={{ padding:'14px 16px', fontSize:'0.8rem', color:'var(--lux-text-secondary)', maxWidth:'220px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={log.details || (log.metadata ? JSON.stringify(log.metadata) : '')}>
+                                                {log.details || (log.metadata ? JSON.stringify(log.metadata) : '—')}
+                                            </td>
+                                            <td style={{ padding:'14px 16px', borderRadius:'0 12px 12px 0', fontSize:'0.78rem', color:'var(--lux-text-secondary)', fontFamily:'monospace' }}>
+                                                {log.ip_address || '—'}
                                             </td>
                                         </tr>
-                                    ))
-                                )}
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -216,17 +202,6 @@ const AuditLogs = () => {
             </div>
         </div>
     );
-};
-
-const getActionColor = (action) => {
-    switch (action) {
-        case 'CREATE': return 'success';
-        case 'UPDATE': return 'info';
-        case 'DELETE': return 'danger';
-        case 'APPROVE': return 'success';
-        case 'REJECT': return 'warning';
-        default: return 'secondary';
-    }
 };
 
 export default AuditLogs;

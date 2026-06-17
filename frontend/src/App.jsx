@@ -50,6 +50,7 @@ const WelfareDashboard = lazy(() => import("./pages/chama/welfare/WelfareDashboa
 const SubmitClaim = lazy(() => import("./pages/chama/welfare/SubmitClaim"));
 const WelfareAdmin = lazy(() => import("./pages/chama/welfare/WelfareAdmin"));
 const AuditLogs = lazy(() => import("./pages/chama/core/AuditLogs"));
+const LoanConfigPage = lazy(() => import("./pages/chama/loans/LoanConfigPage"));
 const SecurityMonitor = lazy(() => import("./pages/dashboard/SecurityMonitor"));
 const ApiKeyManagement = lazy(() => import("./pages/dashboard/ApiKeyManagement"));
 const UserProfile = lazy(() => import("./pages/user/UserProfile"));
@@ -402,6 +403,16 @@ function AppContent() {
                                     <ProtectedRoute>
                                         <RoleRoute allowedRoles={['chairperson', 'treasurer', 'secretary']}>
                                             <PageTransition><AuditLogs /></PageTransition>
+                                        </RoleRoute>
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/chamas/:id/loan-config"
+                                element={
+                                    <ProtectedRoute>
+                                        <RoleRoute allowedRoles={['chairperson', 'treasurer', 'secretary']}>
+                                            <PageTransition><LoanConfigPage /></PageTransition>
                                         </RoleRoute>
                                     </ProtectedRoute>
                                 }

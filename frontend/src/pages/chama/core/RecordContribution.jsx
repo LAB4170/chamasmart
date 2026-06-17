@@ -134,167 +134,177 @@ const RecordContribution = () => {
   const expectedAmount = activeCycle?.contribution_amount || chama?.contribution_amount;
 
   return (
-    <div className="page">
-      <div className="container">
-        <div className="page-header">
-          <div>
-            <h1>Record Contribution</h1>
-            <p className="text-muted">
-              {chama?.chama_name}
-              {isROSCA && <span className="badge badge-primary ml-2">Merry-Go-Round</span>}
-            </p>
-          </div>
-          <button className="btn btn-outline btn-sm" onClick={() => navigate(`/chamas/${id}`)}>
-            ← Back to Chama
-          </button>
-        </div>
-
-        {error && <div className="alert alert-error">{error}</div>}
-        {success && <div className="alert alert-success">{success}</div>}
-
-        {/* ROSCA Cycle Context */}
-        {isROSCA && (
-          <div className={`alert ${noCycle ? "alert-error" : activeCycle?.status === "ACTIVE" ? "alert-success" : "alert-warning"} mb-4`}>
-            <div className="flex items-center gap-2">
-              {noCycle ? <AlertCircle size={18} /> : activeCycle?.status === "ACTIVE" ? <CheckCircle2 size={18} /> : <RefreshCw size={18} />}
-              <div>
-                {noCycle ? (
-                  <><strong>No Active Cycle!</strong> {cycleWarning}</>
-                ) : (
-                  <>
-                    <strong>Cycle: {activeCycle?.cycle_name}</strong>
-                    <span className={`badge badge-${activeCycle?.status === "ACTIVE" ? "success" : "warning"} ml-2`}>{activeCycle?.status}</span>
-                    <div className="text-sm mt-1">Expected contribution: <strong>{formatCurrency(activeCycle?.contribution_amount)}</strong> per member</div>
-                    {cycleWarning && <div className="text-sm text-warning mt-1">{cycleWarning}</div>}
-                  </>
-                )}
+    <div className="chama-details-lux-root">
+      <div className="page-frame-lux">
+        <div className="chama-main-frame">
+          <div className="chama-header-lux">
+            <div className="chama-title-area">
+              <button className="btn-return-lux mb-4" onClick={() => navigate(`/chamas/${id}`)}>
+                ← Return to Chama
+              </button>
+              <h1>Record Contribution</h1>
+              <div className="chama-badges mt-2">
+                <span className="badge-lux badge-gold">
+                  {chama?.chama_name}
+                </span>
+                {isROSCA && <span className="badge-lux" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)' }}>Merry-Go-Round</span>}
               </div>
             </div>
           </div>
-        )}
 
-        {!isROSCA && (
-          <div className="alert alert-info mb-4">
-            <strong>Recording Payment</strong> — Use this form to manually log a payment received from a member.
-            It will update their contribution total and appear in reports.
-          </div>
-        )}
+          {error && <div className="alert alert-error">{error}</div>}
+          {success && <div className="alert alert-success">{success}</div>}
 
-        <div className="card">
-          <form onSubmit={handleSubmit}>
-            <div className="card-body" style={{ padding: "1.5rem" }}>
-              {/* Member selection */}
-              <div className="form-group">
-                <label className="form-label">Select Member *</label>
+          {/* ROSCA Cycle Context */}
+          {isROSCA && (
+            <div className={`alert ${noCycle ? "alert-error" : activeCycle?.status === "ACTIVE" ? "alert-success" : "alert-warning"} mb-6`}>
+              <div className="flex items-start gap-3">
+                <div className="mt-1">
+                  {noCycle ? <AlertCircle size={20} /> : activeCycle?.status === "ACTIVE" ? <CheckCircle2 size={20} /> : <RefreshCw size={20} />}
+                </div>
+                <div>
+                  {noCycle ? (
+                    <><strong>No Active Cycle!</strong> <p className="m-0 text-sm mt-1">{cycleWarning}</p></>
+                  ) : (
+                    <>
+                      <strong>Cycle: {activeCycle?.cycle_name}</strong>
+                      <span className="status-pill-lux ml-3" style={{ 
+                        background: activeCycle?.status === "ACTIVE" ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                        color: activeCycle?.status === "ACTIVE" ? '#10b981' : '#f59e0b',
+                        border: `1px solid ${activeCycle?.status === "ACTIVE" ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`
+                      }}>
+                        {activeCycle?.status}
+                      </span>
+                      <div className="text-sm mt-2">Expected contribution: <strong>{formatCurrency(activeCycle?.contribution_amount)}</strong> per member</div>
+                      {cycleWarning && <div className="text-sm text-warning mt-1">{cycleWarning}</div>}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!isROSCA && (
+            <div className="alert mb-6" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+              <strong>Recording Payment</strong> — Use this form to manually log a payment received from a member.
+              It will update their contribution total and appear in reports.
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="mt-4">
+            <div className="form-group">
+              <label className="form-label-lux">Select Member *</label>
+              <select
+                name="userId"
+                className="form-select-lux"
+                value={formData.userId}
+                onChange={handleChange}
+                required
+              >
+                <option value="">Choose a member...</option>
+                {members.map((member) => (
+                  <option key={member.user_id} value={member.user_id}>
+                    {member.first_name} {member.last_name} ({member.role}) — Paid: {formatCurrency(member.total_contributions || 0)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+              <div className="form-group m-0">
+                <label className="form-label-lux">Amount (KES) *</label>
+                <input
+                  type="number"
+                  name="amount"
+                  className="form-input-lux"
+                  min="1"
+                  step="0.01"
+                  value={formData.amount}
+                  onChange={handleChange}
+                  required
+                />
+                {expectedAmount && (
+                  <small style={{ fontSize: '0.75rem', color: 'var(--lux-text-secondary)', marginTop: '0.5rem', display: 'block' }}>
+                    {isROSCA ? `Cycle expected: ` : `Chama default: `}
+                    <strong style={{ color: 'var(--gold-text)' }}>{formatCurrency(expectedAmount)}</strong>
+                  </small>
+                )}
+              </div>
+
+              <div className="form-group m-0">
+                <label className="form-label-lux">Payment Method *</label>
                 <select
-                  name="userId"
-                  className="form-select"
-                  value={formData.userId}
+                  name="paymentMethod"
+                  className="form-select-lux"
+                  value={formData.paymentMethod}
                   onChange={handleChange}
                   required
                 >
-                  <option value="">Choose a member...</option>
-                  {members.map((member) => (
-                    <option key={member.user_id} value={member.user_id}>
-                      {member.first_name} {member.last_name} ({member.role}) — Paid: {formatCurrency(member.total_contributions || 0)}
-                    </option>
-                  ))}
+                  <option value="MPESA">M-Pesa</option>
+                  <option value="CASH">Cash</option>
+                  <option value="BANK_TRANSFER">Bank Transfer</option>
+                  <option value="CHEQUE">Cheque</option>
                 </select>
               </div>
+            </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Amount (KES) *</label>
-                  <input
-                    type="number"
-                    name="amount"
-                    className="form-input"
-                    min="1"
-                    step="0.01"
-                    value={formData.amount}
-                    onChange={handleChange}
-                    required
-                  />
-                  {expectedAmount && (
-                    <small className="text-muted">
-                      {isROSCA ? `Cycle expected: ` : `Chama default: `}
-                      <strong>{formatCurrency(expectedAmount)}</strong>
-                    </small>
-                  )}
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Payment Method *</label>
-                  <select
-                    name="paymentMethod"
-                    className="form-select"
-                    value={formData.paymentMethod}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="MPESA">M-Pesa</option>
-                    <option value="CASH">Cash</option>
-                    <option value="BANK_TRANSFER">Bank Transfer</option>
-                    <option value="CHEQUE">Cheque</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Receipt / Reference Number</label>
-                  <input
-                    type="text"
-                    name="receiptNumber"
-                    className="form-input"
-                    placeholder="e.g., QBX123456"
-                    value={formData.receiptNumber}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Contribution Date *</label>
-                  <input
-                    type="date"
-                    name="contributionDate"
-                    className="form-input"
-                    value={formData.contributionDate}
-                    max={new Date().toISOString().split("T")[0]}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Notes</label>
-                <textarea
-                  name="notes"
-                  className="form-textarea"
-                  placeholder="Any additional notes — e.g., late payment, partial payment reason..."
-                  value={formData.notes}
+            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+              <div className="form-group m-0">
+                <label className="form-label-lux">Receipt / Reference Number</label>
+                <input
+                  type="text"
+                  name="receiptNumber"
+                  className="form-input-lux"
+                  placeholder="e.g., QBX123456"
+                  value={formData.receiptNumber}
                   onChange={handleChange}
-                  rows="3"
+                />
+              </div>
+
+              <div className="form-group m-0">
+                <label className="form-label-lux">Contribution Date *</label>
+                <input
+                  type="date"
+                  name="contributionDate"
+                  className="form-input-lux"
+                  value={formData.contributionDate}
+                  max={new Date().toISOString().split("T")[0]}
+                  onChange={handleChange}
+                  required
                 />
               </div>
             </div>
 
-            <div className="card-footer form-actions">
+            <div className="form-group">
+              <label className="form-label-lux">Notes</label>
+              <textarea
+                name="notes"
+                className="form-input-lux"
+                style={{ resize: 'vertical', minHeight: '100px' }}
+                placeholder="Any additional notes — e.g., late payment, partial payment reason..."
+                value={formData.notes}
+                onChange={handleChange}
+                rows="3"
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '2.5rem', paddingTop: '2rem', borderTop: '1px solid var(--lux-border)' }}>
               <button
                 type="button"
-                className="btn btn-outline"
+                className="btn-lux btn-lux-outline"
                 onClick={() => navigate(`/chamas/${id}`)}
+                style={{ flex: 1, justifyContent: 'center', padding: '1rem' }}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="btn btn-primary"
+                className="btn-lux btn-lux-primary"
                 disabled={loading || noCycle}
                 title={noCycle ? "Create a ROSCA cycle first" : ""}
+                style={{ flex: 2, justifyContent: 'center', padding: '1rem', fontSize: '1rem' }}
               >
-                {loading ? "Recording..." : "Record Contribution"}
+                {loading ? "Recording Transaction..." : "Confirm & Record Contribution"}
               </button>
             </div>
           </form>

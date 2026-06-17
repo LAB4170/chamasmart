@@ -1,7 +1,7 @@
 import axios from "axios";
 import { Capacitor } from "@capacitor/core";
 
-let API_URL = import.meta.env.VITE_API_URL || 'https://chamasmart-khrb.onrender.com/api/v1';
+let API_URL = 'https://chamasmart-khrb.onrender.com/api/v1';
 
 // Adjust API_URL for mobile devices in development
 if (Capacitor.isNativePlatform() && window.location.hostname === "localhost") {

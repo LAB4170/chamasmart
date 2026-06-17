@@ -2521,73 +2521,107 @@ const ChamaDetails = () => {
 
             {activeTab === "management" && officialStatus && (
               <div className="management-tab-lux">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div className="dashboard-card-lux hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/manage`)}>
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center border border-indigo-500/20">
-                        <Settings size={24} />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-lux-primary m-0" style={{ color: 'var(--lux-text-primary)' }}>General Settings</h4>
-                        <p className="text-xs text-lux-secondary m-0" style={{ color: 'var(--lux-text-secondary)' }}>Update chama name, visibility, and payments</p>
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="dashboard-card-lux hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/invites`)}>
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20">
-                        <Mail size={24} />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-lux-primary m-0" style={{ color: 'var(--lux-text-primary)' }}>Member Invites</h4>
-                        <p className="text-xs text-lux-secondary m-0" style={{ color: 'var(--lux-text-secondary)' }}>Generate codes and send email invitations</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="dashboard-card-lux hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/add-member`)}>
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center border border-blue-500/20">
-                        <Users size={24} />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-lux-primary m-0" style={{ color: 'var(--lux-text-primary)' }}>Add Member Direct</h4>
-                        <p className="text-xs text-lux-secondary m-0" style={{ color: 'var(--lux-text-secondary)' }}>Add a known user directly to the chama</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="dashboard-card-lux hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/join-requests`)}>
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center border border-amber-500/20">
-                        <Bell size={24} />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-lux-primary m-0" style={{ color: 'var(--lux-text-primary)' }}>Join Requests</h4>
-                        <p className="text-xs text-lux-secondary m-0" style={{ color: 'var(--lux-text-secondary)' }}>Approve or reject pending member requests</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="dashboard-card-lux hover-scale cursor-pointer" onClick={() => navigate(`/chamas/${id}/audit-logs`)}>
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-slate-500/10 text-slate-500 flex items-center justify-center border border-slate-500/20">
-                        <FileText size={24} />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-lux-primary m-0" style={{ color: 'var(--lux-text-primary)' }}>Audit Logs</h4>
-                        <p className="text-xs text-lux-secondary m-0" style={{ color: 'var(--lux-text-secondary)' }}>View history of all actions in the chama</p>
-                      </div>
-                    </div>
-                  </div>
+                {/* ── Section heading ── */}
+                <div style={{ marginBottom:"1.5rem" }}>
+                  <h3 style={{ margin:0, fontSize:"1.1rem", fontWeight:900, color:"var(--lux-text-primary)" }}>
+                    Chama Control Centre
+                  </h3>
+                  <p style={{ margin:"4px 0 0", fontSize:"0.85rem", color:"var(--lux-text-secondary)" }}>
+                    Manage settings, members, and compliance for this group
+                  </p>
                 </div>
-                 {/* Loan Configuration Panel — TABLE_BANKING and ASCA only */}
-                 {['TABLE_BANKING', 'ASCA'].includes(chama?.chama_type) && (
-                   <div className="mt-6">
-                     <LoanConfigCard chamaId={id} />
-                   </div>
-                 )}
+
+                {/* ── Cards grid ── */}
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"1rem" }}>
+
+                  {/* General Settings */}
+                  {[
+                    {
+                      icon: Settings, color:"#6366f1", bg:"rgba(99,102,241,0.1)", border:"rgba(99,102,241,0.22)",
+                      title:"General Settings", sub:"Name, visibility, contribution & payment options",
+                      path:`/chamas/${id}/manage`, show: true
+                    },
+                    {
+                      icon: Mail, color:"var(--lux-gold)", bg:"rgba(212,175,55,0.1)", border:"rgba(212,175,55,0.22)",
+                      title:"Member Invites", sub:"Generate invite codes and send email invitations",
+                      path:`/chamas/${id}/invites`, show: true
+                    },
+                    {
+                      icon: Users, color:"#3b82f6", bg:"rgba(59,130,246,0.1)", border:"rgba(59,130,246,0.22)",
+                      title:"Add Member Direct", sub:"Add a verified user directly to the chama roster",
+                      path:`/chamas/${id}/add-member`, show: true
+                    },
+                    {
+                      icon: Bell, color:"#f59e0b", bg:"rgba(245,158,11,0.1)", border:"rgba(245,158,11,0.22)",
+                      title:"Join Requests", sub:"Review and approve pending member applications",
+                      path:`/chamas/${id}/join-requests`, show: true
+                    },
+                    {
+                      icon: FileText, color:"#a78bfa", bg:"rgba(167,139,250,0.1)", border:"rgba(167,139,250,0.22)",
+                      title:"Audit Logs", sub:"Immutable record of every action in this chama",
+                      path:`/chamas/${id}/audit-logs`, show: true
+                    },
+                    {
+                      icon: CreditCard, color:"#10b981", bg:"rgba(16,185,129,0.1)", border:"rgba(16,185,129,0.22)",
+                      title:"Loan Configuration", sub:"Set interest rates, multipliers and repayment caps",
+                      path:`/chamas/${id}/loan-config`,
+                      show: ['TABLE_BANKING','ASCA'].includes(chama?.chama_type)
+                    },
+                  ].filter(c => c.show).map(({ icon: Icon, color, bg, border, title, sub, path }) => (
+                    <div
+                      key={title}
+                      onClick={() => navigate(path)}
+                      style={{
+                        background:"var(--lux-card-bg)",
+                        border:`1.5px solid var(--lux-border)`,
+                        borderRadius:"18px",
+                        padding:"1.25rem 1.25rem 1.1rem",
+                        cursor:"pointer",
+                        transition:"all 0.22s",
+                        display:"flex",
+                        flexDirection:"column",
+                        gap:"0.85rem",
+                        position:"relative",
+                        overflow:"hidden",
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.border = `1.5px solid ${border}`;
+                        e.currentTarget.style.background = bg;
+                        e.currentTarget.style.transform = "translateY(-2px)";
+                        e.currentTarget.style.boxShadow = `0 8px 24px ${bg}`;
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.border = "1.5px solid var(--lux-border)";
+                        e.currentTarget.style.background = "var(--lux-card-bg)";
+                        e.currentTarget.style.transform = "translateY(0)";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
+                    >
+                      {/* Icon badge */}
+                      <div style={{
+                        width:44, height:44, borderRadius:"13px",
+                        background:bg, border:`1.5px solid ${border}`,
+                        display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
+                      }}>
+                        <Icon size={21} style={{ color }} />
+                      </div>
+
+                      {/* Text */}
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontWeight:800, fontSize:"0.95rem", color:"var(--lux-text-primary)", marginBottom:"4px", lineHeight:1.2 }}>
+                          {title}
+                        </div>
+                        <div style={{ fontSize:"0.78rem", color:"var(--lux-text-secondary)", lineHeight:1.4 }}>
+                          {sub}
+                        </div>
+                      </div>
+
+                      {/* Arrow */}
+                      <ArrowRight size={16} style={{ color:"var(--lux-text-secondary)", opacity:0.45, position:"absolute", top:"1.1rem", right:"1.1rem" }} />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

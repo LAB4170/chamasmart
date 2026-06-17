@@ -61,7 +61,7 @@ const ManageChama = () => {
             if (userStr) {
                 const user = JSON.parse(userStr);
                 const currentUserId = user.user_id || user.id;
-                const member = membersRes.data.data.find(m => m.user_id === currentUserId);
+                const member = membersRes.data.data.find(m => String(m.user_id) === String(currentUserId));
                 if (member) setUserRole(member.role);
             }
 
@@ -138,10 +138,7 @@ const ManageChama = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (formData.visibility !== chamaData?.visibility && userRole !== 'CHAIRPERSON') {
-            toast.error('Only the Chairperson can change Chama visibility.');
-            return;
-        }
+        // The backend validates that only the Chairperson can update Chama settings.
 
         try {
             setLoading(true);
@@ -241,18 +238,16 @@ const ManageChama = () => {
                         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                             <button
                                 onClick={() => navigate(`/chamas/${id}`, { state: { tab: 'management' } })}
-                                className="btn-lux btn-lux-outline flex items-center gap-2"
-                                style={{ fontSize: '0.85rem' }}
+                                className="btn-return-lux"
                             >
                                 <ArrowLeft size={15} /> Back
                             </button>
                             <button
                                 onClick={handleAnalyzeReliability}
+                                className="btn-lux btn-lux-primary flex items-center gap-2 text-white"
+                                style={{ fontSize: '0.85rem' }}
                                 disabled={analyzing}
-                                className="btn-lux btn-lux-primary flex items-center gap-2"
-                                style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', fontSize: '0.85rem' }}
-                            >
-                                {analyzing ? <RefreshCw className="animate-spin" size={15} /> : <BarChart3 size={15} />}
+                            >    {analyzing ? <RefreshCw className="animate-spin" size={15} /> : <BarChart3 size={15} />}
                                 {analyzing ? 'Analyzing...' : 'Analyze Reliability'}
                             </button>
                         </div>
@@ -313,8 +308,8 @@ const ManageChama = () => {
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="mlabel">Visibility {userRole !== 'CHAIRPERSON' && <span style={{ color: '#ef4444', fontSize: '0.6rem' }}>— Chairperson only</span>}</label>
-                                            <select name="visibility" className="minput" value={formData.visibility} onChange={handleChange} disabled={userRole !== 'CHAIRPERSON'} style={{ opacity: userRole === 'CHAIRPERSON' ? 1 : 0.55 }}>
+                                            <label className="mlabel">Visibility</label>
+                                            <select name="visibility" className="minput" value={formData.visibility} onChange={handleChange}>
                                                 <option value="PRIVATE">Private (Invite Only)</option>
                                                 <option value="PUBLIC">Public (Visible to All)</option>
                                             </select>
