@@ -199,6 +199,37 @@ const DashboardChamaCard = memo(({ chama, getChamaTypeLabel, formatCurrency }) =
   );
 });
 
+// ─── Custom Tooltip ───────────────────────────────────────────────────────────
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div style={{
+        background: "rgba(10, 15, 25, 0.85)",
+        backdropFilter: "blur(12px)",
+        border: "1px solid rgba(255,255,255,0.05)",
+        padding: "12px 16px",
+        borderRadius: "12px",
+        color: "#fff",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.5)"
+      }}>
+        <p style={{ margin: 0, fontWeight: 700, fontSize: "0.85rem", marginBottom: "10px", color: "#cbd5e1" }}>{label}</p>
+        {payload.map((entry, index) => (
+          <div key={index} style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "0.85rem", marginBottom: index !== payload.length - 1 ? "6px" : "0" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: entry.color || entry.fill || "#fff" }} />
+              <span style={{ color: "rgba(255,255,255,0.6)", textTransform: "capitalize" }}>{entry.name === "total" ? "Wealth" : entry.name}</span>
+            </div>
+            <span style={{ fontWeight: 800, marginLeft: "auto" }}>
+              {new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES" }).format(entry.value)}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 const Dashboard = () => {
   const { user } = useAuth();
@@ -393,33 +424,47 @@ const Dashboard = () => {
                     <ResponsiveContainer width="100%" height={300}>
                       <AreaChart data={chamas.map(c => ({ name: c.chama_name, total: parseFloat(c.total_contributions || 0) }))}>
                         <defs>
-                          <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#D4AF37" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#D4AF37" stopOpacity={0}/>
+                          <linearGradient id="wealthGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.6}/>
+                            <stop offset="100%" stopColor="#ec4899" stopOpacity={0}/>
+                          </linearGradient>
+                          <linearGradient id="wealthLine" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stopColor="#8b5cf6" />
+                            <stop offset="100%" stopColor="#ec4899" />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
-                        <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                        <YAxis tick={{ fontSize: 10 }} />
-                        <Tooltip />
-                        <Area type="monotone" dataKey="total" stroke="#D4AF37" fillOpacity={1} fill="url(#colorTotal)" />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} />
+                        <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} dy={10} />
+                        <YAxis tick={{ fontSize: 10, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} dx={-10} tickFormatter={(val) => `Ksh ${val >= 1000 ? val/1000 + 'k' : val}`} />
+                        <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                        <Area type="monotone" dataKey="total" stroke="url(#wealthLine)" strokeWidth={4} fillOpacity={1} fill="url(#wealthGradient)" activeDot={{ r: 6, fill: "#ec4899", stroke: "#fff", strokeWidth: 2 }} />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
 
                   <div className="report-card">
                     <div className="section-header-lux">
-                      <Target size={16} color="#3b82f6" />
+                      <Target size={16} color="#38bdf8" />
                       <h3>Annual Targets</h3>
                     </div>
                     <ResponsiveContainer width="100%" height={300}>
                       <BarChart data={chamas.map(c => ({ name: c.chama_name, actual: parseFloat(c.total_contributions || 0), target: parseFloat(c.contribution_amount || 0) * 12 }))}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
-                        <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                        <YAxis tick={{ fontSize: 10 }} />
-                        <Tooltip />
-                        <Bar dataKey="actual" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="target" fill="rgba(59, 130, 246, 0.1)" radius={[4, 4, 0, 0]} />
+                        <defs>
+                          <linearGradient id="targetActual" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#38bdf8"/>
+                            <stop offset="100%" stopColor="#0284c7"/>
+                          </linearGradient>
+                          <linearGradient id="targetExpected" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="rgba(56, 189, 248, 0.15)"/>
+                            <stop offset="100%" stopColor="rgba(2, 132, 199, 0.05)"/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} />
+                        <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} dy={10} />
+                        <YAxis tick={{ fontSize: 10, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} dx={-10} tickFormatter={(val) => `Ksh ${val >= 1000 ? val/1000 + 'k' : val}`} />
+                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+                        <Bar dataKey="actual" fill="url(#targetActual)" radius={[6, 6, 0, 0]} barSize={24} />
+                        <Bar dataKey="target" fill="url(#targetExpected)" stroke="rgba(56, 189, 248, 0.4)" strokeWidth={1} strokeDasharray="3 3" radius={[6, 6, 0, 0]} barSize={24} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>

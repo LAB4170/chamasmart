@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import "./ChamaDetailsLux.css";
 
 // Memoized Chama card component for the premium grid
-const ChamaCard = memo(({ chama, onDetails, onRequest, requestingId, formatCurrency, getChamaTypeLabel, isRequested }) => {
+const ChamaCard = memo(({ chama, onDetails, onRequest, requestingId, formatCurrency, getChamaTypeLabel, isRequested, isMember }) => {
     return (
         <motion.div 
             className="browse-chama-card-lux"
@@ -67,11 +67,11 @@ const ChamaCard = memo(({ chama, onDetails, onRequest, requestingId, formatCurre
                     View Details
                 </button>
                 <button
-                    className={isRequested ? "btn-browse-requested" : "btn-browse-join"}
-                    onClick={() => !isRequested && onRequest(chama.chama_id)}
-                    disabled={requestingId === chama.chama_id || isRequested}
+                    className={isMember || isRequested ? "btn-browse-requested" : "btn-browse-join"}
+                    onClick={() => !isMember && !isRequested && onRequest(chama.chama_id)}
+                    disabled={requestingId === chama.chama_id || isRequested || isMember}
                 >
-                    {requestingId === chama.chama_id ? "Syncing..." : isRequested ? "Pending Approval" : "Request to Join"}
+                    {isMember ? "Already a Member" : requestingId === chama.chama_id ? "Syncing..." : isRequested ? "Pending Approval" : "Request to Join"}
                 </button>
             </div>
         </motion.div>
@@ -91,18 +91,21 @@ const BrowseChamas = () => {
     const [chamaType, setChamaType] = useState("");
     const [requestingId, setRequestingId] = useState(null);
     const [requestedChamas, setRequestedChamas] = useState(new Set());
+    const [joinedChamas, setJoinedChamas] = useState(new Set());
 
     const fetchPublicChamas = useCallback(async () => {
         let isMounted = true;
         try {
             if (isMounted) setLoading(true);
-            const [chamasRes, requestsRes] = await Promise.all([
+            const [chamasRes, requestsRes, myChamasRes] = await Promise.all([
                 chamaAPI.getPublicChamas({ search, chamaType }),
-                user ? joinRequestAPI.getMyRequests() : Promise.resolve({ data: { data: [] } })
+                user ? joinRequestAPI.getMyRequests() : Promise.resolve({ data: { data: [] } }),
+                user ? chamaAPI.getMyChamas() : Promise.resolve({ data: { data: [] } })
             ]);
             if (isMounted) {
                 const publicData = chamasRes.data?.data;
                 setChamas(Array.isArray(publicData) ? publicData : []);
+                
                 if (requestsRes.data?.data) {
                     const pendingIds = new Set(
                         requestsRes.data.data
@@ -110,6 +113,14 @@ const BrowseChamas = () => {
                             .map(r => String(r.chama_id))
                     );
                     setRequestedChamas(pendingIds);
+                }
+
+                if (myChamasRes.data?.data) {
+                    const myChamaIds = new Set(
+                        (Array.isArray(myChamasRes.data.data) ? myChamasRes.data.data : [])
+                            .map(c => String(c.chama_id))
+                    );
+                    setJoinedChamas(myChamaIds);
                 }
             }
         } catch (err) {
@@ -284,6 +295,7 @@ const BrowseChamas = () => {
                                             formatCurrency={formatCurrency}
                                             getChamaTypeLabel={getChamaTypeLabel}
                                             isRequested={requestedChamas.has(String(chama.chama_id))}
+                                            isMember={joinedChamas.has(String(chama.chama_id))}
                                         />
                                     ))}
                                 </AnimatePresence>

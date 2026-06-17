@@ -208,7 +208,7 @@
 .chama-cover-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, var(--bg-surface-glass), transparent);
+    background: transparent;
 }
 
 .chama-card-body-lux {

@@ -1,5 +1,6 @@
 package com.chamasmart.backend.controller;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import com.chamasmart.backend.domain.MpesaTransaction;
 import com.chamasmart.backend.dto.*;
 import com.chamasmart.backend.security.CustomUserDetails;
@@ -16,6 +17,7 @@ import java.util.Map;
 @RequestMapping({"/mpesa", "/payments/mpesa"})
 @RequiredArgsConstructor
 @Slf4j
+@CrossOrigin(origins = "https://chamasmart.netlify.app")
 public class MpesaController {
     private final MpesaService mpesaService;
     @PostMapping({"/stkpush", "/stk-push"})
