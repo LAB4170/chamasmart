@@ -172,6 +172,15 @@ public class LoanController {
         data.put("status", r.getStatus());
         return ResponseEntity.ok(ApiResponse.success(data, "Repayment submitted. It counts once an official verifies it"));
     }
+    @PostMapping("/{chamaId}/{loanId}/call-guarantees")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> callGuarantees(@PathVariable Long chamaId, @PathVariable Long loanId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        String outcome = loanService.callGuarantees(chamaId, loanId, currentUser.getUserId());
+        boolean waiting = outcome.startsWith("AWAITING");
+        Map<String, Object> data = new java.util.HashMap<>();
+        data.put("status", waiting ? "AWAITING_SECOND_OFFICIAL" : "RECOVERED");
+        if (!waiting) data.put("recovered", new java.math.BigDecimal(outcome.substring(10)));
+        return ResponseEntity.ok(ApiResponse.success(data, waiting ? "Request recorded. A different official must confirm it. Nothing has moved yet" : "Guarantors' savings applied to the loan"));
+    }
     @GetMapping("/{chamaId}/arrears")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> arrears(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails currentUser) {
         return ResponseEntity.ok(ApiResponse.success(loanArrearsService.arrears(chamaId, currentUser.getUserId()), "Arrears retrieved"));

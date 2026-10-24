@@ -496,6 +496,71 @@ public class LoanService {
         return saved;
     }
 
+    /**
+     * T-01: recovers a defaulted loan from the guarantors' own savings. Two different officials are needed: one requests, another executes.
+     * Each guarantor gives at most their pledge and at most their savings, in order, until the balance is cleared.
+     * The amount comes out of the guarantor's savings (a negative regular entry) and goes into the fund as a loan repayment.
+     * Returns "AWAITING_SECOND_OFFICIAL" or "RECOVERED:<amount>".
+     */
+    @Transactional
+    public String callGuarantees(Long chamaId, Long loanId, Long officialId) {
+        validateUserIsOfficial(chamaId, officialId);
+        Loan loan = loanRepository.findByIdWithPessimisticLock(loanId).orElseThrow(() -> new RuntimeException("Loan not found"));
+        if (!chamaId.equals(loan.getChama().getChamaId())) throw new RuntimeException("Loan not found");
+        if (!"DEFAULTED".equalsIgnoreCase(loan.getStatus())) throw new IllegalStateException("Guarantees can only be called on a defaulted loan");
+        List<LoanGuarantor> guarantors = loanGuarantorRepository.findByLoanLoanId(loanId).stream()
+                .filter(g -> "APPROVED".equals(g.getStatus())).collect(Collectors.toList());
+        if (guarantors.isEmpty()) throw new IllegalStateException("This loan has no accepted guarantors");
+        if (loan.getBorrower().getUserId().equals(officialId) || guarantors.stream().anyMatch(g -> g.getGuarantorUser().getUserId().equals(officialId))) {
+            throw new org.springframework.security.access.AccessDeniedException("The borrower and the guarantors cannot call the guarantee; another official must do it");
+        }
+        if (loan.getGuaranteeCallRequestedBy() == null) {
+            loan.setGuaranteeCallRequestedBy(officialId);
+            loanRepository.save(loan);
+            auditLogRepository.save(FinancialAuditLog.builder().user(userRepository.getReferenceById(officialId)).transactionType("GUARANTEE_CALL_REQUESTED")
+                    .amount(loan.getTotalRepayable().subtract(loan.getAmountPaid() == null ? BigDecimal.ZERO : loan.getAmountPaid())).chama(loan.getChama()).referenceId(loanId)
+                    .description("Guarantee call requested on loan " + loanId + ". A different official must confirm it")
+                    .ipAddress(com.chamasmart.backend.security.ClientIp.current()).userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent()).build());
+            return "AWAITING_SECOND_OFFICIAL";
+        }
+        if (loan.getGuaranteeCallRequestedBy().equals(officialId)) {
+            throw new org.springframework.security.access.AccessDeniedException("You requested this call, so a different official must confirm it");
+        }
+        BigDecimal paid = loan.getAmountPaid() == null ? BigDecimal.ZERO : loan.getAmountPaid();
+        BigDecimal remaining = loan.getTotalRepayable().subtract(paid);
+        BigDecimal recovered = BigDecimal.ZERO;
+        Chama chama = chamaRepository.findByIdWithPessimisticLock(chamaId).orElseThrow(() -> new RuntimeException("Chama not found"));
+        for (LoanGuarantor g : guarantors) {
+            if (remaining.signum() <= 0) break;
+            Long gid = g.getGuarantorUser().getUserId();
+            BigDecimal take = g.getGuaranteeAmount().min(savingsOf(chamaId, gid)).min(remaining).setScale(2, RoundingMode.DOWN);
+            if (take.signum() <= 0) continue;
+            contributionRepository.save(Contribution.builder().chama(chama).user(g.getGuarantorUser()).amount(take.negate())
+                    .contributionType("REGULAR").status("COMPLETED").reference("GCALL-" + loanId + "-" + gid).recordedBy(officialId)
+                    .notes("Savings applied to defaulted loan " + loanId + " under the guarantee").isDeleted(false).build());
+            chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, gid).ifPresent(m -> {
+                BigDecimal tot = m.getTotalContributions() == null ? BigDecimal.ZERO : m.getTotalContributions();
+                m.setTotalContributions(tot.subtract(take).max(BigDecimal.ZERO));
+                chamaMemberRepository.save(m);
+            });
+            recovered = recovered.add(take);
+            remaining = remaining.subtract(take);
+            auditLogRepository.save(FinancialAuditLog.builder().user(g.getGuarantorUser()).transactionType("GUARANTEE_CALLED").amount(take).chama(chama).referenceId(loanId)
+                    .description("KES " + take.toPlainString() + " of the guarantor's savings applied to defaulted loan " + loanId)
+                    .ipAddress(com.chamasmart.backend.security.ClientIp.current()).userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent()).build());
+        }
+        if (recovered.signum() <= 0) throw new IllegalStateException("The guarantors have no savings available to cover this loan");
+        loan.setAmountPaid(paid.add(recovered));
+        loan.setLastPaymentDate(ZonedDateTime.now());
+        loan.setGuaranteeCallRequestedBy(null);
+        chama.setCurrentFund(chama.getCurrentFund().add(recovered));
+        chamaRepository.save(chama);
+        ledger.post(chama, LedgerEntry.CHAMA_FUND, recovered, "GUARANTEE_CALL", "LOAN", loanId, officialId, "Guarantors' savings applied to defaulted loan");
+        if (loan.getAmountPaid().compareTo(loan.getTotalRepayable()) >= 0) loan.setStatus("COMPLETED");
+        loanRepository.save(loan);
+        return "RECOVERED:" + recovered.toPlainString();
+    }
+
     /** An official other than the payer confirms the money arrived; only now do the loan and the fund move. */
     @Transactional
     public void verifyRepayment(Long chamaId, Long repaymentId, Long officialUserId) {

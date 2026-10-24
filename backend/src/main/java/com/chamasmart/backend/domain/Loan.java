@@ -80,6 +80,8 @@ public class Loan {
     @OneToMany(mappedBy = "loan", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<LoanGuarantor> guarantors = new ArrayList<>();
+    @Column(name = "guarantee_call_requested_by")
+    private Long guaranteeCallRequestedBy;
     @Version
     @Column(name = "version")
     private Long version;

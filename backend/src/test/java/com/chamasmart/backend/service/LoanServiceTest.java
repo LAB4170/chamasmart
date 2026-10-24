@@ -198,6 +198,52 @@ class LoanServiceTest {
         assertEquals("COMPLETED", mine.getStatus());
     }
 
+    private void defaultedWithGuarantor(String guarantorSavings, String pledged) {
+        member(7, "TREASURER", true); member(6, "CHAIRPERSON", true);
+        mine.setStatus("DEFAULTED"); mine.setTotalRepayable(new BigDecimal("1000")); mine.setAmountPaid(new BigDecimal("200"));
+        LoanGuarantor g = LoanGuarantor.builder().loan(mine).guarantorUser(user(8)).guaranteeAmount(new BigDecimal(pledged)).status("APPROVED").build();
+        when(guarantorRepo.findByLoanLoanId(10L)).thenReturn(List.of(g));
+        when(loanRepo.findByIdWithPessimisticLock(10L)).thenReturn(Optional.of(mine));
+        when(chamaRepo.findByIdWithPessimisticLock(1L)).thenReturn(Optional.of(chama));
+        when(contribRepo.findByUserUserIdAndIsDeletedFalse(8L)).thenReturn(List.of(saved(8, guarantorSavings, "REGULAR", "COMPLETED")));
+        when(memberRepo.findByChamaChamaIdAndUserUserId(1L, 8L)).thenReturn(Optional.of(ChamaMember.builder().role("MEMBER").isActive(true).totalContributions(new BigDecimal(guarantorSavings)).build()));
+    }
+
+    @Test void guaranteeCallNeedsTwoOfficialsThenTakesOnlyWhatWasPledged() {
+        defaultedWithGuarantor("5000", "300");
+        assertEquals("AWAITING_SECOND_OFFICIAL", service.callGuarantees(1L, 10L, 7L));
+        assertEquals(0, new BigDecimal("200").compareTo(mine.getAmountPaid()));
+        assertThrows(AccessDeniedException.class, () -> service.callGuarantees(1L, 10L, 7L));
+        assertEquals("RECOVERED:300.00", service.callGuarantees(1L, 10L, 6L));
+        assertEquals(0, new BigDecimal("500").compareTo(mine.getAmountPaid()));
+        assertEquals("DEFAULTED", mine.getStatus());
+        assertEquals(0, new BigDecimal("5300").compareTo(chama.getCurrentFund()));
+        verify(contribRepo).save(argThat((Contribution c) -> c.getAmount().compareTo(new BigDecimal("-300.00")) == 0 && c.getUser().getUserId() == 8L));
+    }
+
+    @Test void guaranteeCallIsLimitedByTheGuarantorsSavingsAndClearsTheLoanWhenCovered() {
+        defaultedWithGuarantor("100", "5000");
+        service.callGuarantees(1L, 10L, 7L);
+        assertEquals("RECOVERED:100.00", service.callGuarantees(1L, 10L, 6L));
+        defaultedWithGuarantor("5000", "5000");
+        mine.setAmountPaid(new BigDecimal("200"));
+        service.callGuarantees(1L, 10L, 7L);
+        service.callGuarantees(1L, 10L, 6L);
+        assertEquals("COMPLETED", mine.getStatus());
+    }
+
+    @Test void guaranteeCannotBeCalledOnALoanThatIsNotDefaulted() {
+        defaultedWithGuarantor("5000", "300");
+        mine.setStatus("ACTIVE");
+        assertThrows(IllegalStateException.class, () -> service.callGuarantees(1L, 10L, 7L));
+    }
+
+    @Test void aGuarantorCannotCallTheirOwnGuarantee() {
+        defaultedWithGuarantor("5000", "300");
+        member(8, "TREASURER", true);
+        assertThrows(AccessDeniedException.class, () -> service.callGuarantees(1L, 10L, 8L));
+    }
+
     @Test void anOfficialCannotVerifyTheirOwnRepayment() {
         member(5, "TREASURER", true);
         when(repaymentRepo.findById(1L)).thenReturn(Optional.of(pending(1, 5, "400")));
