@@ -36,6 +36,7 @@ public class ExitService {
     private final LedgerService ledger;
     private final MembershipService membership;
     private final UserRepository userRepo;
+    private final FineService fineService;
 
     BigDecimal savings(Long chamaId, Long userId) {
         return contributionRepo.findByUserUserIdAndIsDeletedFalse(userId).stream()
@@ -43,6 +44,16 @@ public class ExitService {
                 .filter(c -> "COMPLETED".equalsIgnoreCase(c.getStatus()))
                 .filter(c -> c.getContributionType() == null || "REGULAR".equalsIgnoreCase(c.getContributionType()))
                 .map(Contribution::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /** Fines taken from the savings on exit: all open fines, but never more than the savings. */
+    BigDecimal finesTaken(Long chamaId, Long userId, BigDecimal savings) {
+        return fineService.outstandingFor(chamaId, userId).min(savings).max(BigDecimal.ZERO);
+    }
+
+    BigDecimal netRefund(Long chamaId, Long userId) {
+        BigDecimal s = savings(chamaId, userId);
+        return s.subtract(finesTaken(chamaId, userId, s));
     }
 
     /** Reasons the member cannot leave right now. Empty means they can. */
@@ -93,7 +104,7 @@ public class ExitService {
         if (!why.isEmpty()) throw new IllegalStateException(String.join(". ", why));
         Chama chama = chamaRepo.findById(chamaId).orElseThrow(() -> new RuntimeException("Chama not found"));
         MemberExit e = exitRepo.save(MemberExit.builder().chama(chama).user(userRepo.getReferenceById(userId)).kind(kind).status("REQUESTED")
-                .refundAmount(savings(chamaId, userId)).requestedBy(requestedBy).build());
+                .refundAmount(netRefund(chamaId, userId)).requestedBy(requestedBy).build());
         audit(requestedBy, "MEMBER_EXIT_REQUESTED", e, "Member exit (" + kind + ") requested, refund KES " + e.getRefundAmount().toPlainString());
         return e;
     }
@@ -121,7 +132,7 @@ public class ExitService {
             throw new AccessDeniedException("You started this removal, so a different official must approve it");
         List<String> why = blockers(chamaId, memberId);
         if (!why.isEmpty()) throw new IllegalStateException(String.join(". ", why));
-        e.setRefundAmount(savings(chamaId, memberId));
+        e.setRefundAmount(netRefund(chamaId, memberId));
         e.setApprovedBy(officialId);
         e.setStatus("APPROVED");
         audit(officialId, "MEMBER_EXIT_APPROVED", e, "Refund KES " + e.getRefundAmount().toPlainString() + " approved");
@@ -141,7 +152,16 @@ public class ExitService {
         List<String> why = blockers(chamaId, memberId);
         if (!why.isEmpty()) throw new IllegalStateException(String.join(". ", why));
         Chama chama = chamaRepo.findByIdWithPessimisticLock(chamaId).orElseThrow(() -> new RuntimeException("Chama not found"));
-        BigDecimal refund = savings(chamaId, memberId);
+        BigDecimal gross = savings(chamaId, memberId);
+        BigDecimal fineCut = fineService.settleFromRefund(chamaId, memberId, finesTaken(chamaId, memberId, gross), e.getExitId());
+        BigDecimal refund = gross.subtract(fineCut);
+        if (fineCut.signum() > 0) {
+            // Savings leave the member's account; the fines part stays in the fund as a FINE receipt, so the fund only drops by the net refund.
+            contributionRepo.save(Contribution.builder().chama(chama).user(e.getUser()).amount(fineCut.negate()).contributionType("REGULAR")
+                    .status("COMPLETED").reference("EXITFINE-" + e.getExitId()).recordedBy(officialId).notes("Savings applied to unpaid fines on leaving").isDeleted(false).build());
+            contributionRepo.save(Contribution.builder().chama(chama).user(e.getUser()).amount(fineCut).contributionType("FINE")
+                    .status("COMPLETED").reference("EXITFINE-" + e.getExitId()).recordedBy(officialId).notes("Unpaid fines settled from the exit refund").isDeleted(false).build());
+        }
         if (refund.signum() > 0) {
             if (reference == null || reference.isBlank()) throw new IllegalArgumentException("Enter the payment reference (for example the M-Pesa code) of the refund");
             if (chama.getCurrentFund().compareTo(refund) < 0)
@@ -158,9 +178,9 @@ public class ExitService {
         membership.syncMemberCount(chama);
         e.setRefundAmount(refund); e.setPaidBy(officialId); e.setPayoutReference(reference == null ? null : reference.trim());
         e.setStatus("COMPLETED"); e.setCompletedAt(java.time.ZonedDateTime.now());
-        audit(officialId, "MEMBER_EXIT_PAID", e, "Refund KES " + refund.toPlainString() + " paid, reference " + e.getPayoutReference());
+        audit(officialId, "MEMBER_EXIT_PAID", e, "Refund KES " + refund.toPlainString() + (fineCut.signum() > 0 ? " after KES " + fineCut.toPlainString() + " of unpaid fines" : "") + " paid, reference " + e.getPayoutReference());
         notifRepo.save(Notification.builder().user(e.getUser()).title("You have left " + chama.getChamaName())
-                .message("Your savings of KES " + refund.toPlainString() + " were refunded. Open your closing statement in the app for the details.")
+                .message((fineCut.signum() > 0 ? "KES " + fineCut.toPlainString() + " of unpaid fines was taken from your savings. " : "") + "KES " + refund.toPlainString() + " was refunded. Open your closing statement in the app for the details.")
                 .type("MEMBER_EXIT").entityType("MEMBER_EXIT").entityId(e.getExitId()).build());
         return exitRepo.save(e);
     }
@@ -182,12 +202,13 @@ public class ExitService {
         MemberExit e = load(chamaId, exitId);
         if (!viewerId.equals(e.getUser().getUserId())) membership.activeOfficial(chamaId, viewerId);
         Long uid = e.getUser().getUserId();
-        BigDecimal paidIn = BigDecimal.ZERO, applied = BigDecimal.ZERO, refunded = BigDecimal.ZERO;
+        BigDecimal paidIn = BigDecimal.ZERO, applied = BigDecimal.ZERO, refunded = BigDecimal.ZERO, finesTaken = BigDecimal.ZERO;
         for (Contribution c : contributionRepo.findByUserUserIdAndIsDeletedFalse(uid)) {
             if (c.getChama() == null || !chamaId.equals(c.getChama().getChamaId()) || !"COMPLETED".equalsIgnoreCase(c.getStatus())) continue;
             if (c.getContributionType() != null && !"REGULAR".equalsIgnoreCase(c.getContributionType())) continue;
             String ref = c.getReference() == null ? "" : c.getReference();
             if (c.getAmount().signum() > 0) paidIn = paidIn.add(c.getAmount());
+            else if (ref.startsWith("EXITFINE-")) finesTaken = finesTaken.add(c.getAmount().negate());
             else if (ref.startsWith("EXIT-")) refunded = refunded.add(c.getAmount().negate());
             else applied = applied.add(c.getAmount().negate());
         }
@@ -199,6 +220,7 @@ public class ExitService {
         m.put("status", e.getStatus());
         m.put("savings_paid_in", paidIn);
         m.put("applied_to_guaranteed_loans", applied);
+        m.put("unpaid_fines_deducted", "COMPLETED".equals(e.getStatus()) ? finesTaken : finesTaken(chamaId, uid, savings(chamaId, uid)));
         m.put("refund", "COMPLETED".equals(e.getStatus()) ? refunded : e.getRefundAmount());
         m.put("payout_reference", e.getPayoutReference());
         m.put("completed_at", e.getCompletedAt());
@@ -233,7 +255,12 @@ public class ExitService {
     public Map<String, Object> preview(Long chamaId, Long userId) {
         membership.activeMember(chamaId, userId);
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("refund", savings(chamaId, userId));
+        BigDecimal sv = savings(chamaId, userId);
+        BigDecimal cut = finesTaken(chamaId, userId, sv);
+        m.put("savings", sv);
+        m.put("unpaid_fines_deducted", cut);
+        m.put("unpaid_fines_left_over", fineService.outstandingFor(chamaId, userId).subtract(cut));
+        m.put("refund", sv.subtract(cut));
         m.put("blockers", blockers(chamaId, userId));
         m.put("open_exit", hasOpenExit(chamaId, userId));
         return m;

@@ -72,8 +72,13 @@ export default function MemberExits() {
             {preview && (
               <section className="cs-card" aria-label="Your exit" style={{ marginBottom: 16 }}>
                 <h2 className="cs-card-title">Your own exit</h2>
-                <dl className="cs-kv"><div><dt>Refund if you leave now</dt><dd>{formatKES(preview.refund)}</dd></div></dl>
-                <p className="cs-help">The refund is your verified regular savings. Welfare, fines and one-off payments are not refunded.</p>
+                <dl className="cs-kv">
+                  <div><dt>Your savings</dt><dd>{formatKES(preview.savings ?? preview.refund)}</dd></div>
+                  {Number(preview.unpaid_fines_deducted) > 0 && <div><dt>Unpaid fines taken</dt><dd>- {formatKES(preview.unpaid_fines_deducted)}</dd></div>}
+                  <div><dt>Refund if you leave now</dt><dd>{formatKES(preview.refund)}</dd></div>
+                </dl>
+                <p className="cs-help">The refund is your verified regular savings, less any fines you still owe. Welfare payments and one-off payments are not refunded. An official can waive a fine before you leave.</p>
+                {Number(preview.unpaid_fines_left_over) > 0 && <p className="cs-help">Your fines are larger than your savings, so {formatKES(preview.unpaid_fines_left_over)} will stay unpaid.</p>}
                 {blockers.length > 0 && (
                   <div className="cs-notice cs-notice--warning" role="status">
                     <div>You can&apos;t leave yet:<ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>{blockers.map((b) => <li key={b}>{b}</li>)}</ul></div>
@@ -153,6 +158,7 @@ export default function MemberExits() {
               <div><dt>Chama</dt><dd>{dialog.data.chama}</dd></div>
               <div><dt>Savings paid in</dt><dd>{formatKES(dialog.data.savings_paid_in)}</dd></div>
               <div><dt>Applied to guaranteed loans</dt><dd>{formatKES(dialog.data.applied_to_guaranteed_loans)}</dd></div>
+              {Number(dialog.data.unpaid_fines_deducted) > 0 && <div><dt>Unpaid fines taken</dt><dd>{formatKES(dialog.data.unpaid_fines_deducted)}</dd></div>}
               <div><dt>Refunded</dt><dd>{formatKES(dialog.data.refund)}</dd></div>
               <div><dt>Reference</dt><dd>{dialog.data.payout_reference || "—"}</dd></div>
               <div><dt>Date</dt><dd>{dialog.data.completed_at ? formatDate(dialog.data.completed_at) : "—"}</dd></div>

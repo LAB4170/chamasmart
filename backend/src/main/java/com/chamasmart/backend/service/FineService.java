@@ -115,6 +115,29 @@ public class FineService {
         return row(f);
     }
 
+    /** What the member still owes in open fines in this chama. */
+    @Transactional(readOnly = true)
+    public BigDecimal outstandingFor(Long chamaId, Long userId) {
+        return fines.findByChamaChamaIdAndUserUserIdAndStatusOrderByCreatedAtAsc(chamaId, userId, "OWED").stream()
+                .map(MemberFine::outstanding).reduce(BigDecimal.ZERO, BigDecimal::add).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /** Takes up to {@code cap} from the member's open fines (oldest first) when they leave. Returns what was taken. */
+    @Transactional
+    public BigDecimal settleFromRefund(Long chamaId, Long userId, BigDecimal cap, Long exitId) {
+        BigDecimal left = cap == null ? BigDecimal.ZERO : cap.max(BigDecimal.ZERO);
+        BigDecimal taken = BigDecimal.ZERO;
+        for (MemberFine f : fines.findByChamaChamaIdAndUserUserIdAndStatusOrderByCreatedAtAsc(chamaId, userId, "OWED")) {
+            if (left.signum() <= 0) break;
+            BigDecimal use = left.min(f.outstanding());
+            f.setAmountPaid(f.getAmountPaid().add(use));
+            left = left.subtract(use); taken = taken.add(use);
+            if (f.outstanding().signum() == 0) { f.setStatus("PAID"); f.setClosedAt(ZonedDateTime.now()); f.setClosedNote("Settled from exit refund #" + exitId); }
+            fines.save(f);
+        }
+        return taken;
+    }
+
     /** Called when a FINE payment is credited: applies it to the member's oldest fines first. */
     @Transactional
     public BigDecimal settle(Long chamaId, Long userId, BigDecimal paid) {

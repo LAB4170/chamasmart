@@ -1,7 +1,9 @@
 import axios from "axios";
 import { Capacitor } from "@capacitor/core";
 
-let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
+// A value pasted into the host's settings page can carry stray quotes or spaces; strip them so every request still reaches the API.
+const cleanUrl = (v) => (v || '').trim().replace(/^["'\s]+|["'\s]+$/g, '').replace(/\/+$/, '');
+let API_URL = cleanUrl(import.meta.env.VITE_API_URL) || 'http://localhost:8080/api/v1';
 
 // Adjust API_URL for mobile devices in development
 if (Capacitor.isNativePlatform() && window.location.hostname === "localhost") {

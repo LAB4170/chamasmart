@@ -79,6 +79,7 @@ The repository scanner (gitleaks) runs on every push. Never commit `.env` files,
 - The refresh token is kept in the browser's local storage, protected by the Content Security Policy. Sign-in with Google should be re-checked after any change to the policy in `netlify.toml`.
 - GitHub's Dependabot lists open dependency advisories. Triage them monthly: update direct dependencies first, then rebuild and run the tests.
 - Docker base images are pinned by tag, not digest.
+- Leaving a chama: unpaid fines are taken from the savings first (oldest first, never more than the savings); any fines beyond that stay unpaid. Officials can waive a fine before the exit is paid.
 - Losing `DATA_ENCRYPTION_KEY` makes stored national IDs unreadable.
 
 ## Email: verification and password reset

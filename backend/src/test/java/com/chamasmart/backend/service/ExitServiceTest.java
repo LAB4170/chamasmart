@@ -31,6 +31,7 @@ class ExitServiceTest {
     LedgerService ledger = mock(LedgerService.class);
     MembershipService membership = mock(MembershipService.class);
     UserRepository userRepo = mock(UserRepository.class);
+    FineService fineService = mock(FineService.class);
     ExitService svc;
     Chama chama;
     User member, off1, off2;
@@ -43,7 +44,9 @@ class ExitServiceTest {
 
     @BeforeEach
     void setUp() {
-        svc = new ExitService(exitRepo, chamaRepo, memberRepo, contribRepo, loanRepo, guarRepo, roscaRepo, ascaRepo, ascaMemberRepo, auditRepo, notifRepo, ledger, membership, userRepo);
+        svc = new ExitService(exitRepo, chamaRepo, memberRepo, contribRepo, loanRepo, guarRepo, roscaRepo, ascaRepo, ascaMemberRepo, auditRepo, notifRepo, ledger, membership, userRepo, fineService);
+        when(fineService.outstandingFor(anyLong(), anyLong())).thenReturn(BigDecimal.ZERO);
+        when(fineService.settleFromRefund(anyLong(), anyLong(), any(), any())).thenReturn(BigDecimal.ZERO);
         chama = Chama.builder().chamaId(1L).chamaName("Test").currentFund(new BigDecimal("50000")).build();
         member = user(10); off1 = user(11); off2 = user(12);
         mm = cm(chama, member, "MEMBER"); o1 = cm(chama, off1, "TREASURER"); o2 = cm(chama, off2, "CHAIRPERSON");
@@ -128,6 +131,31 @@ class ExitServiceTest {
         verify(ledger).post(eq(chama), eq(LedgerEntry.CHAMA_FUND), eq(new BigDecimal("-4000.00")), any(), any(), any(), eq(12L), any());
         Map<String, Object> st = svc.statement(1L, 7L, 10L);
         assertEquals(0, new BigDecimal("4000").compareTo((BigDecimal) st.get("refund")));
+    }
+
+    @Test
+    void unpaidFinesAreTakenFromTheRefund() {
+        when(fineService.outstandingFor(1L, 10L)).thenReturn(new BigDecimal("1500"));
+        when(fineService.settleFromRefund(eq(1L), eq(10L), any(), any())).thenAnswer(i -> i.getArgument(2));
+        MemberExit e = svc.requestLeave(1L, 10L);
+        assertEquals(0, new BigDecimal("2500").compareTo(e.getRefundAmount()));
+        svc.approve(1L, 7L, 11L, true, null);
+        svc.pay(1L, 7L, 12L, "QWE123");
+        assertEquals(0, new BigDecimal("47500").compareTo(chama.getCurrentFund()));
+        assertEquals(0, new BigDecimal("2500").compareTo((BigDecimal) svc.statement(1L, 7L, 10L).get("refund")));
+        assertEquals(0, new BigDecimal("1500").compareTo((BigDecimal) svc.statement(1L, 7L, 10L).get("unpaid_fines_deducted")));
+    }
+
+    @Test
+    void finesLargerThanSavingsLeaveNothingToRefund() {
+        when(fineService.outstandingFor(1L, 10L)).thenReturn(new BigDecimal("9000"));
+        when(fineService.settleFromRefund(eq(1L), eq(10L), any(), any())).thenAnswer(i -> i.getArgument(2));
+        MemberExit e = svc.requestLeave(1L, 10L);
+        assertEquals(0, BigDecimal.ZERO.compareTo(e.getRefundAmount()));
+        svc.approve(1L, 7L, 11L, true, null);
+        svc.pay(1L, 7L, 12L, null);
+        assertEquals(0, new BigDecimal("50000").compareTo(chama.getCurrentFund()));
+        assertFalse(mm.getIsActive());
     }
 
     @Test
