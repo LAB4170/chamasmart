@@ -24,6 +24,7 @@ public class AuthController {
     private final com.chamasmart.backend.security.RefreshTokenService refreshTokens;
     private final com.chamasmart.backend.service.AuditTrailService audit;
     private final com.chamasmart.backend.service.GoogleAccountService googleAccounts;
+    private final com.chamasmart.backend.service.AccountEmailService accountEmail;
 
     private AuthResponse sessionFor(User u, jakarta.servlet.http.HttpServletRequest req) {
         String access = jwtUtil.generateToken(CustomUserDetails.build(u));
@@ -66,6 +67,7 @@ public class AuthController {
         user.setTermsAcceptedAt(java.time.ZonedDateTime.now());
         User savedUser = userRepository.save(user);
         AuthResponse authResponse = sessionFor(savedUser, httpRequest);
+        try { accountEmail.sendVerification(savedUser); } catch (RuntimeException e) { log.warn("Verification email was not sent after sign-up"); }
         audit.record(savedUser.getUserId(), "ACCOUNT_REGISTERED", "USER", savedUser.getUserId(), com.chamasmart.backend.security.ClientIp.of(httpRequest), null);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(authResponse, "User registered successfully"));
@@ -127,11 +129,55 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(ApiResponse.error(what + " is not available yet"));
     }
     @PostMapping("/verify-email")
-    public ResponseEntity<ApiResponse<Void>> verifyEmail(@RequestBody Map<String, String> payload) { return notAvailable("Email verification"); }
+    public ResponseEntity<ApiResponse<Void>> verifyEmail(@RequestBody Map<String, String> payload, jakarta.servlet.http.HttpServletRequest httpRequest) {
+        try {
+            User u = accountEmail.verify(payload.get("token"));
+            audit.record(u.getUserId(), "EMAIL_VERIFIED", "USER", u.getUserId(), com.chamasmart.backend.security.ClientIp.of(httpRequest), null);
+            return ResponseEntity.ok(ApiResponse.success(null, "Your email address is confirmed"));
+        } catch (com.chamasmart.backend.service.AccountEmailService.InvalidLinkException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("This link has expired or was already used. Ask for a new one from your profile."));
+        }
+    }
+    @PostMapping("/resend-email-verification")
+    public ResponseEntity<ApiResponse<Void>> resendEmailVerification(@org.springframework.security.core.annotation.AuthenticationPrincipal CustomUserDetails me) {
+        User u = userRepository.findById(me.getUserId()).orElseThrow(() -> new RuntimeException("User not found"));
+        if (Boolean.TRUE.equals(u.getEmailVerified())) return ResponseEntity.ok(ApiResponse.success(null, "Your email address is already confirmed"));
+        if (!accountEmail.mailConfigured()) return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiResponse.error("Email sending isn't switched on yet. Please try again later."));
+        try {
+            boolean sent = accountEmail.sendVerification(u);
+            if (!sent) return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(ApiResponse.error("We couldn't send the email just now. Please try again in a few minutes."));
+        } catch (com.chamasmart.backend.service.AccountEmailService.TooManyException e) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(ApiResponse.error("You have asked for several emails already. Check your inbox and spam folder, or try again in an hour."));
+        }
+        return ResponseEntity.ok(ApiResponse.success(null, "We sent a confirmation link to " + u.getEmail()));
+    }
+    /** The reply never says whether the address has an account. */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@RequestBody Map<String, String> payload, jakarta.servlet.http.HttpServletRequest httpRequest) {
+        String email = payload.get("email") == null ? "" : payload.get("email").trim().toLowerCase();
+        User u = email.isEmpty() ? null : userRepository.findByEmail(email).orElse(null);
+        if (u != null && !Boolean.FALSE.equals(u.getIsActive())) {
+            try {
+                accountEmail.sendReset(u);
+                audit.record(u.getUserId(), "PASSWORD_RESET_REQUESTED", "USER", u.getUserId(), com.chamasmart.backend.security.ClientIp.of(httpRequest), null);
+            } catch (com.chamasmart.backend.service.AccountEmailService.TooManyException ignored) {
+                // Too many recent requests: stay silent so the reply is identical.
+            }
+        }
+        return ResponseEntity.ok(ApiResponse.success(null, "If that address has an account, we've emailed a link to reset the password. It works for one hour."));
+    }
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@RequestBody Map<String, String> payload, jakarta.servlet.http.HttpServletRequest httpRequest) {
+        try {
+            User u = accountEmail.resetPassword(payload.get("token"), payload.get("newPassword"));
+            audit.record(u.getUserId(), "PASSWORD_RESET", "USER", u.getUserId(), com.chamasmart.backend.security.ClientIp.of(httpRequest), null);
+            return ResponseEntity.ok(ApiResponse.success(null, "Password changed. Please sign in with your new password."));
+        } catch (com.chamasmart.backend.service.AccountEmailService.InvalidLinkException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("This link has expired or was already used. Ask for a new one."));
+        }
+    }
     @PostMapping("/verify-phone")
     public ResponseEntity<ApiResponse<Void>> verifyPhone(@RequestBody Map<String, String> payload) { return notAvailable("Phone verification"); }
-    @PostMapping("/resend-email-verification")
-    public ResponseEntity<ApiResponse<Void>> resendEmailVerification() { return notAvailable("Email verification"); }
     @PostMapping("/resend-phone-verification")
     public ResponseEntity<ApiResponse<Void>> resendPhoneVerification() { return notAvailable("Phone verification"); }
     @PutMapping("/change-password")

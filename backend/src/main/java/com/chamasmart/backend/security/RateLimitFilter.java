@@ -24,6 +24,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
             "/auth/login", new Rule(30, 15 * 60_000L),
             "/auth/register", new Rule(10, 60 * 60_000L),
             "/auth/firebase-sync", new Rule(30, 15 * 60_000L),
+            "/auth/forgot-password", new Rule(5, 60 * 60_000L),
+            "/auth/reset-password", new Rule(10, 60 * 60_000L),
+            "/auth/verify-email", new Rule(20, 60 * 60_000L),
+            "/auth/resend-email-verification", new Rule(5, 60 * 60_000L),
             "/chat/ai-support", new Rule(30, 10 * 60_000L));
 
     private final RateLimiter limiter;

@@ -26,6 +26,9 @@ const Legal = lazy(() => import("./pages/legal/Legal"));
 const Login = lazy(() => import("./pages/auth/Login"));
 const Register = lazy(() => import("./pages/auth/Register"));
 const VerifyEmailPhone = lazy(() => import("./pages/auth/VerifyEmailPhone"));
+const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/auth/ResetPassword"));
+const VerifyEmail = lazy(() => import("./pages/auth/VerifyEmail"));
 const CompleteProfile = lazy(() => import("./pages/auth/CompleteProfile"));
 const Dashboard = lazy(() => import("./pages/dashboard/Dashboard"));
 const CreateChama = lazy(() => import("./pages/chama/core/CreateChama"));
@@ -128,6 +131,9 @@ function AppContent() {
                             <Route path="/" element={<PageTransition><LandingPage /></PageTransition>} />
                             <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
                             <Route path="/register" element={<PageTransition><Register /></PageTransition>} />
+                            <Route path="/forgot-password" element={<PageTransition><ForgotPassword /></PageTransition>} />
+                            <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
+                            <Route path="/verify-email" element={<PageTransition><VerifyEmail /></PageTransition>} />
                             <Route path="/verify-account" element={<PageTransition><VerifyEmailPhone /></PageTransition>} />
                             <Route path="/complete-profile" element={
                                 <ProtectedRoute>

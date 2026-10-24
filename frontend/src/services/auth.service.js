@@ -47,6 +47,9 @@ export const authAPI = {
     resendPhoneVerification: () =>
         api.post("/auth/resend-phone-verification"),
 
+    forgotPassword: (email) => api.post("/auth/forgot-password", { email }),
+    resetPassword: (token, newPassword) => api.post("/auth/reset-password", { token, newPassword }),
+
     // Logout
     logout: (body = {}) => api.post("/auth/logout", body)
 };

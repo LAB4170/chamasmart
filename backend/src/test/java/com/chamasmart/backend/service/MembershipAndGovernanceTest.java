@@ -39,7 +39,7 @@ class MembershipAndGovernanceTest {
     GovernanceService governance;
     Chama chama;
 
-    private static User user(long id, String email) { User u = new User(); u.setUserId(id); u.setFirstName("U" + id); u.setLastName("X"); u.setEmail(email); return u; }
+    private static User user(long id, String email) { User u = new User(); u.setUserId(id); u.setFirstName("U" + id); u.setLastName("X"); u.setEmail(email); u.setEmailVerified(true); return u; }
     private ChamaMember member(long id, String role, boolean active) {
         ChamaMember m = ChamaMember.builder().chama(chama).user(user(id, "u" + id + "@x.com")).role(role).isActive(active).build();
         when(memberRepo.findByChamaChamaIdAndUserUserId(1L, id)).thenReturn(Optional.of(m));
@@ -211,5 +211,13 @@ class MembershipAndGovernanceTest {
         membership.requestOrConfirmRetirement(1L, 6L);
         assertThrows(IllegalStateException.class, () -> membership.requestOrConfirmRetirement(1L, 7L));
         assertTrue(chama.getIsActive());
+    }
+
+    @org.junit.jupiter.api.Test
+    void unverifiedEmailCannotBeAppointedOfficial() {
+        User u = user(99, "x@y.z");
+        u.setEmailVerified(false);
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> MembershipService.requireVerifiedForOffice(u, "TREASURER"));
+        MembershipService.requireVerifiedForOffice(u, "MEMBER");
     }
 }

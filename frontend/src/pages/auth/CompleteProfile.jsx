@@ -71,7 +71,7 @@ export default function CompleteProfile() {
           <p className="cs-footnote">Signed in as {user?.email}</p>
           <div className="cs-actions">
             <Button type="submit" variant="primary" loading={saving}>Save and continue</Button>
-            <Button onClick={() => navigate("/dashboard")} disabled={saving}>Skip for now</Button>
+            <Button onClick={() => { try { localStorage.setItem("cs_profile_skipped", "1"); } catch { /* ignore */ } navigate("/dashboard"); }} disabled={saving}>Skip for now</Button>
           </div>
         </form>
       </main>

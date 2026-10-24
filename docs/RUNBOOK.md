@@ -80,3 +80,21 @@ The repository scanner (gitleaks) runs on every push. Never commit `.env` files,
 - GitHub's Dependabot lists open dependency advisories. Triage them monthly: update direct dependencies first, then rebuild and run the tests.
 - Docker base images are pinned by tag, not digest.
 - Losing `DATA_ENCRYPTION_KEY` makes stored national IDs unreadable.
+
+## Email: verification and password reset
+
+Render's free plan blocks outgoing SMTP, so ChamaSmart sends mail through Brevo's HTTPS API.
+
+1. Create a free Brevo account, then Senders and domains, and verify the sender address you will use (a click-through email to that address).
+2. Create an API key (SMTP and API, API keys).
+3. In Render, set these environment variables:
+   - `MAIL_PROVIDER=brevo`
+   - `BREVO_API_KEY=<the key>`
+   - `MAIL_FROM_EMAIL=<the verified sender address>`
+   - `MAIL_FROM_NAME=ChamaSmart` (optional)
+   - `APP_FRONTEND_URL=https://chamasmart.netlify.app` (the links in emails start with this)
+4. Redeploy. With no provider set (`none`, the default) nothing is sent: the app keeps working, "Forgot password" gives its neutral reply, and "Send confirmation link" says email isn't switched on.
+
+Never use `MAIL_PROVIDER=log` in production: it prints the links, which are secrets, into the logs. It exists for local testing only.
+
+Behaviour: links are single-use and stored only as hashes; reset links last 1 hour, confirmation links 48 hours; at most 3 emails per hour per person and purpose. A password reset signs the person out everywhere. Google-only accounts who ask for a reset are told to use Continue with Google. A treasurer or secretary can only be appointed once their email is confirmed.

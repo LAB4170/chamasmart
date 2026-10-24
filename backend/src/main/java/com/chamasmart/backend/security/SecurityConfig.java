@@ -58,7 +58,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/login", "/auth/register", "/auth/firebase-sync", "/auth/refresh", "/auth/logout").permitAll()
+                .requestMatchers("/auth/login", "/auth/register", "/auth/firebase-sync", "/auth/refresh", "/auth/logout", "/auth/verify-email", "/auth/forgot-password", "/auth/reset-password").permitAll()
                 .requestMatchers("/public/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()

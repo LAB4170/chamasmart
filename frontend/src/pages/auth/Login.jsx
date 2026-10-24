@@ -44,8 +44,12 @@ export default function Login() {
     setError("");
     const result = await loginWithGoogle();
     setLoading(false);
-    if (result.success) navigate("/dashboard");
-    else setError(result.error || "Google sign-in didn't work. Please try again.");
+    if (result.success) {
+      const u = result.user || {};
+      let skipped = false;
+      try { skipped = localStorage.getItem("cs_profile_skipped") === "1"; } catch { /* ignore */ }
+      navigate(!u.phoneNumber && !u.phone_number && !skipped ? "/complete-profile" : "/dashboard");
+    } else setError(result.error || "Google sign-in didn't work. Please try again.");
   };
 
   return (
@@ -69,6 +73,7 @@ export default function Login() {
               <button type="button" onClick={() => setShow((s) => !s)} aria-pressed={show}>{show ? "Hide" : "Show"}</button>
             </div>
           </div>
+          <p className="cs-help" style={{ textAlign: "right", margin: "0 0 8px" }}><Link to="/forgot-password">Forgot password?</Link></p>
           <Button type="submit" variant="primary" className="cs-btn--block" loading={loading}>Sign in</Button>
           <div className="cs-auth-divider">or</div>
           <button type="button" className="cs-btn cs-btn--secondary cs-btn--block" onClick={google} disabled={loading}>

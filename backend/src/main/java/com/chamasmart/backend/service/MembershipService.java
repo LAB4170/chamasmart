@@ -75,6 +75,7 @@ public class MembershipService {
         Chama chama = chamaRepository.findById(chamaId).filter(c -> Boolean.TRUE.equals(c.getIsActive()))
                 .orElseThrow(() -> new IllegalArgumentException("Chama not found"));
         User user = userRepository.findById(targetUserId).orElseThrow(() -> new IllegalArgumentException("User not found"));
+        requireVerifiedForOffice(user, newRole);
         ChamaMember member = chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, targetUserId).orElse(null);
         if (member != null && Boolean.TRUE.equals(member.getIsActive())) throw new IllegalStateException("This person is already a member");
         if (member == null) {
@@ -133,8 +134,17 @@ public class MembershipService {
         if (actorId.equals(targetUserId)) throw new IllegalStateException("The chairperson cannot change their own role here");
         ChamaMember target = chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, targetUserId)
                 .filter(ChamaMember::getIsActive).orElseThrow(() -> new IllegalArgumentException("That person is not an active member"));
+        requireVerifiedForOffice(target.getUser(), newRole);
         target.setRole(newRole);
         return chamaMemberRepository.save(target);
+    }
+
+    /** Officials handle other people's money, so their email address must have been confirmed first. */
+    static void requireVerifiedForOffice(User user, String newRole) {
+        if (!"MEMBER".equals(newRole) && !Boolean.TRUE.equals(user.getEmailVerified())) {
+            throw new IllegalStateException((user.getFirstName() == null ? "This person" : user.getFirstName())
+                    + " has not confirmed their email address yet. Ask them to confirm it from the link we emailed (or from their profile), then appoint them.");
+        }
     }
 
     /**

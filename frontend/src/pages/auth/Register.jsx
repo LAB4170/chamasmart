@@ -49,8 +49,12 @@ export default function Register() {
     setError("");
     const result = await loginWithGoogle();
     setLoading(false);
-    if (result.success) navigate("/dashboard");
-    else setError(result.error || "Google sign-in didn't work. Please try again.");
+    if (result.success) {
+      const u = result.user || {};
+      let skipped = false;
+      try { skipped = localStorage.getItem("cs_profile_skipped") === "1"; } catch { /* ignore */ }
+      navigate(!u.phoneNumber && !u.phone_number && !skipped ? "/complete-profile" : "/dashboard");
+    } else setError(result.error || "Google sign-in didn't work. Please try again.");
   };
 
   return (

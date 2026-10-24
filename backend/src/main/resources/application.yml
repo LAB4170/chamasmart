@@ -51,6 +51,12 @@ app:
       secret: ${JWT_SECRET:}
       expiration-ms: ${JWT_ACCESS_MS:1800000} # access token: 30 minutes; the refresh token renews it
       refresh-days: ${JWT_REFRESH_DAYS:30}
+  frontend-url: ${APP_FRONTEND_URL:https://chamasmart.netlify.app}
+  mail:
+    provider: ${MAIL_PROVIDER:none} # none, brevo, or log (log prints links and is for local testing only)
+    brevo-api-key: ${BREVO_API_KEY:}
+    from-email: ${MAIL_FROM_EMAIL:}
+    from-name: ${MAIL_FROM_NAME:ChamaSmart}
   cors:
     allowed-origins: ${CORS_ORIGIN:http://localhost:5173,http://localhost:3000,https://chamasmart.netlify.app}
   mpesa:

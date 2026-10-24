@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import { useSocket } from "../../context/SocketContext";
-import { chamaAPI, loanAPI } from "../../services/api";
+import { chamaAPI, loanAPI, authAPI } from "../../services/api";
 import { Button, PageHeader, StatCard, StatusBadge, DataTable, Skeleton } from "../../components/ui";
 import { formatKES, formatDate, sumAmounts } from "../../utils/format";
 
@@ -11,6 +11,27 @@ const TYPE_LABELS = { ROSCA: "Merry-go-round", ASCA: "Investment", TABLE_BANKING
 const typeLabel = (t) => TYPE_LABELS[t] || (t ? t.replace(/_/g, " ").toLowerCase() : "—");
 const FREQ_LABELS = { WEEKLY: "week", MONTHLY: "month", DAILY: "day", BIWEEKLY: "2 weeks", QUARTERLY: "quarter" };
 const PLACEHOLDER_NAMES = ["antigravityagent", "antigravity agent", "user", "chamasmarter"];
+
+function VerifyEmailBanner({ user }) {
+  const [state, setState] = useState("idle");
+  const verified = user && (user.emailVerified ?? user.email_verified);
+  if (!user || verified !== false) return null;
+  const resend = async () => {
+    setState("sending");
+    try { await authAPI.resendEmailVerification(); setState("sent"); }
+    catch (err) { setState(err.response?.data?.message || "We couldn't send it just now."); }
+  };
+  return (
+    <div className="cs-notice" role="status" style={{ marginBottom: 16, alignItems: "center", justifyContent: "space-between" }}>
+      <span>
+        {state === "sent" ? `We sent a link to ${user.email}. Check your inbox and spam folder.`
+          : `Please confirm ${user.email}. You'll need this to be appointed treasurer or secretary and to recover your password.`}
+        {state !== "idle" && state !== "sent" && state !== "sending" && <> {state}</>}
+      </span>
+      {state !== "sent" && <Button size="sm" onClick={resend} loading={state === "sending"}>Send confirmation link</Button>}
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -92,6 +113,8 @@ export default function Dashboard() {
     <div className="cs-shell">
       <main className="cs-page">
         <PageHeader title={hasRealName ? `Hello, ${firstName}` : "Welcome to ChamaSmart"} subtitle="Your chamas and loan commitments at a glance." actions={actions} />
+
+        <VerifyEmailBanner user={user} />
 
         {error && (
           <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 16, alignItems: "center", justifyContent: "space-between" }}>
