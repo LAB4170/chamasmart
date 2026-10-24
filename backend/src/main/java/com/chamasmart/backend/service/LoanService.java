@@ -38,7 +38,7 @@ public class LoanService {
     }
     private ChamaMember validateUserIsOfficial(Long chamaId, Long userId) {
         ChamaMember member = validateUserMembershipAndActiveStatus(chamaId, userId);
-        if (!"CHAIRPERSON".equalsIgnoreCase(member.getRole()) && !"TREASURER".equalsIgnoreCase(member.getRole()) && !"SECRETARY".equalsIgnoreCase(member.getRole())) {
+        if (!com.chamasmart.backend.security.RolePolicy.isOfficial(member.getRole())) {
             throw new org.springframework.security.access.AccessDeniedException("Security Violation: User ID " + userId + " lacks official administrative privileges for Chama ID " + chamaId);
         }
         return member;

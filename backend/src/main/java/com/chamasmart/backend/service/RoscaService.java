@@ -141,7 +141,7 @@ public class RoscaService {
         ChamaMember officer = chamaMemberRepository.findByChamaChamaIdAndUserUserId(chama.getChamaId(), officerUserId)
                 .filter(ChamaMember::getIsActive)
                 .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("You are not an active member of this chama"));
-        if (!"CHAIRPERSON".equalsIgnoreCase(officer.getRole()) && !"TREASURER".equalsIgnoreCase(officer.getRole()) && !"SECRETARY".equalsIgnoreCase(officer.getRole())) {
+        if (!com.chamasmart.backend.security.RolePolicy.isOfficial(officer.getRole())) {
             throw new org.springframework.security.access.AccessDeniedException("Lacks official privileges to trigger payout");
         }
         if (!"ACTIVE".equalsIgnoreCase(cycle.getStatus())) {
@@ -404,10 +404,15 @@ public class RoscaService {
             RoscaRoster b = slot(cycle.getCycleId(), userId);
             requireSwappable(a, swap.getRequester().getFirstName());
             requireSwappable(b, "You");
-            int pos = a.getPosition(); a.setPosition(b.getPosition()); b.setPosition(pos);
-            LocalDate date = a.getPayoutDate(); a.setPayoutDate(b.getPayoutDate()); b.setPayoutDate(date);
-            roscaRosterRepository.save(a);
-            roscaRosterRepository.save(b);
+            int posA = a.getPosition(), posB = b.getPosition();
+            LocalDate dateA = a.getPayoutDate(), dateB = b.getPayoutDate();
+            // (cycle, position) is unique, so park one row on a free number before the two turns trade places.
+            a.setPosition(-1);
+            roscaRosterRepository.saveAndFlush(a);
+            b.setPosition(posA); b.setPayoutDate(dateA);
+            roscaRosterRepository.saveAndFlush(b);
+            a.setPosition(posB); a.setPayoutDate(dateB);
+            roscaRosterRepository.saveAndFlush(a);
             auditLogRepository.save(FinancialAuditLog.builder().user(userRepository.getReferenceById(userId)).transactionType("ROSCA_TURNS_SWAPPED")
                     .chama(cycle.getChama()).referenceId(cycle.getCycleId())
                     .description("Turns swapped: positions " + a.getPosition() + " and " + b.getPosition() + " in " + cycle.getCycleName()).build());

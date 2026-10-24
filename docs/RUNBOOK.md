@@ -1,0 +1,82 @@
+# ChamaSmart operations runbook
+
+This is the short list of things the person running the service needs to know. Keep it current when behaviour changes.
+
+## Settings the backend needs (Render environment)
+
+| Name | What it is | If missing |
+|---|---|---|
+| `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` | The database | The service does not start |
+| `JWT_SECRET` | Signs sign-in tokens. At least 32 random characters | The service refuses to start in production |
+| `DATA_ENCRYPTION_KEY` | Encrypts national ID numbers. Generate with `openssl rand -base64 32` | The service refuses to start in production |
+| `APP_CORS_ALLOWED_ORIGINS` | The website addresses allowed to call the API | Browsers are blocked |
+| `FIREBASE_*` | Google sign-in and file storage | Google sign-in fails |
+| `JWT_ACCESS_MS` (optional) | How long a sign-in lasts before it is quietly renewed. Default 30 minutes | Default |
+| `JWT_REFRESH_DAYS` (optional) | How long a device stays signed in without use. Default 30 days | Default |
+| `SWAGGER_ENABLED` (optional) | API documentation pages. Leave off in production | Off |
+
+Keep `DATA_ENCRYPTION_KEY` in a password manager as well as in Render. If it is lost, national ID numbers cannot be read again. Do not change it once data exists unless you re-encrypt first.
+
+## The first deploy of this version
+
+1. Set `DATA_ENCRYPTION_KEY` and `JWT_SECRET` in Render before deploying.
+2. Deploy. On the first start the service:
+   - adopts the existing database into Flyway at version 1 (nothing changes in your tables),
+   - adds the new tables and columns (Hibernate update),
+   - encrypts existing national IDs once. Before it does, it copies the old values into tables named `s18_backup_*`.
+3. Check the log for "Started ChamaSmartApplication" and for the encryption line reporting how many IDs were converted.
+4. Open the app, sign in, open a profile with a national ID and confirm it shows.
+5. After a week with no problems, drop the `s18_backup_*` tables. They hold the old values.
+6. Everyone is signed out once when this version goes live, because sign-in tokens changed. That is expected.
+
+## Backups
+
+The database provider (Neon) keeps point-in-time history. Check in its console how many days are kept for your plan and set it to the maximum you can afford.
+
+In addition, take a copy you control every week:
+
+```
+pg_dump --format=custom --no-owner "$DATABASE_URL" > chamasmart-$(date +%F).dump
+```
+
+Store it somewhere other than Render and Neon. Once a quarter, restore the latest copy into an empty database and open the app against it. A backup that has never been restored is a guess.
+
+Restore:
+
+```
+createdb chamasmart_restore
+pg_restore --no-owner --dbname chamasmart_restore chamasmart-YYYY-MM-DD.dump
+```
+
+## Changing the database structure
+
+Structure changes are numbered files in `backend/src/main/resources/db/migration` (`V2__short_name.sql`, `V3__...`). Flyway applies them once, in order, when the service starts. Never edit a file that has been applied; add a new one.
+
+Hibernate still adds missing tables and columns on start (`SPRING_JPA_DDL_AUTO=update`). Once you are happy that the live database matches the code, set `SPRING_JPA_DDL_AUTO=validate`. From then on the service refuses to start if the database and the code disagree, which is safer than silently changing the database.
+
+## Audit trail
+
+Every sign-in, account change and money action is recorded with who, what, when and from where. A background job links entries into a chain of hashes every five minutes. A platform administrator can check the chain at `GET /api/v1/audit/integrity`. It reports `intact: true`, or the first entry that no longer matches. If it ever reports a break, stop and investigate before anything else: it means an old entry was changed or removed in the database.
+
+## A device is lost or an account is taken over
+
+The person can use "Sign out on all devices" in their profile. If they cannot sign in, an administrator can raise their sign-in version in the database (`UPDATE users SET token_version = COALESCE(token_version,0)+1 WHERE user_id = ?`) and revoke their refresh tokens (`UPDATE refresh_tokens SET revoked = true WHERE user_id = ?`). Their open sessions stop working within the access-token lifetime (30 minutes at most).
+
+If a refresh token is used twice, the service treats it as stolen and signs that person out everywhere.
+
+## Secrets that must not be in the repository
+
+The repository scanner (gitleaks) runs on every push. Never commit `.env` files, service-account JSON, database passwords or payment keys. If one is committed by mistake, rotate it immediately; removing it from the next commit does not remove it from history.
+
+## Known limits
+
+- Login lockouts and rate limits are kept in memory. They reset when the service restarts and are not shared if you run more than one copy.
+- Card and wallet payments are not built. M-Pesa is not in use. Contributions are recorded and verified by officials.
+- Documents attached to welfare claims are not stored. Claims accept a proof link.
+- Savings are not frozen while a member has a loan; guarantors' savings are protected by the guarantee rules instead.
+- Late fines for ROSCA rounds are not automated. Members are reminded daily; officials can issue a fine of the existing fine type.
+- Loan insurance (T-05) is a product decision with an insurer and is not built.
+- The refresh token is kept in the browser's local storage, protected by the Content Security Policy. Sign-in with Google should be re-checked after any change to the policy in `netlify.toml`.
+- GitHub's Dependabot lists open dependency advisories. Triage them monthly: update direct dependencies first, then rebuild and run the tests.
+- Docker base images are pinned by tag, not digest.
+- Losing `DATA_ENCRYPTION_KEY` makes stored national IDs unreadable.

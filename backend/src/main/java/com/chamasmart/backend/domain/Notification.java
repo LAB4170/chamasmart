@@ -32,6 +32,7 @@ public class Notification {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private ZonedDateTime createdAt;
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(columnDefinition = "JSONB")
     @Builder.Default
     private String metadata = "{}";

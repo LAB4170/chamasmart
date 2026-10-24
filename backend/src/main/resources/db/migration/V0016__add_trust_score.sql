@@ -1,1 +1,0 @@
-ALTER TABLE chama_members ADD COLUMN trust_score DECIMAL(5,2) NOT NULL DEFAULT 0.00;

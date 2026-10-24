@@ -61,7 +61,8 @@ public class RefreshTokenService {
         Optional<RefreshToken> found = repo.findByToken(hash(raw));
         if (found.isEmpty()) return Optional.empty();
         RefreshToken t = found.get();
-        User user = t.getUser();
+        // The stored link is a lazy proxy; load the real user so it can be returned to the client.
+        User user = (User) org.hibernate.Hibernate.unproxy(t.getUser());
         if (t.isRevoked()) {
             signOutEverywhere(user.getUserId());
             return Optional.empty();

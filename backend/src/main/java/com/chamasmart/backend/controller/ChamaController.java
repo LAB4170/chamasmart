@@ -59,7 +59,7 @@ public class ChamaController {
                 .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException(
                         "Access denied: you are not an active member of chama " + chamaId));
         String role = member.getRole() == null ? "" : member.getRole().toUpperCase();
-        if (!role.equals("CHAIRPERSON") && !role.equals("TREASURER") && !role.equals("SECRETARY")) {
+        if (!com.chamasmart.backend.security.RolePolicy.isOfficial(role)) {
             throw new org.springframework.security.access.AccessDeniedException(
                     "Access denied: only officials (Chairperson, Treasurer, Secretary) may perform this action.");
         }

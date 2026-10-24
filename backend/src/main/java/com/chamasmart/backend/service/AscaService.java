@@ -34,7 +34,7 @@ public class AscaService {
     }
     private ChamaMember validateUserIsOfficial(Long chamaId, Long userId) {
         ChamaMember member = validateUserMembershipAndActiveStatus(chamaId, userId);
-        if (!"CHAIRPERSON".equalsIgnoreCase(member.getRole()) && !"TREASURER".equalsIgnoreCase(member.getRole())) {
+        if (!com.chamasmart.backend.security.RolePolicy.isOfficial(member.getRole())) {
             throw new org.springframework.security.access.AccessDeniedException("Security Violation: User ID " + userId + " lacks official administrative privileges for Chama ID " + chamaId);
         }
         return member;
@@ -259,7 +259,7 @@ public class AscaService {
         @SuppressWarnings("unchecked") List<String> blockers = (List<String>) preview.get("blockers");
         if (!blockers.isEmpty()) throw new IllegalStateException(String.join(". ", blockers));
         long officials = chamaMemberRepository.findByChamaChamaIdAndIsActiveTrue(chama.getChamaId()).stream()
-                .filter(m -> m.getRole() != null && List.of("CHAIRPERSON", "TREASURER").contains(m.getRole().toUpperCase())).count();
+                .filter(m -> m.getRole() != null && List.of("CHAIRPERSON", "TREASURER", "SECRETARY").contains(m.getRole().toUpperCase())).count();
         if (officials >= 2) {
             if (cycle.getCloseRequestedBy() == null) {
                 cycle.setCloseRequestedBy(officialId);
