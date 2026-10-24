@@ -33,6 +33,7 @@ class LoanServiceTest {
     @Mock LoanConfigRepository configRepo;
     @Mock LoanRepaymentRepository repaymentRepo;
     @Mock LedgerService ledger;
+    @Mock ContributionRepository contribRepo;
     @InjectMocks LoanService service;
 
     Chama chama;
@@ -71,7 +72,12 @@ class LoanServiceTest {
     private static com.chamasmart.backend.dto.LoanApplicationRequestDto.GuarantorPledgeDto pledge(long user, String amt) {
         return com.chamasmart.backend.dto.LoanApplicationRequestDto.GuarantorPledgeDto.builder().user_id(user).guarantee_amount(new BigDecimal(amt)).build();
     }
+    private Contribution saved(long user, String amount, String type, String status) {
+        return Contribution.builder().chama(chama).user(user(user)).amount(new BigDecimal(amount)).contributionType(type).status(status).isDeleted(false).build();
+    }
     private void borrowerWithSavings(String savings) {
+        when(contribRepo.findByUserUserIdAndIsDeletedFalse(5L)).thenReturn(List.of(saved(5, savings, "REGULAR", "COMPLETED")));
+        when(contribRepo.findByUserUserIdAndIsDeletedFalse(8L)).thenReturn(List.of(saved(8, "50000", "REGULAR", "COMPLETED")));
         ChamaMember m = ChamaMember.builder().role("MEMBER").isActive(true).totalContributions(new BigDecimal(savings)).build();
         when(memberRepo.findByChamaChamaIdAndUserUserId(1L, 5L)).thenReturn(Optional.of(m));
         ChamaMember g = ChamaMember.builder().role("MEMBER").isActive(true).totalContributions(new BigDecimal("50000")).build();
@@ -116,7 +122,8 @@ class LoanServiceTest {
     @Test void guarantorCannotPledgeBeyondTheirCapacity() {
         borrowerWithSavings("10000");
         ChamaMember small = ChamaMember.builder().role("MEMBER").isActive(true).totalContributions(new BigDecimal("100")).build();
-        when(memberRepo.findByChamaChamaIdAndUserUserId(1L, 8L)).thenReturn(Optional.of(small)); // capacity 300
+        when(memberRepo.findByChamaChamaIdAndUserUserId(1L, 8L)).thenReturn(Optional.of(small));
+        when(contribRepo.findByUserUserIdAndIsDeletedFalse(8L)).thenReturn(List.of(saved(8, "100", "REGULAR", "COMPLETED"))); // capacity 300
         assertThrows(IllegalArgumentException.class, () -> service.applyForLoan(request("1000", 3, pledge(8, "1050")), 5L));
     }
 
@@ -319,5 +326,19 @@ class LoanServiceTest {
         mine.setStatus("APPROVED");
         assertThrows(IllegalArgumentException.class, () -> service.repayLoan(10L, new BigDecimal("1100.01"), 5L));
         verify(chamaRepo, never()).save(any());
+    }
+
+    @Test void finesWelfareAndPendingPaymentsDoNotCountAsSavings() {
+        when(contribRepo.findByUserUserIdAndIsDeletedFalse(5L)).thenReturn(List.of(
+                saved(5, "1000", "REGULAR", "COMPLETED"), saved(5, "5000", "FINE", "COMPLETED"), saved(5, "5000", "WELFARE", "COMPLETED"),
+                saved(5, "9000", "ROSCA", "COMPLETED"), saved(5, "4000", "REGULAR", "PENDING"), saved(5, "3000", "REGULAR", "FAILED")));
+        assertEquals(0, new BigDecimal("1000").compareTo(service.savingsOf(1L, 5L)));
+    }
+
+    @Test void aMemberWithOnlyFinesCannotBorrow() {
+        ChamaMember m = ChamaMember.builder().role("MEMBER").isActive(true).totalContributions(new BigDecimal("100000")).build();
+        when(memberRepo.findByChamaChamaIdAndUserUserId(1L, 5L)).thenReturn(Optional.of(m));
+        when(contribRepo.findByUserUserIdAndIsDeletedFalse(5L)).thenReturn(List.of(saved(5, "100000", "FINE", "COMPLETED")));
+        assertThrows(IllegalArgumentException.class, () -> service.applyForLoan(request("1000", 3, pledge(8, "2000")), 5L));
     }
 }

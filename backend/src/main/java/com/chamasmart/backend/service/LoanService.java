@@ -26,6 +26,7 @@ public class LoanService {
     private final LoanConfigRepository loanConfigRepository;
     private final LoanRepaymentRepository loanRepaymentRepository;
     private final LedgerService ledger;
+    private final ContributionRepository contributionRepository;
     private ChamaMember validateUserMembershipAndActiveStatus(Long chamaId, Long userId) {
         return chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
                 .filter(ChamaMember::getIsActive)
@@ -76,6 +77,18 @@ public class LoanService {
     }
 
 
+    /**
+     * Savings are verified regular contributions. Fines, welfare, special levies, one-off payments, share purchases and
+     * merry-go-round pot payments do not count, so they cannot raise anyone's borrowing power (finding M-07).
+     */
+    BigDecimal savingsOf(Long chamaId, Long userId) {
+        return contributionRepository.findByUserUserIdAndIsDeletedFalse(userId).stream()
+                .filter(c -> c.getChama() != null && chamaId.equals(c.getChama().getChamaId()))
+                .filter(c -> "COMPLETED".equalsIgnoreCase(c.getStatus()))
+                .filter(c -> c.getContributionType() == null || "REGULAR".equalsIgnoreCase(c.getContributionType()))
+                .map(Contribution::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     private static final List<String> OPEN_LOAN_STATES = List.of("PENDING", "APPROVED", "DISBURSED", "ACTIVE", "DEFAULTED");
 
     /** Principal a member still owes in this chama: each open loan's amount, scaled down by how much of it is repaid. */
@@ -122,7 +135,7 @@ public class LoanService {
             throw new IllegalArgumentException("You have a defaulted loan. Clear it before applying for another");
         }
         if (!"ASCA".equalsIgnoreCase(chama.getChamaType())) {
-            BigDecimal savings = borrowerMembership.getTotalContributions() != null ? borrowerMembership.getTotalContributions() : BigDecimal.ZERO;
+            BigDecimal savings = savingsOf(chama.getChamaId(), borrowerUserId);
             BigDecimal gross = savings.multiply(cfg.getLoanMultiplier());
             BigDecimal outstanding = outstandingPrincipal(myLoans, chama.getChamaId());
             BigDecimal limit = gross.subtract(outstanding).max(BigDecimal.ZERO);
@@ -159,7 +172,7 @@ public class LoanService {
                 throw new IllegalArgumentException("A member with a defaulted loan cannot guarantee another loan");
             }
             // Capacity: total pledged across open loans may not exceed savings x multiplier.
-            BigDecimal savings = gm.getTotalContributions() != null ? gm.getTotalContributions() : BigDecimal.ZERO;
+            BigDecimal savings = savingsOf(chama.getChamaId(), pledge.getUser_id());
             BigDecimal alreadyPledged = loanGuarantorRepository.findByGuarantorUserUserId(pledge.getUser_id()).stream()
                     .filter(g -> List.of("PENDING", "APPROVED").contains(g.getStatus()))
                     .filter(g -> List.of("PENDING", "APPROVED", "DISBURSED", "ACTIVE", "DEFAULTED").contains(g.getLoan().getStatus()))
