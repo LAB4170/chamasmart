@@ -21,6 +21,7 @@ import {
 
 // Lazy load all pages for better performance
 const MemberExits = lazy(() => import("./pages/chama/members/MemberExits"));
+const Fines = lazy(() => import("./pages/chama/fines/Fines"));
 const Legal = lazy(() => import("./pages/legal/Legal"));
 const Login = lazy(() => import("./pages/auth/Login"));
 const Register = lazy(() => import("./pages/auth/Register"));
@@ -352,6 +353,14 @@ function AppContent() {
                             />
                             <Route path="/terms" element={<Legal />} />
                             <Route path="/privacy" element={<Legal />} />
+                            <Route
+                                path="/chamas/:id/fines"
+                                element={
+                                    <ProtectedRoute>
+                                        <PageTransition><Fines /></PageTransition>
+                                    </ProtectedRoute>
+                                }
+                            />
                             <Route
                                 path="/chamas/:id/exits"
                                 element={

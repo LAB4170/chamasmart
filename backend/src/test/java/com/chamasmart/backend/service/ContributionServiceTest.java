@@ -32,6 +32,7 @@ class ContributionServiceTest {
     @Mock LedgerService ledger;
     @Mock RoscaCycleRepository cycleRepo;
     @Mock RoscaRosterRepository rosterRepo;
+    @Mock FineService fineService;
     @InjectMocks ContributionService service;
 
     Chama chama;

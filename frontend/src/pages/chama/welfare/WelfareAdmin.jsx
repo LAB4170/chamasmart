@@ -13,6 +13,33 @@ const FILTERS = [
 ];
 const isOpen = (c) => c.status === "SUBMITTED" || c.status === "VERIFIED";
 
+function ProofFiles({ claimId }) {
+  const [files, setFiles] = useState(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let live = true;
+    welfareAPI.listDocuments(claimId).then((r) => { if (live) setFiles(r.data?.data ?? []); }).catch(() => { if (live) setFailed(true); });
+    return () => { live = false; };
+  }, [claimId]);
+  const open = async (f) => {
+    try {
+      const res = await welfareAPI.downloadDocument(claimId, f.document_id);
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url; a.download = f.file_name; a.rel = "noopener";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch { toast.error("We couldn't open that file."); }
+  };
+  if (failed) return <p className="cs-list-meta" style={{ margin: 0 }}>Proof files could not be loaded.</p>;
+  if (!files || files.length === 0) return <p className="cs-list-meta" style={{ margin: 0 }}>No proof file attached.</p>;
+  return (
+    <ul className="cs-list-meta" style={{ margin: 0, paddingLeft: 18 }} aria-label="Proof files">
+      {files.map((f) => <li key={f.document_id}><button type="button" className="cs-link" style={{ background: "none", border: 0, padding: 0, cursor: "pointer" }} onClick={() => open(f)}>{f.file_name}</button> ({Math.max(1, Math.round(f.size_bytes / 1024))} KB)</li>)}
+    </ul>
+  );
+}
+
 export default function WelfareAdmin() {
   const { id } = useParams();
   const [claims, setClaims] = useState([]);
@@ -100,6 +127,7 @@ export default function WelfareAdmin() {
                       <div><dt>Happened</dt><dd>{c.date_of_occurrence ? formatDate(c.date_of_occurrence) : "—"}</dd></div>
                     </dl>
                     {c.description && <p className="cs-list-meta" style={{ margin: 0 }}>{c.description}</p>}
+                    <ProofFiles claimId={c.claim_id} />
                     {(c.approvals || []).length > 0 && (
                       <ul className="cs-list-meta" style={{ margin: 0, paddingLeft: 18 }}>
                         {c.approvals.map((a) => <li key={a.approval_id}>{a.approver_name}: {a.status === "APPROVED" ? "approved" : "declined"}{a.comments ? ` (${a.comments})` : ""}</li>)}

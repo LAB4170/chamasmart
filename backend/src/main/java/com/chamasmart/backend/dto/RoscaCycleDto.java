@@ -23,6 +23,8 @@ public class RoscaCycleDto {
     private Integer total_members;
     private BigDecimal contribution_amount;
     private String payout_order;
+    private BigDecimal late_fee;
+    private Integer grace_days;
     private String status;
     private ZonedDateTime created_at;
     private List<RosterPositionDto> roster;
@@ -62,6 +64,8 @@ public class RoscaCycleDto {
                 .total_members(cycle.getTotalMembers())
                 .contribution_amount(cycle.getContributionAmount())
                 .payout_order(cycle.getPayoutOrder())
+                .late_fee(cycle.getLateFee())
+                .grace_days(cycle.getGraceDays())
                 .status(cycle.getStatus())
                 .created_at(cycle.getCreatedAt())
                 .roster(rosterDtos)

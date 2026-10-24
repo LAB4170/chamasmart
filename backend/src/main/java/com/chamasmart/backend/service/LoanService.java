@@ -441,14 +441,22 @@ public class LoanService {
                     .ipAddress(com.chamasmart.backend.security.ClientIp.current()).userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent()).build());
             return "AWAITING_MORE_APPROVALS";
         }
-        if (chama.getCurrentFund().compareTo(amount) < 0) {
+        // T-05: the cover reserve sits inside the fund but is never lent out.
+        BigDecimal reserve = loanRepository.coverReserve(chama.getChamaId());
+        reserve = reserve == null ? BigDecimal.ZERO : reserve;
+        BigDecimal lendable = chama.getCurrentFund().subtract(reserve);
+        if (lendable.compareTo(amount) < 0) {
             throw new RuntimeException("Insufficient chama funds for loan disbursement. Available: " 
-                    + chama.getCurrentFund() + ", Requested: " + amount);
+                    + lendable.max(BigDecimal.ZERO) + (reserve.signum() > 0 ? " (KES " + reserve + " is held in the cover reserve)" : "") + ", Requested: " + amount);
         }
-        // Deduct from chama funds
-        chama.setCurrentFund(chama.getCurrentFund().subtract(amount));
+        // The premium stays in the fund as reserve; the member's loan is still the full amount.
+        BigDecimal premium = LoanCoverService.premium(amount, policy.getCoverPercent());
+        loan.setCoverPremium(premium.signum() > 0 ? premium : null);
+        BigDecimal leaving = amount.subtract(premium);
+        chama.setCurrentFund(chama.getCurrentFund().subtract(leaving));
         chamaRepository.save(chama);
-        ledger.post(chama, LedgerEntry.CHAMA_FUND, amount.negate(), "LOAN_DISBURSEMENT", "LOAN", loan.getLoanId(), officerUserId, "Loan to member " + loan.getBorrower().getUserId());
+        ledger.post(chama, LedgerEntry.CHAMA_FUND, leaving.negate(), "LOAN_DISBURSEMENT", "LOAN", loan.getLoanId(), officerUserId,
+                "Loan to member " + loan.getBorrower().getUserId() + (premium.signum() > 0 ? " (KES " + premium + " kept as cover premium)" : ""));
         loan.setStatus("APPROVED");
         loan.setApprovedAt(ZonedDateTime.now());
         loan.setApprovedBy(userRepository.getReferenceById(officerUserId));

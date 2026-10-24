@@ -17,6 +17,7 @@ export default function SubmitClaim() {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
   const [form, setForm] = useState({ eventId: "", amount: "", date: "", description: "", beneficiary: "", relationship: "", proof: "" });
+  const [file, setFile] = useState(null);
 
   useEffect(() => {
     let live = true;
@@ -54,6 +55,10 @@ export default function SubmitClaim() {
     if (form.beneficiary.trim().length < 2) er.beneficiary = "Say who the claim is for.";
     if (!form.relationship.trim()) er.relationship = "Say how they are related to you.";
     if (form.proof.trim() && !/^https:\/\//i.test(form.proof.trim())) er.proof = "A proof link must start with https://";
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) er.file = "The file is larger than 5 MB.";
+      else if (!/\.(pdf|jpe?g|png)$/i.test(file.name)) er.file = "Only PDF, JPG or PNG files are accepted.";
+    }
     if (form.description.trim().length < 10) er.description = "Tell the officials what happened (at least 10 characters).";
     setErrors(er);
     return Object.keys(er).length === 0;
@@ -74,6 +79,7 @@ export default function SubmitClaim() {
         beneficiary_relationship: form.relationship.trim(),
       };
       if (form.proof.trim()) payload.proof_document_url = form.proof.trim();
+      if (file) payload.proof_document = file;
       const res = await welfareAPI.submitClaim(id, payload);
       toast.success(res.data?.message || "Claim submitted. Officials will review it.");
       navigate(`/chamas/${id}/welfare`);
@@ -140,7 +146,13 @@ export default function SubmitClaim() {
               <label className="cs-label" htmlFor="sc-proof">Link to proof (optional)</label>
               <input className="cs-input" type="url" inputMode="url" placeholder="https://…" {...aria("proof")} value={form.proof} onChange={set} />
               {err("proof")}
-              <span className="cs-help">Paste a link to a document or photo. Officials may also ask you for proof directly.</span>
+              <span className="cs-help">Optional if you attach a file below.</span>
+            </div>
+            <div className="cs-field">
+              <label className="cs-label" htmlFor="sc-file">Attach proof (PDF, JPG or PNG, up to 5 MB)</label>
+              <input className="cs-input" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" {...aria("file")} onChange={(e) => setFile(e.target.files?.[0] || null)} />
+              {err("file")}
+              <span className="cs-help">Only you and your officials can open it.</span>
             </div>
             <div className="cs-actions">
               <Button type="button" variant="secondary" onClick={() => navigate(-1)} disabled={saving}>Cancel</Button>

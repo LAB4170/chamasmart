@@ -32,6 +32,7 @@ public class RoscaService {
     private final LedgerService ledger;
     private final RoscaSwapRepository swapRepository;
     private final NotificationRepository notificationRepository;
+    private final FineService fineService;
     @org.springframework.beans.factory.annotation.Value("${app.finance.dual-approval-threshold:10000}")
     private BigDecimal dualApprovalThreshold = BigDecimal.valueOf(10000);
     @Transactional
@@ -49,6 +50,7 @@ public class RoscaService {
         if (dto.getContribution_amount() != null && dto.getContribution_amount().signum() <= 0) {
             throw new IllegalArgumentException("The contribution amount must be more than zero");
         }
+        checkedLateFee(dto);
         if (roscaCycleRepository.findByChamaChamaId(chamaId).stream().anyMatch(c -> "ACTIVE".equalsIgnoreCase(c.getStatus()))) {
             throw new IllegalStateException("This chama already has an active cycle. Finish or cancel it first.");
         }
@@ -64,6 +66,8 @@ public class RoscaService {
                 .totalMembers(activeMembers.size())
                 .contributionAmount(dto.getContribution_amount() != null ? dto.getContribution_amount() : chama.getContributionAmount())
                 .payoutOrder(orderMode(dto))
+                .lateFee(checkedLateFee(dto))
+                .graceDays(dto.getGrace_days() == null ? 3 : dto.getGrace_days())
                 .status("ACTIVE")
                 .build();
         RoscaCycle savedCycle = roscaCycleRepository.save(cycle);
@@ -95,6 +99,18 @@ public class RoscaService {
      * R-05: turns are given in the order of joining, by a random draw, or in an order the officials choose. The draw uses a secure
      * random source, and the mode used is stored with the cycle so members can see how the order was set.
      */
+    /** A late fee is optional. When set it cannot exceed one round's payment, and grace is 0 to 30 days. */
+    BigDecimal checkedLateFee(RoscaCycleDto dto) {
+        if (dto.getGrace_days() != null && (dto.getGrace_days() < 0 || dto.getGrace_days() > 30))
+            throw new IllegalArgumentException("Grace days must be between 0 and 30");
+        BigDecimal fee = dto.getLate_fee();
+        if (fee == null || fee.signum() == 0) return null;
+        BigDecimal each = dto.getContribution_amount();
+        if (fee.signum() < 0 || (each != null && fee.compareTo(each) > 0))
+            throw new IllegalArgumentException("The late fee must be above zero and no more than one round's payment");
+        return fee.setScale(2, java.math.RoundingMode.HALF_UP);
+    }
+
     List<ChamaMember> orderMembers(List<ChamaMember> members, RoscaCycleDto dto) {
         String mode = orderMode(dto);
         List<ChamaMember> list = new ArrayList<>(members);
@@ -460,7 +476,7 @@ public class RoscaService {
     // ---- R-06: round deadlines ----
 
     /** Tells the officials once a day when a round's payout date has passed and the recipient has not been paid. */
-    @org.springframework.scheduling.annotation.Scheduled(cron = "0 0 7 * * *", zone = "Africa/Nairobi")
+    @org.springframework.scheduling.annotation.Scheduled(cron = "${app.rosca.overdue-cron:0 0 7 * * *}", zone = "Africa/Nairobi")
     @Transactional
     public void remindOverdueRounds() {
         for (RoscaCycle cycle : roscaCycleRepository.findByStatus("ACTIVE")) {
@@ -476,6 +492,27 @@ public class RoscaService {
                         .message(current.getUser().getFirstName() + "'s turn in " + cycle.getCycleName() + " was due " + days + " day(s) ago. " + why)
                         .type("ROSCA_OVERDUE").entityType("ROSCA_CYCLE").entityId(cycle.getCycleId()).build());
             }
+            fineLateMembers(cycle, round, days);
         }
+    }
+
+    /**
+     * R-02: once a round is past its due date plus grace, each member who is behind gets the cycle's late fee, once per round.
+     * Fines are only a record until the member pays them; officials can waive any of them.
+     */
+    int fineLateMembers(RoscaCycle cycle, Map<String, Object> round, long daysOverdue) {
+        BigDecimal fee = cycle.getLateFee();
+        int grace = cycle.getGraceDays() == null ? 3 : cycle.getGraceDays();
+        if (fee == null || fee.signum() <= 0 || daysOverdue <= grace) return 0;
+        int count = 0;
+        int roundNo = ((Number) round.get("round_number")).intValue();
+        @SuppressWarnings("unchecked") List<Map<String, Object>> members = (List<Map<String, Object>>) round.get("members");
+        for (Map<String, Object> row : members) {
+            if (((BigDecimal) row.get("arrears")).signum() <= 0) continue;
+            Long uid = (Long) row.get("user_id");
+            User user = userRepository.getReferenceById(uid);
+            if (fineService.issueLateRoundFine(cycle.getChama(), cycle, roundNo, user, fee)) count++;
+        }
+        return count;
     }
 }

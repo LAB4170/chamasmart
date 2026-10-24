@@ -27,6 +27,8 @@ public class LoanSummaryDto {
     private BigDecimal amount_paid;
     private BigDecimal balance;
     private BigDecimal monthly_payment;
+    private BigDecimal cover_premium;
+    private BigDecimal cover_paid;
     private LocalDate due_date;
     private ZonedDateTime created_at;
     private String interest_type;
@@ -52,6 +54,8 @@ public class LoanSummaryDto {
                 .amount_paid(loan.getAmountPaid())
                 .balance(calcBalance)
                 .monthly_payment(loan.getMonthlyPayment())
+                .cover_premium(loan.getCoverPremium())
+                .cover_paid(loan.getCoverPaid())
                 .due_date(loan.getDueDate())
                 .created_at(loan.getCreatedAt())
                 .interest_type(loan.getInterestType() != null ? loan.getInterestType() : "FLAT")

@@ -15,6 +15,9 @@ public interface LoanRepository extends JpaRepository<Loan, Long> {
     @Query("SELECT l FROM Loan l JOIN FETCH l.chama JOIN FETCH l.borrower WHERE l.chama.chamaId = :chamaId ORDER BY l.createdAt DESC")
     List<Loan> findByChamaChamaId(@Param("chamaId") Long chamaId);
     List<Loan> findByStatus(String status);
+    /** The chama's loan-cover reserve: premiums collected minus claims paid out. */
+    @Query("SELECT COALESCE(SUM(COALESCE(l.coverPremium, 0) - COALESCE(l.coverPaid, 0)), 0) FROM Loan l WHERE l.chama.chamaId = :chamaId")
+    java.math.BigDecimal coverReserve(@Param("chamaId") Long chamaId);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT l FROM Loan l WHERE l.loanId = :loanId")
     Optional<Loan> findByIdWithPessimisticLock(@Param("loanId") Long loanId);

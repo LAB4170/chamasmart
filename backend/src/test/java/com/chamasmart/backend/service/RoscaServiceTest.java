@@ -38,6 +38,7 @@ class RoscaServiceTest {
     @Mock LedgerService ledger;
     @Mock RoscaSwapRepository swapRepo;
     @Mock NotificationRepository notifRepo;
+    @Mock FineService fineSvc;
 
     RoscaService service;
     Chama chama;
@@ -60,7 +61,7 @@ class RoscaServiceTest {
         when(cycleRepo.findById(5L)).thenReturn(Optional.of(cycle));
         when(cycleRepo.findByIdWithPessimisticLock(5L)).thenReturn(Optional.of(cycle));
         collect(1000, 1000, 1000);
-        service = new RoscaService(cycleRepo, rosterRepo, chamaRepo, memberRepo, userRepo, contribRepo, auditRepo, membership, contributions, loanRepo, ledger, swapRepo, notifRepo);
+        service = new RoscaService(cycleRepo, rosterRepo, chamaRepo, memberRepo, userRepo, contribRepo, auditRepo, membership, contributions, loanRepo, ledger, swapRepo, notifRepo, fineSvc);
     }
 
     /** Verified merry-go-round payments linked to cycle 5, one per amount, from users 8, 9, 10... */
@@ -333,5 +334,43 @@ class RoscaServiceTest {
         Map<String, Object> round = service.getRound(5L, 8L);
         assertEquals(4L, round.get("days_overdue"));
         assertEquals(List.of("U20 X"), round.get("waiting_for_next_cycle"));
+    }
+
+    private Map<String, Object> roundWith(long behindUser, long paidUser) {
+        Map<String, Object> a = new java.util.LinkedHashMap<>(); a.put("user_id", behindUser); a.put("arrears", new BigDecimal("1000"));
+        Map<String, Object> b = new java.util.LinkedHashMap<>(); b.put("user_id", paidUser); b.put("arrears", BigDecimal.ZERO);
+        Map<String, Object> r = new java.util.LinkedHashMap<>(); r.put("round_number", 2L); r.put("members", List.of(a, b));
+        return r;
+    }
+
+    @Test
+    void lateFeeIsChargedOnlyToMembersBehindAndOnlyAfterGrace() {
+        cycle.setLateFee(new BigDecimal("100")); cycle.setGraceDays(3);
+        when(userRepo.getReferenceById(8L)).thenReturn(user(8));
+        when(fineSvc.issueLateRoundFine(any(), any(), eq(2), any(), any())).thenReturn(true);
+        assertEquals(0, service.fineLateMembers(cycle, roundWith(8, 9), 3));
+        assertEquals(1, service.fineLateMembers(cycle, roundWith(8, 9), 4));
+        verify(fineSvc, times(1)).issueLateRoundFine(any(), any(), eq(2), argThat(u -> u.getUserId() == 8L), eq(new BigDecimal("100")));
+        verify(fineSvc, never()).issueLateRoundFine(any(), any(), anyInt(), argThat(u -> u.getUserId() == 9L), any());
+    }
+
+    @Test
+    void noLateFeeMeansNoFines() {
+        cycle.setLateFee(null);
+        assertEquals(0, service.fineLateMembers(cycle, roundWith(8, 9), 30));
+        verifyNoInteractions(fineSvc);
+    }
+
+    @Test
+    void lateFeeCannotExceedOneRoundOrGoNegative() {
+        RoscaCycleDto dto = new RoscaCycleDto(); dto.setContribution_amount(new BigDecimal("1000"));
+        dto.setLate_fee(new BigDecimal("1500"));
+        assertThrows(IllegalArgumentException.class, () -> service.checkedLateFee(dto));
+        dto.setLate_fee(new BigDecimal("-1"));
+        assertThrows(IllegalArgumentException.class, () -> service.checkedLateFee(dto));
+        dto.setLate_fee(new BigDecimal("200")); dto.setGrace_days(31);
+        assertThrows(IllegalArgumentException.class, () -> service.checkedLateFee(dto));
+        dto.setGrace_days(2);
+        assertEquals(new BigDecimal("200.00"), service.checkedLateFee(dto));
     }
 }

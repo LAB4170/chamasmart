@@ -89,6 +89,14 @@ public class Loan {
     private Long pendingActionBy;
     @Column(name = "pending_action_value")
     private Integer pendingActionValue;
+    /** Premium taken from this loan at disbursement into the chama's cover reserve. */
+    @Column(name = "cover_premium", precision = 15, scale = 2)
+    private BigDecimal coverPremium;
+
+    /** Amount of this loan's balance paid out of the cover reserve after a death or disability claim. */
+    @Column(name = "cover_paid", precision = 15, scale = 2)
+    private BigDecimal coverPaid;
+
     @Version
     @Column(name = "version")
     private Long version;

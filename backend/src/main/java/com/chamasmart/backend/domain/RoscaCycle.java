@@ -35,6 +35,11 @@ public class RoscaCycle {
     @Column(name = "payout_order", length = 20)
     @Builder.Default
     private String payoutOrder = "ROTATIONAL"; // ROTATIONAL, RANDOM, BID
+    /** Fine for a member who has not paid by the round's due date plus grace days. Null or zero switches it off. */
+    @Column(name = "late_fee", precision = 15, scale = 2)
+    private BigDecimal lateFee;
+    @Column(name = "grace_days")
+    private Integer graceDays;
     @Column(length = 20)
     @Builder.Default
     private String status = "ACTIVE"; // ACTIVE, COMPLETED, CANCELLED

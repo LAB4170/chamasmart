@@ -65,6 +65,10 @@ public class LoanConfig {
     @Builder.Default
     private Integer committeeSize = 2;
 
+    /** Loan protection premium as a percent of each new loan, kept in the chama's cover reserve. Null or zero means no cover. */
+    @Column(name = "cover_percent", precision = 5, scale = 2)
+    private BigDecimal coverPercent;
+
     @Column(name = "updated_at")
     private ZonedDateTime updatedAt;
 

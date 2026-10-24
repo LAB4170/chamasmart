@@ -37,6 +37,7 @@ public class ContributionService {
     private final LedgerService ledger;
     private final RoscaCycleRepository roscaCycleRepository;
     private final RoscaRosterRepository roscaRosterRepository;
+    private final FineService fineService;
 
     /** Credits at or above this need a second official; below it, an official still cannot credit their own money. */
     @org.springframework.beans.factory.annotation.Value("${app.finance.dual-approval-threshold:10000}")
@@ -97,6 +98,7 @@ public class ContributionService {
     /** Credits the member's total and the chama (or welfare) fund. Fund rows are locked while they change. */
     private void credit(Chama chama, Contribution c, Long actorId) {
         Long chamaId = chama.getChamaId();
+        if ("FINE".equalsIgnoreCase(c.getContributionType())) fineService.settle(chamaId, c.getUser().getUserId(), c.getAmount());
         chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, c.getUser().getUserId()).ifPresent(m -> {
             BigDecimal total = m.getTotalContributions() != null ? m.getTotalContributions() : BigDecimal.ZERO;
             m.setTotalContributions(total.add(c.getAmount()));

@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
-import { loanAPI } from "../../../services/api";
+import { loanAPI, coverAPI } from "../../../services/api";
 import { Button, PageHeader, Skeleton } from "../../../components/ui";
 
-const DEFAULTS = { interest_rate: "10", interest_type: "FLAT", loan_multiplier: "3", max_repayment_months: "12", require_guarantors: true, late_fee_percent: "0", committee_threshold: "20000", committee_size: "2" };
+const DEFAULTS = { interest_rate: "10", interest_type: "FLAT", loan_multiplier: "3", max_repayment_months: "12", require_guarantors: true, late_fee_percent: "0", committee_threshold: "20000", committee_size: "2", cover_percent: "0" };
 
 export default function LoanConfigPage() {
   const { id } = useParams();
@@ -30,6 +30,7 @@ export default function LoanConfigPage() {
             late_fee_percent: String(c.late_fee_percent ?? DEFAULTS.late_fee_percent),
             committee_threshold: String(c.committee_threshold ?? DEFAULTS.committee_threshold),
             committee_size: String(c.committee_size ?? DEFAULTS.committee_size),
+            cover_percent: String(c.cover_percent ?? DEFAULTS.cover_percent),
           });
         }
       })
@@ -54,6 +55,8 @@ export default function LoanConfigPage() {
     if (!Number.isFinite(thr) || thr <= 0) er.committee_threshold = "Enter an amount above zero.";
     const size = Number(form.committee_size);
     if (!Number.isInteger(size) || size < 1 || size > 3) er.committee_size = "Choose 1, 2 or 3 approvals.";
+    const cover = Number(form.cover_percent);
+    if (!Number.isFinite(cover) || cover < 0 || cover > 10) er.cover_percent = "Enter a premium between 0 and 10 percent.";
     setErrors(er);
     return Object.keys(er).length === 0;
   };
@@ -73,6 +76,7 @@ export default function LoanConfigPage() {
         committee_threshold: Number(form.committee_threshold),
         committee_size: Number(form.committee_size),
       });
+      await coverAPI.setPercent(id, Number(form.cover_percent));
       toast.success("Loan terms saved. They apply to new applications; existing loans keep their terms.");
       navigate(`/chamas/${id}`);
     } catch (err) {
@@ -133,6 +137,11 @@ export default function LoanConfigPage() {
                 <label className="cs-label" htmlFor="lc-committee_size">Approvals needed for those loans</label>
                 <input className="cs-input" type="number" inputMode="numeric" min="1" max="3" {...aria("committee_size")} value={form.committee_size} onChange={set} />
                 {msg("committee_size", "Different officials, never the borrower.")}
+              </div>
+              <div className="cs-field">
+                <label className="cs-label" htmlFor="lc-cover_percent">Loan cover premium (% of each new loan)</label>
+                <input className="cs-input" type="number" inputMode="decimal" min="0" max="10" step="0.25" {...aria("cover_percent")} value={form.cover_percent} onChange={set} />
+                {msg("cover_percent", "Kept back from each new loan into a reserve that is never lent out. If a borrower dies or is permanently disabled, two officials can pay what is left from the reserve, up to what it holds. 0 means no cover.")}
               </div>
             </div>
             <label className="cs-check" style={{ marginBottom: 16 }}>

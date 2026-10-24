@@ -17,6 +17,7 @@ import java.util.Map;
 public class WelfareController {
     private final WelfareService welfareService;
     private final com.chamasmart.backend.service.ContributionService contributionService;
+    private final com.chamasmart.backend.service.ClaimDocumentService claimDocuments;
     @PostMapping("/chamas/{chamaId}/configs")
     public ResponseEntity<ApiResponse<WelfareConfigDto>> createConfig(@PathVariable Long chamaId,
                                                                       @RequestBody WelfareConfigDto configDto,
@@ -70,13 +71,44 @@ public class WelfareController {
                                                                          @RequestParam(value = "proof_document", required = false) org.springframework.web.multipart.MultipartFile proofDocument,
                                                                          @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to file welfare claim by user ID: {}", currentUser.getUserId());
-        if (proofDocument != null && !proofDocument.isEmpty()) {
-            // Document storage isn't connected yet, so the file is not kept. Say so rather than invent a link.
-            log.info("Proof document '{}' received but not stored", proofDocument.getOriginalFilename());
-        }
         WelfareClaimSummaryDto filedClaim = welfareService.fileClaim(requestDto, currentUser.getUserId());
+        boolean attached = false;
+        if (proofDocument != null && !proofDocument.isEmpty()) {
+            try {
+                claimDocuments.add(filedClaim.getClaim_id(), currentUser.getUserId(), proofDocument.getOriginalFilename(), proofDocument.getBytes());
+                attached = true;
+            } catch (java.io.IOException | RuntimeException e) {
+                log.warn("Proof file for claim {} was not kept: {}", filedClaim.getClaim_id(), e.getMessage());
+                return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(filedClaim,
+                        "Claim submitted, but the proof file was not kept (" + e.getMessage() + "). You can add it again from the claim."));
+            }
+        }
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(filedClaim, proofDocument != null && !proofDocument.isEmpty() ? "Claim submitted. Attached documents are not stored yet, so officials may ask you for proof." : "Welfare claim submitted successfully"));
+                .body(ApiResponse.success(filedClaim, attached ? "Claim submitted with your proof file" : "Welfare claim submitted successfully"));
+    }
+
+    @PostMapping(value = "/claims/{claimId}/documents", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<Map<String, Object>>> addDocument(@PathVariable Long claimId,
+                                                                        @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+                                                                        @AuthenticationPrincipal CustomUserDetails currentUser) throws java.io.IOException {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(
+                claimDocuments.add(claimId, currentUser.getUserId(), file.getOriginalFilename(), file.getBytes()), "Proof file added"));
+    }
+
+    @GetMapping("/claims/{claimId}/documents")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listDocuments(@PathVariable Long claimId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(claimDocuments.list(claimId, currentUser.getUserId()), "Proof files"));
+    }
+
+    @GetMapping("/claims/{claimId}/documents/{documentId}")
+    public ResponseEntity<byte[]> downloadDocument(@PathVariable Long claimId, @PathVariable Long documentId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        var d = claimDocuments.get(claimId, documentId, currentUser.getUserId());
+        return ResponseEntity.ok()
+                .header("Content-Type", d.getContentType())
+                .header("Content-Disposition", "attachment; filename=\"" + d.getFileName() + "\"")
+                .header("X-Content-Type-Options", "nosniff")
+                .header("Cache-Control", "private, no-store")
+                .body(d.getData());
     }
     @PostMapping("/claims/{claimId}/approve")
     public ResponseEntity<ApiResponse<WelfareClaimSummaryDto>> approveClaim(@PathVariable Long claimId,

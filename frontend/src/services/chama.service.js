@@ -50,3 +50,27 @@ export const exitAPI = {
   cancel: (chamaId, exitId) => api.post(`/chamas/${chamaId}/exits/${exitId}/cancel`),
   statement: (chamaId, exitId) => api.get(`/chamas/${chamaId}/exits/${exitId}/statement`),
 };
+
+// Fines: FineController /chamas/{id}/fines
+export const fineAPI = {
+  list: (chamaId) => api.get(`/chamas/${chamaId}/fines`),
+  issue: (chamaId, body) => api.post(`/chamas/${chamaId}/fines`, body),
+  waive: (chamaId, fineId, note) => api.post(`/chamas/${chamaId}/fines/${fineId}/waive`, { note }),
+};
+
+// Loan cover reserve: LoanCoverController /loans/{id}/cover
+export const coverAPI = {
+  overview: (chamaId) => api.get(`/loans/${chamaId}/cover`),
+  setPercent: (chamaId, coverPercent) => api.put(`/loans/${chamaId}/cover/percent`, { cover_percent: coverPercent }),
+  request: (chamaId, body) => api.post(`/loans/${chamaId}/cover/claims`, body),
+  decide: (chamaId, claimId, decision, note) => api.post(`/loans/${chamaId}/cover/claims/${claimId}/decision`, { decision, note }),
+};
+
+// Payment workflow: PaymentIntentController /chamas/{id}/payments (manual provider only for now)
+export const paymentAPI = {
+  providers: (chamaId) => api.get(`/chamas/${chamaId}/payments/providers`),
+  list: (chamaId) => api.get(`/chamas/${chamaId}/payments`),
+  create: (chamaId, body, key) => api.post(`/chamas/${chamaId}/payments`, body, { headers: { "Idempotency-Key": key } }),
+  submit: (chamaId, intentId, body) => api.post(`/chamas/${chamaId}/payments/${intentId}/submit`, body),
+  cancel: (chamaId, intentId) => api.post(`/chamas/${chamaId}/payments/${intentId}/cancel`),
+};

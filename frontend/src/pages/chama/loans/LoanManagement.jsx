@@ -8,6 +8,7 @@ import { formatKES, formatDate } from "../../../utils/format";
 import LoanAnalyticsDashboard from "./LoanAnalyticsDashboard";
 import PendingRepayments from "./PendingRepayments";
 import LoanOfficialActions from "./LoanOfficialActions";
+import LoanCoverPanel from "./LoanCoverPanel";
 import ArrearsList from "./ArrearsList";
 
 const OPEN = ["APPROVED", "DISBURSED", "DEFAULTED"];
@@ -218,6 +219,7 @@ export default function LoanManagement() {
                   <StatCard label="Lent out" value={formatKES(stats.lent)} note="Principal on active loans" />
                 </div>
                 {isOfficial && <PendingRepayments chamaId={id} onVerified={refreshLoans} />}
+                {isOfficial && <LoanCoverPanel chamaId={id} loans={loans} me={user?.id ?? user?.user_id ?? user?.userId} onChanged={refreshLoans} />}
                 {isOfficial && <ArrearsList chamaId={id} />}
 
                 <section className="cs-section" aria-labelledby="loan-table">
@@ -257,6 +259,8 @@ export default function LoanManagement() {
               <div><dt>Paid</dt><dd>{formatKES(d.loan.amount_paid || 0)}</dd></div>
               <div><dt>Balance</dt><dd>{formatKES(d.loan.balance || 0)}</dd></div>
               <div><dt>Monthly payment</dt><dd>{formatKES(d.loan.monthly_payment || 0)}</dd></div>
+              {Number(d.loan.cover_premium) > 0 && <div><dt>Cover premium kept back</dt><dd>{formatKES(d.loan.cover_premium)}</dd></div>}
+              {Number(d.loan.cover_paid) > 0 && <div><dt>Paid from cover reserve</dt><dd>{formatKES(d.loan.cover_paid)}</dd></div>}
             </dl>
             {isOfficial && ["APPROVED", "DISBURSED", "ACTIVE", "DEFAULTED"].includes(d.loan.status) && (
               <LoanOfficialActions chamaId={id} loan={d.loan} onDone={async () => { await refreshLoans(); await openDetails(details.loan); }} />

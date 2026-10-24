@@ -71,11 +71,11 @@ The repository scanner (gitleaks) runs on every push. Never commit `.env` files,
 ## Known limits
 
 - Login lockouts and rate limits are kept in memory. They reset when the service restarts and are not shared if you run more than one copy.
-- Card and wallet payments are not built. M-Pesa is not in use. Contributions are recorded and verified by officials.
-- Documents attached to welfare claims are not stored. Claims accept a proof link.
+- Card and wallet payments are not built and M-Pesa is not in use. The payment workflow (`/chamas/{id}/payments`) exists and works with the manual provider only: the member reports a payment, an official verifies it. M-Pesa and card report themselves as unavailable until they are built and approved.
+- Loan cover is run by the chama, not an insurer. A premium (set by officials, 0 to 10 percent) is kept back from each new loan into a reserve that is never lent out. Two officials can pay a deceased or disabled borrower's balance from it, up to what the reserve holds.
+- ROSCA late fines: set a late fee and grace days when starting a round. A job at 07:00 Nairobi time fines each member still behind, once per round. Officials can waive any fine. Change the time with `APP_ROSCA_OVERDUE_CRON` (a Spring cron expression).
+- Welfare proof files (PDF, JPG, PNG, up to 5 MB, three per claim) are kept in the database, so they grow it. Only the claimant and officials can open them.
 - Savings are not frozen while a member has a loan; guarantors' savings are protected by the guarantee rules instead.
-- Late fines for ROSCA rounds are not automated. Members are reminded daily; officials can issue a fine of the existing fine type.
-- Loan insurance (T-05) is a product decision with an insurer and is not built.
 - The refresh token is kept in the browser's local storage, protected by the Content Security Policy. Sign-in with Google should be re-checked after any change to the policy in `netlify.toml`.
 - GitHub's Dependabot lists open dependency advisories. Triage them monthly: update direct dependencies first, then rebuild and run the tests.
 - Docker base images are pinned by tag, not digest.

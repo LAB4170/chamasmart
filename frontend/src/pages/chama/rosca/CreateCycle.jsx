@@ -11,7 +11,7 @@ export default function CreateCycle() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
-  const [form, setForm] = useState({ name: "", amount: "", startDate: today(), order: "ROTATIONAL" });
+  const [form, setForm] = useState({ name: "", amount: "", startDate: today(), order: "ROTATIONAL", lateFee: "", graceDays: "3" });
   const [members, setMembers] = useState([]); // for the "I choose the order" option
 
   useEffect(() => {
@@ -39,6 +39,10 @@ export default function CreateCycle() {
     const amt = Number(form.amount);
     if (!Number.isFinite(amt) || amt <= 0) er.amount = "Enter the amount each member pays per round.";
     if (!form.startDate) er.startDate = "Choose a start date.";
+    const fee = form.lateFee === "" ? 0 : Number(form.lateFee);
+    if (!Number.isFinite(fee) || fee < 0 || (Number.isFinite(amt) && amt > 0 && fee > amt)) er.lateFee = "The late fee can't be more than one round's payment.";
+    const grace = Number(form.graceDays);
+    if (!Number.isInteger(grace) || grace < 0 || grace > 30) er.graceDays = "Enter 0 to 30 days.";
     setErrors(er);
     return Object.keys(er).length === 0;
   };
@@ -54,6 +58,7 @@ export default function CreateCycle() {
         contribution_amount: Number(form.amount),
         start_date: form.startDate,
         payout_order: form.order,
+        ...(Number(form.lateFee) > 0 ? { late_fee: Number(form.lateFee), grace_days: Number(form.graceDays) } : {}),
         ...(form.order === "MANUAL" ? { member_order: members.map((m) => m.id) } : {}),
       });
       toast.success("Cycle created.");
@@ -112,6 +117,19 @@ export default function CreateCycle() {
               ))}
             </ol>
           )}
+          <div className="cs-form-grid">
+            <div className="cs-field">
+              <label className="cs-label" htmlFor="cc-lateFee">Late fee per round (KES, optional)</label>
+              <input className="cs-input" type="number" inputMode="decimal" min="0" {...aria("lateFee")} value={form.lateFee} onChange={set} />
+              {err("lateFee")}
+            </div>
+            <div className="cs-field">
+              <label className="cs-label" htmlFor="cc-graceDays">Days of grace after the due date</label>
+              <input className="cs-input" type="number" inputMode="numeric" min="0" max="30" {...aria("graceDays")} value={form.graceDays} onChange={set} />
+              {err("graceDays")}
+            </div>
+          </div>
+          <p className="cs-help">Leave the late fee empty for none. Members still behind after the grace days get one fine for that round, and officials can waive it.</p>
           <p className="cs-help">The cycle includes every active member. You can only have one active cycle at a time.</p>
           <div className="cs-actions">
             <Button type="submit" loading={saving}>Create cycle</Button>

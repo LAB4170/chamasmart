@@ -82,6 +82,14 @@ export const welfareAPI = {
             headers: { "Content-Type": "multipart/form-data" },
         });
     },
+    // Proof files: the claimant adds them, the claimant and officials read them
+    listDocuments: (claimId) => api.get(`/welfare/claims/${claimId}/documents`),
+    addDocument: (claimId, file) => {
+        const fd = new FormData();
+        fd.append("file", file);
+        return api.post(`/welfare/claims/${claimId}/documents`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+    },
+    downloadDocument: (claimId, documentId) => api.get(`/welfare/claims/${claimId}/documents/${documentId}`, { responseType: "blob" }),
     // GET /welfare/chamas/{chamaId}/claims
     getChamaClaims: (chamaId) => api.get(`/welfare/chamas/${chamaId}/claims`),
     getMemberClaims: () => {

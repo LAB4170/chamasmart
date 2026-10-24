@@ -111,9 +111,14 @@ const MembersTab = memo(({ members, isOfficial, isROSCA, roster, onNavigate, for
           Group Directors ({members.length})
         </h3>
         {!isOfficial && (
-          <button className="btn-lux btn-lux-outline" onClick={() => onNavigate(`/chamas/${chamaId}/exits`)}>
-            Leave this chama
-          </button>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button className="btn-lux btn-lux-outline" onClick={() => onNavigate(`/chamas/${chamaId}/fines`)}>
+              My fines
+            </button>
+            <button className="btn-lux btn-lux-outline" onClick={() => onNavigate(`/chamas/${chamaId}/exits`)}>
+              Leave this chama
+            </button>
+          </div>
         )}
         {isOfficial && (
           <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -2071,6 +2076,11 @@ const ChamaDetails = () => {
                       icon: Users, color:"#ef4444", bg:"rgba(239,68,68,0.1)", border:"rgba(239,68,68,0.22)",
                       title:"Member Exits", sub:"Approve and pay refunds for members who leave or are removed",
                       path:`/chamas/${id}/exits`, show: true
+                    },
+                    {
+                      icon: FileText, color:"#f97316", bg:"rgba(249,115,22,0.1)", border:"rgba(249,115,22,0.22)",
+                      title:"Fines", sub:"Issue, waive and follow fines, including late-round fines",
+                      path:`/chamas/${id}/fines`, show: true
                     },
                     {
                       icon: Bell, color:"#f59e0b", bg:"rgba(245,158,11,0.1)", border:"rgba(245,158,11,0.22)",

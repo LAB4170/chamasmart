@@ -260,6 +260,7 @@ public class LoanController {
         m.put("late_fee_percent", c.getLateFeePercent() == null ? BigDecimal.ZERO : c.getLateFeePercent());
         m.put("committee_threshold", c.getCommitteeThreshold() == null ? BigDecimal.valueOf(20000) : c.getCommitteeThreshold());
         m.put("committee_size", c.getCommitteeSize() == null ? 2 : c.getCommitteeSize());
+        m.put("cover_percent", c.getCoverPercent() == null ? BigDecimal.ZERO : c.getCoverPercent());
         return m;
     }
 }
