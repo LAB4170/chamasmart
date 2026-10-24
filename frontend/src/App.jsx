@@ -6,7 +6,8 @@ import {
     useLocation,
 } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
+import { warmUpServer } from "./services/axios";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { SocketProvider } from "./context/SocketContext";
 import Navbar from "./components/layout/Navbar";
@@ -109,6 +110,8 @@ const ProtectedRoute = ({ children }) => {
 function AppContent() {
     const location = useLocation();
     const { isAuthenticated } = useAuth();
+
+    useEffect(() => { warmUpServer(); }, []);
 
     return (
         <div className="app">

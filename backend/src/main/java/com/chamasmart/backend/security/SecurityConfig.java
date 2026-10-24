@@ -64,19 +64,35 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                 .requestMatchers("/mpesa/callback", "/payments/mpesa/callback").permitAll()
                 .requestMatchers("/error").permitAll()
-                .requestMatchers("/chat/ai-support").permitAll()
                 .requestMatchers("/socket.io/**").permitAll()
                 .requestMatchers("/notifications/**", "/chamas/**", "/loans/**", "/finance/**").authenticated()
                 .anyRequest().authenticated()
             );
+        http.exceptionHandling(e -> e.authenticationEntryPoint((request, response, ex) -> {
+            response.setStatus(401);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"success\":false,\"message\":\"Please sign in to continue\",\"data\":null}");
+        }));
         http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
+    @Value("${app.cors.allowed-origins:}")
+    private String configuredOrigins;
+
+    /** The production site and native app shells are always allowed; anything else must be listed in CORS_ORIGIN. */
+    private static final java.util.List<String> FIXED_ORIGINS = Arrays.asList("https://chamasmart.netlify.app", "https://localhost", "capacitor://localhost");
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.asList("http://localhost:*", "https://chamasmart-xcym.onrender.com", "https://*.onrender.com", "https://chamasmart.netlify.app", "https://localhost", "capacitor://localhost"));
+        java.util.LinkedHashSet<String> origins = new java.util.LinkedHashSet<>(FIXED_ORIGINS);
+        for (String o : configuredOrigins.split(",")) {
+            String t = o.trim();
+            if (!t.isEmpty() && !t.contains("*")) origins.add(t);
+        }
+        configuration.setAllowedOrigins(new java.util.ArrayList<>(origins));
+        configuration.setAllowedOriginPatterns(Arrays.asList("http://localhost:*", "http://127.0.0.1:*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
         configuration.setExposedHeaders(Arrays.asList("Content-Range", "X-Total-Count"));

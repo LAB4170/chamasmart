@@ -156,4 +156,14 @@ export const cancelRequest = (method, url) => {
     }
 };
 
+/**
+ * Wake a sleeping backend (free hosting spins down after idle). Fire-and-forget:
+ * any response, even a 404, starts the server, so the first real request is quick.
+ */
+export const warmUpServer = () => {
+    try {
+        fetch(`${API_URL}/actuator/health`, { mode: "no-cors", cache: "no-store" }).catch(() => {});
+    } catch { /* best effort */ }
+};
+
 export default api;

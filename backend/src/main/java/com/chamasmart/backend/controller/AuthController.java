@@ -19,6 +19,7 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final com.chamasmart.backend.security.LoginAttemptService loginAttempts;
     private final com.chamasmart.backend.security.FirebaseTokenVerifier firebaseTokenVerifier;
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthResponse>> register(@RequestBody RegisterRequest request) {
@@ -59,8 +60,14 @@ public class AuthController {
                 .body(ApiResponse.success(authResponse, "User registered successfully"));
     }
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody LoginRequest request, jakarta.servlet.http.HttpServletRequest httpRequest) {
         String loginEmail = request.getEmail() == null ? "" : request.getEmail().trim().toLowerCase();
+        String clientIp = com.chamasmart.backend.security.ClientIp.of(httpRequest);
+        if (loginAttempts.isBlocked(clientIp, loginEmail)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .header("Retry-After", String.valueOf(loginAttempts.retryAfterMinutes(clientIp, loginEmail) * 60))
+                    .body(ApiResponse.error("Too many failed attempts. Please try again in " + loginAttempts.retryAfterMinutes(clientIp, loginEmail) + " minutes."));
+        }
         User user = userRepository.findByEmail(loginEmail).orElse(null);
         if (user != null && "google".equalsIgnoreCase(user.getAuthMethod())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -70,9 +77,11 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("This account has been deactivated"));
         }
         if (user == null || request.getPassword() == null || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            loginAttempts.recordFailure(clientIp, loginEmail);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("Invalid email or password"));
         }
+        loginAttempts.reset(clientIp, loginEmail);
         String token = jwtUtil.generateToken(CustomUserDetails.build(user));
         AuthResponse authResponse = new AuthResponse(
         user,

@@ -10,10 +10,18 @@ export default function Login() {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [slow, setSlow] = useState(false);
   const { login, loginWithGoogle, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => { if (isAuthenticated) navigate("/dashboard"); }, [isAuthenticated, navigate]);
+
+  // If a request is still pending after a few seconds the server is probably waking up; say so.
+  useEffect(() => {
+    if (!loading) return undefined;
+    const t = setTimeout(() => setSlow(true), 4000);
+    return () => { clearTimeout(t); setSlow(false); };
+  }, [loading]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -48,6 +56,7 @@ export default function Login() {
           <p>Sign in to ChamaSmart</p>
         </div>
         <form className="cs-card" onSubmit={submit} noValidate>
+          {slow && !error && <div className="cs-notice" role="status" style={{ marginBottom: 12 }}><span>The server is waking up after being idle. This can take up to a minute, please keep this page open.</span></div>}
           {error && <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 12 }}><span>{error}</span></div>}
           <div className="cs-field">
             <label className="cs-label" htmlFor="login-email">Email</label>

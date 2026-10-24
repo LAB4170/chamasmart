@@ -16,7 +16,7 @@ spring:
     # Optimized for Neon Serverless PostgreSQL & Local Fallback
     url: jdbc:${SPRING_DATASOURCE_URL:postgresql://localhost:5432/chamasmart?sslmode=prefer}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:1234}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
     driver-class-name: org.postgresql.Driver
     hikari:
       minimum-idle: 1
@@ -41,19 +41,19 @@ spring:
 app:
   security:
     jwt:
-      secret: ${JWT_SECRET:your_jwt_secret_placeholder_replace_in_render_environment}
+      secret: ${JWT_SECRET:}
       expiration-ms: 86400000 # 24 hours
   cors:
-    allowed-origins: ${CORS_ORIGIN:http://localhost:5173,http://localhost:3000,https://chamasmart-xcym.onrender.com}
+    allowed-origins: ${CORS_ORIGIN:http://localhost:5173,http://localhost:3000,https://chamasmart.netlify.app}
   mpesa:
     env: ${MPESA_ENV:sandbox}
-    consumer-key: ${MPESA_CONSUMER_KEY:cpQnnxLsrtEU7WQ94G5XwfBGG11yUckjQAnAJPQXM9JkHycV}
+    consumer-key: ${MPESA_CONSUMER_KEY:}
     consumer-secret: ${MPESA_CONSUMER_SECRET:YOUR_DARAJA_SANDBOX_CONSUMER_SECRET}
     callback-secret: ${MPESA_CALLBACK_SECRET:}
     shortcode: ${MPESA_SHORTCODE:174379}
     # Official Safaricom Sandbox Passkey (public for sandbox use)
     passkey: ${MPESA_PASSKEY:bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919}
-    callback-url: ${MPESA_CALLBACK_URL:https://chamasmart-xcym.onrender.com/api/v1/mpesa/callback}
+    callback-url: ${MPESA_CALLBACK_URL:https://chamasmart-khrb.onrender.com/api/v1/mpesa/callback}
   firebase:
     project-id: ${FIREBASE_PROJECT_ID:chamasmart-1c600}
     client-email: ${FIREBASE_CLIENT_EMAIL:firebase-adminsdk-fbsvc@chamasmart-1c600.iam.gserviceaccount.com}
@@ -61,6 +61,12 @@ app:
   ai:
     gemini-key: ${GEMINI_API_KEY:}
     groq-key: ${GROQ_API_KEY:}
+
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
 
 management:
   endpoints:

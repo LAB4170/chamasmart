@@ -17,11 +17,25 @@ public class JwtUtil {
     private String jwtSecret;
     @Value("${app.security.jwt.expiration-ms}")
     private long jwtExpirationMs;
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.core.env.Environment environment;
+
+    /**
+     * Production must run with a strong private secret. Elsewhere (local development, tests) a missing secret is replaced by a
+     * random one for this run, so nothing weak is ever shared through the repository.
+     */
     @jakarta.annotation.PostConstruct
-    void warnIfDefaultSecret() {
-        if (jwtSecret == null || jwtSecret.contains("placeholder") || jwtSecret.length() < 32) {
-            org.slf4j.LoggerFactory.getLogger(JwtUtil.class).error("JWT_SECRET is not set to a strong private value. Anyone who knows the default can forge logins. Set JWT_SECRET now.");
+    void checkSecret() {
+        boolean weak = jwtSecret == null || jwtSecret.isBlank() || jwtSecret.contains("placeholder") || jwtSecret.length() < 32;
+        if (!weak) return;
+        boolean prod = java.util.Arrays.asList(environment.getActiveProfiles()).contains("prod");
+        if (prod) {
+            throw new IllegalStateException("JWT_SECRET must be set to a private value of at least 32 characters in production");
         }
+        byte[] random = new byte[48];
+        new java.security.SecureRandom().nextBytes(random);
+        jwtSecret = java.util.Base64.getEncoder().encodeToString(random);
+        org.slf4j.LoggerFactory.getLogger(JwtUtil.class).warn("JWT_SECRET is not set. Using a random secret for this run only; sessions end when the server restarts.");
     }
     private SecretKey getSigningKey() {
         byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);

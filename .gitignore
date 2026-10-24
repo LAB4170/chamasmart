@@ -123,3 +123,27 @@ frontend/dist/
 # Local JDK
 backend/jdk17/
 backend/.gitignore
+
+# ---- Secrets and local-only files (never commit these) ----
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*serviceAccount*.json
+*firebase-adminsdk*.json
+application-local.yml
+application-secret*.yml
+application-*-local.yml
+.postman/
+postman/
+
+# Local debug scripts and build output
+tmp/
+**/dist/
+**/target/
