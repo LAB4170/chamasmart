@@ -45,7 +45,7 @@ export default function RoscaDetails() {
 
   useEffect(() => { load(); }, [load]);
 
-  const next = roster.find((r) => r.status === "ACTIVE");
+  const next = roster.find((r) => r.status === "ACTIVE" || r.status === "PAYOUT_PENDING");
   const paid = roster.filter((r) => r.status === "PAID").length;
   const isOfficial = OFFICIALS.includes(role);
   const isActive = cycle?.status === "ACTIVE";
@@ -56,8 +56,9 @@ export default function RoscaDetails() {
     setBusy(true);
     try {
       if (confirm === "payout") {
-        await roscaAPI.processPayout(cycleId, {});
-        toast.success("Payout recorded.");
+        const res = await roscaAPI.processPayout(cycleId, {});
+        if (res.data?.data?.status === "AWAITING_SECOND_OFFICIAL") toast.info("Payout requested. A different official must release it. No money has moved yet.", { autoClose: 8000 });
+        else toast.success("Payout recorded.");
       } else {
         await roscaAPI.cancelCycle(cycleId);
         toast.success("Cycle cancelled.");
@@ -117,7 +118,7 @@ export default function RoscaDetails() {
                 <li key={r.roster_id} className="cs-list-item">
                   <div className="cs-list-main">
                     <div className="cs-list-title">{r.position}. {r.member_name}{String(r.user_id) === String(user?.user_id) ? " (you)" : ""}</div>
-                    <div className="cs-list-meta">{r.status === "PAID" ? `Paid ${r.payout_date ? formatDate(r.payout_date) : ""}` : r === next ? "Next to receive" : "Waiting"}</div>
+                    <div className="cs-list-meta">{r.status === "PAID" ? `Paid ${r.payout_date ? formatDate(r.payout_date) : ""}` : r === next ? (r.status === "PAYOUT_PENDING" ? "Next to receive, waiting for a second official" : "Next to receive") : r.status === "SKIPPED" ? "Skipped, no longer in the chama" : "Waiting"}</div>
                   </div>
                   <StatusBadge status={r.status === "PAID" ? "PAID" : r === next ? "ACTIVE" : "PENDING"} label={r.status === "PAID" ? "Paid" : r === next ? "Next" : "Waiting"} />
                 </li>

@@ -6,7 +6,7 @@ import { Button, PageHeader, StatusBadge, StatCard, EmptyState, Skeleton, Dialog
 import { formatKES, formatDate } from "../../../utils/format";
 
 const OFFICIALS = ["CHAIRPERSON", "TREASURER", "SECRETARY"];
-const LABELS = { ACTIVE: "Waiting", PAID: "Paid" };
+const LABELS = { ACTIVE: "Waiting", PAYOUT_PENDING: "Awaiting second official", SKIPPED: "Skipped", PAID: "Paid" };
 
 export default function PayoutManagement() {
   const { id } = useParams();
@@ -36,7 +36,7 @@ export default function PayoutManagement() {
 
   const cycle = cycles.find((c) => c.status === "ACTIVE") || cycles[0] || null;
   const roster = cycle?.roster || [];
-  const next = cycle?.status === "ACTIVE" ? roster.find((r) => r.status === "ACTIVE") : null;
+  const next = cycle?.status === "ACTIVE" ? roster.find((r) => r.status === "ACTIVE" || r.status === "PAYOUT_PENDING") : null;
   const pot = cycle ? Number(cycle.contribution_amount || 0) * Number(cycle.total_members || 0) : 0;
   const isOfficial = OFFICIALS.includes((chama?.role || "").toUpperCase());
   const fund = Number(chama?.current_fund || 0);
@@ -45,8 +45,9 @@ export default function PayoutManagement() {
   const record = async () => {
     setBusy(true);
     try {
-      await roscaAPI.processPayout(cycle.cycle_id, {});
-      toast.success(`Payout to ${next.member_name} recorded.`);
+      const res = await roscaAPI.processPayout(cycle.cycle_id, {});
+      if (res.data?.data?.status === "AWAITING_SECOND_OFFICIAL") toast.info(`Payout to ${next.member_name} requested. A different official must release it. No money has moved yet.`, { autoClose: 8000 });
+      else toast.success(`Payout to ${next.member_name} recorded.`);
       setConfirming(false);
       await load();
     } catch (err) {

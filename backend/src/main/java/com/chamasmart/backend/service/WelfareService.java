@@ -86,20 +86,7 @@ public class WelfareService {
                 throw new IllegalArgumentException("That event type isn't available in this chama");
             }
         } else {
-            String customName = requestDto.getCustom_event_name() != null ? requestDto.getCustom_event_name().trim() : "CUSTOM";
-            eventType = welfareConfigRepository.findByChamaChamaIdAndEventType(requestDto.getChama_id(), customName)
-                    .orElseGet(() -> {
-                        WelfareConfig newConfig = WelfareConfig.builder()
-                                .chama(chama)
-                                .eventType(customName)
-                                .description("Custom event: " + customName)
-                                .payoutAmount(requestDto.getClaim_amount() != null ? requestDto.getClaim_amount() : BigDecimal.ZERO)
-                                .contributionType("ONE_TIME")
-                                .contributionAmount(BigDecimal.ZERO)
-                                .isActive(true)
-                                .build();
-                        return welfareConfigRepository.save(newConfig);
-                    });
+            throw new IllegalArgumentException("Choose one of the event types your officials have set up. Ask them to add a new type if yours is missing");
         }
         if (requestDto.getClaim_amount() != null) {
             if (requestDto.getClaim_amount().signum() <= 0) throw new IllegalArgumentException("The claim amount must be more than zero");

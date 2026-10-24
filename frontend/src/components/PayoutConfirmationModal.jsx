@@ -17,12 +17,13 @@ const PayoutConfirmationModal = ({ cycle, recipient, onClose, onSuccess, formatC
 
     try {
       setLoading(true);
-      await roscaAPI.processPayout(cycle.cycle_id, {
+      const res = await roscaAPI.processPayout(cycle.cycle_id, {
         position: recipient.position,
         reference_id: referenceId,
         payment_proof: paymentProof
       });
-      toast.success(`Disbursement to ${recipient.user_id} confirmed!`);
+      if (res.data?.data?.status === "AWAITING_SECOND_OFFICIAL") toast.info("Payout requested. A different official must release it. No money has moved yet.", { autoClose: 8000 });
+      else toast.success(`Disbursement to ${recipient.user_id} confirmed!`);
       onSuccess();
       onClose();
     } catch (error) {

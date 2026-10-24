@@ -57,13 +57,16 @@ public class RoscaController {
         return notAvailable("Swapping positions");
     }
     @PostMapping("/cycles/{cycleId}/payout")
-    public ResponseEntity<ApiResponse<Void>> processPayout(
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> processPayout(
             @PathVariable Long cycleId, 
             @RequestBody(required = false) java.util.Map<String, Object> payload,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to process payout for cycle ID: {} by user ID: {}", cycleId, currentUser.getUserId());
-        roscaService.processPayout(cycleId, currentUser.getUserId());
-        return ResponseEntity.ok(ApiResponse.success(null, "Payout processed successfully"));
+        String outcome = roscaService.processPayout(cycleId, currentUser.getUserId());
+        java.util.Map<String, Object> data = new java.util.HashMap<>();
+        data.put("status", outcome);
+        String msg = "PAID".equals(outcome) ? "Payout processed successfully" : "Payout requested. A different official must release it. No money has moved yet";
+        return ResponseEntity.ok(ApiResponse.success(data, msg));
     }
     @PutMapping("/cycles/{cycleId}/activate")
     public ResponseEntity<ApiResponse<Void>> activateCycle(@PathVariable Long cycleId) {

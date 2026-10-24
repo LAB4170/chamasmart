@@ -29,7 +29,10 @@ public class RoscaRoster {
     private Integer position;
     @Column(length = 20)
     @Builder.Default
-    private String status = "ACTIVE"; // ACTIVE, PAID, RECEIVED, DEFAULTED
+    private String status = "ACTIVE"; // ACTIVE, PAYOUT_PENDING, PAID, SKIPPED, RECEIVED, DEFAULTED
+    /** The official who asked for this payout. Pots at or above the approval threshold need a different official to release them. */
+    @Column(name = "payout_requested_by")
+    private Long payoutRequestedBy;
     @Column(name = "payout_date")
     private LocalDate payoutDate;
     @CreationTimestamp

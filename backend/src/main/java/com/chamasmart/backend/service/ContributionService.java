@@ -245,6 +245,14 @@ public class ContributionService {
             if (c.getUser().getUserId().equals(actorId)) {
                 throw new AccessDeniedException("You cannot reverse your own contribution; another official must do it");
             }
+            // Never hide a shortfall: if the money has already been lent or paid out, the reversal must wait.
+            if ("WELFARE".equals(c.getContributionType())) {
+                BigDecimal bal = welfareFundRepository.findByChamaIdWithPessimisticLock(chamaId).map(WelfareFund::getBalance).orElse(BigDecimal.ZERO);
+                if (bal.compareTo(c.getAmount()) < 0) throw new IllegalStateException("Reversing KES " + c.getAmount().toPlainString() + " would take the welfare fund below zero, because part of it has been paid out. Resolve the shortfall first");
+            } else {
+                BigDecimal bal = chamaRepository.findByIdWithPessimisticLock(chamaId).map(Chama::getCurrentFund).orElse(BigDecimal.ZERO);
+                if (bal.compareTo(c.getAmount()) < 0) throw new IllegalStateException("Reversing KES " + c.getAmount().toPlainString() + " would take the fund below zero, because the money has already been lent or paid out. Resolve the shortfall first");
+            }
             chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, c.getUser().getUserId()).ifPresent(m -> {
                 m.setTotalContributions(m.getTotalContributions().subtract(c.getAmount()).max(BigDecimal.ZERO));
                 chamaMemberRepository.save(m);

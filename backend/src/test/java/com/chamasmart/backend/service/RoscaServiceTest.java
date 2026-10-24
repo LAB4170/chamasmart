@@ -32,6 +32,7 @@ class RoscaServiceTest {
     @Mock FinancialAuditLogRepository auditRepo;
     @Mock MembershipService membership;
     @Mock ContributionService contributions;
+    @Mock LoanRepository loanRepo;
 
     RoscaService service;
     Chama chama;
@@ -53,7 +54,7 @@ class RoscaServiceTest {
         when(chamaRepo.findByIdWithPessimisticLock(1L)).thenReturn(Optional.of(chama));
         when(cycleRepo.findById(5L)).thenReturn(Optional.of(cycle));
         when(cycleRepo.findByIdWithPessimisticLock(5L)).thenReturn(Optional.of(cycle));
-        service = new RoscaService(cycleRepo, rosterRepo, chamaRepo, memberRepo, userRepo, contribRepo, auditRepo, membership, contributions);
+        service = new RoscaService(cycleRepo, rosterRepo, chamaRepo, memberRepo, userRepo, contribRepo, auditRepo, membership, contributions, loanRepo);
     }
 
     private RoscaRoster roster(long id, long userId, int pos, String status) {
@@ -95,14 +96,14 @@ class RoscaServiceTest {
     }
 
     @Test void officialCannotPayOutToThemselves() {
-        member(7, "TREASURER");
+        member(7, "TREASURER"); member(8, "MEMBER");
         when(rosterRepo.findByCycleCycleIdOrderByPositionAsc(5L)).thenReturn(List.of(roster(1, 7, 1, "ACTIVE"), roster(2, 8, 2, "ACTIVE")));
         assertThrows(AccessDeniedException.class, () -> service.processPayout(5L, 7L));
         assertEquals(0, new BigDecimal("10000").compareTo(chama.getCurrentFund()));
     }
 
     @Test void payoutDeductsThePotAndMarksPaid() {
-        member(7, "TREASURER");
+        member(7, "TREASURER"); member(8, "MEMBER"); member(9, "MEMBER");
         RoscaRoster r1 = roster(1, 8, 1, "ACTIVE");
         when(rosterRepo.findByCycleCycleIdOrderByPositionAsc(5L)).thenReturn(List.of(r1, roster(2, 9, 2, "ACTIVE")));
         service.processPayout(5L, 7L);
@@ -111,7 +112,7 @@ class RoscaServiceTest {
     }
 
     @Test void payoutIsRefusedWhenTheFundIsShort() {
-        member(7, "TREASURER");
+        member(7, "TREASURER"); member(8, "MEMBER");
         chama.setCurrentFund(new BigDecimal("2000"));
         when(rosterRepo.findByCycleCycleIdOrderByPositionAsc(5L)).thenReturn(List.of(roster(1, 8, 1, "ACTIVE")));
         assertThrows(RuntimeException.class, () -> service.processPayout(5L, 7L));
@@ -134,5 +135,59 @@ class RoscaServiceTest {
         when(rosterRepo.findByCycleCycleIdOrderByPositionAsc(5L)).thenReturn(List.of(roster(1, 8, 1, "ACTIVE")));
         service.cancelCycle(5L, 7L);
         assertEquals("CANCELLED", cycle.getStatus());
+    }
+
+    private void bigPot() { cycle.setContributionAmount(new BigDecimal("5000")); cycle.setTotalMembers(3); chama.setCurrentFund(new BigDecimal("40000")); } // pot 15,000
+
+    @Test void largePotNeedsASecondOfficialToRelease() {
+        ChamaMember t = member(7, "TREASURER"); ChamaMember c = member(6, "CHAIRPERSON"); member(8, "MEMBER");
+        when(memberRepo.findByChamaChamaIdAndIsActiveTrue(1L)).thenReturn(List.of(t, c));
+        bigPot();
+        RoscaRoster r1 = roster(1, 8, 1, "ACTIVE");
+        when(rosterRepo.findByCycleCycleIdOrderByPositionAsc(5L)).thenReturn(List.of(r1, roster(2, 9, 2, "ACTIVE")));
+        assertEquals("AWAITING_SECOND_OFFICIAL", service.processPayout(5L, 7L));
+        assertEquals("PAYOUT_PENDING", r1.getStatus());
+        assertEquals(0, new BigDecimal("40000").compareTo(chama.getCurrentFund()));
+        // the same official cannot release their own request
+        assertThrows(AccessDeniedException.class, () -> service.processPayout(5L, 7L));
+        assertEquals(0, new BigDecimal("40000").compareTo(chama.getCurrentFund()));
+        // a different official releases it
+        assertEquals("PAID", service.processPayout(5L, 6L));
+        assertEquals("PAID", r1.getStatus());
+        assertEquals(0, new BigDecimal("25000").compareTo(chama.getCurrentFund()));
+    }
+
+    @Test void smallPotStaysSingleStep() {
+        member(7, "TREASURER"); member(8, "MEMBER");
+        RoscaRoster r1 = roster(1, 8, 1, "ACTIVE");
+        when(rosterRepo.findByCycleCycleIdOrderByPositionAsc(5L)).thenReturn(List.of(r1, roster(2, 9, 2, "ACTIVE")));
+        assertEquals("PAID", service.processPayout(5L, 7L));
+    }
+
+    @Test void membersWhoLeftAreSkippedNotPaid() {
+        member(7, "TREASURER"); member(9, "MEMBER");
+        when(memberRepo.findByChamaChamaIdAndUserUserId(1L, 8L)).thenReturn(Optional.of(ChamaMember.builder().role("MEMBER").isActive(false).build()));
+        RoscaRoster gone = roster(1, 8, 1, "ACTIVE"); RoscaRoster next = roster(2, 9, 2, "ACTIVE");
+        when(rosterRepo.findByCycleCycleIdOrderByPositionAsc(5L)).thenReturn(List.of(gone, next));
+        service.processPayout(5L, 7L);
+        assertEquals("SKIPPED", gone.getStatus());
+        assertEquals("PAID", next.getStatus());
+    }
+
+    @Test void recipientWithADefaultedLoanIsNotPaid() {
+        member(7, "TREASURER"); member(8, "MEMBER");
+        Loan bad = new Loan(); bad.setStatus("DEFAULTED");
+        when(loanRepo.findByBorrowerUserId(8L)).thenReturn(List.of(bad));
+        when(rosterRepo.findByCycleCycleIdOrderByPositionAsc(5L)).thenReturn(List.of(roster(1, 8, 1, "ACTIVE")));
+        assertThrows(IllegalStateException.class, () -> service.processPayout(5L, 7L));
+        assertEquals(0, new BigDecimal("10000").compareTo(chama.getCurrentFund()));
+    }
+
+    @Test void withOnlyOneEligibleOfficialALargePotIsNotBlocked() {
+        ChamaMember t = member(7, "TREASURER"); member(8, "MEMBER");
+        when(memberRepo.findByChamaChamaIdAndIsActiveTrue(1L)).thenReturn(List.of(t));
+        bigPot();
+        when(rosterRepo.findByCycleCycleIdOrderByPositionAsc(5L)).thenReturn(List.of(roster(1, 8, 1, "ACTIVE")));
+        assertEquals("PAID", service.processPayout(5L, 7L));
     }
 }

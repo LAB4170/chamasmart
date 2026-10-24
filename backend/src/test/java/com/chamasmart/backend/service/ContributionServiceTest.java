@@ -202,4 +202,12 @@ class ContributionServiceTest {
         assertEquals("Duplicate entry", c.getDeletedReason());
         assertTrue(c.getIsDeleted());
     }
+
+    @Test void reversalIsBlockedWhenTheFundHasAlreadyBeenSpent() {
+        member(7, "TREASURER", true); member(6, "MEMBER", true);
+        completed(60, 6);
+        chama.setCurrentFund(new BigDecimal("100")); // money was lent out; the contribution was 400
+        assertThrows(IllegalStateException.class, () -> service.delete(1L, 7L, 60L, "mistake"));
+        assertEquals(0, new BigDecimal("100").compareTo(chama.getCurrentFund()));
+    }
 }

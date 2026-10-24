@@ -72,6 +72,9 @@ public class AscaService {
         // Shares are only recorded by an official once payment has actually been received.
         validateUserIsOfficial(chama.getChamaId(), actorId);
         validateUserMembershipAndActiveStatus(chama.getChamaId(), userId);
+        if (actorId.equals(userId)) {
+            throw new org.springframework.security.access.AccessDeniedException("You cannot record shares for yourself; another official must do it");
+        }
         if (!"ACTIVE".equals(cycle.getStatus())) {
             throw new RuntimeException("Cannot purchase shares in an inactive cycle");
         }

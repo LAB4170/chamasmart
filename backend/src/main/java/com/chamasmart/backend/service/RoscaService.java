@@ -24,6 +24,9 @@ public class RoscaService {
     private final FinancialAuditLogRepository auditLogRepository;
     private final MembershipService membershipService;
     private final ContributionService contributionService;
+    private final LoanRepository loanRepository;
+    @org.springframework.beans.factory.annotation.Value("${app.finance.dual-approval-threshold:10000}")
+    private BigDecimal dualApprovalThreshold = BigDecimal.valueOf(10000);
     @Transactional
     public RoscaCycleDto createCycle(RoscaCycleDto dto, Long chamaId, Long actorId) {
         membershipService.activeOfficial(chamaId, actorId);
@@ -85,7 +88,8 @@ public class RoscaService {
         }).collect(Collectors.toList());
     }
     @Transactional
-    public void processPayout(Long cycleId, Long officerUserId) {
+    /** Returns PAID when money moved, or AWAITING_SECOND_OFFICIAL when this call only requested a large payout. */
+    public String processPayout(Long cycleId, Long officerUserId) {
         log.info("Processing ROSCA pot payout for cycle ID: {} by officer ID: {}", cycleId, officerUserId);
         RoscaCycle cycle = roscaCycleRepository.findByIdWithPessimisticLock(cycleId)
                 .orElseThrow(() -> new RuntimeException("ROSCA cycle not found"));
@@ -101,20 +105,63 @@ public class RoscaService {
         if (!"ACTIVE".equalsIgnoreCase(cycle.getStatus())) {
             throw new IllegalStateException("This cycle is " + cycle.getStatus().toLowerCase() + ", so no payout can be recorded");
         }
-        // Fetch roster to find the next active recipient
+        // Find the next recipient. Members who have left are skipped; the skip is recorded.
         List<RoscaRoster> rosterList = roscaRosterRepository.findByCycleCycleIdOrderByPositionAsc(cycleId);
-        RoscaRoster nextRecipient = rosterList.stream()
-                .filter(r -> "ACTIVE".equalsIgnoreCase(r.getStatus()))
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("No active roster positions left to pay out in this cycle"));
-        if (nextRecipient.getUser().getUserId().equals(officerUserId)) {
+        RoscaRoster nextRecipient = null;
+        for (RoscaRoster r : rosterList) {
+            if (!"ACTIVE".equalsIgnoreCase(r.getStatus()) && !"PAYOUT_PENDING".equalsIgnoreCase(r.getStatus())) continue;
+            boolean stillIn = chamaMemberRepository.findByChamaChamaIdAndUserUserId(chama.getChamaId(), r.getUser().getUserId())
+                    .filter(ChamaMember::getIsActive).isPresent();
+            if (!stillIn) {
+                r.setStatus("SKIPPED");
+                roscaRosterRepository.save(r);
+                auditLogRepository.save(FinancialAuditLog.builder()
+                        .user(userRepository.getReferenceById(officerUserId)).transactionType("ROSCA_SLOT_SKIPPED").chama(chama).referenceId(cycleId)
+                        .description("Roster position " + r.getPosition() + " skipped because the member is no longer active in this chama")
+                        .ipAddress(com.chamasmart.backend.security.ClientIp.current())
+                        .userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent()).build());
+                continue;
+            }
+            nextRecipient = r;
+            break;
+        }
+        if (nextRecipient == null) {
+            throw new RuntimeException("No active roster positions left to pay out in this cycle");
+        }
+        final RoscaRoster recipientRow = nextRecipient;
+        if (recipientRow.getUser().getUserId().equals(officerUserId)) {
             throw new org.springframework.security.access.AccessDeniedException("You are the next recipient, so another official must record this payout");
+        }
+        if (loanRepository.findByBorrowerUserId(recipientRow.getUser().getUserId()).stream().anyMatch(l -> "DEFAULTED".equalsIgnoreCase(l.getStatus()))) {
+            throw new IllegalStateException("The next recipient has a defaulted loan. Settle it before releasing their pot");
         }
         // Pot amount is total members * contribution amount
         BigDecimal potAmount = cycle.getContributionAmount().multiply(BigDecimal.valueOf(cycle.getTotalMembers()));
         if (chama.getCurrentFund().compareTo(potAmount) < 0) {
             throw new RuntimeException("Insufficient chama funds to disburse the ROSCA pot. Available: " 
                     + chama.getCurrentFund() + ", Required: " + potAmount);
+        }
+        // Large pots need two officials: one asks, a different one releases.
+        // If fewer than two officials could act (the recipient cannot), a second signature is impossible, so one official may proceed. The audit row says so.
+        long eligibleOfficials = chamaMemberRepository.findByChamaChamaIdAndIsActiveTrue(chama.getChamaId()).stream()
+                .filter(m -> m.getRole() != null && List.of("CHAIRPERSON", "TREASURER", "SECRETARY").contains(m.getRole().toUpperCase()))
+                .filter(m -> m.getUser() != null && !m.getUser().getUserId().equals(recipientRow.getUser().getUserId()))
+                .count();
+        if (potAmount.compareTo(dualApprovalThreshold) >= 0 && eligibleOfficials >= 2) {
+            if (!"PAYOUT_PENDING".equalsIgnoreCase(recipientRow.getStatus())) {
+                recipientRow.setStatus("PAYOUT_PENDING");
+                recipientRow.setPayoutRequestedBy(officerUserId);
+                roscaRosterRepository.save(recipientRow);
+                auditLogRepository.save(FinancialAuditLog.builder()
+                        .user(userRepository.getReferenceById(officerUserId)).transactionType("ROSCA_PAYOUT_REQUESTED").amount(potAmount).chama(chama).referenceId(cycleId)
+                        .description("Pot payout requested for position " + recipientRow.getPosition() + ". A different official must release it")
+                        .ipAddress(com.chamasmart.backend.security.ClientIp.current())
+                        .userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent()).build());
+                return "AWAITING_SECOND_OFFICIAL";
+            }
+            if (officerUserId.equals(recipientRow.getPayoutRequestedBy())) {
+                throw new org.springframework.security.access.AccessDeniedException("You requested this payout, so a different official must release it");
+            }
         }
         // Deduct from Chama treasury
         chama.setCurrentFund(chama.getCurrentFund().subtract(potAmount));
@@ -124,7 +171,7 @@ public class RoscaService {
         roscaRosterRepository.save(nextRecipient);
         // Check if this was the last payout in the roster
         boolean hasMoreActive = rosterList.stream()
-                .anyMatch(r -> "ACTIVE".equalsIgnoreCase(r.getStatus()) && !r.getRosterId().equals(nextRecipient.getRosterId()));
+                .anyMatch(r -> "ACTIVE".equalsIgnoreCase(r.getStatus()) && !r.getRosterId().equals(recipientRow.getRosterId()));
         if (!hasMoreActive) {
             cycle.setStatus("COMPLETED");
             roscaCycleRepository.save(cycle);
@@ -143,6 +190,7 @@ public class RoscaService {
                 .build();
         auditLogRepository.save(auditLog);
         log.info("Successfully completed pot payout of KES {} to user: {}", potAmount, recipientFullName);
+        return "PAID";
     }
     /** A member reports a payment for the active cycle. Nothing is credited until an official verifies it. */
     @Transactional

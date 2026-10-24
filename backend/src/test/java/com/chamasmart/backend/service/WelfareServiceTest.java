@@ -99,4 +99,16 @@ class WelfareServiceTest {
         when(memberRepo.findByChamaChamaIdAndUserUserId(1L, 9L)).thenReturn(Optional.empty());
         assertThrows(AccessDeniedException.class, () -> service.getLedger(1L, 9L));
     }
+
+    @Test void aClaimMustUseAnEventTypeSetUpByOfficials() {
+        official(5, "MEMBER");
+        when(chamaRepo.findById(1L)).thenReturn(Optional.of(chama));
+        var req = new com.chamasmart.backend.dto.WelfareClaimRequestDto();
+        req.setChama_id(1L);
+        req.setCustom_event_name("Holiday");
+        req.setClaim_amount(new BigDecimal("999999"));
+        assertThrows(IllegalArgumentException.class, () -> service.fileClaim(req, 5L));
+        verify(configRepo, never()).save(any());
+        verify(claimRepo, never()).save(argThat(c -> "SUBMITTED".equals(c.getStatus()) && c.getClaimId() == null));
+    }
 }
