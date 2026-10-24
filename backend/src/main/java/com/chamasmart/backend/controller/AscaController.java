@@ -33,8 +33,23 @@ public class AscaController {
         Integer shares = payload.get("shares");
         Integer target = payload.get("user_id");
         log.info("REST request to purchase {} shares in cycle ID: {} by user ID: {}", shares, cycleId, currentUser.getUserId());
-        AscaCycleDto updatedCycle = ascaService.purchaseShares(cycleId, currentUser.getUserId(), target == null ? currentUser.getUserId() : target.longValue(), shares);
-        return ResponseEntity.ok(ApiResponse.success(updatedCycle, "Share purchase recorded"));
+        AscaService.ShareOutcome outcome = ascaService.purchaseShares(cycleId, currentUser.getUserId(), target == null ? currentUser.getUserId() : target.longValue(), shares);
+        return ResponseEntity.ok(ApiResponse.success(outcome.cycle(), outcome.pending()
+                ? "Share purchase requested (request " + outcome.requestId() + "). A different official must confirm the payment before shares are issued"
+                : "Share purchase recorded"));
+    }
+    @GetMapping("/cycles/{cycleId}/shares/requests")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> pendingRequests(@PathVariable Long cycleId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(ascaService.pendingShareRequests(cycleId, currentUser.getUserId()), "Pending share requests retrieved"));
+    }
+    @PostMapping("/shares/requests/{requestId}/verify")
+    public ResponseEntity<ApiResponse<AscaCycleDto>> verifyRequest(@PathVariable Long requestId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(ascaService.verifyShareRequest(requestId, currentUser.getUserId()), "Share purchase verified and shares issued"));
+    }
+    @PostMapping("/shares/requests/{requestId}/reject")
+    public ResponseEntity<ApiResponse<Void>> rejectRequest(@PathVariable Long requestId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        ascaService.rejectShareRequest(requestId, currentUser.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(null, "Share request rejected"));
     }
     @GetMapping("/chamas/{chamaId}/cycles")
     public ResponseEntity<ApiResponse<List<AscaCycleDto>>> getCyclesByChamaId(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails currentUser) {

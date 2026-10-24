@@ -29,6 +29,7 @@ class AscaServiceTest {
     @Mock ChamaMemberRepository chamaMemberRepo;
     @Mock FinancialAuditLogRepository auditRepo;
     @Mock LedgerService ledger;
+    @Mock AscaShareRequestRepository requestRepo;
     @InjectMocks AscaService service;
 
     Chama chama;
@@ -67,5 +68,45 @@ class AscaServiceTest {
     @Test void aPlainMemberCannotRecordShares() {
         member(8, "MEMBER");
         assertThrows(AccessDeniedException.class, () -> service.purchaseShares(3L, 8L, 8L, 5));
+    }
+
+    @Test void aLargePurchaseOnlyCreatesARequest() {
+        member(7, "TREASURER"); member(8, "MEMBER");
+        when(requestRepo.save(any(AscaShareRequest.class))).thenAnswer(i -> { AscaShareRequest r = i.getArgument(0); r.setRequestId(55L); return r; });
+        var out = service.purchaseShares(3L, 7L, 8L, 100); // 100 x 100 = 10,000
+        assertTrue(out.pending());
+        assertEquals(100, cycle.getAvailableShares());
+        assertEquals(0, new BigDecimal("1000").compareTo(chama.getCurrentFund()));
+    }
+
+    private AscaShareRequest request(String status) {
+        return AscaShareRequest.builder().requestId(55L).cycle(cycle).user(user(8)).shares(100).amount(new BigDecimal("10000")).status(status).requestedBy(7L).build();
+    }
+
+    @Test void aDifferentOfficialVerifiesAndSharesAreIssued() {
+        member(6, "CHAIRPERSON");
+        when(requestRepo.findById(55L)).thenReturn(Optional.of(request("PENDING")));
+        service.verifyShareRequest(55L, 6L);
+        assertEquals(0, cycle.getAvailableShares());
+        assertEquals(0, new BigDecimal("11000").compareTo(chama.getCurrentFund()));
+    }
+
+    @Test void theRequesterCannotVerifyTheirOwnRequest() {
+        member(7, "TREASURER");
+        when(requestRepo.findById(55L)).thenReturn(Optional.of(request("PENDING")));
+        assertThrows(AccessDeniedException.class, () -> service.verifyShareRequest(55L, 7L));
+        assertEquals(100, cycle.getAvailableShares());
+    }
+
+    @Test void theBuyerCannotVerifyTheirOwnShares() {
+        member(8, "TREASURER");
+        when(requestRepo.findById(55L)).thenReturn(Optional.of(request("PENDING")));
+        assertThrows(AccessDeniedException.class, () -> service.verifyShareRequest(55L, 8L));
+    }
+
+    @Test void aRequestIsDecidedOnlyOnce() {
+        member(6, "CHAIRPERSON");
+        when(requestRepo.findById(55L)).thenReturn(Optional.of(request("VERIFIED")));
+        assertThrows(IllegalStateException.class, () -> service.verifyShareRequest(55L, 6L));
     }
 }
