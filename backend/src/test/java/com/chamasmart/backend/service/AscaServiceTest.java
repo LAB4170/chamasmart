@@ -13,7 +13,9 @@ import org.mockito.quality.Strictness;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
+import com.chamasmart.backend.dto.AscaCycleDto;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -30,6 +32,7 @@ class AscaServiceTest {
     @Mock FinancialAuditLogRepository auditRepo;
     @Mock LedgerService ledger;
     @Mock AscaShareRequestRepository requestRepo;
+    @Mock LoanRepository loanRepo;
     @InjectMocks AscaService service;
 
     Chama chama;
@@ -108,5 +111,67 @@ class AscaServiceTest {
         member(6, "CHAIRPERSON");
         when(requestRepo.findById(55L)).thenReturn(Optional.of(request("VERIFIED")));
         assertThrows(IllegalStateException.class, () -> service.verifyShareRequest(55L, 6L));
+    }
+
+    private AscaMember holder(long user, int shares, String invested) {
+        return AscaMember.builder().cycle(cycle).user(user(user)).sharesOwned(shares).totalInvestment(new BigDecimal(invested)).dividendsEarned(BigDecimal.ZERO).status("ACTIVE").build();
+    }
+    private void readyToClose() {
+        member(7, "TREASURER"); member(6, "CHAIRPERSON");
+        chama.setCurrentFund(new BigDecimal("1200"));
+        when(cycleRepo.findById(3L)).thenReturn(Optional.of(cycle));
+        when(chamaRepo.findById(1L)).thenReturn(Optional.of(chama));
+        when(memberRepo.findByCycleCycleId(3L)).thenReturn(List.of(holder(8, 6, "600"), holder(9, 2, "200")));
+        when(loanRepo.findByChamaChamaId(1L)).thenReturn(List.of());
+        when(requestRepo.findByCycleId(3L)).thenReturn(List.of());
+        when(chamaMemberRepo.findByChamaChamaIdAndIsActiveTrue(1L)).thenReturn(List.of(
+                ChamaMember.builder().role("TREASURER").user(user(7)).isActive(true).build(), ChamaMember.builder().role("CHAIRPERSON").user(user(6)).isActive(true).build()));
+    }
+
+    @Test void shareOutSplitsTheCashByShares() {
+        readyToClose();
+        java.util.Map<String, Object> p = service.shareOutPreview(3L, 7L);
+        assertEquals(true, p.get("can_close"));
+        List<?> rows = (List<?>) p.get("members");
+        assertEquals(0, new BigDecimal("900.00").compareTo((BigDecimal) ((java.util.Map<?, ?>) rows.get(0)).get("amount")));
+        assertEquals(0, new BigDecimal("300.00").compareTo((BigDecimal) ((java.util.Map<?, ?>) rows.get(1)).get("amount")));
+    }
+
+    @Test void closingNeedsTwoOfficialsAndThenEmptiesTheFundIntoMembers() {
+        readyToClose();
+        assertEquals("AWAITING_SECOND_OFFICIAL", service.closeCycle(3L, 7L));
+        assertEquals("CLOSING", cycle.getStatus());
+        assertThrows(AccessDeniedException.class, () -> service.closeCycle(3L, 7L));
+        assertEquals("CLOSED", service.closeCycle(3L, 6L));
+        assertEquals("COMPLETED", cycle.getStatus());
+        assertEquals(0, BigDecimal.ZERO.compareTo(chama.getCurrentFund()));
+        verify(ledger).post(eq(chama), any(), eq(new BigDecimal("-1200.00")), eq("ASCA_SHARE_OUT"), any(), any(), eq(6L), any());
+    }
+
+    @Test void shareOutIsBlockedWhileLoansAreOpen() {
+        readyToClose();
+        Loan l = new Loan(); l.setStatus("ACTIVE");
+        when(loanRepo.findByChamaChamaId(1L)).thenReturn(List.of(l));
+        assertThrows(IllegalStateException.class, () -> service.closeCycle(3L, 7L));
+        assertEquals("ACTIVE", cycle.getStatus());
+    }
+
+    @Test void aSecondRunningCycleIsRefused() {
+        member(7, "TREASURER");
+        when(chamaRepo.findById(1L)).thenReturn(Optional.of(chama));
+        when(cycleRepo.findByChamaChamaId(1L)).thenReturn(List.of(cycle));
+        AscaCycleDto dto = new AscaCycleDto(); dto.setCycle_name("Y2");
+        assertThrows(IllegalStateException.class, () -> service.createCycle(dto, 1L, 7L));
+    }
+
+    @Test void newCyclesPromiseNoDividend() {
+        member(7, "TREASURER");
+        when(chamaRepo.findById(1L)).thenReturn(Optional.of(chama));
+        when(cycleRepo.findByChamaChamaId(1L)).thenReturn(List.of());
+        AscaCycleDto dto = new AscaCycleDto(); dto.setCycle_name("Y2"); dto.setDividend_rate(new BigDecimal("20"));
+        service.createCycle(dto, 1L, 7L);
+        org.mockito.ArgumentCaptor<AscaCycle> cap = org.mockito.ArgumentCaptor.forClass(AscaCycle.class);
+        verify(cycleRepo).save(cap.capture());
+        assertEquals(0, cap.getValue().getDividendRate().signum());
     }
 }

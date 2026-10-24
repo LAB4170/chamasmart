@@ -43,6 +43,8 @@ public class AscaCycle {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private ZonedDateTime createdAt;
+    @Column(name = "close_requested_by")
+    private Long closeRequestedBy;
     @Version
     @Column(name = "version")
     private Long version;

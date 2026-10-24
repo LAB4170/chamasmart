@@ -52,8 +52,10 @@ export default function BuyShares() {
     if (!valid) return;
     setSubmitting(true);
     try {
-      await ascaAPI.buyShares(id, { cycleId: cycle.cycle_id, shares: count, user_id: Number(memberId) });
-      toast.success(`${count} ${count === 1 ? "share" : "shares"} recorded.`);
+      const res = await ascaAPI.buyShares(id, { cycleId: cycle.cycle_id, shares: count, user_id: Number(memberId) });
+      const msg = res.data?.message || "";
+      if (/requested/i.test(msg)) toast.info("Requested. A different official must confirm the payment before the shares are issued.", { autoClose: 8000 });
+      else toast.success(`${count} ${count === 1 ? "share" : "shares"} recorded.`);
       navigate(`/chamas/${id}/asca`);
     } catch (err) {
       toast.error(err.response?.data?.message || "We couldn't record the purchase. Nothing was changed.");

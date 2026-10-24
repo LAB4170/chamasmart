@@ -26,6 +26,8 @@ import static org.mockito.Mockito.*;
 class LoanServiceTest {
     @Mock LoanRepository loanRepo;
     @Mock LoanGuarantorRepository guarantorRepo;
+    @Mock AscaCycleRepository ascaCycleRepo;
+    @Mock AscaMemberRepository ascaMemberRepo;
     @Mock ChamaRepository chamaRepo;
     @Mock UserRepository userRepo;
     @Mock ChamaMemberRepository memberRepo;

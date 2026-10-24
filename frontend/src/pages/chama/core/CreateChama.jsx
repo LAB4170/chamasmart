@@ -6,7 +6,7 @@ import { Button, PageHeader } from "../../../components/ui";
 
 const TYPES = [
   { id: "ROSCA", name: "Merry-go-round", desc: "Members take turns receiving the pot." },
-  { id: "ASCA", name: "Investment circle", desc: "Members buy shares and share in returns." },
+  { id: "ASCA", name: "Share-out savings group (ASCA)", desc: "Members buy shares during a cycle and share out the cash at the end." },
   { id: "TABLE_BANKING", name: "Table banking", desc: "Members lend to each other from pooled savings." },
   { id: "WELFARE", name: "Welfare fund", desc: "A shared fund for members' emergencies." },
 ];

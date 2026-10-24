@@ -51,6 +51,20 @@ public class AscaController {
         ascaService.rejectShareRequest(requestId, currentUser.getUserId());
         return ResponseEntity.ok(ApiResponse.success(null, "Share request rejected"));
     }
+    @GetMapping("/cycles/{cycleId}/share-out")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> shareOut(@PathVariable Long cycleId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(ascaService.shareOutPreview(cycleId, currentUser.getUserId()), "Share-out preview retrieved"));
+    }
+    @PostMapping("/cycles/{cycleId}/close")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> closeCycle(@PathVariable Long cycleId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        String outcome = ascaService.closeCycle(cycleId, currentUser.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(Map.of("status", outcome), "CLOSED".equals(outcome) ? "Cycle shared out and closed" : "Share-out requested. A different official must confirm it. Nothing has moved yet"));
+    }
+    @PostMapping("/cycles/{cycleId}/close/cancel")
+    public ResponseEntity<ApiResponse<Void>> cancelClose(@PathVariable Long cycleId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        ascaService.cancelCloseRequest(cycleId, currentUser.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(null, "Share-out request withdrawn"));
+    }
     @GetMapping("/chamas/{chamaId}/cycles")
     public ResponseEntity<ApiResponse<List<AscaCycleDto>>> getCyclesByChamaId(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to get ASCA cycles for chama ID: {}", chamaId);

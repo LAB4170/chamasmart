@@ -42,7 +42,11 @@ public class AscaMember {
     private BigDecimal dividendsEarned = BigDecimal.ZERO;
     @Column(length = 20)
     @Builder.Default
-    private String status = "ACTIVE"; // ACTIVE, WITHDRAWN, SUSPENDED
+    private String status = "ACTIVE"; // ACTIVE, WITHDRAWN, SUSPENDED, SETTLED
+    @Column(name = "payout_amount", precision = 15, scale = 2)
+    private BigDecimal payoutAmount;
+    @Column(name = "paid_out_at")
+    private ZonedDateTime paidOutAt;
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private ZonedDateTime createdAt;

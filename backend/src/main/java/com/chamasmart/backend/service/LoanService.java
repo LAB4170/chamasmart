@@ -27,6 +27,8 @@ public class LoanService {
     private final LoanRepaymentRepository loanRepaymentRepository;
     private final LedgerService ledger;
     private final ContributionRepository contributionRepository;
+    private final AscaMemberRepository ascaMemberRepository;
+    private final AscaCycleRepository ascaCycleRepository;
     private ChamaMember validateUserMembershipAndActiveStatus(Long chamaId, Long userId) {
         return chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
                 .filter(ChamaMember::getIsActive)
@@ -82,6 +84,19 @@ public class LoanService {
      * merry-go-round pot payments do not count, so they cannot raise anyone's borrowing power (finding M-07).
      */
     BigDecimal savingsOf(Long chamaId, Long userId) {
+        return regularSavings(chamaId, userId).add(shareCapital(chamaId, userId));
+    }
+
+    /** A-04: in an ASCA group the money put into shares of the running cycle counts as security, like savings. */
+    private BigDecimal shareCapital(Long chamaId, Long userId) {
+        return ascaCycleRepository.findByChamaChamaId(chamaId).stream()
+                .filter(c -> "ACTIVE".equalsIgnoreCase(c.getStatus()) || "CLOSING".equalsIgnoreCase(c.getStatus()))
+                .findFirst()
+                .flatMap(c -> ascaMemberRepository.findByCycleCycleIdAndUserUserId(c.getCycleId(), userId))
+                .map(AscaMember::getTotalInvestment).orElse(BigDecimal.ZERO);
+    }
+
+    private BigDecimal regularSavings(Long chamaId, Long userId) {
         return contributionRepository.findByUserUserIdAndIsDeletedFalse(userId).stream()
                 .filter(c -> c.getChama() != null && chamaId.equals(c.getChama().getChamaId()))
                 .filter(c -> "COMPLETED".equalsIgnoreCase(c.getStatus()))
@@ -104,7 +119,7 @@ public class LoanService {
         m.put("gross_limit", gross.setScale(2, RoundingMode.HALF_UP));
         m.put("outstanding", owed.setScale(2, RoundingMode.HALF_UP));
         m.put("available", gross.subtract(owed).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP));
-        m.put("enforced", !"ASCA".equalsIgnoreCase(chama.getChamaType()));
+        m.put("enforced", true);
         return m;
     }
 
@@ -148,12 +163,11 @@ public class LoanService {
             throw new IllegalArgumentException("Repayment period must be between 1 and " + cfg.getMaxRepaymentMonths() + " months");
         }
         // Borrowing limit = total contributions x multiplier, minus what the member still owes on open loans.
-        // ASCA limits are share-based and are not enforced here.
         List<Loan> myLoans = loanRepository.findByBorrowerUserId(borrowerUserId);
         if (myLoans.stream().anyMatch(l -> "DEFAULTED".equalsIgnoreCase(l.getStatus()))) {
             throw new IllegalArgumentException("You have a defaulted loan. Clear it before applying for another");
         }
-        if (!"ASCA".equalsIgnoreCase(chama.getChamaType())) {
+        {
             BigDecimal savings = savingsOf(chama.getChamaId(), borrowerUserId);
             BigDecimal gross = savings.multiply(cfg.getLoanMultiplier());
             BigDecimal outstanding = outstandingPrincipal(myLoans, chama.getChamaId());

@@ -35,6 +35,13 @@ export const ascaAPI = {
     // Matches /asca/chamas/{chamaId}/cycles
     buyShares: (chamaId, payload) =>
         api.post(`/asca/cycles/${payload.cycleId}/shares/purchase`, payload),
+    createCycle: (chamaId, payload) => api.post(`/asca/chamas/${chamaId}/cycles`, payload),
+    getShareRequests: (cycleId) => api.get(`/asca/cycles/${cycleId}/shares/requests`),
+    verifyShareRequest: (requestId) => api.post(`/asca/shares/requests/${requestId}/verify`),
+    rejectShareRequest: (requestId) => api.post(`/asca/shares/requests/${requestId}/reject`),
+    getShareOut: (cycleId) => api.get(`/asca/cycles/${cycleId}/share-out`),
+    closeCycle: (cycleId) => api.post(`/asca/cycles/${cycleId}/close`),
+    cancelClose: (cycleId) => api.post(`/asca/cycles/${cycleId}/close/cancel`),
     getEquity: (chamaId) => api.get(`/asca/chamas/${chamaId}/cycles`),
     getProposals: (chamaId) => api.get(`/asca/${chamaId}/proposals`),
     createProposal: (chamaId, payload) =>
