@@ -39,6 +39,10 @@ public class WelfareClaim {
     private LocalDate dateOfOccurrence;
     @Column(name = "proof_document_url", length = 500)
     private String proofDocumentUrl;
+    @Column(name = "beneficiary_name", length = 120)
+    private String beneficiaryName;
+    @Column(name = "beneficiary_relationship", length = 60)
+    private String beneficiaryRelationship;
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private ZonedDateTime createdAt;

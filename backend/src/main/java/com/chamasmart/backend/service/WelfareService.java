@@ -23,6 +23,7 @@ public class WelfareService {
     private final ChamaMemberRepository chamaMemberRepository;
     private final FinancialAuditLogRepository auditLogRepository;
     private final LedgerService ledger;
+    private final LoanRepository loanRepository;
     private ChamaMember validateUserMembershipAndActiveStatus(Long chamaId, Long userId) {
         return chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
                 .filter(ChamaMember::getIsActive)
@@ -57,6 +58,8 @@ public class WelfareService {
                 .payoutAmount(dto.getPayout_amount())
                 .contributionType(dto.getContribution_type() != null ? dto.getContribution_type() : "PERIODIC")
                 .contributionAmount(dto.getContribution_amount() != null ? dto.getContribution_amount() : BigDecimal.ZERO)
+                .waitingPeriodDays(dto.getWaiting_period_days() != null ? Math.max(0, dto.getWaiting_period_days()) : 0)
+                .maxClaimsPerYear(dto.getMax_claims_per_year() != null ? Math.max(0, dto.getMax_claims_per_year()) : 0)
                 .isActive(true)
                 .build();
         WelfareConfig savedConfig = welfareConfigRepository.save(config);
@@ -74,7 +77,7 @@ public class WelfareService {
     @Transactional
     public WelfareClaimSummaryDto fileClaim(WelfareClaimRequestDto requestDto, Long memberUserId) {
         log.info("Filing welfare claim for user ID: {} in chama ID: {}", memberUserId, requestDto.getChama_id());
-        validateUserMembershipAndActiveStatus(requestDto.getChama_id(), memberUserId);
+        ChamaMember membership = validateUserMembershipAndActiveStatus(requestDto.getChama_id(), memberUserId);
         User member = userRepository.findById(memberUserId)
                 .orElseThrow(() -> new RuntimeException("Member user not found"));
         Chama chama = chamaRepository.findById(requestDto.getChama_id())
@@ -96,9 +99,32 @@ public class WelfareService {
                 throw new IllegalArgumentException("The claim can't be more than the event's payout of " + eventType.getPayoutAmount());
             }
         }
+        // W-03: who the claim is for, how long the member has belonged, how often they have claimed, and good standing.
+        String beneficiary = requestDto.getBeneficiary_name() == null ? "" : requestDto.getBeneficiary_name().trim();
+        String relationship = requestDto.getBeneficiary_relationship() == null ? "" : requestDto.getBeneficiary_relationship().trim();
+        if (beneficiary.length() < 2 || beneficiary.length() > 120) throw new IllegalArgumentException("Say who the claim is for (the person the event happened to)");
+        if (relationship.isEmpty() || relationship.length() > 60) throw new IllegalArgumentException("Say how the beneficiary is related to you (for example spouse, child, parent, self)");
+        String proof = requestDto.getProof_document_url();
+        if (proof != null && !proof.isBlank() && !proof.trim().toLowerCase().startsWith("https://")) throw new IllegalArgumentException("A proof link must start with https://");
+        int waiting = eventType.getWaitingPeriodDays() == null ? 0 : eventType.getWaitingPeriodDays();
+        if (waiting > 0 && membership.getJoinDate() != null && membership.getJoinDate().plusDays(waiting).isAfter(ZonedDateTime.now())) {
+            throw new IllegalStateException("This cover applies after " + waiting + " days of membership. You can claim from " + membership.getJoinDate().plusDays(waiting).toLocalDate());
+        }
+        int perYear = eventType.getMaxClaimsPerYear() == null ? 0 : eventType.getMaxClaimsPerYear();
+        if (perYear > 0) {
+            long used = welfareClaimRepository.findByChamaChamaIdOrderByCreatedAtDesc(requestDto.getChama_id()).stream()
+                    .filter(c -> c.getMember().getUserId().equals(memberUserId) && c.getEventType().getConfigId().equals(eventType.getConfigId()))
+                    .filter(c -> !"REJECTED".equals(c.getStatus()) && c.getCreatedAt() != null && c.getCreatedAt().isAfter(ZonedDateTime.now().minusYears(1))).count();
+            if (used >= perYear) throw new IllegalStateException("This cover allows " + perYear + " claim(s) a year and you have used " + used);
+        }
+        if (loanRepository.findByBorrowerUserId(memberUserId).stream().anyMatch(l -> "DEFAULTED".equalsIgnoreCase(l.getStatus()) && l.getChama().getChamaId().equals(requestDto.getChama_id()))) {
+            throw new IllegalStateException("A member with a defaulted loan cannot claim until it is cleared");
+        }
         WelfareClaim claim = WelfareClaim.builder()
                 .chama(chama)
                 .member(member)
+                .beneficiaryName(beneficiary)
+                .beneficiaryRelationship(relationship)
                 .eventType(eventType)
                 .claimAmount(requestDto.getClaim_amount() != null ? requestDto.getClaim_amount() : eventType.getPayoutAmount())
                 .description(requestDto.getDescription())

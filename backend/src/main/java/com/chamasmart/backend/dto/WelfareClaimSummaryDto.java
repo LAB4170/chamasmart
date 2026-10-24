@@ -25,6 +25,8 @@ public class WelfareClaimSummaryDto {
     private String status;
     private LocalDate date_of_occurrence;
     private String proof_document_url;
+    private String beneficiary_name;
+    private String beneficiary_relationship;
     private ZonedDateTime created_at;
     private List<ClaimApprovalDto> approvals;
     @Data
@@ -60,6 +62,8 @@ public class WelfareClaimSummaryDto {
                 .status(claim.getStatus())
                 .date_of_occurrence(claim.getDateOfOccurrence())
                 .proof_document_url(claim.getProofDocumentUrl())
+                .beneficiary_name(claim.getBeneficiaryName())
+                .beneficiary_relationship(claim.getBeneficiaryRelationship())
                 .created_at(claim.getCreatedAt())
                 .approvals(approvalDtos)
                 .build();

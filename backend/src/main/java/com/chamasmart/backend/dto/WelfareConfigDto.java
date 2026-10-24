@@ -19,6 +19,9 @@ public class WelfareConfigDto {
     private String contribution_type;
     private BigDecimal contribution_amount;
     private Boolean is_active;
+    private Integer waiting_period_days;
+    private Integer max_claims_per_year;
+    private Long id;
     private ZonedDateTime created_at;
     public static WelfareConfigDto fromEntity(WelfareConfig wc) {
         return WelfareConfigDto.builder()
@@ -30,6 +33,9 @@ public class WelfareConfigDto {
                 .contribution_type(wc.getContributionType())
                 .contribution_amount(wc.getContributionAmount())
                 .is_active(wc.getIsActive())
+                .waiting_period_days(wc.getWaitingPeriodDays())
+                .max_claims_per_year(wc.getMaxClaimsPerYear())
+                .id(wc.getConfigId())
                 .created_at(wc.getCreatedAt())
                 .build();
     }

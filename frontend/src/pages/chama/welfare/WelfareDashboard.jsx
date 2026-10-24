@@ -15,6 +15,10 @@ export default function WelfareDashboard() {
   const [balance, setBalance] = useState(0);
   const [claims, setClaims] = useState([]);
   const [waiting, setWaiting] = useState([]);
+  const [officialCount, setOfficialCount] = useState(2);
+  const [coverOpen, setCoverOpen] = useState(false);
+  const [cover, setCover] = useState({ name: "", payout: "", waiting: "0", perYear: "0" });
+  const [coverError, setCoverError] = useState("");
   const [payingId, setPayingId] = useState(null);
   const [config, setConfig] = useState([]);
   const [role, setRole] = useState("");
@@ -42,6 +46,10 @@ export default function WelfareDashboard() {
       const r = (chama.data?.data?.role || "").toUpperCase();
       setRole(r);
       if (OFFICIALS.includes(r)) {
+        try {
+          const ms = (await chamaAPI.getMembers(id)).data?.data ?? [];
+          setOfficialCount((Array.isArray(ms) ? ms : []).filter((m) => OFFICIALS.includes(String(m.role || "").toUpperCase()) && m.is_active !== false).length);
+        } catch { /* leave the notice off if we can't count */ }
         try {
           const all = await welfareAPI.getChamaClaims(id);
           const list = all.data?.data ?? [];
@@ -74,6 +82,24 @@ export default function WelfareDashboard() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const saveCover = async (e) => {
+    e.preventDefault();
+    const payout = Number(cover.payout);
+    if (!cover.name.trim()) return setCoverError("Name the event, for example Bereavement.");
+    if (!Number.isFinite(payout) || payout <= 0) return setCoverError("Enter the payout amount.");
+    setCoverError("");
+    setSaving(true);
+    try {
+      await welfareAPI.updateConfig(id, { event_type: cover.name.trim(), payout_amount: payout, waiting_period_days: Number(cover.waiting) || 0, max_claims_per_year: Number(cover.perYear) || 0 });
+      toast.success("Cover added.");
+      setCoverOpen(false);
+      setCover({ name: "", payout: "", waiting: "0", perYear: "0" });
+      await load();
+    } catch (err) {
+      setCoverError(err.response?.data?.message || "We couldn't save the cover.");
+    } finally { setSaving(false); }
   };
 
   const payClaim = async (claim) => {
@@ -129,6 +155,11 @@ export default function WelfareDashboard() {
               <StatCard label="Cover types" value={String(config.length)} />
             </div>
 
+            {OFFICIALS.includes(role) && officialCount < 2 && (
+              <div className="cs-notice cs-notice--warning" role="status" style={{ marginBottom: 16 }}>
+                <strong>Claims need two officials.</strong>&nbsp;Only one official is set up, so no claim can be approved yet. The chairperson should appoint a treasurer or secretary.
+              </div>
+            )}
             <section className="cs-card" aria-label="Coverage" style={{ marginBottom: 16 }}>
               <h2 className="cs-card-title">What the fund covers</h2>
               {config.length === 0 ? (
@@ -136,7 +167,7 @@ export default function WelfareDashboard() {
               ) : (
                 <dl className="cs-kv">
                   {config.map((c) => (
-                    <div key={c.id ?? c.event_type}><dt>{pretty(c.event_type)}</dt><dd>{formatKES(c.payout_amount)}</dd></div>
+                    <div key={c.id ?? c.event_type}><dt>{pretty(c.event_type)}</dt><dd>{formatKES(c.payout_amount)}{c.waiting_period_days > 0 ? ` · after ${c.waiting_period_days} days` : ""}{c.max_claims_per_year > 0 ? ` · ${c.max_claims_per_year} a year` : ""}</dd></div>
                   ))}
                 </dl>
               )}
@@ -183,6 +214,21 @@ export default function WelfareDashboard() {
             <p className="cs-footnote">ChamaSmart records the fund. Cash or transfers happen outside the app.</p>
           </>
         )}
+
+        <Dialog
+          open={coverOpen}
+          onClose={() => setCoverOpen(false)}
+          title="Add welfare cover"
+          actions={(<><Button onClick={() => setCoverOpen(false)}>Cancel</Button><Button type="submit" form="cover-form" loading={saving}>Save</Button></>)}
+        >
+          <form id="cover-form" onSubmit={saveCover} noValidate>
+            {coverError && <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 12 }}>{coverError}</div>}
+            <div className="cs-field"><label className="cs-label" htmlFor="cv-name">Event</label><input id="cv-name" className="cs-input" value={cover.name} onChange={(e) => setCover({ ...cover, name: e.target.value })} /></div>
+            <div className="cs-field"><label className="cs-label" htmlFor="cv-payout">Payout (KES)</label><input id="cv-payout" className="cs-input" type="number" inputMode="decimal" min="1" value={cover.payout} onChange={(e) => setCover({ ...cover, payout: e.target.value })} /></div>
+            <div className="cs-field"><label className="cs-label" htmlFor="cv-wait">Waiting period (days of membership)</label><input id="cv-wait" className="cs-input" type="number" inputMode="numeric" min="0" value={cover.waiting} onChange={(e) => setCover({ ...cover, waiting: e.target.value })} /></div>
+            <div className="cs-field"><label className="cs-label" htmlFor="cv-year">Claims allowed per member per year (0 for no limit)</label><input id="cv-year" className="cs-input" type="number" inputMode="numeric" min="0" value={cover.perYear} onChange={(e) => setCover({ ...cover, perYear: e.target.value })} /></div>
+          </form>
+        </Dialog>
 
         <Dialog
           open={open}

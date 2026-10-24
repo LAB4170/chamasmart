@@ -17,5 +17,7 @@ public class WelfareClaimRequestDto {
     private String description;
     private LocalDate date_of_occurrence;
     private String proof_document_url;
+    private String beneficiary_name;
+    private String beneficiary_relationship;
 }
 

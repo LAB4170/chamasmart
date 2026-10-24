@@ -12,6 +12,7 @@ import org.mockito.quality.Strictness;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.math.BigDecimal;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +33,7 @@ class WelfareServiceTest {
     @Mock ChamaMemberRepository memberRepo;
     @Mock FinancialAuditLogRepository auditRepo;
     @Mock LedgerService ledger;
+    @Mock LoanRepository loanRepo;
 
     WelfareService service;
     Chama chama;
@@ -56,7 +58,7 @@ class WelfareServiceTest {
         when(fundRepo.findByChamaIdWithPessimisticLock(1L)).thenReturn(Optional.of(fund));
         when(approvalRepo.findByClaimClaimId(10L)).thenAnswer(i -> new ArrayList<>(approvals));
         when(approvalRepo.save(any(WelfareClaimApproval.class))).thenAnswer(i -> { approvals.add(i.getArgument(0)); return i.getArgument(0); });
-        service = new WelfareService(configRepo, fundRepo, claimRepo, approvalRepo, chamaRepo, userRepo, memberRepo, auditRepo, ledger);
+        service = new WelfareService(configRepo, fundRepo, claimRepo, approvalRepo, chamaRepo, userRepo, memberRepo, auditRepo, ledger, loanRepo);
     }
 
     @Test void sameOfficialCannotApproveTwice() {
@@ -134,5 +136,59 @@ class WelfareServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.fileClaim(req, 5L));
         verify(configRepo, never()).save(any());
         verify(claimRepo, never()).save(argThat(c -> "SUBMITTED".equals(c.getStatus()) && c.getClaimId() == null));
+    }
+
+    private WelfareConfig cover(int waitingDays, int perYear) {
+        WelfareConfig c = WelfareConfig.builder().configId(2L).chama(chama).eventType("Bereavement").payoutAmount(new BigDecimal("5000")).isActive(true)
+                .waitingPeriodDays(waitingDays).maxClaimsPerYear(perYear).build();
+        when(configRepo.findById(2L)).thenReturn(Optional.of(c));
+        return c;
+    }
+    private com.chamasmart.backend.dto.WelfareClaimRequestDto request(String who, String relation) {
+        var req = new com.chamasmart.backend.dto.WelfareClaimRequestDto();
+        req.setChama_id(1L); req.setEvent_type_id(2L); req.setClaim_amount(new BigDecimal("3000")); req.setDescription("x");
+        req.setBeneficiary_name(who); req.setBeneficiary_relationship(relation);
+        return req;
+    }
+    private void memberSince(long days) {
+        when(memberRepo.findByChamaChamaIdAndUserUserId(1L, 5L)).thenReturn(Optional.of(
+                ChamaMember.builder().chama(chama).user(user(5)).role("MEMBER").isActive(true).joinDate(ZonedDateTime.now().minusDays(days)).build()));
+        when(userRepo.findById(5L)).thenReturn(Optional.of(user(5)));
+        when(chamaRepo.findById(1L)).thenReturn(Optional.of(chama));
+    }
+
+    @Test void claimNeedsABeneficiaryAndRelationship() {
+        memberSince(400); cover(0, 0);
+        assertThrows(IllegalArgumentException.class, () -> service.fileClaim(request("", "child"), 5L));
+        assertThrows(IllegalArgumentException.class, () -> service.fileClaim(request("Jane Doe", ""), 5L));
+        var ok = service.fileClaim(request("Jane Doe", "child"), 5L);
+        assertEquals("Jane Doe", ok.getBeneficiary_name());
+    }
+
+    @Test void waitingPeriodBlocksNewMembers() {
+        memberSince(10); cover(90, 0);
+        assertThrows(IllegalStateException.class, () -> service.fileClaim(request("Jane Doe", "child"), 5L));
+        memberSince(120);
+        assertNotNull(service.fileClaim(request("Jane Doe", "child"), 5L));
+    }
+
+    @Test void yearlyLimitIsEnforced() {
+        memberSince(400); WelfareConfig c = cover(0, 1);
+        WelfareClaim old = WelfareClaim.builder().claimId(1L).chama(chama).member(user(5)).eventType(c).claimAmount(BigDecimal.TEN).status("PAID").createdAt(ZonedDateTime.now().minusDays(30)).build();
+        when(claimRepo.findByChamaChamaIdOrderByCreatedAtDesc(1L)).thenReturn(List.of(old));
+        assertThrows(IllegalStateException.class, () -> service.fileClaim(request("Jane Doe", "child"), 5L));
+    }
+
+    @Test void memberWithADefaultedLoanCannotClaim() {
+        memberSince(400); cover(0, 0);
+        Loan l = new Loan(); l.setChama(chama); l.setStatus("DEFAULTED");
+        when(loanRepo.findByBorrowerUserId(5L)).thenReturn(List.of(l));
+        assertThrows(IllegalStateException.class, () -> service.fileClaim(request("Jane Doe", "child"), 5L));
+    }
+
+    @Test void proofLinksMustBeHttps() {
+        memberSince(400); cover(0, 0);
+        var req = request("Jane Doe", "child"); req.setProof_document_url("javascript:alert(1)");
+        assertThrows(IllegalArgumentException.class, () -> service.fileClaim(req, 5L));
     }
 }

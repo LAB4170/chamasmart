@@ -16,8 +16,7 @@ export default function SubmitClaim() {
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
-  const [form, setForm] = useState({ eventId: "", amount: "", date: "", description: "" });
-  const [file, setFile] = useState(null);
+  const [form, setForm] = useState({ eventId: "", amount: "", date: "", description: "", beneficiary: "", relationship: "", proof: "" });
 
   useEffect(() => {
     let live = true;
@@ -52,6 +51,9 @@ export default function SubmitClaim() {
     else if (ceiling > 0 && amt > ceiling) er.amount = `The most this cover pays is ${formatKES(ceiling)}.`;
     if (!form.date) er.date = "Say when it happened.";
     else if (form.date > today()) er.date = "The date can't be in the future.";
+    if (form.beneficiary.trim().length < 2) er.beneficiary = "Say who the claim is for.";
+    if (!form.relationship.trim()) er.relationship = "Say how they are related to you.";
+    if (form.proof.trim() && !/^https:\/\//i.test(form.proof.trim())) er.proof = "A proof link must start with https://";
     if (form.description.trim().length < 10) er.description = "Tell the officials what happened (at least 10 characters).";
     setErrors(er);
     return Object.keys(er).length === 0;
@@ -68,8 +70,10 @@ export default function SubmitClaim() {
         claim_amount: Number(form.amount),
         date_of_occurrence: form.date,
         description: form.description.trim(),
+        beneficiary_name: form.beneficiary.trim(),
+        beneficiary_relationship: form.relationship.trim(),
       };
-      if (file) payload.proof_document = file;
+      if (form.proof.trim()) payload.proof_document_url = form.proof.trim();
       const res = await welfareAPI.submitClaim(id, payload);
       toast.success(res.data?.message || "Claim submitted. Officials will review it.");
       navigate(`/chamas/${id}/welfare`);
@@ -115,15 +119,28 @@ export default function SubmitClaim() {
                 {err("date")}
               </div>
             </div>
+            <div className="cs-form-grid">
+              <div className="cs-field">
+                <label className="cs-label" htmlFor="sc-beneficiary">Who is the claim for?</label>
+                <input className="cs-input" {...aria("beneficiary")} value={form.beneficiary} onChange={set} />
+                {err("beneficiary")}
+              </div>
+              <div className="cs-field">
+                <label className="cs-label" htmlFor="sc-relationship">Relationship to you</label>
+                <input className="cs-input" placeholder="Self, spouse, child, parent…" {...aria("relationship")} value={form.relationship} onChange={set} />
+                {err("relationship")}
+              </div>
+            </div>
             <div className="cs-field">
               <label className="cs-label" htmlFor="sc-description">What happened</label>
               <textarea className="cs-textarea" rows={4} {...aria("description")} value={form.description} onChange={set} />
               {err("description")}
             </div>
             <div className="cs-field">
-              <label className="cs-label" htmlFor="sc-proof">Proof (optional)</label>
-              <input id="sc-proof" className="cs-input" type="file" accept="image/*,.pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-              <span className="cs-help">Files aren&apos;t stored yet, so officials may ask you for proof directly.</span>
+              <label className="cs-label" htmlFor="sc-proof">Link to proof (optional)</label>
+              <input className="cs-input" type="url" inputMode="url" placeholder="https://…" {...aria("proof")} value={form.proof} onChange={set} />
+              {err("proof")}
+              <span className="cs-help">Paste a link to a document or photo. Officials may also ask you for proof directly.</span>
             </div>
             <div className="cs-actions">
               <Button type="button" variant="secondary" onClick={() => navigate(-1)} disabled={saving}>Cancel</Button>

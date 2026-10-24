@@ -32,6 +32,12 @@ public class WelfareConfig {
     private String contributionType; // PERIODIC, AD_HOC
     @Column(name = "contribution_amount", precision = 15, scale = 2)
     private BigDecimal contributionAmount;
+    @Column(name = "waiting_period_days")
+    @Builder.Default
+    private Integer waitingPeriodDays = 0;
+    @Column(name = "max_claims_per_year")
+    @Builder.Default
+    private Integer maxClaimsPerYear = 0;
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;

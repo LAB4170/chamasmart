@@ -103,7 +103,7 @@ public class ContributionService {
             m.setLastContributionDate(ZonedDateTime.now());
             chamaMemberRepository.save(m);
         });
-        if ("WELFARE".equals(c.getContributionType())) {
+        if (toWelfare(c)) {
             WelfareFund fund = welfareFundRepository.findByChamaIdWithPessimisticLock(chamaId)
                     .orElseGet(() -> welfareFundRepository.save(WelfareFund.builder().chama(chama).balance(BigDecimal.ZERO).build()));
             fund.setBalance(fund.getBalance().add(c.getAmount()));
@@ -115,6 +115,13 @@ public class ContributionService {
             chamaRepository.save(locked);
             ledger.post(locked, LedgerEntry.CHAMA_FUND, c.getAmount(), "CONTRIBUTION", "CONTRIBUTION", c.getContributionId(), actorId, "Contribution " + c.getReference());
         }
+    }
+
+    /** W-04: in a welfare chama every ordinary dues payment belongs to the one welfare fund; elsewhere only WELFARE-type payments do. */
+    private static boolean toWelfare(Contribution c) {
+        String t = c.getContributionType() == null ? "REGULAR" : c.getContributionType().toUpperCase();
+        if ("WELFARE".equals(t)) return true;
+        return c.getChama() != null && "WELFARE".equalsIgnoreCase(c.getChama().getChamaType()) && List.of("REGULAR", "ONE_TIME", "SPECIAL").contains(t);
     }
 
     private boolean needsSecondOfficial(Long actorId, Long targetId, BigDecimal amount) {
@@ -276,7 +283,7 @@ public class ContributionService {
                 throw new AccessDeniedException("You cannot reverse your own contribution; another official must do it");
             }
             // Never hide a shortfall: if the money has already been lent or paid out, the reversal must wait.
-            if ("WELFARE".equals(c.getContributionType())) {
+            if (toWelfare(c)) {
                 BigDecimal bal = welfareFundRepository.findByChamaIdWithPessimisticLock(chamaId).map(WelfareFund::getBalance).orElse(BigDecimal.ZERO);
                 if (bal.compareTo(c.getAmount()) < 0) throw new IllegalStateException("Reversing KES " + c.getAmount().toPlainString() + " would take the welfare fund below zero, because part of it has been paid out. Resolve the shortfall first");
             } else {
@@ -287,7 +294,7 @@ public class ContributionService {
                 m.setTotalContributions(m.getTotalContributions().subtract(c.getAmount()).max(BigDecimal.ZERO));
                 chamaMemberRepository.save(m);
             });
-            if ("WELFARE".equals(c.getContributionType())) {
+            if (toWelfare(c)) {
                 welfareFundRepository.findByChamaIdWithPessimisticLock(chamaId).ifPresent(f -> {
                     f.setBalance(f.getBalance().subtract(c.getAmount()).max(BigDecimal.ZERO));
                     welfareFundRepository.save(f);
