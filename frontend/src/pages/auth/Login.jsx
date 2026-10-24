@@ -74,6 +74,7 @@ export default function Login() {
           <button type="button" className="cs-btn cs-btn--secondary cs-btn--block" onClick={google} disabled={loading}>
             <img src={googleLogo} alt="" width="18" height="18" style={{ marginRight: 8 }} />Continue with Google
           </button>
+          <p className="cs-help" style={{ textAlign: "center" }}>New here? Continuing with Google creates your account and means you accept the <Link to="/terms">terms</Link> and <Link to="/privacy">privacy notice</Link>.</p>
         </form>
         <p className="cs-footnote" style={{ textAlign: "center", marginTop: 16 }}>New to ChamaSmart? <Link to="/register">Create an account</Link></p>
       </main>

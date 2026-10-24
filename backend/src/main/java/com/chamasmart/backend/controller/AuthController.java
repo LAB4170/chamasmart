@@ -23,6 +23,7 @@ public class AuthController {
     private final com.chamasmart.backend.security.FirebaseTokenVerifier firebaseTokenVerifier;
     private final com.chamasmart.backend.security.RefreshTokenService refreshTokens;
     private final com.chamasmart.backend.service.AuditTrailService audit;
+    private final com.chamasmart.backend.service.GoogleAccountService googleAccounts;
 
     private AuthResponse sessionFor(User u, jakarta.servlet.http.HttpServletRequest req) {
         String access = jwtUtil.generateToken(CustomUserDetails.build(u));
@@ -147,25 +148,17 @@ public class AuthController {
         if (!identity.emailVerified()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Your Google email address isn't verified"));
         }
-        String email = identity.email();
-
-        // Find existing user by email or create a new one
-        User user = userRepository.findByEmail(email).orElseGet(() -> {
-            String firstName  = (request.getFirstName()  != null && !request.getFirstName().isBlank())
-                    ? request.getFirstName().trim() : "User";
-            String lastName   = (request.getLastName()   != null && !request.getLastName().isBlank())
-                    ? request.getLastName().trim()  : "";
-            String phone      = (request.getPhoneNumber() != null && !request.getPhoneNumber().trim().isEmpty())
-                    ? request.getPhoneNumber().trim() : null;
-
-            User newUser = new User(
-                    firstName, lastName, email, phone,
-                    passwordEncoder.encode(java.util.UUID.randomUUID() + "-" + java.util.UUID.randomUUID()),
-                    "MEMBER", true, true, phone != null, "google"
-            );
-            return userRepository.save(newUser);
-        });
-
+        com.chamasmart.backend.service.GoogleAccountService.Result found;
+        try {
+            found = googleAccounts.resolve(identity, request.getFirstName(), request.getLastName(), request.getPhoneNumber());
+        } catch (com.chamasmart.backend.service.GoogleAccountService.DeactivatedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("This account has been deactivated"));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("We couldn't verify your Google sign-in. Please try again."));
+        }
+        User user = found.user();
+        String ip = com.chamasmart.backend.security.ClientIp.of(httpRequest);
+        audit.record(user.getUserId(), found.created() ? "ACCOUNT_REGISTERED_GOOGLE" : found.linked() ? "GOOGLE_LINKED_PASSWORD_REMOVED" : "LOGIN_GOOGLE", "USER", user.getUserId(), ip, null);
         return ResponseEntity.ok(ApiResponse.success(sessionFor(user, httpRequest), "Firebase user synced successfully"));
     }
 }
