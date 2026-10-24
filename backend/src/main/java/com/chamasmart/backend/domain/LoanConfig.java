@@ -51,6 +51,20 @@ public class LoanConfig {
     @Builder.Default
     private Boolean requireGuarantors = true;
 
+    /** Late fee as a percent of an unpaid instalment, charged once when it goes overdue. 0 switches it off. */
+    @Column(name = "late_fee_percent", precision = 5, scale = 2)
+    @Builder.Default
+    private BigDecimal lateFeePercent = BigDecimal.ZERO;
+
+    /** Loans at or above this amount need {@code committeeSize} distinct officials to approve. */
+    @Column(name = "committee_threshold", precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal committeeThreshold = BigDecimal.valueOf(20000);
+
+    @Column(name = "committee_size")
+    @Builder.Default
+    private Integer committeeSize = 2;
+
     @Column(name = "updated_at")
     private ZonedDateTime updatedAt;
 

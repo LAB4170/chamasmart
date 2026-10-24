@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import { loanAPI } from "../../../services/api";
 import { Button, PageHeader, Skeleton } from "../../../components/ui";
 
-const DEFAULTS = { interest_rate: "10", interest_type: "FLAT", loan_multiplier: "3", max_repayment_months: "12", require_guarantors: true };
+const DEFAULTS = { interest_rate: "10", interest_type: "FLAT", loan_multiplier: "3", max_repayment_months: "12", require_guarantors: true, late_fee_percent: "0", committee_threshold: "20000", committee_size: "2" };
 
 export default function LoanConfigPage() {
   const { id } = useParams();
@@ -27,6 +27,9 @@ export default function LoanConfigPage() {
             loan_multiplier: String(c.loan_multiplier ?? DEFAULTS.loan_multiplier),
             max_repayment_months: String(c.max_repayment_months ?? DEFAULTS.max_repayment_months),
             require_guarantors: c.require_guarantors !== false,
+            late_fee_percent: String(c.late_fee_percent ?? DEFAULTS.late_fee_percent),
+            committee_threshold: String(c.committee_threshold ?? DEFAULTS.committee_threshold),
+            committee_size: String(c.committee_size ?? DEFAULTS.committee_size),
           });
         }
       })
@@ -45,6 +48,12 @@ export default function LoanConfigPage() {
     if (!Number.isFinite(mult) || mult < 1 || mult > 10) er.loan_multiplier = "Enter a multiplier between 1 and 10.";
     const months = Number(form.max_repayment_months);
     if (!Number.isInteger(months) || months < 1 || months > 60) er.max_repayment_months = "Enter a whole number of months from 1 to 60.";
+    const fee = Number(form.late_fee_percent);
+    if (!Number.isFinite(fee) || fee < 0 || fee > 50) er.late_fee_percent = "Enter a late fee between 0 and 50 percent.";
+    const thr = Number(form.committee_threshold);
+    if (!Number.isFinite(thr) || thr <= 0) er.committee_threshold = "Enter an amount above zero.";
+    const size = Number(form.committee_size);
+    if (!Number.isInteger(size) || size < 1 || size > 3) er.committee_size = "Choose 1, 2 or 3 approvals.";
     setErrors(er);
     return Object.keys(er).length === 0;
   };
@@ -60,6 +69,9 @@ export default function LoanConfigPage() {
         loan_multiplier: Number(form.loan_multiplier),
         max_repayment_months: Number(form.max_repayment_months),
         require_guarantors: form.require_guarantors,
+        late_fee_percent: Number(form.late_fee_percent),
+        committee_threshold: Number(form.committee_threshold),
+        committee_size: Number(form.committee_size),
       });
       toast.success("Loan terms saved. They apply to new applications; existing loans keep their terms.");
       navigate(`/chamas/${id}`);
@@ -106,6 +118,21 @@ export default function LoanConfigPage() {
                 <label className="cs-label" htmlFor="lc-max_repayment_months">Longest repayment (months)</label>
                 <input className="cs-input" type="number" inputMode="numeric" min="1" max="60" {...aria("max_repayment_months")} value={form.max_repayment_months} onChange={set} />
                 {msg("max_repayment_months", "Applications asking for longer are refused.")}
+              </div>
+              <div className="cs-field">
+                <label className="cs-label" htmlFor="lc-late_fee_percent">Late fee (% of an overdue instalment)</label>
+                <input className="cs-input" type="number" inputMode="decimal" min="0" max="50" step="0.5" {...aria("late_fee_percent")} value={form.late_fee_percent} onChange={set} />
+                {msg("late_fee_percent", "Charged once per overdue instalment. 0 switches late fees off.")}
+              </div>
+              <div className="cs-field">
+                <label className="cs-label" htmlFor="lc-committee_threshold">Loans from (KES) need more than one approval</label>
+                <input className="cs-input" type="number" inputMode="decimal" min="1" {...aria("committee_threshold")} value={form.committee_threshold} onChange={set} />
+                {msg("committee_threshold", "Smaller loans need one official who is not the borrower.")}
+              </div>
+              <div className="cs-field">
+                <label className="cs-label" htmlFor="lc-committee_size">Approvals needed for those loans</label>
+                <input className="cs-input" type="number" inputMode="numeric" min="1" max="3" {...aria("committee_size")} value={form.committee_size} onChange={set} />
+                {msg("committee_size", "Different officials, never the borrower.")}
               </div>
             </div>
             <label className="cs-check" style={{ marginBottom: 16 }}>

@@ -27,6 +27,8 @@ class LoanServiceTest {
     @Mock LoanRepository loanRepo;
     @Mock LoanGuarantorRepository guarantorRepo;
     @Mock AscaCycleRepository ascaCycleRepo;
+    @Mock LoanScheduleService scheduleService;
+    @Mock LoanApprovalRepository approvalRepo;
     @Mock AscaMemberRepository ascaMemberRepo;
     @Mock ChamaRepository chamaRepo;
     @Mock UserRepository userRepo;
@@ -388,5 +390,69 @@ class LoanServiceTest {
         when(memberRepo.findByChamaChamaIdAndUserUserId(1L, 5L)).thenReturn(Optional.of(m));
         when(contribRepo.findByUserUserIdAndIsDeletedFalse(5L)).thenReturn(List.of(saved(5, "100000", "FINE", "COMPLETED")));
         assertThrows(IllegalArgumentException.class, () -> service.applyForLoan(request("1000", 3, pledge(8, "2000")), 5L));
+    }
+
+    private ChamaMember official(long id, String role) {
+        return ChamaMember.builder().role(role).user(user(id)).isActive(true).build();
+    }
+    private Loan bigPending() {
+        Loan l = loan(20, user(5)); l.setStatus("PENDING"); l.setLoanAmount(new BigDecimal("30000")); l.setTotalRepayable(new BigDecimal("33000"));
+        chama.setCurrentFund(new BigDecimal("90000"));
+        when(loanRepo.findByIdWithPessimisticLock(20L)).thenReturn(Optional.of(l));
+        when(chamaRepo.findByIdWithPessimisticLock(1L)).thenReturn(Optional.of(chama));
+        when(guarantorRepo.findByLoanLoanId(20L)).thenReturn(List.of());
+        when(configRepo.findByChamaId(1L)).thenReturn(Optional.of(LoanConfig.builder().chamaId(1L).requireGuarantors(false).build()));
+        when(memberRepo.findByChamaChamaIdAndIsActiveTrue(1L)).thenReturn(List.of(official(7, "TREASURER"), official(6, "CHAIRPERSON")));
+        when(approvalRepo.save(any(LoanApproval.class))).thenAnswer(a -> a.getArgument(0));
+        return l;
+    }
+
+    @Test void aLargeLoanNeedsTwoDifferentOfficials() {
+        member(7, "TREASURER", true); member(6, "CHAIRPERSON", true);
+        Loan l = bigPending();
+        assertEquals("AWAITING_MORE_APPROVALS", service.approveLoan(20L, 7L));
+        assertEquals("PENDING", l.getStatus());
+        assertEquals(0, new BigDecimal("90000").compareTo(chama.getCurrentFund()));
+        LoanApproval first = LoanApproval.builder().loan(l).officialId(7L).build();
+        when(approvalRepo.findByLoanLoanId(20L)).thenReturn(List.of(first));
+        assertThrows(IllegalStateException.class, () -> service.approveLoan(20L, 7L));
+        assertEquals("APPROVED", service.approveLoan(20L, 6L));
+        assertEquals("APPROVED", l.getStatus());
+        assertEquals(0, new BigDecimal("60000").compareTo(chama.getCurrentFund()));
+        verify(scheduleService).generate(l);
+    }
+
+    @Test void aSmallLoanNeedsOnlyOneOfficial() {
+        member(7, "TREASURER", true);
+        Loan l = bigPending(); l.setLoanAmount(new BigDecimal("1000")); l.setTotalRepayable(new BigDecimal("1100"));
+        assertEquals("APPROVED", service.approveLoan(20L, 7L));
+    }
+
+    @Test void writeOffNeedsTwoOfficialsAndOnlyAppliesToADefaultedLoan() {
+        member(7, "TREASURER", true); member(6, "CHAIRPERSON", true);
+        Loan l = bigPending(); l.setStatus("ACTIVE");
+        assertThrows(IllegalStateException.class, () -> service.twoOfficialAction(1L, 20L, 7L, "WRITE_OFF", null));
+        l.setStatus("DEFAULTED");
+        assertEquals("AWAITING_SECOND_OFFICIAL", service.twoOfficialAction(1L, 20L, 7L, "WRITE_OFF", null));
+        assertThrows(AccessDeniedException.class, () -> service.twoOfficialAction(1L, 20L, 7L, "WRITE_OFF", null));
+        assertEquals("DONE", service.twoOfficialAction(1L, 20L, 6L, "WRITE_OFF", null));
+        assertEquals("WRITTEN_OFF", l.getStatus());
+    }
+
+    @Test void rescheduleCuresADefaultAfterTwoOfficials() {
+        member(7, "TREASURER", true); member(6, "CHAIRPERSON", true);
+        Loan l = bigPending(); l.setStatus("DEFAULTED");
+        assertThrows(IllegalArgumentException.class, () -> service.twoOfficialAction(1L, 20L, 7L, "RESCHEDULE", 99));
+        assertEquals("AWAITING_SECOND_OFFICIAL", service.twoOfficialAction(1L, 20L, 7L, "RESCHEDULE", 6));
+        assertEquals("DONE", service.twoOfficialAction(1L, 20L, 6L, "RESCHEDULE", 6));
+        assertEquals("ACTIVE", l.getStatus());
+        verify(scheduleService).reschedule(eq(l), eq(6), any());
+    }
+
+    @Test void aWrittenOffBorrowerCannotTakeAnotherLoan() {
+        member(5, "MEMBER", true);
+        Loan old = loan(21, user(5)); old.setStatus("WRITTEN_OFF");
+        when(loanRepo.findByBorrowerUserId(5L)).thenReturn(List.of(old));
+        assertThrows(IllegalArgumentException.class, () -> service.applyForLoan(request("500", 3), 5L));
     }
 }

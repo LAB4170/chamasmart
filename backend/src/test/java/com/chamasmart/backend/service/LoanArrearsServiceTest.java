@@ -29,6 +29,7 @@ class LoanArrearsServiceTest {
     @Mock LoanGuarantorRepository guarantorRepo;
     @Mock NotificationRepository notifRepo;
     @Mock ChamaMemberRepository memberRepo;
+    @Mock LoanScheduleService scheduleService;
     LoanArrearsService service;
     Chama chama;
     Loan loan;
@@ -42,7 +43,7 @@ class LoanArrearsServiceTest {
         loan = Loan.builder().loanId(3L).chama(chama).borrower(user(5)).loanAmount(new BigDecimal("12000")).termMonths(6)
                 .interestRate(BigDecimal.ZERO).totalRepayable(new BigDecimal("12000")).amountPaid(BigDecimal.ZERO).status("DISBURSED")
                 .approvedAt(approved.atStartOfDay(ZoneId.systemDefault())).build();
-        service = new LoanArrearsService(loanRepo, guarantorRepo, notifRepo, memberRepo);
+        service = new LoanArrearsService(loanRepo, guarantorRepo, notifRepo, memberRepo, scheduleService);
         when(loanRepo.findByStatus("DISBURSED")).thenReturn(List.of(loan));
         when(loanRepo.findByStatus("ACTIVE")).thenReturn(List.of());
         when(loanRepo.findByChamaChamaId(1L)).thenReturn(List.of(loan));

@@ -132,8 +132,8 @@ public class LoanController {
             @PathVariable Long loanId,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to approve loan ID: {} by user ID: {}", loanId, currentUser.getUserId());
-        loanService.approveLoan(loanId, currentUser.getUserId());
-        return ResponseEntity.ok(ApiResponse.success(null, "Loan approved successfully"));
+        String outcome = loanService.approveLoan(loanId, currentUser.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(null, "APPROVED".equals(outcome) ? "Loan approved successfully" : "Your approval is recorded. More officials need to approve this loan before it is disbursed"));
     }
     @PutMapping("/{chamaId}/{loanId}/reject")
     public ResponseEntity<ApiResponse<Void>> rejectLoan(
@@ -181,6 +181,22 @@ public class LoanController {
         if (!waiting) data.put("recovered", new java.math.BigDecimal(outcome.substring(10)));
         return ResponseEntity.ok(ApiResponse.success(data, waiting ? "Request recorded. A different official must confirm it. Nothing has moved yet" : "Guarantors' savings applied to the loan"));
     }
+    @PostMapping("/{chamaId}/{loanId}/reschedule")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> reschedule(@PathVariable Long chamaId, @PathVariable Long loanId, @RequestBody Map<String, Integer> payload, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        String o = loanService.twoOfficialAction(chamaId, loanId, currentUser.getUserId(), "RESCHEDULE", payload.get("months"));
+        return ResponseEntity.ok(ApiResponse.success(Map.of("status", o), "DONE".equals(o) ? "Loan rescheduled" : "Request recorded. A different official must confirm it"));
+    }
+    @PostMapping("/{chamaId}/{loanId}/write-off")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> writeOff(@PathVariable Long chamaId, @PathVariable Long loanId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        String o = loanService.twoOfficialAction(chamaId, loanId, currentUser.getUserId(), "WRITE_OFF", null);
+        return ResponseEntity.ok(ApiResponse.success(Map.of("status", o), "DONE".equals(o) ? "Loan written off" : "Request recorded. A different official must confirm it"));
+    }
+    @PutMapping("/{chamaId}/policy")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> policy(@PathVariable Long chamaId, @RequestBody Map<String, Object> p, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        java.util.function.Function<Object, java.math.BigDecimal> bd = o -> o == null ? null : new java.math.BigDecimal(o.toString());
+        var cfg = loanService.updatePolicy(chamaId, currentUser.getUserId(), bd.apply(p.get("late_fee_percent")), bd.apply(p.get("committee_threshold")), p.get("committee_size") == null ? null : Integer.valueOf(p.get("committee_size").toString()));
+        return ResponseEntity.ok(ApiResponse.success(Map.of("late_fee_percent", cfg.getLateFeePercent(), "committee_threshold", cfg.getCommitteeThreshold(), "committee_size", cfg.getCommitteeSize()), "Loan policy saved"));
+    }
     @GetMapping("/{chamaId}/arrears")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> arrears(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails currentUser) {
         return ResponseEntity.ok(ApiResponse.success(loanArrearsService.arrears(chamaId, currentUser.getUserId()), "Arrears retrieved"));
@@ -222,6 +238,10 @@ public class LoanController {
                     toDecimal(config.get("interest_rate")), config.get("interest_type") == null ? null : config.get("interest_type").toString(),
                     toDecimal(config.get("loan_multiplier")), config.get("max_repayment_months") == null ? null : ((Number) config.get("max_repayment_months")).intValue(),
                     config.get("require_guarantors") == null ? null : Boolean.valueOf(config.get("require_guarantors").toString()));
+            if (config.get("late_fee_percent") != null || config.get("committee_threshold") != null || config.get("committee_size") != null) {
+                saved = loanService.updatePolicy(chamaId, currentUser.getUserId(), toDecimal(config.get("late_fee_percent")), toDecimal(config.get("committee_threshold")),
+                        config.get("committee_size") == null ? null : ((Number) config.get("committee_size")).intValue());
+            }
             return ResponseEntity.ok(ApiResponse.success(configMap(saved), "Config updated"));
         } catch (NumberFormatException | ClassCastException e) {
             throw new IllegalArgumentException("Loan settings contain an invalid number");
@@ -237,6 +257,9 @@ public class LoanController {
         m.put("loan_multiplier", c.getLoanMultiplier());
         m.put("max_repayment_months", c.getMaxRepaymentMonths());
         m.put("require_guarantors", c.getRequireGuarantors());
+        m.put("late_fee_percent", c.getLateFeePercent() == null ? BigDecimal.ZERO : c.getLateFeePercent());
+        m.put("committee_threshold", c.getCommitteeThreshold() == null ? BigDecimal.valueOf(20000) : c.getCommitteeThreshold());
+        m.put("committee_size", c.getCommitteeSize() == null ? 2 : c.getCommitteeSize());
         return m;
     }
 }

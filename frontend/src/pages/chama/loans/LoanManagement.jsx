@@ -7,6 +7,7 @@ import { Button, PageHeader, StatCard, StatusBadge, DataTable, Dialog, Skeleton 
 import { formatKES, formatDate } from "../../../utils/format";
 import LoanAnalyticsDashboard from "./LoanAnalyticsDashboard";
 import PendingRepayments from "./PendingRepayments";
+import LoanOfficialActions from "./LoanOfficialActions";
 import ArrearsList from "./ArrearsList";
 
 const OPEN = ["APPROVED", "DISBURSED", "DEFAULTED"];
@@ -69,7 +70,8 @@ export default function LoanManagement() {
     setBusyId(loan.loan_id);
     try {
       const res = await loanAPI.approve(id, loan.loan_id);
-      toast[res.data?.message?.includes("already approved") ? "info" : "success"](res.data?.message?.includes("already approved") ? "This loan was already approved." : "Loan approved.");
+      const waiting = /more officials/i.test(res.data?.message || "");
+      toast[waiting ? "info" : "success"](waiting ? "Your approval is recorded. More officials need to approve this loan before any money is released." : "Loan approved.", { autoClose: waiting ? 8000 : 5000 });
       setApproveFor(null);
       await refreshLoans();
     } catch (err) {
@@ -160,8 +162,9 @@ export default function LoanManagement() {
     { key: "total_amount", header: "Total due", align: "num", render: (r) => formatKES(r.total_amount) },
     { key: "principal_amount", header: "Principal", align: "num", render: (r) => formatKES(r.principal_amount) },
     { key: "interest_amount", header: "Interest", align: "num", render: (r) => formatKES(r.interest_amount) },
-    { key: "balance", header: "Balance", align: "num", render: (r) => formatKES(r.balance) },
-    { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status === "PAID" ? "PAID" : "PENDING"} label={r.status === "PAID" ? "Paid" : "Due"} /> },
+    { key: "fee_amount", header: "Late fee", align: "num", render: (r) => (Number(r.fee_amount) > 0 ? formatKES(r.fee_amount) : "—") },
+    { key: "paid_amount", header: "Paid", align: "num", render: (r) => formatKES(r.paid_amount || 0) },
+    { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status === "PAID" ? "PAID" : r.status === "OVERDUE" ? "DEFAULTED" : "PENDING"} label={{ PAID: "Paid", OVERDUE: "Overdue", PARTIAL: "Part paid", PENDING: "Due" }[r.status] || "Due"} /> },
   ];
   const guarantorCols = [
     { key: "name", header: "Guarantor", render: (g) => <strong>{g.guarantor_name || `${g.first_name || ""} ${g.last_name || ""}`.trim() || "Unknown"}</strong> },
@@ -255,6 +258,9 @@ export default function LoanManagement() {
               <div><dt>Balance</dt><dd>{formatKES(d.loan.balance || 0)}</dd></div>
               <div><dt>Monthly payment</dt><dd>{formatKES(d.loan.monthly_payment || 0)}</dd></div>
             </dl>
+            {isOfficial && ["APPROVED", "DISBURSED", "ACTIVE", "DEFAULTED"].includes(d.loan.status) && (
+              <LoanOfficialActions chamaId={id} loan={d.loan} onDone={async () => { await refreshLoans(); await openDetails(details.loan); }} />
+            )}
             {d.schedule?.length > 0 && (
               <section style={{ marginTop: 16 }}>
                 <h3 className="cs-section-title">Repayment schedule</h3>

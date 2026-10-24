@@ -34,6 +34,8 @@ export const loanAPI = {
         api.post(`/loans/${chamaId}/${loanId}/repay`, repaymentData),
     getBorrowingLimit: (chamaId) => api.get(`/loans/${chamaId}/limit`),
     callGuarantees: (chamaId, loanId) => api.post(`/loans/${chamaId}/${loanId}/call-guarantees`),
+    rescheduleLoan: (chamaId, loanId, months) => api.post(`/loans/${chamaId}/${loanId}/reschedule`, { months }),
+    writeOffLoan: (chamaId, loanId) => api.post(`/loans/${chamaId}/${loanId}/write-off`),
     getArrears: (chamaId) => api.get(`/loans/${chamaId}/arrears`),
     getPendingRepayments: (chamaId) => api.get(`/loans/${chamaId}/repayments/pending`),
     verifyRepayment: (chamaId, repaymentId) => api.post(`/loans/${chamaId}/repayments/${repaymentId}/verify`),

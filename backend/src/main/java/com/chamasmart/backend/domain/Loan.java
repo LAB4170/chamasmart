@@ -82,6 +82,13 @@ public class Loan {
     private List<LoanGuarantor> guarantors = new ArrayList<>();
     @Column(name = "guarantee_call_requested_by")
     private Long guaranteeCallRequestedBy;
+    /** A two-official action waiting for its second signature: RESCHEDULE or WRITE_OFF. */
+    @Column(name = "pending_action", length = 20)
+    private String pendingAction;
+    @Column(name = "pending_action_by")
+    private Long pendingActionBy;
+    @Column(name = "pending_action_value")
+    private Integer pendingActionValue;
     @Version
     @Column(name = "version")
     private Long version;

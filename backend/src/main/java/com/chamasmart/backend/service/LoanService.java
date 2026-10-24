@@ -28,6 +28,8 @@ public class LoanService {
     private final LedgerService ledger;
     private final ContributionRepository contributionRepository;
     private final AscaMemberRepository ascaMemberRepository;
+    private final LoanScheduleService scheduleService;
+    private final LoanApprovalRepository loanApprovalRepository;
     private final AscaCycleRepository ascaCycleRepository;
     private ChamaMember validateUserMembershipAndActiveStatus(Long chamaId, Long userId) {
         return chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
@@ -164,7 +166,7 @@ public class LoanService {
         }
         // Borrowing limit = total contributions x multiplier, minus what the member still owes on open loans.
         List<Loan> myLoans = loanRepository.findByBorrowerUserId(borrowerUserId);
-        if (myLoans.stream().anyMatch(l -> "DEFAULTED".equalsIgnoreCase(l.getStatus()))) {
+        if (myLoans.stream().anyMatch(l -> "DEFAULTED".equalsIgnoreCase(l.getStatus()) || "WRITTEN_OFF".equalsIgnoreCase(l.getStatus()))) {
             throw new IllegalArgumentException("You have a defaulted loan. Clear it before applying for another");
         }
         {
@@ -307,22 +309,18 @@ public class LoanService {
         LoanSummaryDto dto = withFlags(LoanSummaryDto.fromEntity(loan), requesterUserId, isGuarantor);
 
         List<Map<String, Object>> schedule = new ArrayList<>();
-        if (List.of("APPROVED", "DISBURSED", "ACTIVE", "DEFAULTED", "COMPLETED").contains(loan.getStatus()) && loan.getTermMonths() != null && loan.getTotalRepayable() != null) {
-            String type = loan.getInterestType() != null ? loan.getInterestType() : LoanCalculator.FLAT;
-            LocalDate start = (loan.getApprovedAt() != null ? loan.getApprovedAt() : loan.getCreatedAt()).toLocalDate();
-            BigDecimal interest = loan.getTotalRepayable().subtract(loan.getLoanAmount());
-            BigDecimal paid = loan.getAmountPaid() != null ? loan.getAmountPaid() : BigDecimal.ZERO;
-            BigDecimal cumulative = BigDecimal.ZERO;
-            for (LoanCalculator.Installment i : LoanCalculator.schedule(loan.getLoanAmount(), loan.getInterestRate(), loan.getTermMonths(), type, start, interest)) {
-                cumulative = cumulative.add(i.total());
+        if (List.of("APPROVED", "DISBURSED", "ACTIVE", "DEFAULTED", "COMPLETED", "WRITTEN_OFF").contains(loan.getStatus())) {
+            LocalDate today = LocalDate.now();
+            for (LoanInstallment i : scheduleService.ensure(loan)) {
                 Map<String, Object> row = new LinkedHashMap<>();
-                row.put("installment_number", i.number());
-                row.put("due_date", i.dueDate());
-                row.put("total_amount", i.total());
-                row.put("principal_amount", i.principal());
-                row.put("interest_amount", i.interest());
-                row.put("balance", i.balanceAfter());
-                row.put("status", paid.compareTo(cumulative) >= 0 ? "PAID" : "PENDING");
+                row.put("installment_number", i.getNumber());
+                row.put("due_date", i.getDueDate());
+                row.put("total_amount", i.due());
+                row.put("principal_amount", i.getPrincipal());
+                row.put("interest_amount", i.getInterest());
+                row.put("fee_amount", i.getFee());
+                row.put("paid_amount", i.paid());
+                row.put("status", i.unpaid().signum() == 0 ? "PAID" : i.getDueDate().isBefore(today) ? "OVERDUE" : i.paid().signum() > 0 ? "PARTIAL" : "PENDING");
                 schedule.add(row);
             }
         }
@@ -399,7 +397,8 @@ public class LoanService {
         return GuarantorSummaryDto.fromEntity(updatedLg);
     }
     @Transactional
-    public void approveLoan(Long loanId, Long officerUserId) {
+    /** Returns "APPROVED" once enough distinct officials have approved, otherwise "AWAITING_MORE_APPROVALS". */
+    public String approveLoan(Long loanId, Long officerUserId) {
         log.info("Officer ID {} approving loan ID: {}", officerUserId, loanId);
         Loan loan = loanRepository.findByIdWithPessimisticLock(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
@@ -423,6 +422,25 @@ public class LoanService {
             }
         }
         BigDecimal amount = loan.getLoanAmount();
+        // T-02: large loans need several different officials. Every vote is recorded.
+        LoanConfig policy = configFor(chama.getChamaId());
+        BigDecimal threshold = policy.getCommitteeThreshold() == null ? BigDecimal.valueOf(20000) : policy.getCommitteeThreshold();
+        int size = policy.getCommitteeSize() == null ? 2 : policy.getCommitteeSize();
+        List<LoanApproval> votes = new ArrayList<>(loanApprovalRepository.findByLoanLoanId(loanId));
+        if (votes.stream().anyMatch(v -> v.getOfficialId().equals(officerUserId))) {
+            throw new IllegalStateException("You have already approved this loan; other officials still need to");
+        }
+        votes.add(loanApprovalRepository.save(LoanApproval.builder().loan(loan).officialId(officerUserId).build()));
+        long eligible = chamaMemberRepository.findByChamaChamaIdAndIsActiveTrue(chama.getChamaId()).stream()
+                .filter(m -> m.getRole() != null && List.of("CHAIRPERSON", "TREASURER", "SECRETARY").contains(m.getRole().toUpperCase()))
+                .filter(m -> m.getUser() != null && !m.getUser().getUserId().equals(loan.getBorrower().getUserId())).count();
+        int required = amount.compareTo(threshold) >= 0 ? (int) Math.max(1, Math.min(size, eligible)) : 1;
+        if (votes.size() < required) {
+            auditLogRepository.save(FinancialAuditLog.builder().user(userRepository.getReferenceById(officerUserId)).transactionType("LOAN_APPROVAL_VOTE").amount(amount)
+                    .chama(chama).referenceId(loanId).description("Approval " + votes.size() + " of " + required + " recorded for loan " + loanId)
+                    .ipAddress(com.chamasmart.backend.security.ClientIp.current()).userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent()).build());
+            return "AWAITING_MORE_APPROVALS";
+        }
         if (chama.getCurrentFund().compareTo(amount) < 0) {
             throw new RuntimeException("Insufficient chama funds for loan disbursement. Available: " 
                     + chama.getCurrentFund() + ", Requested: " + amount);
@@ -435,6 +453,7 @@ public class LoanService {
         loan.setApprovedAt(ZonedDateTime.now());
         loan.setApprovedBy(userRepository.getReferenceById(officerUserId));
         loanRepository.save(loan);
+        scheduleService.generate(loan);
         // Write Financial Audit Log
         FinancialAuditLog auditLog = FinancialAuditLog.builder()
                 .user(userRepository.getReferenceById(officerUserId))
@@ -447,6 +466,7 @@ public class LoanService {
                 .userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent())
                 .build();
         auditLogRepository.save(auditLog);
+        return "APPROVED";
     }
     @Transactional
     public void rejectLoan(Long loanId, Long officerUserId, String reason) {
@@ -564,6 +584,7 @@ public class LoanService {
                     .ipAddress(com.chamasmart.backend.security.ClientIp.current()).userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent()).build());
         }
         if (recovered.signum() <= 0) throw new IllegalStateException("The guarantors have no savings available to cover this loan");
+        scheduleService.apply(loan, chama, recovered, officialId);
         loan.setAmountPaid(paid.add(recovered));
         loan.setLastPaymentDate(ZonedDateTime.now());
         loan.setGuaranteeCallRequestedBy(null);
@@ -573,6 +594,68 @@ public class LoanService {
         if (loan.getAmountPaid().compareTo(loan.getTotalRepayable()) >= 0) loan.setStatus("COMPLETED");
         loanRepository.save(loan);
         return "RECOVERED:" + recovered.toPlainString();
+    }
+
+    @Transactional
+    public LoanConfig updatePolicy(Long chamaId, Long officerUserId, BigDecimal lateFeePercent, BigDecimal committeeThreshold, Integer committeeSize) {
+        validateUserIsOfficial(chamaId, officerUserId);
+        if (lateFeePercent != null && (lateFeePercent.signum() < 0 || lateFeePercent.compareTo(BigDecimal.valueOf(50)) > 0)) throw new IllegalArgumentException("The late fee must be between 0 and 50 percent");
+        if (committeeThreshold != null && committeeThreshold.signum() <= 0) throw new IllegalArgumentException("The committee threshold must be more than zero");
+        if (committeeSize != null && (committeeSize < 1 || committeeSize > 3)) throw new IllegalArgumentException("The committee needs 1 to 3 approvals");
+        LoanConfig cfg = loanConfigRepository.findByChamaId(chamaId).orElseGet(() -> LoanConfig.defaults(chamaId));
+        if (lateFeePercent != null) cfg.setLateFeePercent(lateFeePercent);
+        if (committeeThreshold != null) cfg.setCommitteeThreshold(committeeThreshold);
+        if (committeeSize != null) cfg.setCommitteeSize(committeeSize);
+        cfg.setUpdatedAt(ZonedDateTime.now());
+        cfg.setUpdatedBy(officerUserId);
+        return loanConfigRepository.save(cfg);
+    }
+
+    /**
+     * T-05: rescheduling an unsettled loan, or writing off a defaulted one. Both need two different officials:
+     * one requests, another confirms. Returns AWAITING_SECOND_OFFICIAL or DONE.
+     */
+    @Transactional
+    public String twoOfficialAction(Long chamaId, Long loanId, Long officialId, String action, Integer months) {
+        validateUserIsOfficial(chamaId, officialId);
+        Loan loan = loanRepository.findByIdWithPessimisticLock(loanId).orElseThrow(() -> new RuntimeException("Loan not found"));
+        if (!chamaId.equals(loan.getChama().getChamaId())) throw new RuntimeException("Loan not found");
+        if (loan.getBorrower().getUserId().equals(officialId)) throw new org.springframework.security.access.AccessDeniedException("You cannot do this on your own loan; another official must");
+        String st = String.valueOf(loan.getStatus()).toUpperCase();
+        if ("RESCHEDULE".equals(action)) {
+            if (!List.of("APPROVED", "DISBURSED", "ACTIVE", "DEFAULTED").contains(st)) throw new IllegalStateException("Only a loan that is still being repaid can be rescheduled");
+            int max = configFor(chamaId).getMaxRepaymentMonths();
+            if (months == null || months < 1 || months > max) throw new IllegalArgumentException("Choose between 1 and " + max + " months");
+        } else if ("WRITE_OFF".equals(action)) {
+            if (!"DEFAULTED".equals(st)) throw new IllegalStateException("Only a defaulted loan can be written off");
+        } else throw new IllegalArgumentException("Unknown action");
+        long eligible = chamaMemberRepository.findByChamaChamaIdAndIsActiveTrue(chamaId).stream()
+                .filter(m -> m.getRole() != null && List.of("CHAIRPERSON", "TREASURER", "SECRETARY").contains(m.getRole().toUpperCase()))
+                .filter(m -> m.getUser() != null && !m.getUser().getUserId().equals(loan.getBorrower().getUserId())).count();
+        boolean second = loan.getPendingAction() != null && loan.getPendingAction().equals(action) && !officialId.equals(loan.getPendingActionBy())
+                && (!"RESCHEDULE".equals(action) || months.equals(loan.getPendingActionValue()));
+        if (eligible >= 2 && !second) {
+            if (action.equals(loan.getPendingAction()) && officialId.equals(loan.getPendingActionBy()) && (!"RESCHEDULE".equals(action) || months.equals(loan.getPendingActionValue()))) {
+                throw new org.springframework.security.access.AccessDeniedException("You requested this already, so a different official must confirm it");
+            }
+            loan.setPendingAction(action); loan.setPendingActionBy(officialId); loan.setPendingActionValue(months);
+            loanRepository.save(loan);
+            return "AWAITING_SECOND_OFFICIAL";
+        }
+        BigDecimal owed = loan.getTotalRepayable().subtract(loan.getAmountPaid() == null ? BigDecimal.ZERO : loan.getAmountPaid());
+        if ("RESCHEDULE".equals(action)) {
+            scheduleService.reschedule(loan, months, LocalDate.now());
+            if ("DEFAULTED".equals(st)) loan.setStatus("ACTIVE");
+        } else {
+            loan.setStatus("WRITTEN_OFF");
+        }
+        loan.setPendingAction(null); loan.setPendingActionBy(null); loan.setPendingActionValue(null);
+        loanRepository.save(loan);
+        auditLogRepository.save(FinancialAuditLog.builder().user(userRepository.getReferenceById(officialId)).transactionType("LOAN_" + action).amount(owed)
+                .chama(loan.getChama()).referenceId(loanId)
+                .description(("RESCHEDULE".equals(action) ? "Loan rescheduled over " + months + " months" : "Loan written off") + ". Still owed: KES " + owed.toPlainString())
+                .ipAddress(com.chamasmart.backend.security.ClientIp.current()).userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent()).build());
+        return "DONE";
     }
 
     /** An official other than the payer confirms the money arrived; only now do the loan and the fund move. */
@@ -598,6 +681,7 @@ public class LoanService {
         }
         Chama chama = chamaRepository.findByIdWithPessimisticLock(chamaId)
                 .orElseThrow(() -> new RuntimeException("Chama not found"));
+        scheduleService.apply(loan, chama, rep.getAmount(), officialUserId);
         loan.setAmountPaid(currentPaid.add(rep.getAmount()));
         loan.setLastPaymentDate(ZonedDateTime.now());
         chama.setCurrentFund(chama.getCurrentFund().add(rep.getAmount()));

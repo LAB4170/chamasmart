@@ -19,12 +19,13 @@ import java.util.*;
 @RequiredArgsConstructor
 @Slf4j
 public class LoanArrearsService {
-    private static final List<String> LIVE = List.of("DISBURSED", "ACTIVE", "DEFAULTED");
+    private static final List<String> LIVE = List.of("APPROVED", "DISBURSED", "ACTIVE", "DEFAULTED");
 
     private final LoanRepository loanRepository;
     private final LoanGuarantorRepository guarantorRepository;
     private final NotificationRepository notificationRepository;
     private final ChamaMemberRepository memberRepository;
+    private final LoanScheduleService scheduleService;
 
     @Value("${app.loans.default-grace-days:30}")
     private int graceDays = 30;
@@ -32,6 +33,8 @@ public class LoanArrearsService {
     /** What a live loan should have paid by {@code today} and has not. Zero when the loan is not live. */
     public BigDecimal overdueAmount(Loan loan, LocalDate today) {
         if (!LIVE.contains(String.valueOf(loan.getStatus()).toUpperCase()) || loan.getTermMonths() == null || loan.getTotalRepayable() == null) return BigDecimal.ZERO;
+        BigDecimal stored = scheduleService.overdue(loan, today);
+        if (stored != null) return stored;
         BigDecimal paid = loan.getAmountPaid() == null ? BigDecimal.ZERO : loan.getAmountPaid();
         BigDecimal due = BigDecimal.ZERO;
         for (LoanCalculator.Installment i : schedule(loan)) {
@@ -48,6 +51,8 @@ public class LoanArrearsService {
     }
 
     private LocalDate finalDueDate(Loan loan) {
+        LocalDate stored = scheduleService.lastDueDate(loan);
+        if (stored != null) return stored;
         List<LoanCalculator.Installment> s = schedule(loan);
         return s.isEmpty() ? null : s.get(s.size() - 1).dueDate();
     }
@@ -57,6 +62,7 @@ public class LoanArrearsService {
     public int markDefaults(LocalDate today) {
         int changed = 0;
         List<Loan> candidates = new ArrayList<>(loanRepository.findByStatus("DISBURSED"));
+        candidates.addAll(loanRepository.findByStatus("APPROVED"));
         candidates.addAll(loanRepository.findByStatus("ACTIVE"));
         for (Loan loan : candidates) {
             if (loan.getTermMonths() == null || loan.getTotalRepayable() == null) continue;
@@ -89,7 +95,7 @@ public class LoanArrearsService {
 
     @Scheduled(cron = "0 15 2 * * *")
     public void nightly() {
-        try { markDefaults(LocalDate.now()); } catch (RuntimeException e) { log.error("Nightly default check failed", e); }
+        try { scheduleService.chargeLateFees(LocalDate.now()); markDefaults(LocalDate.now()); } catch (RuntimeException e) { log.error("Nightly default check failed", e); }
     }
 
     /** Officials only: live loans with money overdue, largest first. */
