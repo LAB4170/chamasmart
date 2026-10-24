@@ -13,7 +13,9 @@ import org.mockito.quality.Strictness;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -55,7 +57,18 @@ class RoscaServiceTest {
         when(chamaRepo.findByIdWithPessimisticLock(1L)).thenReturn(Optional.of(chama));
         when(cycleRepo.findById(5L)).thenReturn(Optional.of(cycle));
         when(cycleRepo.findByIdWithPessimisticLock(5L)).thenReturn(Optional.of(cycle));
+        collect(1000, 1000, 1000);
         service = new RoscaService(cycleRepo, rosterRepo, chamaRepo, memberRepo, userRepo, contribRepo, auditRepo, membership, contributions, loanRepo, ledger);
+    }
+
+    /** Verified merry-go-round payments linked to cycle 5, one per amount, from users 8, 9, 10... */
+    private void collect(int... amounts) {
+        List<Contribution> list = new ArrayList<>();
+        for (int i = 0; i < amounts.length; i++) {
+            list.add(Contribution.builder().contributionId(100L + i).chama(chama).user(user(8 + i)).amount(new BigDecimal(amounts[i]))
+                    .contributionType("ROSCA").status("COMPLETED").cycleId(5L).isDeleted(false).build());
+        }
+        when(contribRepo.findByChamaChamaIdAndIsDeletedFalse(1L)).thenReturn(list);
     }
 
     private RoscaRoster roster(long id, long userId, int pos, String status) {
@@ -112,6 +125,32 @@ class RoscaServiceTest {
         assertEquals(0, new BigDecimal("7000").compareTo(chama.getCurrentFund()));
     }
 
+    @Test void potIsNotPayableUntilTheRoundIsCollected() {
+        member(7, "TREASURER"); member(8, "MEMBER"); member(9, "MEMBER");
+        collect(1000, 1000);
+        when(rosterRepo.findByCycleCycleIdOrderByPositionAsc(5L)).thenReturn(List.of(roster(1, 8, 1, "ACTIVE"), roster(2, 9, 2, "ACTIVE"), roster(3, 10, 3, "ACTIVE")));
+        IllegalStateException e = assertThrows(IllegalStateException.class, () -> service.processPayout(5L, 7L));
+        assertTrue(e.getMessage().contains("U10"));
+        assertEquals(0, new BigDecimal("10000").compareTo(chama.getCurrentFund()));
+    }
+
+    @Test void moneyFromEarlierRoundsDoesNotPayThisOne() {
+        member(7, "TREASURER"); member(9, "MEMBER");
+        collect(1000, 1000, 1000);
+        when(rosterRepo.findByCycleCycleIdOrderByPositionAsc(5L)).thenReturn(List.of(roster(1, 8, 1, "PAID"), roster(2, 9, 2, "ACTIVE")));
+        assertThrows(IllegalStateException.class, () -> service.processPayout(5L, 7L));
+    }
+
+    @Test void roundStatusListsWhoIsBehind() {
+        member(7, "TREASURER");
+        collect(1000, 1000);
+        when(rosterRepo.findByCycleCycleIdOrderByPositionAsc(5L)).thenReturn(List.of(roster(1, 8, 1, "ACTIVE"), roster(2, 9, 2, "ACTIVE"), roster(3, 10, 3, "ACTIVE")));
+        Map<String, Object> r = service.getRound(5L, 7L);
+        assertEquals(false, r.get("ready"));
+        assertEquals(0, new BigDecimal("2000").compareTo((BigDecimal) r.get("available")));
+        assertEquals("U10 X", r.get("behind_names"));
+    }
+
     @Test void payoutIsRefusedWhenTheFundIsShort() {
         member(7, "TREASURER"); member(8, "MEMBER");
         chama.setCurrentFund(new BigDecimal("2000"));
@@ -138,7 +177,7 @@ class RoscaServiceTest {
         assertEquals("CANCELLED", cycle.getStatus());
     }
 
-    private void bigPot() { cycle.setContributionAmount(new BigDecimal("5000")); cycle.setTotalMembers(3); chama.setCurrentFund(new BigDecimal("40000")); } // pot 15,000
+    private void bigPot() { cycle.setContributionAmount(new BigDecimal("5000")); cycle.setTotalMembers(3); chama.setCurrentFund(new BigDecimal("40000")); collect(5000, 5000, 5000); } // pot 15,000
 
     @Test void largePotNeedsASecondOfficialToRelease() {
         ChamaMember t = member(7, "TREASURER"); ChamaMember c = member(6, "CHAIRPERSON"); member(8, "MEMBER");

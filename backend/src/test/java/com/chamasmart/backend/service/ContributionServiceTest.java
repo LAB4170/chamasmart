@@ -30,6 +30,8 @@ class ContributionServiceTest {
     @Mock FinancialAuditLogRepository auditRepo;
     @Mock WelfareFundRepository welfareRepo;
     @Mock LedgerService ledger;
+    @Mock RoscaCycleRepository cycleRepo;
+    @Mock RoscaRosterRepository rosterRepo;
     @InjectMocks ContributionService service;
 
     Chama chama;
@@ -57,6 +59,35 @@ class ContributionServiceTest {
         member(5, "MEMBER", true);
         assertThrows(AccessDeniedException.class, () -> service.record(1L, 5L, entry(5, "100", null), true));
         assertEquals(new BigDecimal("1000"), chama.getCurrentFund());
+    }
+
+    private ContributionService.Entry roscaEntry(long user, String notes) {
+        return new ContributionService.Entry(user, new BigDecimal("100"), null, "ROSCA", notes, null);
+    }
+
+    @Test void roscaPaymentIsLinkedToTheCycleByTheServer() {
+        member(5, "MEMBER", true);
+        RoscaCycle cycle = RoscaCycle.builder().cycleId(9L).chama(chama).status("ACTIVE").build();
+        when(cycleRepo.findById(9L)).thenReturn(Optional.of(cycle));
+        RoscaRoster r = RoscaRoster.builder().cycle(cycle).user(user(5)).status("ACTIVE").build();
+        when(rosterRepo.findByCycleCycleIdOrderByPositionAsc(9L)).thenReturn(List.of(r));
+        service.submit(1L, 5L, roscaEntry(5, "[cycle:9] C1"));
+        org.mockito.ArgumentCaptor<Contribution> cap = org.mockito.ArgumentCaptor.forClass(Contribution.class);
+        verify(contribRepo).save(cap.capture());
+        assertEquals(9L, cap.getValue().getCycleId());
+    }
+
+    @Test void roscaPaymentCannotPointAtAnotherChamasCycleOrAnOffRosterMember() {
+        member(5, "MEMBER", true);
+        Chama other = Chama.builder().chamaId(2L).chamaName("Other").build();
+        RoscaCycle foreign = RoscaCycle.builder().cycleId(8L).chama(other).status("ACTIVE").build();
+        when(cycleRepo.findById(8L)).thenReturn(Optional.of(foreign));
+        assertThrows(IllegalArgumentException.class, () -> service.submit(1L, 5L, roscaEntry(5, "[cycle:8] spoof")));
+        RoscaCycle mine = RoscaCycle.builder().cycleId(9L).chama(chama).status("ACTIVE").build();
+        when(cycleRepo.findById(9L)).thenReturn(Optional.of(mine));
+        when(rosterRepo.findByCycleCycleIdOrderByPositionAsc(9L)).thenReturn(List.of());
+        assertThrows(IllegalArgumentException.class, () -> service.submit(1L, 5L, roscaEntry(5, "[cycle:9] C1")));
+        verify(contribRepo, never()).save(any());
     }
 
     @Test void outsiderCannotSubmitOrList() {

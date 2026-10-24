@@ -37,6 +37,10 @@ public class RoscaController {
     public ResponseEntity<ApiResponse<RoscaCycleDto>> getCycle(@PathVariable Long cycleId, @AuthenticationPrincipal CustomUserDetails currentUser) {
         return ResponseEntity.ok(ApiResponse.success(roscaService.getCycle(cycleId, currentUser.getUserId()), "Cycle retrieved"));
     }
+    @GetMapping("/cycles/{cycleId}/round")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> getRound(@PathVariable Long cycleId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(roscaService.getRound(cycleId, currentUser.getUserId()), "Round status retrieved"));
+    }
     @GetMapping("/cycles/{cycleId}/roster")
     public ResponseEntity<ApiResponse<List<RoscaCycleDto.RosterPositionDto>>> getRoster(@PathVariable Long cycleId, @AuthenticationPrincipal CustomUserDetails currentUser) {
         return ResponseEntity.ok(ApiResponse.success(roscaService.getCycle(cycleId, currentUser.getUserId()).getRoster(), "Roster retrieved"));

@@ -9,7 +9,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
@@ -138,6 +141,13 @@ public class RoscaService {
         }
         // Pot amount is total members * contribution amount
         BigDecimal potAmount = cycle.getContributionAmount().multiply(BigDecimal.valueOf(cycle.getTotalMembers()));
+        // R-01: the pot comes from money collected for this cycle, not from the chama's shared fund.
+        Map<String, Object> round = roundSummary(cycle, rosterList);
+        BigDecimal available = (BigDecimal) round.get("available");
+        if (available.compareTo(potAmount) < 0) {
+            throw new IllegalStateException("Only KES " + available.toPlainString() + " has been collected for this round and the pot is KES " + potAmount.toPlainString()
+                    + ". Still to pay: " + round.get("behind_names") + ". Record or verify their payments first");
+        }
         if (chama.getCurrentFund().compareTo(potAmount) < 0) {
             throw new RuntimeException("Insufficient chama funds to disburse the ROSCA pot. Available: " 
                     + chama.getCurrentFund() + ", Required: " + potAmount);
@@ -227,6 +237,61 @@ public class RoscaService {
         return contributionService.list(chamaId, actorId, null, null).stream()
                 .filter(c -> "ROSCA".equalsIgnoreCase(c.getContribution_type()) && c.getNotes() != null && c.getNotes().startsWith("[cycle:" + cycleId + "]"))
                 .collect(Collectors.toList());
+    }
+
+    /** What has been collected for a cycle (verified, not reversed), counting old rows that only carry the text tag. */
+    private BigDecimal collected(RoscaCycle cycle, Long userId) {
+        String tag = "[cycle:" + cycle.getCycleId() + "]";
+        return contributionRepository.findByChamaChamaIdAndIsDeletedFalse(cycle.getChama().getChamaId()).stream()
+                .filter(c -> "ROSCA".equalsIgnoreCase(c.getContributionType()) && "COMPLETED".equalsIgnoreCase(c.getStatus()))
+                .filter(c -> cycle.getCycleId().equals(c.getCycleId()) || (c.getCycleId() == null && c.getNotes() != null && c.getNotes().startsWith(tag)))
+                .filter(c -> userId == null || c.getUser().getUserId().equals(userId))
+                .map(Contribution::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /** R-02: the current round, what is in the pot, and who is behind. */
+    private Map<String, Object> roundSummary(RoscaCycle cycle, List<RoscaRoster> roster) {
+        BigDecimal each = cycle.getContributionAmount();
+        BigDecimal pot = each.multiply(BigDecimal.valueOf(cycle.getTotalMembers()));
+        long paidRounds = roster.stream().filter(r -> "PAID".equalsIgnoreCase(r.getStatus())).count();
+        long round = Math.min(paidRounds + 1, cycle.getTotalMembers());
+        BigDecimal collected = collected(cycle, null);
+        BigDecimal available = collected.subtract(pot.multiply(BigDecimal.valueOf(paidRounds))).max(BigDecimal.ZERO);
+        BigDecimal expectedEach = each.multiply(BigDecimal.valueOf(round));
+        List<Map<String, Object>> members = new ArrayList<>();
+        List<String> behind = new ArrayList<>();
+        for (RoscaRoster r : roster) {
+            if ("SKIPPED".equalsIgnoreCase(r.getStatus())) continue;
+            BigDecimal paid = collected(cycle, r.getUser().getUserId());
+            BigDecimal owed = expectedEach.subtract(paid).max(BigDecimal.ZERO);
+            String name = r.getUser().getFirstName() + " " + r.getUser().getLastName();
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("user_id", r.getUser().getUserId());
+            row.put("member_name", name);
+            row.put("paid", paid);
+            row.put("expected", expectedEach);
+            row.put("arrears", owed);
+            members.add(row);
+            if (owed.signum() > 0) behind.add(name);
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("round_number", round);
+        out.put("total_rounds", cycle.getTotalMembers());
+        out.put("pot", pot);
+        out.put("collected", collected);
+        out.put("available", available);
+        out.put("ready", available.compareTo(pot) >= 0);
+        out.put("members", members);
+        out.put("behind_names", behind.isEmpty() ? "nobody" : String.join(", ", behind));
+        return out;
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getRound(Long cycleId, Long actorId) {
+        RoscaCycle cycle = requireCycle(cycleId, null);
+        membershipService.activeMember(cycle.getChama().getChamaId(), actorId);
+        return roundSummary(cycle, roscaRosterRepository.findByCycleCycleIdOrderByPositionAsc(cycleId));
     }
 
     @Transactional

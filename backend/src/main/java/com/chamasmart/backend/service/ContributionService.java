@@ -35,6 +35,8 @@ public class ContributionService {
     private final FinancialAuditLogRepository auditLogRepository;
     private final WelfareFundRepository welfareFundRepository;
     private final LedgerService ledger;
+    private final RoscaCycleRepository roscaCycleRepository;
+    private final RoscaRosterRepository roscaRosterRepository;
 
     /** Credits at or above this need a second official; below it, an official still cannot credit their own money. */
     @org.springframework.beans.factory.annotation.Value("${app.finance.dual-approval-threshold:10000}")
@@ -120,9 +122,34 @@ public class ContributionService {
     }
 
     private Contribution build(Chama chama, User user, Entry e, String status, String refPrefix) {
+        String type = checkType(e.type());
+        Long cycleId = "ROSCA".equals(type) ? resolveCycle(chama, user, e.notes()) : null;
         return Contribution.builder().chama(chama).user(user).amount(checkAmount(e.amount()))
-                .reference(uniqueReference(e.reference(), refPrefix)).status(status).contributionType(checkType(e.type()))
-                .notes(e.notes()).paymentProof(e.proof()).isDeleted(false).build();
+                .reference(uniqueReference(e.reference(), refPrefix)).status(status).contributionType(type)
+                .cycleId(cycleId).notes(e.notes()).paymentProof(e.proof()).isDeleted(false).build();
+    }
+
+    private static final java.util.regex.Pattern CYCLE_TAG = java.util.regex.Pattern.compile("^\\[cycle:(\\d+)]");
+
+    /**
+     * M-09: a merry-go-round payment is linked to a cycle by the server. The cycle must belong to this chama, be active,
+     * and have the payer on its roster. The client's note is only a hint for which cycle; it can never point at someone else's.
+     */
+    private Long resolveCycle(Chama chama, User payer, String notes) {
+        RoscaCycle cycle = null;
+        java.util.regex.Matcher m = notes == null ? null : CYCLE_TAG.matcher(notes.trim());
+        if (m != null && m.find()) {
+            cycle = roscaCycleRepository.findById(Long.parseLong(m.group(1))).orElse(null);
+        } else {
+            cycle = roscaCycleRepository.findByChamaChamaId(chama.getChamaId()).stream().filter(c -> "ACTIVE".equalsIgnoreCase(c.getStatus())).findFirst().orElse(null);
+        }
+        if (cycle == null || !cycle.getChama().getChamaId().equals(chama.getChamaId()) || !"ACTIVE".equalsIgnoreCase(cycle.getStatus())) {
+            throw new IllegalArgumentException("There is no active merry-go-round cycle in this chama to pay into");
+        }
+        boolean onRoster = roscaRosterRepository.findByCycleCycleIdOrderByPositionAsc(cycle.getCycleId()).stream()
+                .anyMatch(r -> r.getUser().getUserId().equals(payer.getUserId()) && !"SKIPPED".equalsIgnoreCase(r.getStatus()));
+        if (!onRoster) throw new IllegalArgumentException("This member is not on the roster of the active cycle");
+        return cycle.getCycleId();
     }
 
     /** An official records a payment already received; it is credited immediately. */

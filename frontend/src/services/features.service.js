@@ -21,6 +21,7 @@ export const roscaAPI = {
     deleteCycle: (cycleId) => api.delete(`/rosca/cycles/${cycleId}`),
     makeContribution: (chamaId, cycleId, payload) =>
         api.post(`/rosca/chamas/${chamaId}/cycles/${cycleId}/contributions`, payload),
+    getRound: (cycleId) => api.get(`/rosca/cycles/${cycleId}/round`),
     getContributions: (cycleId) =>
         api.get(`/rosca/cycles/${cycleId}/contributions`),
     getMemberStatement: (cycleId, memberId) =>

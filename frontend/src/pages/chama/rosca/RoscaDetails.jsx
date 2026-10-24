@@ -13,6 +13,7 @@ export default function RoscaDetails() {
   const { user } = useAuth();
   const [cycle, setCycle] = useState(null);
   const [roster, setRoster] = useState([]);
+  const [round, setRound] = useState(null);
   const [contributions, setContributions] = useState([]);
   const [role, setRole] = useState("");
   const [loading, setLoading] = useState(true);
@@ -36,6 +37,7 @@ export default function RoscaDetails() {
       const ks = k.data?.data ?? [];
       setContributions(Array.isArray(ks) ? ks : []);
       setRole((ch.data?.data?.role || "").toUpperCase());
+      try { setRound((await roscaAPI.getRound(cycleId)).data?.data ?? null); } catch { setRound(null); }
     } catch {
       setFailed(true);
     } finally {
@@ -110,6 +112,24 @@ export default function RoscaDetails() {
           <StatCard label="Paid out" value={`${paid} of ${roster.length}`} note="Rounds recorded as paid" />
         </div>
 
+        {round && isActive && (
+          <section className="cs-card" aria-label="This round" style={{ marginBottom: 16 }}>
+            <h2 className="cs-card-title">Round {round.round_number} of {round.total_rounds}</h2>
+            <p className="cs-help">{formatKES(round.available)} of {formatKES(round.pot)} collected for this pot. Only verified payments count.</p>
+            <progress max={Number(round.pot) || 1} value={Math.min(Number(round.available), Number(round.pot))} aria-label="Pot collected" style={{ width: "100%" }} />
+            {round.members.some((m) => Number(m.arrears) > 0) ? (
+              <ul className="cs-list" style={{ listStyle: "none", padding: 0, margin: "12px 0 0" }}>
+                {round.members.filter((m) => Number(m.arrears) > 0).map((m) => (
+                  <li key={m.user_id} className="cs-list-item">
+                    <div className="cs-list-main"><div className="cs-list-title">{m.member_name}</div><div className="cs-list-meta">Paid {formatKES(m.paid)} of {formatKES(m.expected)}</div></div>
+                    <strong>{formatKES(m.arrears)} behind</strong>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="cs-help">Everyone is up to date for this round.</p>}
+          </section>
+        )}
+
         <section className="cs-card" aria-label="Payout order" style={{ marginBottom: 16 }}>
           <h2 className="cs-card-title">Payout order</h2>
           {roster.length === 0 ? <EmptyState title="No members in this cycle" /> : (
@@ -127,7 +147,8 @@ export default function RoscaDetails() {
           )}
           {isOfficial && isActive && next && (
             <div className="cs-actions" style={{ marginTop: 12 }}>
-              <Button onClick={() => setConfirm("payout")}>Record payout to {next.member_name}</Button>
+              <Button disabled={round ? !round.ready && next.status !== "PAYOUT_PENDING" : false} onClick={() => setConfirm("payout")}>Record payout to {next.member_name}</Button>
+              {round && !round.ready && next.status !== "PAYOUT_PENDING" && <span className="cs-help">The pot can be paid once this round&apos;s contributions are verified.</span>}
             </div>
           )}
         </section>
