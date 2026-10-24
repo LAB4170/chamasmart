@@ -77,14 +77,14 @@ export default function RecordContribution() {
     setSubmitError("");
     try {
       const notes = [`Paid by ${METHODS.find((m) => m.value === form.method)?.label}`, form.notes.trim()].filter(Boolean).join(". ");
-      await contributionAPI.record(id, {
+      const res = await contributionAPI.record(id, {
         userId: Number(form.userId),
         amount: Number(form.amount),
         paymentMethod: form.method,
         receiptNumber: form.reference.trim() || undefined,
         notes,
       });
-      setRecorded({ name: member ? `${member.first_name} ${member.last_name}` : "the member", amount: Number(form.amount) });
+      setRecorded({ name: member ? `${member.first_name} ${member.last_name}` : "the member", amount: Number(form.amount), pending: String(res.data?.data?.status || "").toUpperCase() === "PENDING" });
       setForm((f) => ({ ...f, userId: "", reference: "", notes: "" }));
       setTouched({});
     } catch (err) {
@@ -112,8 +112,17 @@ export default function RecordContribution() {
           <>
             {recorded && (
               <div className="cs-notice cs-notice--success" role="status" style={{ marginBottom: 16, flexDirection: "column" }}>
-                <strong>Recorded {formatKES(recorded.amount)} for {recorded.name}.</strong>
-                <span>It now counts towards their total and the chama fund. You can record another payment below.</span>
+                {recorded.pending ? (
+                  <>
+                    <strong>Saved {formatKES(recorded.amount)} for {recorded.name}, waiting for a second official.</strong>
+                    <span>Your own payments and amounts of KES 10,000 or more count only after another official verifies them. Nothing has been added to the fund yet.</span>
+                  </>
+                ) : (
+                  <>
+                    <strong>Recorded {formatKES(recorded.amount)} for {recorded.name}.</strong>
+                    <span>It now counts towards their total and the chama fund. You can record another payment below.</span>
+                  </>
+                )}
               </div>
             )}
             {isROSCA && cycleNote && <div className={`cs-notice ${noCycle ? "cs-notice--danger" : "cs-notice--warning"}`} role={noCycle ? "alert" : undefined} style={{ marginBottom: 16 }}>{cycleNote}</div>}

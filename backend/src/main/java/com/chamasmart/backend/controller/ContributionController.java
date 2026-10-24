@@ -70,7 +70,11 @@ public class ContributionController {
                                                                                    @AuthenticationPrincipal CustomUserDetails currentUser) {
         String status = request.getStatus() != null ? request.getStatus() : request.getVerificationStatus();
         boolean credited = status == null || List.of("COMPLETED", "VERIFIED", "APPROVED").contains(status.toUpperCase());
-        return ResponseEntity.ok(ApiResponse.success(contributionService.record(chamaId, currentUser.getUserId(), entry(request, currentUser.getUserId()), credited), "Contribution recorded successfully"));
+        ContributionSummaryDto saved = contributionService.record(chamaId, currentUser.getUserId(), entry(request, currentUser.getUserId()), credited);
+        String msg = "PENDING".equalsIgnoreCase(saved.getStatus())
+                ? "Saved, waiting for a second official to verify it. It counts once they do"
+                : "Contribution recorded successfully";
+        return ResponseEntity.ok(ApiResponse.success(saved, msg));
     }
 
     @PostMapping("/{chamaId}/submit")
@@ -89,7 +93,12 @@ public class ContributionController {
                         r.getReference() != null ? r.getReference() : r.getReceiptNumber(), "REGULAR", r.getNotes(), null));
             }
         }
-        return ResponseEntity.ok(ApiResponse.success(contributionService.bulkRecord(chamaId, currentUser.getUserId(), entries), "Bulk contributions recorded successfully"));
+        List<ContributionSummaryDto> saved = contributionService.bulkRecord(chamaId, currentUser.getUserId(), entries);
+        long waiting = saved.stream().filter(x -> "PENDING".equalsIgnoreCase(x.getStatus())).count();
+        String msg = waiting > 0
+                ? waiting + " of " + saved.size() + " are waiting for a second official to verify them (your own payments and amounts of KES 10,000 or more)"
+                : "Bulk contributions recorded successfully";
+        return ResponseEntity.ok(ApiResponse.success(saved, msg));
     }
 
     @PostMapping("/{chamaId}/verify/{contributionId}")
@@ -113,8 +122,8 @@ public class ContributionController {
     }
 
     @DeleteMapping("/{chamaId}/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteContribution(@PathVariable Long chamaId, @PathVariable Long id, @AuthenticationPrincipal CustomUserDetails currentUser) {
-        contributionService.delete(chamaId, currentUser.getUserId(), id);
+    public ResponseEntity<ApiResponse<Void>> deleteContribution(@PathVariable Long chamaId, @PathVariable Long id, @RequestParam(required = false) String reason, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        contributionService.delete(chamaId, currentUser.getUserId(), id, reason);
         return ResponseEntity.ok(ApiResponse.success(null, "Contribution deleted successfully"));
     }
 }

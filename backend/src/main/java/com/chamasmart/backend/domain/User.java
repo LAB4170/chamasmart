@@ -25,6 +25,7 @@ public class User {
     private String email;
     @Column(name = "phone_number", unique = true, length = 20)
     private String phoneNumber;
+    @com.fasterxml.jackson.annotation.JsonIgnore // never leave the server, even in the sign-up or login response
     @Column(name = "password_hash")
     private String passwordHash;
     @Column(length = 50)
@@ -75,6 +76,7 @@ public class User {
     public String getFirstName() { return firstName; }
     public String getLastName() { return lastName; }
     public String getEmail() { return email; }
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public String getPasswordHash() { return passwordHash; }
     public String getRole() { return role; }
     public Boolean getIsActive() { return isActive; }

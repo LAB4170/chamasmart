@@ -106,6 +106,7 @@ class ContributionServiceTest {
     private Contribution pending(long id, long owner) {
         Contribution c = Contribution.builder().contributionId(id).chama(chama).user(user(owner)).amount(new BigDecimal("400")).status("PENDING").contributionType("REGULAR").reference("P" + id).isDeleted(false).build();
         when(contribRepo.findById(id)).thenReturn(Optional.of(c));
+        when(contribRepo.findByIdWithPessimisticLock(id)).thenReturn(Optional.of(c));
         return c;
     }
 
@@ -129,7 +130,7 @@ class ContributionServiceTest {
         member(5, "MEMBER", true);
         pending(32, 6);
         assertThrows(AccessDeniedException.class, () -> service.verify(1L, 5L, 32L, true));
-        assertThrows(AccessDeniedException.class, () -> service.delete(1L, 5L, 32L));
+        assertThrows(AccessDeniedException.class, () -> service.delete(1L, 5L, 32L, "x"));
     }
 
     @Test void membersSeeCompletedAndOwnButNotOthersPending() {
@@ -140,5 +141,65 @@ class ContributionServiceTest {
         when(contribRepo.findByChamaChamaIdAndIsDeletedFalse(1L)).thenReturn(List.of(done, theirsPending, minePending));
         var out = service.list(1L, 5L, null, null);
         assertEquals(List.of(1L, 3L), out.stream().map(d -> d.getContribution_id()).toList());
+    }
+
+    @Test void anOfficialsOwnPaymentWaitsForASecondOfficial() {
+        member(7, "TREASURER", true);
+        var dto = service.record(1L, 7L, entry(7, "250", "SELF1"), true);
+        assertEquals("PENDING", dto.getStatus());
+        assertEquals(0, new BigDecimal("1000").compareTo(chama.getCurrentFund()));
+        verify(auditRepo, never()).save(any());
+    }
+
+    @Test void largeAmountsNeedASecondOfficial() {
+        member(7, "TREASURER", true); member(6, "MEMBER", true);
+        var dto = service.record(1L, 7L, entry(6, "10000", "BIG1"), true);
+        assertEquals("PENDING", dto.getStatus());
+        assertEquals(0, new BigDecimal("1000").compareTo(chama.getCurrentFund()));
+        var small = service.record(1L, 7L, entry(6, "9999.99", "SMALL1"), true);
+        assertEquals("COMPLETED", small.getStatus());
+    }
+
+    @Test void bulkHoldsBackOwnAndLargeLinesButCreditsTheRest() {
+        member(7, "TREASURER", true); member(6, "MEMBER", true);
+        var out = service.bulkRecord(1L, 7L, List.of(entry(6, "100", "B1"), entry(7, "100", "B2"), entry(6, "20000", "B3")));
+        assertEquals(List.of("COMPLETED", "PENDING", "PENDING"), out.stream().map(x -> x.getStatus()).toList());
+        assertEquals(0, new BigDecimal("1100").compareTo(chama.getCurrentFund()));
+    }
+
+    @Test void whoeverKeyedInAPaymentCannotVerifyIt() {
+        member(7, "TREASURER", true);
+        Contribution c = pending(40, 6);
+        c.setRecordedBy(7L);
+        assertThrows(AccessDeniedException.class, () -> service.verify(1L, 7L, 40L, true));
+        assertEquals(0, new BigDecimal("1000").compareTo(chama.getCurrentFund()));
+    }
+
+    private Contribution completed(long id, long owner) {
+        Contribution c = pending(id, owner);
+        c.setStatus("COMPLETED");
+        return c;
+    }
+
+    @Test void reversalNeedsAReason() {
+        member(7, "TREASURER", true); member(6, "MEMBER", true);
+        completed(50, 6);
+        assertThrows(IllegalArgumentException.class, () -> service.delete(1L, 7L, 50L, " "));
+        assertThrows(IllegalArgumentException.class, () -> service.delete(1L, 7L, 50L, null));
+    }
+
+    @Test void anOfficialCannotReverseTheirOwnContribution() {
+        member(7, "TREASURER", true);
+        completed(51, 7);
+        assertThrows(AccessDeniedException.class, () -> service.delete(1L, 7L, 51L, "oops"));
+    }
+
+    @Test void reversalWithReasonRemovesTheCreditAndKeepsTheReason() {
+        member(7, "TREASURER", true); member(6, "MEMBER", true);
+        Contribution c = completed(52, 6);
+        service.delete(1L, 7L, 52L, "Duplicate entry");
+        assertEquals(0, new BigDecimal("600").compareTo(chama.getCurrentFund()));
+        assertEquals("Duplicate entry", c.getDeletedReason());
+        assertTrue(c.getIsDeleted());
     }
 }

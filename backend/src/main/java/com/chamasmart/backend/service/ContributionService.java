@@ -35,6 +35,10 @@ public class ContributionService {
     private final FinancialAuditLogRepository auditLogRepository;
     private final WelfareFundRepository welfareFundRepository;
 
+    /** Credits at or above this need a second official; below it, an official still cannot credit their own money. */
+    @org.springframework.beans.factory.annotation.Value("${app.finance.dual-approval-threshold:10000}")
+    private BigDecimal dualApprovalThreshold = BigDecimal.valueOf(10000);
+
     public record Entry(Long userId, BigDecimal amount, String reference, String type, String notes, String proof) {}
 
     private ChamaMember activeMember(Long chamaId, Long userId) {
@@ -108,6 +112,10 @@ public class ContributionService {
         }
     }
 
+    private boolean needsSecondOfficial(Long actorId, Long targetId, BigDecimal amount) {
+        return actorId.equals(targetId) || (amount != null && amount.compareTo(dualApprovalThreshold) >= 0);
+    }
+
     private Contribution build(Chama chama, User user, Entry e, String status, String refPrefix) {
         return Contribution.builder().chama(chama).user(user).amount(checkAmount(e.amount()))
                 .reference(uniqueReference(e.reference(), refPrefix)).status(status).contributionType(checkType(e.type()))
@@ -122,8 +130,12 @@ public class ContributionService {
         Long targetId = e.userId() != null ? e.userId() : actorId;
         activeMember(chamaId, targetId);
         User user = userRepository.findById(targetId).orElseThrow(() -> new IllegalArgumentException("Member not found"));
-        Contribution saved = contributionRepository.save(build(chama, user, e, credited ? "COMPLETED" : "PENDING", "REC"));
-        if (credited) {
+        // Maker-checker: an official cannot credit their own money, and large amounts need a second official.
+        boolean direct = credited && !needsSecondOfficial(actorId, targetId, e.amount());
+        Contribution toSave = build(chama, user, e, direct ? "COMPLETED" : "PENDING", "REC");
+        toSave.setRecordedBy(actorId);
+        Contribution saved = contributionRepository.save(toSave);
+        if (direct) {
             credit(chama, saved);
             audit(actorId, chama, saved, "MANUAL_CONTRIBUTION", "Manual contribution recorded. Reference: " + saved.getReference());
         }
@@ -156,9 +168,14 @@ public class ContributionService {
             }
             activeMember(chamaId, e.userId());
             User user = userRepository.findById(e.userId()).orElseThrow(() -> new IllegalArgumentException("Member not found"));
-            Contribution saved = contributionRepository.save(build(chama, user, e, "COMPLETED", "BULK"));
-            credit(chama, saved);
-            audit(actorId, chama, saved, "BULK_CONTRIBUTION", "Bulk contribution recorded. Member ID: " + e.userId() + ", Ref: " + saved.getReference());
+            boolean direct = !needsSecondOfficial(actorId, e.userId(), e.amount());
+            Contribution toSave = build(chama, user, e, direct ? "COMPLETED" : "PENDING", "BULK");
+            toSave.setRecordedBy(actorId);
+            Contribution saved = contributionRepository.save(toSave);
+            if (direct) {
+                credit(chama, saved);
+                audit(actorId, chama, saved, "BULK_CONTRIBUTION", "Bulk contribution recorded. Member ID: " + e.userId() + ", Ref: " + saved.getReference());
+            }
             out.add(ContributionSummaryDto.fromEntity(saved));
         }
         return out;
@@ -167,7 +184,7 @@ public class ContributionService {
     @Transactional
     public ContributionSummaryDto verify(Long chamaId, Long actorId, Long contributionId, boolean approve) {
         activeOfficial(chamaId, actorId);
-        Contribution c = contributionRepository.findById(contributionId)
+        Contribution c = contributionRepository.findByIdWithPessimisticLock(contributionId)
                 .filter(x -> x.getChama().getChamaId().equals(chamaId) && !Boolean.TRUE.equals(x.getIsDeleted()))
                 .orElseThrow(() -> new IllegalArgumentException("Contribution not found"));
         if (!"PENDING".equalsIgnoreCase(c.getStatus())) {
@@ -175,6 +192,9 @@ public class ContributionService {
         }
         if (c.getUser().getUserId().equals(actorId)) {
             throw new AccessDeniedException("You cannot verify your own submission; another official must do it");
+        }
+        if (actorId.equals(c.getRecordedBy())) {
+            throw new AccessDeniedException("You recorded this payment, so another official must verify it");
         }
         if (approve) {
             c.setStatus("COMPLETED");
@@ -213,12 +233,18 @@ public class ContributionService {
     }
 
     @Transactional
-    public void delete(Long chamaId, Long actorId, Long id) {
+    public void delete(Long chamaId, Long actorId, Long id, String reason) {
         activeOfficial(chamaId, actorId);
-        Contribution c = contributionRepository.findById(id)
+        Contribution c = contributionRepository.findByIdWithPessimisticLock(id)
                 .filter(x -> x.getChama().getChamaId().equals(chamaId) && !Boolean.TRUE.equals(x.getIsDeleted()))
                 .orElseThrow(() -> new IllegalArgumentException("Contribution not found"));
         if ("COMPLETED".equalsIgnoreCase(c.getStatus())) {
+            if (reason == null || reason.isBlank()) {
+                throw new IllegalArgumentException("Give a reason for reversing a credited contribution");
+            }
+            if (c.getUser().getUserId().equals(actorId)) {
+                throw new AccessDeniedException("You cannot reverse your own contribution; another official must do it");
+            }
             chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, c.getUser().getUserId()).ifPresent(m -> {
                 m.setTotalContributions(m.getTotalContributions().subtract(c.getAmount()).max(BigDecimal.ZERO));
                 chamaMemberRepository.save(m);
@@ -233,9 +259,10 @@ public class ContributionService {
                 chama.setCurrentFund(chama.getCurrentFund().subtract(c.getAmount()).max(BigDecimal.ZERO));
                 chamaRepository.save(chama);
             }
-            audit(actorId, c.getChama(), c, "CONTRIBUTION_REVERSAL", "Contribution reversed by an official. Original Ref: " + c.getReference());
+            audit(actorId, c.getChama(), c, "CONTRIBUTION_REVERSAL", "Contribution reversed by an official. Original Ref: " + c.getReference() + ". Reason: " + reason.trim());
         }
         c.setIsDeleted(true);
+        c.setDeletedReason(reason == null ? null : reason.trim());
         c.setDeletedAt(ZonedDateTime.now());
         contributionRepository.save(c);
     }

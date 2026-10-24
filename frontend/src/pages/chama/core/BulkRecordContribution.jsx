@@ -79,7 +79,7 @@ export default function BulkRecordContribution() {
     setBusy(true);
     setSubmitError("");
     try {
-      await contributionAPI.bulkRecord(id, {
+      const res = await contributionAPI.bulkRecord(id, {
         contributions: selected.map((r) => ({
           userId: r.userId,
           amount: num(r.amount),
@@ -88,7 +88,9 @@ export default function BulkRecordContribution() {
           notes: `Paid by ${METHODS.find((m) => m.value === r.method)?.label}`,
         })),
       });
-      setDone({ count: selected.length, total });
+      const saved = Array.isArray(res.data?.data) ? res.data.data : [];
+      const waiting = saved.filter((x) => String(x.status || "").toUpperCase() === "PENDING");
+      setDone({ count: selected.length - waiting.length, total: total - waiting.reduce((s2, x) => s2 + num(x.amount), 0), waiting: waiting.length });
       await load();
     } catch (err) {
       setSubmitError((err.response?.data?.message || "We couldn't record this batch.") + " Nothing was recorded, so you can fix it and try again.");
@@ -111,7 +113,7 @@ export default function BulkRecordContribution() {
 
         {!loading && !loadError && (
           <form onSubmit={submit} noValidate>
-            {done && <div className="cs-notice cs-notice--success" role="status" style={{ marginBottom: 16 }}>Recorded {done.count} {done.count === 1 ? "payment" : "payments"} totalling {formatKES(done.total)}.</div>}
+            {done && <div className="cs-notice cs-notice--success" role="status" style={{ marginBottom: 16 }}>Recorded {done.count} {done.count === 1 ? "payment" : "payments"} totalling {formatKES(done.total)}.{done.waiting > 0 && ` ${done.waiting} more ${done.waiting === 1 ? "is" : "are"} waiting for a second official to verify (your own payments and amounts of KES 10,000 or more). They are not in the fund yet.`}</div>}
             {cycleNote && <div className={`cs-notice ${noCycle ? "cs-notice--danger" : "cs-notice--warning"}`} style={{ marginBottom: 16 }}>{cycleNote}</div>}
             {submitError && <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 16 }}>{submitError}</div>}
 

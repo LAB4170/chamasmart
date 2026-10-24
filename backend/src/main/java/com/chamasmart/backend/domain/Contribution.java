@@ -47,6 +47,11 @@ public class Contribution {
     private Boolean isDeleted = false;
     @Column(name = "deleted_at")
     private ZonedDateTime deletedAt;
+    /** The official who keyed in a payment on a member's behalf. That person cannot also verify it. */
+    @Column(name = "recorded_by")
+    private Long recordedBy;
+    @Column(name = "deleted_reason", columnDefinition = "TEXT")
+    private String deletedReason;
     @Column(name = "cycle_id")
     private Long cycleId;
     @Column(name = "installment_number")
