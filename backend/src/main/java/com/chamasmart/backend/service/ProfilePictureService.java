@@ -1,6 +1,7 @@
 package com.chamasmart.backend.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import com.cloudinary.Cloudinary;
@@ -18,10 +19,16 @@ public class ProfilePictureService {
     
     private final Cloudinary cloudinary;
 
+    @Value("${CLOUDINARY_URL:}")
+    private String cloudinaryUrl;
+
     /**
      * Stores the provided image file to Cloudinary and returns the absolute URL.
      */
     public String storeProfilePicture(Long userId, MultipartFile file) throws IOException {
+        if (cloudinaryUrl == null || cloudinaryUrl.isBlank()) {
+            throw new IllegalStateException("Profile picture upload is not configured on this server");
+        }
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("File is empty");
         }
