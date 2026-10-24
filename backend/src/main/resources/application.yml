@@ -43,7 +43,8 @@ app:
     data-key: ${DATA_ENCRYPTION_KEY:}
     jwt:
       secret: ${JWT_SECRET:}
-      expiration-ms: 86400000 # 24 hours
+      expiration-ms: ${JWT_ACCESS_MS:1800000} # access token: 30 minutes; the refresh token renews it
+      refresh-days: ${JWT_REFRESH_DAYS:30}
   cors:
     allowed-origins: ${CORS_ORIGIN:http://localhost:5173,http://localhost:3000,https://chamasmart.netlify.app}
   mpesa:
@@ -53,7 +54,7 @@ app:
     callback-secret: ${MPESA_CALLBACK_SECRET:}
     shortcode: ${MPESA_SHORTCODE:174379}
     # Official Safaricom Sandbox Passkey (public for sandbox use)
-    passkey: ${MPESA_PASSKEY:bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919}
+    passkey: ${MPESA_PASSKEY:}
     callback-url: ${MPESA_CALLBACK_URL:https://chamasmart-khrb.onrender.com/api/v1/mpesa/callback}
   firebase:
     project-id: ${FIREBASE_PROJECT_ID:chamasmart-1c600}
@@ -73,7 +74,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info, metrics
+        include: health, info
 
 logging:
   level:

@@ -1,0 +1,7 @@
+title = "ChamaSmart secret scan"
+[extend]
+useDefault = true
+[allowlist]
+description = "Firebase web keys are public identifiers by design; the sandbox values are placeholders."
+regexes = ['''AIzaSy[0-9A-Za-z_-]{33}''']
+paths = ['''frontend/netlify\.toml''', '''netlify\.toml''']

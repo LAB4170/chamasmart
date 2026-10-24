@@ -28,15 +28,20 @@ public class CustomUserDetails implements UserDetails {
     public String getPassword() { return password; }
     public Collection<? extends GrantedAuthority> getAuthorities() { return authorities; }
     public boolean isActive() { return isActive; }
+    private int tokenVersion;
+    public int getTokenVersion() { return tokenVersion; }
+    public void setTokenVersion(int v) { this.tokenVersion = v; }
     public static CustomUserDetails build(User user) {
         GrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + user.getRole().toUpperCase());
-        return new CustomUserDetails(
+        CustomUserDetails d = new CustomUserDetails(
                 user.getUserId(),
                 user.getEmail(),
                 user.getPasswordHash(),
                 Collections.singletonList(authority),
                 user.getIsActive() != null ? user.getIsActive() : true
         );
+        d.setTokenVersion(user.getTokenVersion() == null ? 0 : user.getTokenVersion());
+        return d;
     }
 
     @Override

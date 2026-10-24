@@ -51,6 +51,10 @@ public class JwtUtil {
         }
         return null;
     }
+    public int extractTokenVersion(String token) {
+        Object v = extractAllClaims(token).get("tv");
+        return v instanceof Number n ? n.intValue() : 0;
+    }
     public Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
@@ -73,6 +77,7 @@ public class JwtUtil {
         claims.put("id", userDetails.getUserId());
         claims.put("role", userDetails.getAuthorities().iterator().next().getAuthority());
         claims.put("email", userDetails.getUsername());
+        claims.put("tv", userDetails.getTokenVersion());
         return createToken(claims, userDetails.getUsername());
     }
     private String createToken(Map<String, Object> claims, String subject) {

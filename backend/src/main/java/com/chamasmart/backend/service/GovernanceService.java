@@ -56,7 +56,7 @@ public class GovernanceService {
                 .status("SCHEDULED")
                 .createdBy(creator)
                 .agenda(dto.getAgenda() != null ? dto.getAgenda() : "[]")
-                .meetingLink(dto.getMeeting_link())
+                .meetingLink(com.chamasmart.backend.util.SafeUrl.https(dto.getMeeting_link(), "meeting"))
                 .build();
         Meeting savedMeeting = meetingRepository.save(meeting);
         log.info("Successfully created meeting ID: {}", savedMeeting.getMeetingId());
@@ -245,7 +245,7 @@ public class GovernanceService {
         if (dto.getDescription() != null) m.setDescription(dto.getDescription());
         if (dto.getScheduled_date() != null) m.setScheduledDate(dto.getScheduled_date());
         if (dto.getLocation() != null) m.setLocation(dto.getLocation());
-        if (dto.getMeeting_link() != null) m.setMeetingLink(dto.getMeeting_link());
+        if (dto.getMeeting_link() != null) m.setMeetingLink(com.chamasmart.backend.util.SafeUrl.https(dto.getMeeting_link(), "meeting"));
         if (dto.getAgenda() != null) m.setAgenda(dto.getAgenda());
         if (dto.getMinutes() != null) m.setMinutes(dto.getMinutes());
         return MeetingDto.fromEntity(meetingRepository.save(m));

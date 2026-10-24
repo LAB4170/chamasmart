@@ -85,26 +85,26 @@ const PendingContributions = ({ chamaId }) => {
           <div key={c.contribution_id} className="pending-card">
             <div className="pending-member">
               <div className="member-avatar">
-                {(c.first_name?.[0] || "?")}
+                {(c.member_name?.[0] || "?")}
               </div>
               <div>
-                <p className="member-name">{c.first_name} {c.last_name}</p>
-                <p className="member-phone">{c.phone_number}</p>
+                <p className="member-name">{c.member_name}</p>
+                <p className="member-phone">{c.contribution_type === "REGULAR" ? "Savings" : c.contribution_type}</p>
               </div>
             </div>
 
             <div className="pending-details">
               <div className="pending-amount">KES {parseFloat(c.amount).toLocaleString()}</div>
               <div className="pending-meta">
-                <span className="receipt-badge">📱 {c.receipt_number}</span>
+                <span className="receipt-badge">M-Pesa code: {c.reference}</span>
                 <span className="date-label">
-                  {new Date(c.created_at).toLocaleDateString("en-KE", {
+                  {new Date(c.contribution_date).toLocaleDateString("en-KE", {
                     day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"
                   })}
                 </span>
               </div>
               {c.payment_proof && (
-                <a href={c.payment_proof} target="_blank" rel="noreferrer" className="proof-link">
+                <a href={c.payment_proof} target="_blank" rel="noopener noreferrer" className="proof-link">
                   <Image size={14} /> View Screenshot
                 </a>
               )}

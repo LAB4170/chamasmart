@@ -129,7 +129,7 @@ public class WelfareService {
                 .claimAmount(requestDto.getClaim_amount() != null ? requestDto.getClaim_amount() : eventType.getPayoutAmount())
                 .description(requestDto.getDescription())
                 .dateOfOccurrence(requestDto.getDate_of_occurrence())
-                .proofDocumentUrl(requestDto.getProof_document_url())
+                .proofDocumentUrl(com.chamasmart.backend.util.SafeUrl.https(requestDto.getProof_document_url(), "proof"))
                 .status("SUBMITTED")
                 .build();
         WelfareClaim savedClaim = welfareClaimRepository.save(claim);

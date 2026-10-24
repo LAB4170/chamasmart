@@ -18,6 +18,9 @@ export const authAPI = {
             password: credentials.password,
         }),
 
+    // Sign out of every device
+    logoutAll: () => api.post("/auth/logout-all"),
+
     // Firebase Sync with backend
     firebaseSync: (idToken, userData = {}) =>
         api.post("/auth/firebase-sync", {
@@ -45,6 +48,6 @@ export const authAPI = {
         api.post("/auth/resend-phone-verification"),
 
     // Logout
-    logout: () => api.post("/auth/logout")
+    logout: (body = {}) => api.post("/auth/logout", body)
 };
 

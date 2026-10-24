@@ -42,6 +42,7 @@ export const AuthProvider = ({ children }) => {
           const { user: newUser, tokens } = response.data.data;
 
           localStorage.setItem("token", tokens.accessToken);
+      if (tokens.refreshToken) localStorage.setItem("refreshToken", tokens.refreshToken);
           localStorage.setItem("user", JSON.stringify(newUser));
           setUser(newUser);
           setLoading(false);
@@ -68,12 +69,14 @@ export const AuthProvider = ({ children }) => {
             setUser(JSON.parse(savedUser));
           } catch (e) {
             localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
             localStorage.removeItem("user");
           }
         }
       } catch (err) {
         console.error("Auth initialization error:", err);
         localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
         localStorage.removeItem("user");
       } finally {
         setLoading(false);
@@ -92,6 +95,7 @@ export const AuthProvider = ({ children }) => {
       const { user: userData, tokens } = response.data.data;
 
       localStorage.setItem("token", tokens.accessToken);
+      if (tokens.refreshToken) localStorage.setItem("refreshToken", tokens.refreshToken);
       localStorage.setItem("user", JSON.stringify(userData));
       setUser(userData);
 
@@ -113,6 +117,7 @@ export const AuthProvider = ({ children }) => {
       const { user: newUser, tokens } = response.data.data;
 
       localStorage.setItem("token", tokens.accessToken);
+      if (tokens.refreshToken) localStorage.setItem("refreshToken", tokens.refreshToken);
       localStorage.setItem("user", JSON.stringify(newUser));
       setUser(newUser);
 
@@ -156,6 +161,7 @@ export const AuthProvider = ({ children }) => {
       const { user: newUser, tokens } = response.data.data;
 
       localStorage.setItem("token", tokens.accessToken);
+      if (tokens.refreshToken) localStorage.setItem("refreshToken", tokens.refreshToken);
       localStorage.setItem("user", JSON.stringify(newUser));
       setUser(newUser);
 
@@ -177,6 +183,7 @@ export const AuthProvider = ({ children }) => {
       console.warn("Logout error:", err);
     }
     localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
     setUser(null);
     setError(null);

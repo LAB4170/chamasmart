@@ -6,6 +6,7 @@ import googleLogo from "../../assets/images/google-logo.png";
 
 export default function Register() {
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phoneNumber: "", password: "", confirmPassword: "" });
+  const [agreed, setAgreed] = useState(false);
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -32,10 +33,11 @@ export default function Register() {
     if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim()) { setError("Fill in your name and email."); return; }
     if (!allMet) { setError("Your password doesn't meet all the requirements yet."); return; }
     if (pw !== form.confirmPassword) { setError("The two passwords don't match."); return; }
+    if (!agreed) { setError("Please accept the terms and privacy notice to continue."); return; }
     setLoading(true);
     const result = await register({
       firstName: form.firstName.trim(), lastName: form.lastName.trim(), email: form.email.trim(),
-      phoneNumber: form.phoneNumber.trim(), password: pw,
+      phoneNumber: form.phoneNumber.trim(), password: pw, termsAccepted: true,
     });
     setLoading(false);
     if (result.success) navigate("/dashboard");
@@ -92,11 +94,16 @@ export default function Register() {
             <label className="cs-label" htmlFor="reg-confirm">Confirm password</label>
             <input id="reg-confirm" type={show ? "text" : "password"} className="cs-input" autoComplete="new-password" value={form.confirmPassword} onChange={set("confirmPassword")} />
           </div>
+          <label className="cs-check" style={{ marginBottom: 12 }}>
+            <input type="checkbox" checked={agreed} onChange={(e) => { setError(""); setAgreed(e.target.checked); }} />
+            <span>I accept the <Link to="/terms" target="_blank" rel="noopener noreferrer">terms of use</Link> and the <Link to="/privacy" target="_blank" rel="noopener noreferrer">privacy notice</Link>.</span>
+          </label>
           <Button type="submit" variant="primary" className="cs-btn--block" loading={loading}>Create account</Button>
           <div className="cs-auth-divider">or</div>
           <button type="button" className="cs-btn cs-btn--secondary cs-btn--block" onClick={google} disabled={loading}>
             <img src={googleLogo} alt="" width="18" height="18" style={{ marginRight: 8 }} />Continue with Google
           </button>
+          <p className="cs-help" style={{ textAlign: "center" }}>By continuing with Google you accept the <Link to="/terms">terms</Link> and <Link to="/privacy">privacy notice</Link>.</p>
         </form>
         <p className="cs-footnote" style={{ textAlign: "center", marginTop: 16 }}>Already have an account? <Link to="/login">Sign in</Link></p>
       </main>

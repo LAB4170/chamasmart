@@ -5,6 +5,9 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 @Repository
 public interface FinancialAuditLogRepository extends JpaRepository<FinancialAuditLog, Long> {
+    List<FinancialAuditLog> findByRowHashIsNullOrderByAuditIdAsc();
+    java.util.Optional<FinancialAuditLog> findTopByRowHashIsNotNullOrderByAuditIdDesc();
+    List<FinancialAuditLog> findAllByOrderByAuditIdAsc();
     List<FinancialAuditLog> findByChamaChamaIdOrderByCreatedAtDesc(Long chamaId);
 }
 

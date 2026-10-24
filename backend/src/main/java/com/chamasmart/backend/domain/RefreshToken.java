@@ -16,6 +16,13 @@ public class RefreshToken {
     private Instant expiresAt;
     @Column(name = "revoked", nullable = false)
     private boolean revoked = false;
+    @Column(name = "created_at")
+    private Instant createdAt = Instant.now();
+    @Column(name = "user_agent", length = 200)
+    private String userAgent;
+    public Instant getCreatedAt() { return createdAt; }
+    public String getUserAgent() { return userAgent; }
+    public void setUserAgent(String ua) { this.userAgent = ua == null ? null : ua.substring(0, Math.min(200, ua.length())); }
     // getters & setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

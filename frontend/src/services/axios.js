@@ -34,6 +34,31 @@ function isTokenExpired(token) {
   }
 }
 
+// One shared refresh at a time: several requests that find the access token expired all wait for the same renewal.
+let refreshing = null;
+function endSession() {
+    ["token", "refreshToken", "user"].forEach((k) => localStorage.removeItem(k));
+    cancelPendingRequests();
+    const p = window.location.pathname;
+    if (p !== '/login' && p !== '/register') window.location.replace('/login');
+}
+function renewSession() {
+    const refreshToken = localStorage.getItem("refreshToken");
+    if (!refreshToken) return Promise.reject(new Error("No refresh token"));
+    if (!refreshing) {
+        refreshing = axios.post(`${API_URL}/auth/refresh`, { refreshToken })
+            .then((res) => {
+                const t = res.data?.data?.tokens;
+                if (!t?.accessToken) throw new Error("Bad refresh response");
+                localStorage.setItem("token", t.accessToken);
+                if (t.refreshToken) localStorage.setItem("refreshToken", t.refreshToken);
+                return t.accessToken;
+            })
+            .finally(() => { refreshing = null; });
+    }
+    return refreshing;
+}
+
 const api = axios.create({
     baseURL: API_URL,
     headers: {
@@ -43,20 +68,16 @@ const api = axios.create({
 
 // Add token and AbortController to requests
 api.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem("token");
-        // If token exists but is expired, clear storage and redirect to login
-        if (token && isTokenExpired(token)) {
-            console.warn('[Axios] Token expired – clearing session');
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-                window.location.replace('/login');
+    async (config) => {
+        let token = localStorage.getItem("token");
+        // An expired access token is renewed quietly with the refresh token; only a failed renewal ends the session.
+        if (token && isTokenExpired(token) && !String(config.url).includes("/auth/")) {
+            try {
+                token = await renewSession();
+            } catch {
+                endSession();
+                return Promise.reject(new Error('Session expired'));
             }
-            // Cancel any pending requests to prevent further API calls during logout
-            cancelPendingRequests();
-            // Reject the request to avoid sending an expired token
-            return Promise.reject(new Error('Session expired'));
         }
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -87,7 +108,7 @@ api.interceptors.response.use(
         pendingRequests.delete(requestKey);
         return response;
     },
-    (error) => {
+    async (error) => {
         if (error.config) {
             const requestKey = `${error.config.method}_${error.config.url}`;
             pendingRequests.delete(requestKey);
@@ -105,19 +126,24 @@ api.interceptors.response.use(
         }
 
         if (error.response?.status === 401) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            // Use a short delay so in-flight React renders finish before redirecting.
-            // This prevents a flash-redirect when the dashboard loads and fires
-            // multiple simultaneous API calls — only redirect if we're not already
-            // on the login / register page.
-            const currentPath = window.location.pathname;
-            if (currentPath !== '/login' && currentPath !== '/register') {
-                setTimeout(() => {
-                    window.location.replace('/login');
-                }, 300);
+            const original = error.config;
+            const isAuthCall = String(original?.url || "").includes("/auth/");
+            if (original && !original._retried && !isAuthCall && localStorage.getItem("refreshToken")) {
+                original._retried = true;
+                try {
+                    const fresh = await renewSession();
+                    original.headers.Authorization = `Bearer ${fresh}`;
+                    delete original.signal;
+                    return api(original);
+                } catch { /* fall through to sign-out */ }
             }
-            cancelPendingRequests();
+            if (!isAuthCall) {
+                // Short delay so in-flight renders finish before the redirect.
+                const currentPath = window.location.pathname;
+                ["token", "refreshToken", "user"].forEach((k) => localStorage.removeItem(k));
+                if (currentPath !== '/login' && currentPath !== '/register') setTimeout(() => window.location.replace('/login'), 300);
+                cancelPendingRequests();
+            }
         }
 
         // Handle 403 Forbidden errors (user is logged in, but just doesn't have access to this resource)

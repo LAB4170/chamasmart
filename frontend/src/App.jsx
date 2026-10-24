@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 
 // Lazy load all pages for better performance
+const MemberExits = lazy(() => import("./pages/chama/members/MemberExits"));
+const Legal = lazy(() => import("./pages/legal/Legal"));
 const Login = lazy(() => import("./pages/auth/Login"));
 const Register = lazy(() => import("./pages/auth/Register"));
 const VerifyEmailPhone = lazy(() => import("./pages/auth/VerifyEmailPhone"));
@@ -345,6 +347,16 @@ function AppContent() {
                                 element={
                                     <ProtectedRoute>
                                         <PageTransition><BulkRecordContribution /></PageTransition>
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route path="/terms" element={<Legal />} />
+                            <Route path="/privacy" element={<Legal />} />
+                            <Route
+                                path="/chamas/:id/exits"
+                                element={
+                                    <ProtectedRoute>
+                                        <PageTransition><MemberExits /></PageTransition>
                                     </ProtectedRoute>
                                 }
                             />

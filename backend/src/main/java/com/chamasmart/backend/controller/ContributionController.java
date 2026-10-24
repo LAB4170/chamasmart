@@ -58,10 +58,19 @@ public class ContributionController {
         private String contributionDate;
         private String verificationStatus;
     }
+    /** An M-Pesa confirmation code is exactly 10 letters and digits. Anything else is a typo, so it is refused before an official has to check it. */
+    static String checkedReference(String paymentMethod, String ref) {
+        if (ref == null || ref.isBlank() || paymentMethod == null || !paymentMethod.toUpperCase().contains("MPESA")) return ref;
+        String clean = ref.replaceAll("\\s+", "").toUpperCase();
+        if (!clean.matches("^[A-Z0-9]{10}$"))
+            throw new IllegalArgumentException("An M-Pesa code is 10 letters and numbers, like RCA1X3DE5Y. Check the SMS and type it again.");
+        return clean;
+    }
+
     private static com.chamasmart.backend.service.ContributionService.Entry entry(ContributionRequest r, Long fallbackUser) {
         Long uid = r.getUser_id() != null ? r.getUser_id() : r.getUserId() != null ? r.getUserId() : fallbackUser;
         return new com.chamasmart.backend.service.ContributionService.Entry(uid, r.getAmount(),
-                r.getReference() != null ? r.getReference() : r.getReceiptNumber(),
+                checkedReference(r.getPaymentMethod(), r.getReference() != null ? r.getReference() : r.getReceiptNumber()),
                 r.getContribution_type() != null ? r.getContribution_type() : r.getContributionType(), r.getNotes(), r.getPaymentProof());
     }
 
@@ -90,7 +99,7 @@ public class ContributionController {
         if (request.getContributions() != null) {
             for (SingleContributionRequest r : request.getContributions()) {
                 entries.add(new com.chamasmart.backend.service.ContributionService.Entry(r.getUserId() != null ? r.getUserId() : r.getUser_id(), r.getAmount(),
-                        r.getReference() != null ? r.getReference() : r.getReceiptNumber(), "REGULAR", r.getNotes(), null));
+                        checkedReference(r.getPaymentMethod(), r.getReference() != null ? r.getReference() : r.getReceiptNumber()), "REGULAR", r.getNotes(), null));
             }
         }
         List<ContributionSummaryDto> saved = contributionService.bulkRecord(chamaId, currentUser.getUserId(), entries);

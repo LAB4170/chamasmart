@@ -34,6 +34,9 @@ const ManualPaymentModal = ({ chama, onClose, onSuccess }) => {
     if (!receiptNumber.trim()) {
       return toast.error("M-Pesa receipt number is required");
     }
+    if (!/^[A-Z0-9]{10}$/.test(receiptNumber.trim())) {
+      return toast.error("An M-Pesa code is 10 letters and numbers, like RCA1X3DE5Y. Check the SMS and type it again.");
+    }
 
     setSubmitting(true);
     try {
@@ -129,7 +132,7 @@ const ManualPaymentModal = ({ chama, onClose, onSuccess }) => {
               placeholder="e.g. RCA1X3DE5Y"
               value={receiptNumber}
               onChange={(e) => setReceiptNumber(e.target.value.toUpperCase())}
-              maxLength={20}
+              maxLength={10}
               required
             />
             <p className="form-hint">Found in your M-Pesa SMS confirmation</p>

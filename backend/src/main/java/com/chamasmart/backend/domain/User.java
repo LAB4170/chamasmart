@@ -51,6 +51,12 @@ public class User {
     private String nationalId;
     @Column(name = "profile_picture_url", length = 1000)
     private String profilePictureUrl;
+    /** When the person accepted the terms and privacy notice at sign-up. Empty for accounts created before this was recorded. */
+    @Column(name = "terms_accepted_at")
+    private ZonedDateTime termsAcceptedAt;
+    /** Raised to end every signed-in session at once (password change, "sign out everywhere", refresh-token reuse). */
+    @Column(name = "token_version")
+    private Integer tokenVersion;
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private ZonedDateTime createdAt;

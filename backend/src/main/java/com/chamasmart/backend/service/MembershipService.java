@@ -26,6 +26,7 @@ public class MembershipService {
     private final UserRepository userRepository;
     private final LoanRepository loanRepository;
     private final com.chamasmart.backend.repository.LoanGuarantorRepository loanGuarantorRepository;
+    private final com.chamasmart.backend.repository.ContributionRepository contributionRepository;
 
     public ChamaMember activeMember(Long chamaId, Long userId) {
         return chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
@@ -105,6 +106,15 @@ public class MembershipService {
         target.setStatus("INACTIVE");
         chamaMemberRepository.save(target);
         syncMemberCount(target.getChama());
+    }
+
+    /** True when removing this member needs the refund workflow because they have savings to pay back. */
+    public boolean ownsSavings(Long chamaId, Long userId) {
+        return contributionRepository.findByUserUserIdAndIsDeletedFalse(userId).stream()
+                .filter(c -> c.getChama() != null && chamaId.equals(c.getChama().getChamaId()))
+                .filter(c -> "COMPLETED".equalsIgnoreCase(c.getStatus()))
+                .filter(c -> c.getContributionType() == null || "REGULAR".equalsIgnoreCase(c.getContributionType()))
+                .map(com.chamasmart.backend.domain.Contribution::getAmount).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add).signum() > 0;
     }
 
     @Transactional

@@ -13,6 +13,7 @@ public class RegisterRequest {
     private String firstName;
     private String lastName;
     private String password;
+    private Boolean termsAccepted;
     public String getEmail() {
         return email;
     }
@@ -24,6 +25,9 @@ public class RegisterRequest {
     }
     public String getLastName() {
         return lastName;
+    }
+    public Boolean getTermsAccepted() {
+        return termsAccepted;
     }
     public String getPassword() {
         return password;

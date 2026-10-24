@@ -4,7 +4,8 @@ import api from "./axios";
 export const userAPI = {
     getProfile: () => api.get("/users/profile"),
     updateProfile: (userData) => api.put("/users/profile", userData),
-    changePassword: (passwordData) => api.put("/auth/change-password", passwordData),
+    changePassword: (passwordData) => api.post("/users/change-password", passwordData),
+    exportMyData: () => api.get("/users/me/export"),
     deleteAccount: () => api.delete("/users/account"),
     search: (query) => api.get("/users/search", { params: { query } }),
     uploadProfilePicture: (formData) => api.post("/users/profile-picture", formData, { headers: { "Content-Type": "multipart/form-data" } })

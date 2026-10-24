@@ -133,7 +133,7 @@ public class ContributionService {
         Long cycleId = "ROSCA".equals(type) ? resolveCycle(chama, user, e.notes()) : null;
         return Contribution.builder().chama(chama).user(user).amount(checkAmount(e.amount()))
                 .reference(uniqueReference(e.reference(), refPrefix)).status(status).contributionType(type)
-                .cycleId(cycleId).notes(e.notes()).paymentProof(e.proof()).isDeleted(false).build();
+                .cycleId(cycleId).notes(e.notes()).paymentProof(com.chamasmart.backend.util.SafeUrl.https(e.proof(), "payment proof")).isDeleted(false).build();
     }
 
     private static final java.util.regex.Pattern CYCLE_TAG = java.util.regex.Pattern.compile("^\\[cycle:(\\d+)]");

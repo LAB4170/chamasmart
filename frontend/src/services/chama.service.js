@@ -39,3 +39,14 @@ export const inviteAPI = {
   send: (chamaId, email, role = "MEMBER") =>
     api.post(`/governance/chamas/${chamaId}/invites`, { email, role }),
 };
+
+// Leaving a chama with a refund: ExitController /chamas/{id}/exits
+export const exitAPI = {
+  list: (chamaId) => api.get(`/chamas/${chamaId}/exits`),
+  preview: (chamaId) => api.get(`/chamas/${chamaId}/exits/preview`),
+  leave: (chamaId) => api.post(`/chamas/${chamaId}/exits`),
+  decide: (chamaId, exitId, decision, note) => api.post(`/chamas/${chamaId}/exits/${exitId}/decision`, { decision, note }),
+  pay: (chamaId, exitId, reference) => api.post(`/chamas/${chamaId}/exits/${exitId}/pay`, { reference }),
+  cancel: (chamaId, exitId) => api.post(`/chamas/${chamaId}/exits/${exitId}/cancel`),
+  statement: (chamaId, exitId) => api.get(`/chamas/${chamaId}/exits/${exitId}/statement`),
+};

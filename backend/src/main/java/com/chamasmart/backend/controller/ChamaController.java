@@ -40,6 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ChamaController {
     private final ChamaService chamaService;
     private final com.chamasmart.backend.service.MembershipService membershipService;
+    private final com.chamasmart.backend.service.ExitService exitService;
     private final ChamaPaymentConfigRepository chamaPaymentConfigRepository;
     private final ChamaRepository chamaRepository;
     private final ChamaMemberRepository chamaMemberRepository;
@@ -272,6 +273,12 @@ public class ChamaController {
     }
     @DeleteMapping("/{chamaId}/members/{userId}")
     public ResponseEntity<ApiResponse<Void>> removeMember(@PathVariable Long chamaId, @PathVariable Long userId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        // A member who has savings is refunded first, with two officials, so nobody loses money by being removed.
+        if (membershipService.ownsSavings(chamaId, userId)) {
+            var exit = exitService.requestRemoval(chamaId, currentUser.getUserId(), userId);
+            return ResponseEntity.ok(ApiResponse.success(null, "This member has savings of KES " + exit.getRefundAmount().toPlainString()
+                    + ". A refund request was opened. A different official must approve it and pay it out before the member is removed."));
+        }
         membershipService.removeMember(chamaId, currentUser.getUserId(), userId);
         return ResponseEntity.ok(ApiResponse.success(null, "Member removed successfully"));
     }

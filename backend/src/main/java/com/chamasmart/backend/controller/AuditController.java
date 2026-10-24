@@ -29,6 +29,15 @@ public class AuditController {
     private static final ZoneId NAIROBI = ZoneId.of("Africa/Nairobi");
     private final FinancialAuditLogRepository auditRepo;
     private final MembershipService membershipService;
+    private final com.chamasmart.backend.service.AuditTrailService trail;
+
+    /** Platform administrators only: checks that no old audit entry has been changed or removed. */
+    @GetMapping("/integrity")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> integrity(@AuthenticationPrincipal CustomUserDetails me) {
+        boolean admin = me.getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+        if (!admin) throw new AccessDeniedException("Only platform administrators can run this check");
+        return ResponseEntity.ok(ApiResponse.success(trail.verify(), "Audit trail checked"));
+    }
 
     private static Map<String, Object> row(FinancialAuditLog l) {
         Map<String, Object> m = new LinkedHashMap<>();

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { userAPI, chamaAPI } from "../../services/api";
+import { userAPI, chamaAPI, authAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { getImageUrl } from "../../utils/imageUtils";
 import { Button, PageHeader, Skeleton, Dialog } from "../../components/ui";
@@ -113,12 +113,41 @@ export default function UserProfile() {
     setChanging(true);
     try {
       await userAPI.changePassword({ currentPassword: pw.current, newPassword: pw.next });
-      toast.success("Password changed.");
+      // The server ended every session, including this one, so sign in again with the new password.
+      toast.success("Password changed. Please sign in again.");
       setPw({ current: "", next: "", confirm: "" });
+      await logout();
+      navigate("/login");
     } catch (err) {
       toast.error(err.response?.data?.message || "We couldn't change your password.");
     } finally {
       setChanging(false);
+    }
+  };
+
+  const signOutEverywhere = async () => {
+    try {
+      await authAPI.logoutAll();
+      toast.success("Signed out on all devices.");
+      await logout();
+      navigate("/login");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "We couldn't sign you out everywhere. Try again.");
+    }
+  };
+
+  const downloadData = async () => {
+    try {
+      const res = await userAPI.exportMyData();
+      const blob = new Blob([JSON.stringify(res.data?.data ?? {}, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "chamasmart-my-data.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "We couldn't prepare your data. Try again.");
     }
   };
 
@@ -185,9 +214,18 @@ export default function UserProfile() {
           <div className="cs-actions"><Button type="submit" loading={changing}>Change password</Button></div>
         </form>
 
+        <section className="cs-card" aria-label="Sessions and data" style={{ marginBottom: 16, maxWidth: 720 }}>
+          <h2 className="cs-card-title">Sessions and your data</h2>
+          <p>If you used a shared phone or lost a device, sign out everywhere. You can also download a copy of the data we hold about you.</p>
+          <div className="cs-actions">
+            <Button variant="secondary" onClick={signOutEverywhere}>Sign out on all devices</Button>
+            <Button variant="secondary" onClick={downloadData}>Download my data</Button>
+          </div>
+        </section>
+
         <section className="cs-card" aria-label="Close account" style={{ maxWidth: 720 }}>
           <h2 className="cs-card-title">Close account</h2>
-          <p>This signs you out for good and can&apos;t be undone. You can&apos;t close your account while you have an open loan or chair an active chama.</p>
+          <p>This signs you out for good and erases your name, phone, email and ID. It can&apos;t be undone. You can&apos;t close your account while you have an open loan, hold savings in a chama (leave it first to get them refunded), or chair an active chama.</p>
           <Button variant="danger" onClick={() => { setConfirmText(""); setCloseOpen(true); }}>Close my account</Button>
         </section>
 

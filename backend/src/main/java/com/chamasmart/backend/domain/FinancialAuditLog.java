@@ -34,6 +34,24 @@ public class FinancialAuditLog {
     private String ipAddress;
     @Column(name = "user_agent", columnDefinition = "TEXT")
     private String userAgent;
+    /** Hash of the previous sealed entry and of this one. Changing or removing an old entry breaks every hash after it. */
+    @Column(name = "prev_hash", length = 64)
+    private String prevHash;
+    @Column(name = "row_hash", length = 64)
+    private String rowHash;
+
+    /** Stamps the caller's address and browser on every entry written during a web request. */
+    @PrePersist
+    void stampRequest() {
+        if (ipAddress != null) return;
+        var attrs = org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+        if (attrs instanceof org.springframework.web.context.request.ServletRequestAttributes sra) {
+            ipAddress = com.chamasmart.backend.security.ClientIp.of(sra.getRequest());
+            String ua = sra.getRequest().getHeader("User-Agent");
+            if (userAgent == null && ua != null) userAgent = ua.substring(0, Math.min(300, ua.length()));
+        }
+    }
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private ZonedDateTime createdAt;

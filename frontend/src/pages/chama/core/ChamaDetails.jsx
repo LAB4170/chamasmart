@@ -110,6 +110,11 @@ const MembersTab = memo(({ members, isOfficial, isROSCA, roster, onNavigate, for
           </div>
           Group Directors ({members.length})
         </h3>
+        {!isOfficial && (
+          <button className="btn-lux btn-lux-outline" onClick={() => onNavigate(`/chamas/${chamaId}/exits`)}>
+            Leave this chama
+          </button>
+        )}
         {isOfficial && (
           <div style={{ display: 'flex', gap: '0.75rem' }}>
             <button
@@ -2061,6 +2066,11 @@ const ChamaDetails = () => {
                       icon: Users, color:"#3b82f6", bg:"rgba(59,130,246,0.1)", border:"rgba(59,130,246,0.22)",
                       title:"Add Member Direct", sub:"Add a verified user directly to the chama roster",
                       path:`/chamas/${id}/add-member`, show: true
+                    },
+                    {
+                      icon: Users, color:"#ef4444", bg:"rgba(239,68,68,0.1)", border:"rgba(239,68,68,0.22)",
+                      title:"Member Exits", sub:"Approve and pay refunds for members who leave or are removed",
+                      path:`/chamas/${id}/exits`, show: true
                     },
                     {
                       icon: Bell, color:"#f59e0b", bg:"rgba(245,158,11,0.1)", border:"rgba(245,158,11,0.22)",
