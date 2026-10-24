@@ -24,6 +24,7 @@ public class LoanService {
     private final ChamaMemberRepository chamaMemberRepository;
     private final FinancialAuditLogRepository auditLogRepository;
     private final LoanConfigRepository loanConfigRepository;
+    private final LoanRepaymentRepository loanRepaymentRepository;
     private ChamaMember validateUserMembershipAndActiveStatus(Long chamaId, Long userId) {
         return chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
                 .filter(ChamaMember::getIsActive)
@@ -73,6 +74,25 @@ public class LoanService {
         return loanConfigRepository.save(cfg);
     }
 
+
+    private static final List<String> OPEN_LOAN_STATES = List.of("PENDING", "APPROVED", "DISBURSED", "ACTIVE", "DEFAULTED");
+
+    /** Principal a member still owes in this chama: each open loan's amount, scaled down by how much of it is repaid. */
+    static BigDecimal outstandingPrincipal(List<Loan> loans, Long chamaId) {
+        BigDecimal sum = BigDecimal.ZERO;
+        for (Loan l : loans) {
+            if (l.getChama() == null || !chamaId.equals(l.getChama().getChamaId())) continue;
+            if (!OPEN_LOAN_STATES.contains(String.valueOf(l.getStatus()).toUpperCase())) continue;
+            BigDecimal total = l.getTotalRepayable();
+            BigDecimal paid = l.getAmountPaid() != null ? l.getAmountPaid() : BigDecimal.ZERO;
+            if (total == null || total.signum() <= 0) { sum = sum.add(l.getLoanAmount()); continue; }
+            BigDecimal unpaidShare = BigDecimal.ONE.subtract(paid.divide(total, 8, RoundingMode.HALF_UP)).max(BigDecimal.ZERO);
+            sum = sum.add(l.getLoanAmount().multiply(unpaidShare));
+        }
+        return sum;
+    }
+
+
     @Transactional
     public LoanSummaryDto applyForLoan(LoanApplicationRequestDto request, Long borrowerUserId) {
         log.info("Processing loan application for user ID: {} in chama ID: {}", borrowerUserId, request.getChama_id());
@@ -94,12 +114,21 @@ public class LoanService {
         if (term == null || term < 1 || term > cfg.getMaxRepaymentMonths()) {
             throw new IllegalArgumentException("Repayment period must be between 1 and " + cfg.getMaxRepaymentMonths() + " months");
         }
-        // Borrowing limit = total contributions x multiplier. ASCA limits are share-based and are not enforced here.
+        // Borrowing limit = total contributions x multiplier, minus what the member still owes on open loans.
+        // ASCA limits are share-based and are not enforced here.
+        List<Loan> myLoans = loanRepository.findByBorrowerUserId(borrowerUserId);
+        if (myLoans.stream().anyMatch(l -> "DEFAULTED".equalsIgnoreCase(l.getStatus()))) {
+            throw new IllegalArgumentException("You have a defaulted loan. Clear it before applying for another");
+        }
         if (!"ASCA".equalsIgnoreCase(chama.getChamaType())) {
             BigDecimal savings = borrowerMembership.getTotalContributions() != null ? borrowerMembership.getTotalContributions() : BigDecimal.ZERO;
-            BigDecimal limit = savings.multiply(cfg.getLoanMultiplier());
+            BigDecimal gross = savings.multiply(cfg.getLoanMultiplier());
+            BigDecimal outstanding = outstandingPrincipal(myLoans, chama.getChamaId());
+            BigDecimal limit = gross.subtract(outstanding).max(BigDecimal.ZERO);
             if (principal.compareTo(limit) > 0) {
-                throw new IllegalArgumentException("You can borrow up to KES " + limit.setScale(2, RoundingMode.HALF_UP).toPlainString() + " (" + cfg.getLoanMultiplier().stripTrailingZeros().toPlainString() + "x your contributions)");
+                throw new IllegalArgumentException("You can borrow up to KES " + limit.setScale(2, RoundingMode.HALF_UP).toPlainString() + " ("
+                        + cfg.getLoanMultiplier().stripTrailingZeros().toPlainString() + "x your contributions, less KES "
+                        + outstanding.setScale(2, RoundingMode.HALF_UP).toPlainString() + " you still owe on open loans)");
             }
         }
 
@@ -386,9 +415,13 @@ public class LoanService {
         loan.setRejectedBy(userRepository.getReferenceById(officerUserId));
         loanRepository.save(loan);
     }
+    /**
+     * A borrower reports a repayment. Nothing is credited here: the loan balance and the chama fund
+     * move only when an official other than the payer verifies it.
+     */
     @Transactional
-    public void repayLoan(Long loanId, BigDecimal amount, Long payerUserId) {
-        log.info("Payer ID {} repaying KES {} for loan ID: {}", payerUserId, amount, loanId);
+    public LoanRepayment repayLoan(Long loanId, BigDecimal amount, Long payerUserId) {
+        log.info("Payer ID {} submitting repayment of KES {} for loan ID: {}", payerUserId, amount, loanId);
         Loan loan = loanRepository.findByIdWithPessimisticLock(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
         if (!List.of("APPROVED", "DISBURSED", "ACTIVE", "DEFAULTED").contains(String.valueOf(loan.getStatus()).toUpperCase())) {
@@ -402,38 +435,127 @@ public class LoanService {
         if (!isBorrower && !guarantorOfDefault) {
             throw new org.springframework.security.access.AccessDeniedException("Only the borrower (or a guarantor of a defaulted loan) can repay this loan");
         }
-        BigDecimal currentPaid = loan.getAmountPaid() != null ? loan.getAmountPaid() : BigDecimal.ZERO;
         if (amount == null || amount.signum() <= 0) {
             throw new IllegalArgumentException("Repayment amount must be greater than zero");
         }
-        BigDecimal remaining = loan.getTotalRepayable().subtract(currentPaid);
+        BigDecimal currentPaid = loan.getAmountPaid() != null ? loan.getAmountPaid() : BigDecimal.ZERO;
+        BigDecimal awaiting = loanRepaymentRepository.findByLoanId(loanId).stream()
+                .filter(r -> "PENDING".equals(r.getStatus()))
+                .map(LoanRepayment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal remaining = loan.getTotalRepayable().subtract(currentPaid).subtract(awaiting);
         if (amount.compareTo(remaining) > 0) {
-            throw new IllegalArgumentException("Repayment exceeds the outstanding balance of KES " + remaining);
+            throw new IllegalArgumentException("Repayment exceeds the outstanding balance of KES " + remaining.max(BigDecimal.ZERO).toPlainString()
+                    + (awaiting.signum() > 0 ? " (KES " + awaiting.toPlainString() + " is already waiting for verification)" : ""));
         }
-        loan.setAmountPaid(currentPaid.add(amount));
-        loan.setLastPaymentDate(ZonedDateTime.now());
-        // Add back to chama fund
-        Chama chama = chamaRepository.findByIdWithPessimisticLock(loan.getChama().getChamaId())
+        LoanRepayment saved = loanRepaymentRepository.save(LoanRepayment.builder()
+                .loan(loan).payer(userRepository.getReferenceById(payerUserId)).amount(amount).status("PENDING").build());
+        auditLogRepository.save(FinancialAuditLog.builder()
+                .user(userRepository.getReferenceById(payerUserId))
+                .transactionType("LOAN_REPAYMENT_SUBMITTED")
+                .amount(amount)
+                .chama(loan.getChama())
+                .referenceId(loan.getLoanId())
+                .description("Repayment reported and waiting for verification. Loan ID: " + loan.getLoanId())
+                .ipAddress("127.0.0.1")
+                .userAgent("System-Service")
+                .build());
+        return saved;
+    }
+
+    /** An official other than the payer confirms the money arrived; only now do the loan and the fund move. */
+    @Transactional
+    public void verifyRepayment(Long chamaId, Long repaymentId, Long officialUserId) {
+        LoanRepayment rep = loanRepaymentRepository.findById(repaymentId)
+                .orElseThrow(() -> new RuntimeException("Repayment not found"));
+        Loan loan = loanRepository.findByIdWithPessimisticLock(rep.getLoan().getLoanId())
+                .orElseThrow(() -> new RuntimeException("Loan not found"));
+        if (!chamaId.equals(loan.getChama().getChamaId())) {
+            throw new RuntimeException("Repayment not found");
+        }
+        validateUserIsOfficial(chamaId, officialUserId);
+        if (rep.getPayer().getUserId().equals(officialUserId)) {
+            throw new org.springframework.security.access.AccessDeniedException("You cannot verify your own repayment; another official must do it");
+        }
+        if (!"PENDING".equals(rep.getStatus())) {
+            throw new IllegalStateException("This repayment has already been " + String.valueOf(rep.getStatus()).toLowerCase());
+        }
+        BigDecimal currentPaid = loan.getAmountPaid() != null ? loan.getAmountPaid() : BigDecimal.ZERO;
+        if (rep.getAmount().compareTo(loan.getTotalRepayable().subtract(currentPaid)) > 0) {
+            throw new IllegalStateException("This repayment is larger than what is still owed on the loan");
+        }
+        Chama chama = chamaRepository.findByIdWithPessimisticLock(chamaId)
                 .orElseThrow(() -> new RuntimeException("Chama not found"));
-        chama.setCurrentFund(chama.getCurrentFund().add(amount));
+        loan.setAmountPaid(currentPaid.add(rep.getAmount()));
+        loan.setLastPaymentDate(ZonedDateTime.now());
+        chama.setCurrentFund(chama.getCurrentFund().add(rep.getAmount()));
         chamaRepository.save(chama);
-        // Check if fully repaid
         if (loan.getAmountPaid().compareTo(loan.getTotalRepayable()) >= 0) {
             loan.setStatus("COMPLETED");
         }
         loanRepository.save(loan);
-        // Write Financial Audit Log
-        FinancialAuditLog auditLog = FinancialAuditLog.builder()
-                .user(userRepository.getReferenceById(payerUserId))
+        rep.setStatus("VERIFIED");
+        rep.setDecidedBy(userRepository.getReferenceById(officialUserId));
+        rep.setDecidedAt(ZonedDateTime.now());
+        loanRepaymentRepository.save(rep);
+        auditLogRepository.save(FinancialAuditLog.builder()
+                .user(userRepository.getReferenceById(officialUserId))
                 .transactionType("LOAN_REPAYMENT")
-                .amount(amount)
+                .amount(rep.getAmount())
                 .chama(chama)
                 .referenceId(loan.getLoanId())
-                .description("Loan repayment recorded. Borrower ID: " + loan.getBorrower().getUserId() + ", Amount Paid: KES " + amount)
+                .description("Repayment verified. Loan ID: " + loan.getLoanId() + ", payer ID: " + rep.getPayer().getUserId() + ", amount: KES " + rep.getAmount())
                 .ipAddress("127.0.0.1")
                 .userAgent("System-Service")
-                .build();
-        auditLogRepository.save(auditLog);
+                .build());
+    }
+
+    @Transactional
+    public void rejectRepayment(Long chamaId, Long repaymentId, Long officialUserId, String reason) {
+        LoanRepayment rep = loanRepaymentRepository.findById(repaymentId)
+                .orElseThrow(() -> new RuntimeException("Repayment not found"));
+        Loan loan = loanRepository.findByIdWithPessimisticLock(rep.getLoan().getLoanId())
+                .orElseThrow(() -> new RuntimeException("Loan not found"));
+        if (!chamaId.equals(loan.getChama().getChamaId())) {
+            throw new RuntimeException("Repayment not found");
+        }
+        validateUserIsOfficial(chamaId, officialUserId);
+        if (!"PENDING".equals(rep.getStatus())) {
+            throw new IllegalStateException("This repayment has already been " + String.valueOf(rep.getStatus()).toLowerCase());
+        }
+        rep.setStatus("REJECTED");
+        rep.setDecidedBy(userRepository.getReferenceById(officialUserId));
+        rep.setDecidedAt(ZonedDateTime.now());
+        rep.setDecisionNote(reason);
+        loanRepaymentRepository.save(rep);
+        auditLogRepository.save(FinancialAuditLog.builder()
+                .user(userRepository.getReferenceById(officialUserId))
+                .transactionType("LOAN_REPAYMENT_REJECTED")
+                .amount(rep.getAmount())
+                .chama(loan.getChama())
+                .referenceId(loan.getLoanId())
+                .description("Repayment rejected. Loan ID: " + loan.getLoanId() + (reason != null ? ", reason: " + reason : ""))
+                .ipAddress("127.0.0.1")
+                .userAgent("System-Service")
+                .build());
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> pendingRepayments(Long chamaId, Long officialUserId) {
+        validateUserIsOfficial(chamaId, officialUserId);
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (LoanRepayment r : loanRepaymentRepository.findByChamaId(chamaId)) {
+            if (!"PENDING".equals(r.getStatus())) continue;
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("repayment_id", r.getRepaymentId());
+            m.put("loan_id", r.getLoan().getLoanId());
+            m.put("amount", r.getAmount());
+            m.put("payer_id", r.getPayer().getUserId());
+            m.put("payer_name", (r.getPayer().getFirstName() + " " + r.getPayer().getLastName()).trim());
+            m.put("created_at", r.getCreatedAt());
+            m.put("own", r.getPayer().getUserId().equals(officialUserId));
+            out.add(m);
+        }
+        return out;
     }
 
     /** Portfolio figures for officials, computed from the chama's actual loans. */

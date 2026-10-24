@@ -6,6 +6,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { Button, PageHeader, StatCard, StatusBadge, DataTable, Dialog, Skeleton } from "../../../components/ui";
 import { formatKES, formatDate } from "../../../utils/format";
 import LoanAnalyticsDashboard from "./LoanAnalyticsDashboard";
+import PendingRepayments from "./PendingRepayments";
 
 const OPEN = ["APPROVED", "DISBURSED", "DEFAULTED"];
 const PAID = ["COMPLETED", "PAID_OFF"];
@@ -212,6 +213,7 @@ export default function LoanManagement() {
                   <StatCard label="Active loans" value={stats.active} />
                   <StatCard label="Lent out" value={formatKES(stats.lent)} note="Principal on active loans" />
                 </div>
+                {isOfficial && <PendingRepayments chamaId={id} onVerified={refreshLoans} />}
 
                 <section className="cs-section" aria-labelledby="loan-table">
                   <h2 id="loan-table" className="cs-section-title">All loans</h2>

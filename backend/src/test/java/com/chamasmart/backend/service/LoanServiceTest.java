@@ -31,6 +31,7 @@ class LoanServiceTest {
     @Mock ChamaMemberRepository memberRepo;
     @Mock FinancialAuditLogRepository auditRepo;
     @Mock LoanConfigRepository configRepo;
+    @Mock LoanRepaymentRepository repaymentRepo;
     @InjectMocks LoanService service;
 
     Chama chama;
@@ -149,13 +150,111 @@ class LoanServiceTest {
         verify(chamaRepo, never()).save(any());
     }
 
-    @Test void defaultedLoanCanBeRepaidByTheBorrower() {
+    @Test void defaultedLoanRepaymentWaitsForVerificationAndMovesNoMoney() {
         member(5, "MEMBER", true);
         mine.setStatus("DEFAULTED");
         when(loanRepo.findByIdWithPessimisticLock(10L)).thenReturn(Optional.of(mine));
+        when(repaymentRepo.findByLoanId(10L)).thenReturn(List.of());
+        when(repaymentRepo.save(any(LoanRepayment.class))).thenAnswer(i -> i.getArgument(0));
+        LoanRepayment r = service.repayLoan(10L, new BigDecimal("100"), 5L);
+        assertEquals("PENDING", r.getStatus());
+        assertEquals(new BigDecimal("5000"), chama.getCurrentFund());
+        assertEquals(0, BigDecimal.ZERO.compareTo(mine.getAmountPaid()));
+        verify(chamaRepo, never()).save(any());
+    }
+
+    private LoanRepayment pending(long id, long payer, String amount) {
+        return LoanRepayment.builder().repaymentId(id).loan(mine).payer(user(payer)).amount(new BigDecimal(amount)).status("PENDING").build();
+    }
+
+    @Test void verifyingARepaymentCreditsTheLoanAndTheFund() {
+        member(7, "TREASURER", true);
+        LoanRepayment r = pending(1, 5, "400");
+        when(repaymentRepo.findById(1L)).thenReturn(Optional.of(r));
+        when(loanRepo.findByIdWithPessimisticLock(10L)).thenReturn(Optional.of(mine));
         when(chamaRepo.findByIdWithPessimisticLock(1L)).thenReturn(Optional.of(chama));
-        service.repayLoan(10L, new BigDecimal("100"), 5L);
-        assertEquals(new BigDecimal("5100"), chama.getCurrentFund());
+        service.verifyRepayment(1L, 1L, 7L);
+        assertEquals("VERIFIED", r.getStatus());
+        assertEquals(new BigDecimal("5400"), chama.getCurrentFund());
+        assertEquals(new BigDecimal("400"), mine.getAmountPaid());
+    }
+
+    @Test void finalVerifiedRepaymentCompletesTheLoan() {
+        member(7, "TREASURER", true);
+        mine.setAmountPaid(new BigDecimal("700"));
+        LoanRepayment r = pending(1, 5, "400");
+        when(repaymentRepo.findById(1L)).thenReturn(Optional.of(r));
+        when(loanRepo.findByIdWithPessimisticLock(10L)).thenReturn(Optional.of(mine));
+        when(chamaRepo.findByIdWithPessimisticLock(1L)).thenReturn(Optional.of(chama));
+        service.verifyRepayment(1L, 1L, 7L);
+        assertEquals("COMPLETED", mine.getStatus());
+    }
+
+    @Test void anOfficialCannotVerifyTheirOwnRepayment() {
+        member(5, "TREASURER", true);
+        when(repaymentRepo.findById(1L)).thenReturn(Optional.of(pending(1, 5, "400")));
+        when(loanRepo.findByIdWithPessimisticLock(10L)).thenReturn(Optional.of(mine));
+        assertThrows(AccessDeniedException.class, () -> service.verifyRepayment(1L, 1L, 5L));
+        verify(chamaRepo, never()).save(any());
+    }
+
+    @Test void aPlainMemberCannotVerifyARepayment() {
+        member(8, "MEMBER", true);
+        when(repaymentRepo.findById(1L)).thenReturn(Optional.of(pending(1, 5, "400")));
+        when(loanRepo.findByIdWithPessimisticLock(10L)).thenReturn(Optional.of(mine));
+        assertThrows(AccessDeniedException.class, () -> service.verifyRepayment(1L, 1L, 8L));
+    }
+
+    @Test void aRepaymentCanOnlyBeDecidedOnce() {
+        member(7, "TREASURER", true);
+        LoanRepayment r = pending(1, 5, "400");
+        r.setStatus("VERIFIED");
+        when(repaymentRepo.findById(1L)).thenReturn(Optional.of(r));
+        when(loanRepo.findByIdWithPessimisticLock(10L)).thenReturn(Optional.of(mine));
+        assertThrows(IllegalStateException.class, () -> service.verifyRepayment(1L, 1L, 7L));
+        assertThrows(IllegalStateException.class, () -> service.rejectRepayment(1L, 1L, 7L, "x"));
+    }
+
+    @Test void rejectedRepaymentMovesNoMoney() {
+        member(7, "CHAIRPERSON", true);
+        LoanRepayment r = pending(1, 5, "400");
+        when(repaymentRepo.findById(1L)).thenReturn(Optional.of(r));
+        when(loanRepo.findByIdWithPessimisticLock(10L)).thenReturn(Optional.of(mine));
+        service.rejectRepayment(1L, 1L, 7L, "no receipt");
+        assertEquals("REJECTED", r.getStatus());
+        assertEquals(new BigDecimal("5000"), chama.getCurrentFund());
+        assertEquals(0, BigDecimal.ZERO.compareTo(mine.getAmountPaid()));
+    }
+
+    @Test void repaymentsAlreadyAwaitingVerificationCountAgainstTheBalance() {
+        member(5, "MEMBER", true);
+        mine.setStatus("APPROVED");
+        when(loanRepo.findByIdWithPessimisticLock(10L)).thenReturn(Optional.of(mine));
+        when(repaymentRepo.findByLoanId(10L)).thenReturn(List.of(pending(1, 5, "1000")));
+        assertThrows(IllegalArgumentException.class, () -> service.repayLoan(10L, new BigDecimal("101"), 5L));
+    }
+
+    @Test void borrowingLimitIsNetOfLoansStillOwed() {
+        borrowerWithSavings("1000"); // gross limit 3000
+        Loan open = loan(20, user(5));
+        open.setLoanAmount(new BigDecimal("2000")); open.setTotalRepayable(new BigDecimal("2000")); open.setStatus("DISBURSED");
+        when(loanRepo.findByBorrowerUserId(5L)).thenReturn(List.of(open));
+        // only 1000 of headroom is left
+        assertThrows(IllegalArgumentException.class, () -> service.applyForLoan(request("1500", 3, pledge(8, "4000")), 5L));
+        verify(loanRepo, never()).save(any());
+    }
+
+    @Test void repaidPartOfALoanFreesUpBorrowingRoom() {
+        Loan half = loan(21, user(5));
+        half.setLoanAmount(new BigDecimal("2000")); half.setTotalRepayable(new BigDecimal("2000")); half.setAmountPaid(new BigDecimal("1000")); half.setStatus("DISBURSED");
+        assertEquals(0, new BigDecimal("1000").compareTo(LoanService.outstandingPrincipal(List.of(half), 1L).setScale(0, java.math.RoundingMode.HALF_UP)));
+    }
+
+    @Test void aDefaultedBorrowerCannotTakeAnotherLoan() {
+        borrowerWithSavings("10000");
+        Loan bad = loan(22, user(5)); bad.setStatus("DEFAULTED");
+        when(loanRepo.findByBorrowerUserId(5L)).thenReturn(List.of(bad));
+        assertThrows(IllegalArgumentException.class, () -> service.applyForLoan(request("1000", 3, pledge(8, "2000")), 5L));
     }
 
     @Test void calculatorScheduleSumsExactlyToTheTotal() {

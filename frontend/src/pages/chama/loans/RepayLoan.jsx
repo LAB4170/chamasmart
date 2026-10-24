@@ -50,9 +50,9 @@ export default function RepayLoan() {
     setSubmitError("");
     try {
       const res = await loanAPI.repay(id, loanId, { amount: value });
-      setResult({ status: res.data?.status || res.data?.loanStatus, components: res.data?.components || {} });
+      setResult({ status: res.data?.data?.status || "PENDING" });
     } catch (err) {
-      setSubmitError(err.response?.data?.message || "We couldn't record your repayment. Nothing was changed, so you can try again.");
+      setSubmitError(err.response?.data?.message || "We couldn't submit your repayment. Nothing was changed, so you can try again.");
     } finally {
       setBusy(false);
     }
@@ -93,11 +93,8 @@ export default function RepayLoan() {
 
             {result ? (
               <div className="cs-notice cs-notice--success" role="status" style={{ flexDirection: "column" }}>
-                <strong>Repayment recorded.</strong>
-                {result.status && <span>Loan status: {String(result.status).replace(/_/g, " ").toLowerCase()}.</span>}
-                {(result.components.principal || result.components.interest || result.components.penalty) ? (
-                  <span>Applied to principal {formatKES(result.components.principal || 0)}, interest {formatKES(result.components.interest || 0)}, penalty {formatKES(result.components.penalty || 0)}.</span>
-                ) : null}
+                <strong>Repayment submitted.</strong>
+                <span>It is waiting for an official to confirm the money arrived. Your balance changes only once they do.</span>
                 <div className="cs-actions">{back}</div>
               </div>
             ) : remaining > 0 ? (
@@ -109,11 +106,11 @@ export default function RepayLoan() {
                     value={amount} disabled={busy} onChange={(e) => setAmount(e.target.value)} onBlur={() => setTouched(true)}
                     aria-invalid={touched && Boolean(amountError)} aria-describedby="repay-msg" />
                   <span id="repay-msg" className={touched && amountError ? "cs-error" : "cs-help"}>
-                    {touched && amountError ? amountError : `Up to ${formatKES(remaining)}. Payments cover penalties first, then interest, then principal.`}
+                    {touched && amountError ? amountError : `Up to ${formatKES(remaining)}. An official confirms each payment before it counts.`}
                   </span>
                 </div>
                 <div className="cs-actions" style={{ marginTop: 16 }}>
-                  <Button type="submit" variant="primary" loading={busy}>{busy ? "Recording…" : "Record repayment"}</Button>
+                  <Button type="submit" variant="primary" loading={busy}>{busy ? "Submitting…" : "Submit repayment"}</Button>
                 </div>
               </form>
             ) : (

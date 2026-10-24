@@ -149,7 +149,7 @@ public class LoanController {
         return ResponseEntity.ok(ApiResponse.success(null, "Loan rejected successfully"));
     }
     @PostMapping("/{chamaId}/{loanId}/repay")
-    public ResponseEntity<ApiResponse<Void>> repayLoan(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> repayLoan(
             @PathVariable Long chamaId, 
             @PathVariable Long loanId, 
             @RequestBody Map<String, Object> payload,
@@ -165,8 +165,27 @@ public class LoanController {
         } else {
             amount = new BigDecimal(amountObj.toString());
         }
-        loanService.repayLoan(loanId, amount, currentUser.getUserId());
-        return ResponseEntity.ok(ApiResponse.success(null, "Loan repaid successfully"));
+        com.chamasmart.backend.domain.LoanRepayment r = loanService.repayLoan(loanId, amount, currentUser.getUserId());
+        Map<String, Object> data = new HashMap<>();
+        data.put("repayment_id", r.getRepaymentId());
+        data.put("status", r.getStatus());
+        return ResponseEntity.ok(ApiResponse.success(data, "Repayment submitted. It counts once an official verifies it"));
+    }
+    @GetMapping("/{chamaId}/repayments/pending")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> pendingRepayments(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(loanService.pendingRepayments(chamaId, currentUser.getUserId()), "Pending repayments retrieved"));
+    }
+    @PostMapping("/{chamaId}/repayments/{repaymentId}/verify")
+    public ResponseEntity<ApiResponse<Void>> verifyRepayment(@PathVariable Long chamaId, @PathVariable Long repaymentId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        loanService.verifyRepayment(chamaId, repaymentId, currentUser.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(null, "Repayment verified"));
+    }
+    @PostMapping("/{chamaId}/repayments/{repaymentId}/reject")
+    public ResponseEntity<ApiResponse<Void>> rejectRepayment(@PathVariable Long chamaId, @PathVariable Long repaymentId,
+                                                            @RequestBody(required = false) Map<String, String> payload,
+                                                            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        loanService.rejectRepayment(chamaId, repaymentId, currentUser.getUserId(), payload != null ? payload.get("reason") : null);
+        return ResponseEntity.ok(ApiResponse.success(null, "Repayment rejected"));
     }
     @GetMapping("/{chamaId}/reports/analytics")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getChamaAnalytics(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails currentUser) {
