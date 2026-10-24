@@ -138,8 +138,8 @@ public class RoscaService {
                 .chama(chama)
                 .referenceId(cycleId)
                 .description("ROSCA Pot Disbursed. Cycle: " + cycle.getCycleName() + ", Recipient: " + recipientFullName + ", Position: " + nextRecipient.getPosition())
-                .ipAddress("127.0.0.1")
-                .userAgent("System-Service")
+                .ipAddress(com.chamasmart.backend.security.ClientIp.current())
+                .userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent())
                 .build();
         auditLogRepository.save(auditLog);
         log.info("Successfully completed pot payout of KES {} to user: {}", potAmount, recipientFullName);

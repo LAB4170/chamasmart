@@ -180,8 +180,8 @@ public class WelfareService {
                         .chama(claim.getChama())
                         .referenceId(claim.getClaimId())
                         .description("Welfare claim disbursed. Claim ID: " + claim.getClaimId() + ", Reason: " + claim.getDescription())
-                        .ipAddress("127.0.0.1")
-                        .userAgent("System-Service")
+                        .ipAddress(com.chamasmart.backend.security.ClientIp.current())
+                        .userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent())
                         .build();
                 auditLogRepository.save(auditLog);
                 log.info("Welfare claim ID: {} fully approved and disbursed from fund.", claimId);

@@ -106,8 +106,8 @@ public class AscaService {
                 .chama(chama)
                 .referenceId(cycle.getCycleId())
                 .description("ASCA shares purchased: " + sharesToPurchase + " shares. Total Invested: KES " + investmentAmount)
-                .ipAddress("127.0.0.1")
-                .userAgent("System-Service")
+                .ipAddress(com.chamasmart.backend.security.ClientIp.current())
+                .userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent())
                 .build();
         auditLogRepository.save(auditLog);
         log.info("Successfully processed share purchase. Remaining available shares: {}", updatedCycle.getAvailableShares());

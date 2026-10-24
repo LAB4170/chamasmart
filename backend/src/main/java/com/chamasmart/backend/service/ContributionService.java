@@ -86,8 +86,8 @@ public class ContributionService {
                 .chama(chama)
                 .referenceId(c.getContributionId())
                 .description(description)
-                .ipAddress("127.0.0.1")
-                .userAgent("System-Service")
+                .ipAddress(com.chamasmart.backend.security.ClientIp.current())
+                .userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent())
                 .build());
     }
 

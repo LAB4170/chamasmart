@@ -395,8 +395,8 @@ public class LoanService {
                 .chama(chama)
                 .referenceId(loan.getLoanId())
                 .description("Loan approved and disbursed. Borrower ID: " + loan.getBorrower().getUserId() + ", Amount: KES " + amount)
-                .ipAddress("127.0.0.1")
-                .userAgent("System-Service")
+                .ipAddress(com.chamasmart.backend.security.ClientIp.current())
+                .userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent())
                 .build();
         auditLogRepository.save(auditLog);
     }
@@ -456,8 +456,8 @@ public class LoanService {
                 .chama(loan.getChama())
                 .referenceId(loan.getLoanId())
                 .description("Repayment reported and waiting for verification. Loan ID: " + loan.getLoanId())
-                .ipAddress("127.0.0.1")
-                .userAgent("System-Service")
+                .ipAddress(com.chamasmart.backend.security.ClientIp.current())
+                .userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent())
                 .build());
         return saved;
     }
@@ -504,8 +504,8 @@ public class LoanService {
                 .chama(chama)
                 .referenceId(loan.getLoanId())
                 .description("Repayment verified. Loan ID: " + loan.getLoanId() + ", payer ID: " + rep.getPayer().getUserId() + ", amount: KES " + rep.getAmount())
-                .ipAddress("127.0.0.1")
-                .userAgent("System-Service")
+                .ipAddress(com.chamasmart.backend.security.ClientIp.current())
+                .userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent())
                 .build());
     }
 
@@ -534,8 +534,8 @@ public class LoanService {
                 .chama(loan.getChama())
                 .referenceId(loan.getLoanId())
                 .description("Repayment rejected. Loan ID: " + loan.getLoanId() + (reason != null ? ", reason: " + reason : ""))
-                .ipAddress("127.0.0.1")
-                .userAgent("System-Service")
+                .ipAddress(com.chamasmart.backend.security.ClientIp.current())
+                .userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent())
                 .build());
     }
 
