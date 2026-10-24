@@ -46,7 +46,7 @@ public class User {
     @Column(name = "trust_score")
     @Builder.Default
     private Integer trustScore = 50;
-    @Column(name = "national_id", length = 50)
+    @Column(name = "national_id", length = 255)
     @Convert(converter = com.chamasmart.backend.util.NationalIdEncryptor.class)
     private String nationalId;
     @Column(name = "profile_picture_url", length = 1000)

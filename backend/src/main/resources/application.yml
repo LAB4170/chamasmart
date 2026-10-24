@@ -40,6 +40,7 @@ spring:
 
 app:
   security:
+    data-key: ${DATA_ENCRYPTION_KEY:}
     jwt:
       secret: ${JWT_SECRET:}
       expiration-ms: 86400000 # 24 hours

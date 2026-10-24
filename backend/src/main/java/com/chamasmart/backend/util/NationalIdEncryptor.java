@@ -1,29 +1,20 @@
 package com.chamasmart.backend.util;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
-import java.util.Base64;
+
 /**
- * JPA AttributeConverter that encrypts the national ID before persisting to the database
- * and decrypts it when reading the entity. For demonstration purposes, this uses simple Base64
- * encoding; in production replace with a robust encryption algorithm (e.g., AES with a secret key).
+ * Encrypts the national ID at rest (AES-256-GCM, see FieldCrypto). It is NOT auto-applied: the earlier version was
+ * applied to every String column in every entity and only Base64-encoded them (finding S-18). Use it with @Convert on
+ * the specific fields that need it.
  */
-@Converter(autoApply = true)
+@Converter
 public class NationalIdEncryptor implements AttributeConverter<String, String> {
     @Override
     public String convertToDatabaseColumn(String attribute) {
-        if (attribute == null) return null;
-        // Simple Base64 encoding as placeholder for encryption
-        return Base64.getEncoder().encodeToString(attribute.getBytes());
+        return FieldCrypto.encrypt(attribute);
     }
     @Override
     public String convertToEntityAttribute(String dbData) {
-        if (dbData == null) return null;
-        try {
-            return new String(Base64.getDecoder().decode(dbData));
-        } catch (IllegalArgumentException e) {
-            // Fallback for existing plaintext data
-            return dbData;
-        }
+        return FieldCrypto.decrypt(dbData);
     }
 }
-
