@@ -1,13 +1,14 @@
 import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Wallet, Landmark, RefreshCw, HeartHandshake, ShieldCheck } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 const FEATURES = [
-  { title: "Contributions", text: "Members report payments, officials verify them, and the group fund updates only after verification." },
-  { title: "Loans", text: "Set the interest rate and borrowing limit, collect guarantors, and track every repayment against a schedule." },
-  { title: "Merry-go-round", text: "Run rotating cycles with a clear payout order, and record each payout in the books." },
-  { title: "Welfare", text: "Configure events and handle claims. A claim is paid only after two different officials approve it." },
-  { title: "Roles and records", text: "Chairperson, treasurer, secretary and members each see only what they should, and money movements are logged." },
+  { title: "Contributions", text: "Members report a payment, officials verify it, and the fund updates only after that.", Icon: Wallet, color: "#16a34a" },
+  { title: "Loans", text: "Set the rate and limit, collect guarantors and track every repayment.", Icon: Landmark, color: "#2563eb" },
+  { title: "Merry-go-round", text: "Rotating cycles with a clear payout order, each payout recorded.", Icon: RefreshCw, color: "#ea580c" },
+  { title: "Welfare", text: "A claim is paid only after two different officials approve it.", Icon: HeartHandshake, color: "#db2777" },
+  { title: "Roles and records", text: "Everyone sees only what their role allows, and money movements are logged.", Icon: ShieldCheck, color: "#475569" },
 ];
 
 export default function LandingPage() {
@@ -18,30 +19,31 @@ export default function LandingPage() {
 
   return (
     <div className="cs-shell">
-      <div className="cs-page">
-        <nav className="cs-landing-nav" aria-label="Main">
-          <strong>ChamaSmart</strong>
-          <Link to="/login" className="cs-btn cs-btn--secondary cs-btn--sm">Sign in</Link>
-        </nav>
+      <div className="cs-page cs-landing">
         <main>
           <section className="cs-landing-hero">
-            <h1>Run your chama with clear books</h1>
-            <p>Contributions, loans, merry-go-round and welfare for your savings group, in one place on your phone.</p>
-            <div className="cs-actions">
+            <div className="cs-landing-icon" aria-hidden="true">CS</div>
+            <h1>Your chama, with clear books</h1>
+            <p>Contributions, loans, merry-go-round and welfare for your savings group, all in one place.</p>
+            <div className="cs-landing-cta">
               <Link to="/register" className="cs-btn cs-btn--primary">Create an account</Link>
-              <Link to="/login" className="cs-btn cs-btn--secondary">Sign in</Link>
+              <Link to="/login" className="cs-landing-signin">I already have an account</Link>
             </div>
           </section>
-          <section aria-label="What you can do" className="cs-grid">
-            {FEATURES.map((f) => (
-              <article key={f.title} className="cs-card">
-                <h2 className="cs-card-title">{f.title}</h2>
-                <p className="cs-list-meta" style={{ margin: 0 }}>{f.text}</p>
-              </article>
+          <h2 className="cs-landing-label">What you can do</h2>
+          <ul className="cs-landing-group">
+            {FEATURES.map(({ title, text, Icon, color }) => (
+              <li key={title} className="cs-landing-row">
+                <span className="cs-landing-row-icon" style={{ background: color }} aria-hidden="true"><Icon size={20} /></span>
+                <div>
+                  <h3 style={{ margin: "0 0 2px", fontSize: "1.0625rem", fontWeight: 600 }}>{title}</h3>
+                  <p style={{ margin: 0 }}>{text}</p>
+                </div>
+              </li>
             ))}
-          </section>
+          </ul>
         </main>
-        <p className="cs-footnote" style={{ textAlign: "center", marginTop: 32 }}>&copy; {new Date().getFullYear()} ChamaSmart</p>
+        <p className="cs-landing-foot">&copy; {new Date().getFullYear()} ChamaSmart</p>
       </div>
     </div>
   );

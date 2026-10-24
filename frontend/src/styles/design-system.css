@@ -325,8 +325,24 @@ a.cs-list-item:hover { background: var(--cs-surface-2); }
 .cs-btn--block { width: 100%; }
 
 /* Landing */
-.cs-landing-hero { text-align: center; padding: 56px 0 40px; max-width: 640px; margin: 0 auto; }
-.cs-landing-hero h1 { font-size: clamp(2rem, 6vw, 3rem); line-height: 1.1; margin: 0 0 12px; }
-.cs-landing-hero p { color: var(--cs-text-2); font-size: 1.1rem; margin: 0 0 24px; }
-.cs-landing-hero .cs-actions { justify-content: center; }
-.cs-landing-nav { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; }
+.cs-landing { max-width: 720px; margin: 0 auto; padding: 8px 16px calc(32px + env(safe-area-inset-bottom)); }
+.cs-landing-hero { padding: 40px 0 28px; text-align: left; }
+.cs-landing-icon { width: 64px; height: 64px; display: grid; place-items: center; border-radius: 16px; background: var(--cs-primary); color: var(--cs-brand-gold); font-weight: 800; font-size: 1.25rem; letter-spacing: .02em; margin: 0 0 20px; box-shadow: var(--cs-shadow-2); }
+.cs-landing-hero h1 { font-size: clamp(2rem, 8.5vw, 2.75rem); line-height: 1.08; letter-spacing: -0.03em; font-weight: 700; margin: 0 0 12px; }
+.cs-landing-hero p { color: var(--cs-text-2); font-size: 1.0625rem; line-height: 1.45; margin: 0 0 24px; max-width: 34rem; }
+.cs-landing-cta { display: flex; flex-direction: column; gap: 4px; max-width: 360px; }
+.cs-landing-cta .cs-btn--primary { min-height: 50px; font-size: 1.0625rem; border-radius: 14px; width: 100%; }
+.cs-landing-cta .cs-landing-signin { text-align: center; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; color: var(--cs-focus); font-weight: 500; text-decoration: none; }
+.cs-landing-label { margin: 8px 16px 8px; font-size: .8125rem; font-weight: 500; letter-spacing: .02em; text-transform: uppercase; color: var(--cs-text-3); }
+.cs-landing-group { list-style: none; margin: 0 0 24px; padding: 0; background: var(--cs-surface); border-radius: 14px; box-shadow: var(--cs-shadow-1); overflow: hidden; }
+.cs-landing-row { display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; position: relative; }
+.cs-landing-row + .cs-landing-row::before { content: ""; position: absolute; top: 0; left: 62px; right: 0; border-top: 1px solid var(--cs-separator); }
+.cs-landing-row-icon { flex: none; width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; color: #fff; }
+.cs-landing-row h3 { margin: 0 0 2px; font-size: 1.0625rem; font-weight: 600; line-height: 1.25; }
+.cs-landing-row p { margin: 0; font-size: .9375rem; line-height: 1.4; color: var(--cs-text-2); }
+.cs-landing-foot { text-align: center; font-size: .8125rem; color: var(--cs-text-3); margin: 8px 0 0; }
+@media (min-width: 769px) {
+  .cs-landing-hero { text-align: center; padding: 72px 0 40px; }
+  .cs-landing-icon { margin-left: auto; margin-right: auto; }
+  .cs-landing-hero p, .cs-landing-cta { margin-left: auto; margin-right: auto; }
+}

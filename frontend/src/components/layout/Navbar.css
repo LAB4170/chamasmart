@@ -41,6 +41,7 @@
   /* Compact translucent top bar */
   .cs-nav { height: 52px; }
   .cs-nav-links, .cs-profile { display: none; }
+  .cs-nav .cs-nav-cta { display: none; } /* the landing screen carries its own primary action */
   .cs-nav-brand-text { font-size: 1rem; }
   .cs-nav-logo { width: 28px; height: 28px; border-radius: 8px; }
 

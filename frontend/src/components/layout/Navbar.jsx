@@ -112,7 +112,7 @@ export default function Navbar() {
             ) : (
               <>
                 <Link to="/login" className="cs-btn cs-btn--tertiary cs-btn--sm">Sign in</Link>
-                <Link to="/register" className="cs-btn cs-btn--primary cs-btn--sm">Get started</Link>
+                <Link to="/register" className="cs-btn cs-btn--primary cs-btn--sm cs-nav-cta">Get started</Link>
               </>
             )}
           </div>
