@@ -26,6 +26,8 @@ public class RoscaCycleDto {
     private String status;
     private ZonedDateTime created_at;
     private List<RosterPositionDto> roster;
+    /** Optional on create: the user ids in payout order, when the officials choose the order themselves (payout_order MANUAL). */
+    private List<Long> member_order;
     @Data
     @Builder
     @NoArgsConstructor
@@ -37,6 +39,7 @@ public class RoscaCycleDto {
         private Integer position;
         private String status;
         private LocalDate payout_date;
+        private ZonedDateTime paid_at;
     }
     public static RoscaCycleDto fromEntity(RoscaCycle cycle, List<RoscaRoster> rosterList) {
         List<RosterPositionDto> rosterDtos = rosterList.stream()
@@ -47,6 +50,7 @@ public class RoscaCycleDto {
                         .position(r.getPosition())
                         .status(r.getStatus())
                         .payout_date(r.getPayoutDate())
+                        .paid_at(r.getPaidAt())
                         .build())
                 .collect(Collectors.toList());
         return RoscaCycleDto.builder()

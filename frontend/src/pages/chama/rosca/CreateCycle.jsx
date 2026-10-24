@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
-import { roscaAPI } from "../../../services/api";
+import { roscaAPI, chamaAPI } from "../../../services/api";
 import { Button, PageHeader } from "../../../components/ui";
 
 const today = () => new Date().toISOString().split("T")[0];
@@ -11,7 +11,25 @@ export default function CreateCycle() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
-  const [form, setForm] = useState({ name: "", amount: "", startDate: today() });
+  const [form, setForm] = useState({ name: "", amount: "", startDate: today(), order: "ROTATIONAL" });
+  const [members, setMembers] = useState([]); // for the "I choose the order" option
+
+  useEffect(() => {
+    let live = true;
+    chamaAPI.getMembers(id).then((r) => {
+      const list = (r.data?.data ?? []).filter((m) => m.is_active !== false && (m.status || "ACTIVE") !== "INACTIVE");
+      if (live) setMembers(list.map((m) => ({ id: m.user_id ?? m.userId, name: `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() || m.member_name || "Member" })));
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [id]);
+
+  const move = (i, d) => setMembers((list) => {
+    const j = i + d;
+    if (j < 0 || j >= list.length) return list;
+    const next = [...list];
+    [next[i], next[j]] = [next[j], next[i]];
+    return next;
+  });
 
   const set = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
@@ -35,6 +53,8 @@ export default function CreateCycle() {
         cycle_name: form.name.trim(),
         contribution_amount: Number(form.amount),
         start_date: form.startDate,
+        payout_order: form.order,
+        ...(form.order === "MANUAL" ? { member_order: members.map((m) => m.id) } : {}),
       });
       toast.success("Cycle created.");
       navigate(`/chamas/${id}/rosca`);
@@ -70,6 +90,28 @@ export default function CreateCycle() {
               {err("startDate")}
             </div>
           </div>
+          <div className="cs-field">
+            <label className="cs-label" htmlFor="cc-order">Who receives first</label>
+            <select className="cs-select" id="cc-order" name="order" value={form.order} onChange={set}>
+              <option value="ROTATIONAL">In the order members joined</option>
+              <option value="RANDOM">A random draw</option>
+              <option value="MANUAL">I will choose the order</option>
+            </select>
+            <span className="cs-help">The order is fixed once the cycle starts. Members can swap turns with each other's consent.</span>
+          </div>
+          {form.order === "MANUAL" && (
+            <ol className="cs-list" style={{ listStyle: "none", padding: 0, margin: "0 0 12px" }} aria-label="Payout order">
+              {members.map((m, i) => (
+                <li key={m.id} className="cs-list-item">
+                  <div className="cs-list-main"><div className="cs-list-title">{i + 1}. {m.name}</div></div>
+                  <span className="cs-actions">
+                    <Button type="button" size="sm" variant="secondary" disabled={i === 0} aria-label={`Move ${m.name} up`} onClick={() => move(i, -1)}>Up</Button>
+                    <Button type="button" size="sm" variant="secondary" disabled={i === members.length - 1} aria-label={`Move ${m.name} down`} onClick={() => move(i, 1)}>Down</Button>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
           <p className="cs-help">The cycle includes every active member. You can only have one active cycle at a time.</p>
           <div className="cs-actions">
             <Button type="submit" loading={saving}>Create cycle</Button>

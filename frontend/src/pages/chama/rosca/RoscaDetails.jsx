@@ -20,6 +20,10 @@ export default function RoscaDetails() {
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(null); // "payout" | "cancel"
+  const [swaps, setSwaps] = useState([]);
+  const [swapWith, setSwapWith] = useState(null); // roster row
+  const [swapReason, setSwapReason] = useState("");
+  const myId = user?.id ?? user?.user_id ?? user?.userId;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -38,6 +42,7 @@ export default function RoscaDetails() {
       setContributions(Array.isArray(ks) ? ks : []);
       setRole((ch.data?.data?.role || "").toUpperCase());
       try { setRound((await roscaAPI.getRound(cycleId)).data?.data ?? null); } catch { setRound(null); }
+      try { setSwaps(((await roscaAPI.getSwapRequests()).data?.data ?? []).filter((x) => String(x.cycle_id) === String(cycleId))); } catch { setSwaps([]); }
     } catch {
       setFailed(true);
     } finally {
@@ -51,6 +56,9 @@ export default function RoscaDetails() {
   const paid = roster.filter((r) => r.status === "PAID").length;
   const isOfficial = OFFICIALS.includes(role);
   const isActive = cycle?.status === "ACTIVE";
+  const myPending = swaps.filter((x) => x.status === "PENDING");
+  const mySlot = roster.find((r) => String(r.user_id) === String(myId));
+  const canAskSwap = isActive && mySlot?.status === "ACTIVE" && !myPending.some((x) => String(x.requester_id) === String(myId) || String(x.target_id) === String(myId));
   const pot = Number(cycle?.contribution_amount || 0) * (cycle?.total_members || roster.length);
   const verified = contributions.filter((c) => c.status === "COMPLETED");
 
@@ -72,6 +80,29 @@ export default function RoscaDetails() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const answerSwap = async (swap, action) => {
+    setBusy(true);
+    try {
+      await roscaAPI.respondToSwap(swap.swap_id, action);
+      toast.success(action === "ACCEPT" ? "Turns swapped." : action === "CANCEL" ? "Request cancelled." : "Request declined.");
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "That didn't go through. Nothing was changed.");
+    } finally { setBusy(false); }
+  };
+
+  const sendSwap = async () => {
+    setBusy(true);
+    try {
+      await roscaAPI.requestSwap(cycleId, { target_user_id: swapWith.user_id, reason: swapReason.trim() });
+      toast.success("Request sent. Your turns change only if they accept.");
+      setSwapWith(null); setSwapReason("");
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "We couldn't send the request.");
+    } finally { setBusy(false); }
   };
 
   const columns = [
@@ -117,6 +148,14 @@ export default function RoscaDetails() {
             <h2 className="cs-card-title">Round {round.round_number} of {round.total_rounds}</h2>
             <p className="cs-help">{formatKES(round.available)} of {formatKES(round.pot)} collected for this pot. Only verified payments count.</p>
             <progress max={Number(round.pot) || 1} value={Math.min(Number(round.available), Number(round.pot))} aria-label="Pot collected" style={{ width: "100%" }} />
+            {Number(round.days_overdue) > 0 && (
+              <div className="cs-notice cs-notice--warning" role="status" style={{ margin: "8px 0" }}>
+                {round.recipient_name}&apos;s turn was due on {formatDate(round.due_date)}, {round.days_overdue} day{Number(round.days_overdue) === 1 ? "" : "s"} ago.
+              </div>
+            )}
+            {(round.waiting_for_next_cycle || []).length > 0 && (
+              <p className="cs-help">Joined after this cycle began and will take part from the next one: {round.waiting_for_next_cycle.join(", ")}.</p>
+            )}
             {round.members.some((m) => Number(m.arrears) > 0) ? (
               <ul className="cs-list" style={{ listStyle: "none", padding: 0, margin: "12px 0 0" }}>
                 {round.members.filter((m) => Number(m.arrears) > 0).map((m) => (
@@ -137,10 +176,15 @@ export default function RoscaDetails() {
               {roster.map((r) => (
                 <li key={r.roster_id} className="cs-list-item">
                   <div className="cs-list-main">
-                    <div className="cs-list-title">{r.position}. {r.member_name}{String(r.user_id) === String(user?.user_id) ? " (you)" : ""}</div>
-                    <div className="cs-list-meta">{r.status === "PAID" ? `Paid ${r.payout_date ? formatDate(r.payout_date) : ""}` : r === next ? (r.status === "PAYOUT_PENDING" ? "Next to receive, waiting for a second official" : "Next to receive") : r.status === "SKIPPED" ? "Skipped, no longer in the chama" : "Waiting"}</div>
+                    <div className="cs-list-title">{r.position}. {r.member_name}{String(r.user_id) === String(myId) ? " (you)" : ""}</div>
+                    <div className="cs-list-meta">{r.status === "PAID" ? `Paid ${r.paid_at ? formatDate(r.paid_at) : ""}` : r.status === "ACTIVE" && r.payout_date ? `Due ${formatDate(r.payout_date)}` + (r === next ? " · next to receive" : "") : r === next && r.status === "PAYOUT_PENDING" ? "Next to receive, waiting for a second official" : r.status === "SKIPPED" ? "Skipped, no longer in the chama" : "Waiting"}</div>
                   </div>
-                  <StatusBadge status={r.status === "PAID" ? "PAID" : r === next ? "ACTIVE" : "PENDING"} label={r.status === "PAID" ? "Paid" : r === next ? "Next" : "Waiting"} />
+                  <span className="cs-actions">
+                    {canAskSwap && r.status === "ACTIVE" && String(r.user_id) !== String(myId) && (
+                      <Button size="sm" variant="secondary" aria-label={`Ask ${r.member_name} to swap turns`} onClick={() => setSwapWith(r)}>Swap turns</Button>
+                    )}
+                    <StatusBadge status={r.status === "PAID" ? "PAID" : r === next ? "ACTIVE" : "PENDING"} label={r.status === "PAID" ? "Paid" : r === next ? "Next" : "Waiting"} />
+                  </span>
                 </li>
               ))}
             </ol>
@@ -153,6 +197,28 @@ export default function RoscaDetails() {
           )}
         </section>
 
+        {myPending.some((x) => String(x.requester_id) === String(myId) || String(x.target_id) === String(myId)) && (
+          <section className="cs-card" aria-label="Swap requests" style={{ marginBottom: 16 }}>
+            <h2 className="cs-card-title">Swap requests</h2>
+            <ul className="cs-list" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {myPending.filter((x) => String(x.requester_id) === String(myId) || String(x.target_id) === String(myId)).map((x) => (
+                <li key={x.swap_id} className="cs-list-item">
+                  <div className="cs-list-main">
+                    <div className="cs-list-title">{String(x.target_id) === String(myId) ? `${x.requester_name} asks to swap turns with you` : `You asked ${x.target_name} to swap turns`}</div>
+                    {x.reason && <div className="cs-list-meta">{x.reason}</div>}
+                  </div>
+                  <span className="cs-actions">
+                    {String(x.target_id) === String(myId) ? (<>
+                      <Button size="sm" loading={busy} onClick={() => answerSwap(x, "ACCEPT")}>Accept</Button>
+                      <Button size="sm" variant="secondary" disabled={busy} onClick={() => answerSwap(x, "DECLINE")}>Decline</Button>
+                    </>) : <Button size="sm" variant="secondary" disabled={busy} onClick={() => answerSwap(x, "CANCEL")}>Cancel request</Button>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         <section className="cs-card" aria-label="Contributions">
           <h2 className="cs-card-title">Contributions</h2>
           <DataTable
@@ -164,7 +230,18 @@ export default function RoscaDetails() {
             summarize={(rs) => `${rs.length} shown · ${formatKES(rs.reduce((t, r) => t + Number(r.amount || 0), 0))} submitted · ${verified.length} verified in total`}
           />
         </section>
-        <p className="cs-footnote">ChamaSmart keeps the books only. Paying the recipient happens outside the app; recording it here updates the chama&apos;s fund. Position swaps aren&apos;t available yet.</p>
+        <p className="cs-footnote">ChamaSmart keeps the books only. Paying the recipient happens outside the app; recording it here updates the chama&apos;s fund.</p>
+
+        <Dialog
+          open={!!swapWith}
+          onClose={() => { if (!busy) setSwapWith(null); }}
+          title="Ask to swap turns?"
+          actions={(<><Button onClick={() => setSwapWith(null)} disabled={busy}>Go back</Button><Button loading={busy} onClick={sendSwap}>Send request</Button></>)}
+        >
+          <p>You would take turn {swapWith?.position} ({swapWith?.member_name}&apos;s turn) and they would take yours. Nothing changes unless they accept.</p>
+          <label className="cs-label" htmlFor="sw-reason">Why? (optional)</label>
+          <textarea id="sw-reason" className="cs-textarea" rows={2} maxLength={300} value={swapReason} onChange={(e) => setSwapReason(e.target.value)} />
+        </Dialog>
 
         <Dialog
           open={!!confirm}

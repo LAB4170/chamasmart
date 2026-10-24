@@ -36,6 +36,8 @@ class RoscaServiceTest {
     @Mock ContributionService contributions;
     @Mock LoanRepository loanRepo;
     @Mock LedgerService ledger;
+    @Mock RoscaSwapRepository swapRepo;
+    @Mock NotificationRepository notifRepo;
 
     RoscaService service;
     Chama chama;
@@ -58,7 +60,7 @@ class RoscaServiceTest {
         when(cycleRepo.findById(5L)).thenReturn(Optional.of(cycle));
         when(cycleRepo.findByIdWithPessimisticLock(5L)).thenReturn(Optional.of(cycle));
         collect(1000, 1000, 1000);
-        service = new RoscaService(cycleRepo, rosterRepo, chamaRepo, memberRepo, userRepo, contribRepo, auditRepo, membership, contributions, loanRepo, ledger);
+        service = new RoscaService(cycleRepo, rosterRepo, chamaRepo, memberRepo, userRepo, contribRepo, auditRepo, membership, contributions, loanRepo, ledger, swapRepo, notifRepo);
     }
 
     /** Verified merry-go-round payments linked to cycle 5, one per amount, from users 8, 9, 10... */
@@ -229,5 +231,107 @@ class RoscaServiceTest {
         bigPot();
         when(rosterRepo.findByCycleCycleIdOrderByPositionAsc(5L)).thenReturn(List.of(roster(1, 8, 1, "ACTIVE")));
         assertEquals("PAID", service.processPayout(5L, 7L));
+    }
+
+    // ---- R-05 ordering and swaps, R-06 deadlines, R-07 joins ----
+
+    private ChamaMember cm(long id, int joinedDaysAgo) {
+        return ChamaMember.builder().chama(chama).user(user(id)).role("MEMBER").isActive(true).joinDate(java.time.ZonedDateTime.now().minusDays(joinedDaysAgo)).build();
+    }
+
+    @Test void rotationalOrderFollowsJoinDate() {
+        RoscaCycleDto dto = new RoscaCycleDto();
+        var ordered = service.orderMembers(List.of(cm(3, 5), cm(1, 90), cm(2, 30)), dto);
+        assertEquals(List.of(1L, 2L, 3L), ordered.stream().map(m -> m.getUser().getUserId()).toList());
+    }
+
+    @Test void manualOrderIsUsedExactly() {
+        RoscaCycleDto dto = new RoscaCycleDto(); dto.setPayout_order("MANUAL"); dto.setMember_order(List.of(3L, 1L, 2L));
+        var ordered = service.orderMembers(List.of(cm(1, 90), cm(2, 30), cm(3, 5)), dto);
+        assertEquals(List.of(3L, 1L, 2L), ordered.stream().map(m -> m.getUser().getUserId()).toList());
+    }
+
+    @Test void manualOrderMustCoverEveryoneOnce() {
+        RoscaCycleDto dto = new RoscaCycleDto(); dto.setPayout_order("MANUAL"); dto.setMember_order(List.of(3L, 3L, 2L));
+        assertThrows(IllegalArgumentException.class, () -> service.orderMembers(List.of(cm(1, 90), cm(2, 30), cm(3, 5)), dto));
+        dto.setMember_order(List.of(1L, 2L));
+        assertThrows(IllegalArgumentException.class, () -> service.orderMembers(List.of(cm(1, 90), cm(2, 30), cm(3, 5)), dto));
+    }
+
+    @Test void randomOrderKeepsEveryMemberExactlyOnce() {
+        RoscaCycleDto dto = new RoscaCycleDto(); dto.setPayout_order("random");
+        var ordered = service.orderMembers(List.of(cm(1, 90), cm(2, 30), cm(3, 5), cm(4, 1)), dto);
+        assertEquals(java.util.Set.of(1L, 2L, 3L, 4L), ordered.stream().map(m -> m.getUser().getUserId()).collect(java.util.stream.Collectors.toSet()));
+    }
+
+    @Test void unknownOrderModeIsRefused() {
+        RoscaCycleDto dto = new RoscaCycleDto(); dto.setPayout_order("BID");
+        assertThrows(IllegalArgumentException.class, () -> service.orderMembers(List.of(cm(1, 1)), dto));
+    }
+
+    private void twoSlots(String sa, String sb) {
+        RoscaRoster a = roster(1, 8, 1, sa); a.setPayoutDate(java.time.LocalDate.of(2026, 1, 1));
+        RoscaRoster b = roster(2, 9, 2, sb); b.setPayoutDate(java.time.LocalDate.of(2026, 2, 1));
+        when(rosterRepo.findByCycleCycleIdAndUserUserId(5L, 8L)).thenReturn(Optional.of(a));
+        when(rosterRepo.findByCycleCycleIdAndUserUserId(5L, 9L)).thenReturn(Optional.of(b));
+        doAnswer(i -> { RoscaSwap s = i.getArgument(0); s.setSwapId(77L); return s; }).when(swapRepo).save(any(RoscaSwap.class));
+        doAnswer(i -> user(i.getArgument(0))).when(userRepo).getReferenceById(any());
+    }
+
+    @Test void swapIsRequestedButNothingMovesUntilAccepted() {
+        twoSlots("ACTIVE", "ACTIVE");
+        RoscaSwap s = service.requestSwap(5L, 8L, 9L, "school fees");
+        assertEquals("PENDING", s.getStatus());
+        assertEquals(1, rosterRepo.findByCycleCycleIdAndUserUserId(5L, 8L).get().getPosition());
+    }
+
+    @Test void acceptingSwapsPositionsAndDates() {
+        twoSlots("ACTIVE", "ACTIVE");
+        RoscaSwap s = RoscaSwap.builder().swapId(77L).cycle(cycle).requester(user(8)).target(user(9)).status("PENDING").build();
+        when(swapRepo.findById(77L)).thenReturn(Optional.of(s));
+        service.respondToSwap(77L, 9L, true);
+        assertEquals(2, rosterRepo.findByCycleCycleIdAndUserUserId(5L, 8L).get().getPosition());
+        assertEquals(1, rosterRepo.findByCycleCycleIdAndUserUserId(5L, 9L).get().getPosition());
+        assertEquals(java.time.LocalDate.of(2026, 2, 1), rosterRepo.findByCycleCycleIdAndUserUserId(5L, 8L).get().getPayoutDate());
+        assertEquals("ACCEPTED", s.getStatus());
+    }
+
+    @Test void onlyTheMemberAskedCanAnswer() {
+        twoSlots("ACTIVE", "ACTIVE");
+        RoscaSwap s = RoscaSwap.builder().swapId(77L).cycle(cycle).requester(user(8)).target(user(9)).status("PENDING").build();
+        when(swapRepo.findById(77L)).thenReturn(Optional.of(s));
+        assertThrows(AccessDeniedException.class, () -> service.respondToSwap(77L, 8L, true));
+        assertThrows(AccessDeniedException.class, () -> service.respondToSwap(77L, 10L, true));
+    }
+
+    @Test void decliningLeavesTheOrderAlone() {
+        twoSlots("ACTIVE", "ACTIVE");
+        RoscaSwap s = RoscaSwap.builder().swapId(77L).cycle(cycle).requester(user(8)).target(user(9)).status("PENDING").build();
+        when(swapRepo.findById(77L)).thenReturn(Optional.of(s));
+        service.respondToSwap(77L, 9L, false);
+        assertEquals(1, rosterRepo.findByCycleCycleIdAndUserUserId(5L, 8L).get().getPosition());
+        assertEquals("DECLINED", s.getStatus());
+    }
+
+    @Test void paidTurnsCannotBeSwapped() {
+        twoSlots("PAID", "ACTIVE");
+        assertThrows(IllegalStateException.class, () -> service.requestSwap(5L, 8L, 9L, null));
+        twoSlots("ACTIVE", "PAID");
+        assertThrows(IllegalStateException.class, () -> service.requestSwap(5L, 8L, 9L, null));
+    }
+
+    @Test void cannotSwapWithYourself() {
+        twoSlots("ACTIVE", "ACTIVE");
+        assertThrows(IllegalArgumentException.class, () -> service.requestSwap(5L, 8L, 8L, null));
+    }
+
+    @Test void roundShowsOverdueDaysAndWhoIsWaitingForTheNextCycle() {
+        RoscaRoster a = roster(1, 8, 1, "ACTIVE"); a.setPayoutDate(java.time.LocalDate.now().minusDays(4));
+        when(rosterRepo.findByCycleCycleIdOrderByPositionAsc(5L)).thenReturn(List.of(a));
+        when(memberRepo.findByChamaChamaIdAndIsActiveTrue(1L)).thenReturn(List.of(cm(8, 100), cm(20, 2)));
+        when(membership.activeMember(1L, 8L)).thenReturn(cm(8, 100));
+        Map<String, Object> round = service.getRound(5L, 8L);
+        assertEquals(4L, round.get("days_overdue"));
+        assertEquals(List.of("U20 X"), round.get("waiting_for_next_cycle"));
     }
 }

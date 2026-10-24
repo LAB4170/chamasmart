@@ -55,7 +55,7 @@ class MembershipAndGovernanceTest {
         when(memberRepo.save(any(ChamaMember.class))).thenAnswer(i -> i.getArgument(0));
         when(inviteRepo.save(any(Invite.class))).thenAnswer(i -> i.getArgument(0));
         when(joinRepo.save(any(JoinRequest.class))).thenAnswer(i -> i.getArgument(0));
-        membership = new MembershipService(chamaRepo, memberRepo, userRepo, loanRepo, guarantorRepo, mock(com.chamasmart.backend.repository.ContributionRepository.class));
+        membership = new MembershipService(chamaRepo, memberRepo, userRepo, loanRepo, guarantorRepo, mock(com.chamasmart.backend.repository.ContributionRepository.class), mock(com.chamasmart.backend.repository.RoscaCycleRepository.class), mock(com.chamasmart.backend.repository.RoscaRosterRepository.class));
         governance = new GovernanceService(meetingRepo, notifRepo, inviteRepo, joinRepo, chamaRepo, userRepo, memberRepo, membership);
     }
 

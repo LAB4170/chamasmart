@@ -35,6 +35,9 @@ public class RoscaRoster {
     private Long payoutRequestedBy;
     @Column(name = "payout_date")
     private LocalDate payoutDate;
+    /** When the pot was actually paid, as opposed to the date it was scheduled for. */
+    @Column(name = "paid_at")
+    private ZonedDateTime paidAt;
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private ZonedDateTime createdAt;

@@ -27,6 +27,8 @@ public class MembershipService {
     private final LoanRepository loanRepository;
     private final com.chamasmart.backend.repository.LoanGuarantorRepository loanGuarantorRepository;
     private final com.chamasmart.backend.repository.ContributionRepository contributionRepository;
+    private final com.chamasmart.backend.repository.RoscaCycleRepository roscaCycleRepository;
+    private final com.chamasmart.backend.repository.RoscaRosterRepository roscaRosterRepository;
 
     public ChamaMember activeMember(Long chamaId, Long userId) {
         return chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
@@ -102,6 +104,12 @@ public class MembershipService {
                         && !"REJECTED".equalsIgnoreCase(g.getStatus())
                         && OPEN_LOAN.contains(String.valueOf(g.getLoan().getStatus()).toUpperCase()));
         if (guaranteeing) throw new IllegalStateException("This member is guaranteeing a loan that is not settled yet. The borrower must repay or replace the guarantor first");
+        // R-07: a member cannot be taken out of a merry-go-round while its cycle is running; the order and the pot are fixed for the cycle.
+        boolean inRunningCycle = roscaCycleRepository.findByChamaChamaId(chamaId).stream()
+                .filter(c -> "ACTIVE".equalsIgnoreCase(c.getStatus()))
+                .anyMatch(c -> roscaRosterRepository.findByCycleCycleIdAndUserUserId(c.getCycleId(), targetUserId)
+                        .map(r -> !"SKIPPED".equalsIgnoreCase(r.getStatus())).orElse(false));
+        if (inRunningCycle) throw new IllegalStateException("A merry-go-round cycle is running and this member is part of it. Finish or cancel the cycle first");
         target.setIsActive(false);
         target.setStatus("INACTIVE");
         chamaMemberRepository.save(target);

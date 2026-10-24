@@ -49,16 +49,26 @@ public class RoscaController {
         return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(ApiResponse.error(what + " is not available yet"));
     }
     @PostMapping("/cycles/{cycleId}/swap-request")
-    public ResponseEntity<ApiResponse<Void>> requestSwap(@PathVariable Long cycleId, @RequestBody java.util.Map<String, Object> payload) {
-        return notAvailable("Swapping positions");
+    public ResponseEntity<ApiResponse<Void>> requestSwap(@PathVariable Long cycleId, @RequestBody java.util.Map<String, Object> payload, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        Object target = payload.get("target_user_id");
+        if (target == null) throw new IllegalArgumentException("Choose who to swap with");
+        roscaService.requestSwap(cycleId, currentUser.getUserId(), Long.valueOf(target.toString()), payload.get("reason") == null ? null : payload.get("reason").toString());
+        return ResponseEntity.ok(ApiResponse.success(null, "Request sent. Your turns change only if they accept."));
     }
     @GetMapping("/swap-requests")
-    public ResponseEntity<ApiResponse<List<Object>>> getSwapRequests() {
-        return ResponseEntity.ok(ApiResponse.success(new java.util.ArrayList<>(), "No swap requests"));
+    public ResponseEntity<ApiResponse<List<java.util.Map<String, Object>>>> getSwapRequests(@AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(roscaService.mySwaps(currentUser.getUserId()), "Swap requests"));
     }
     @PutMapping("/swap-requests/{requestId}/respond")
-    public ResponseEntity<ApiResponse<Void>> respondToSwap(@PathVariable Long requestId, @RequestBody java.util.Map<String, String> payload) {
-        return notAvailable("Swapping positions");
+    public ResponseEntity<ApiResponse<Void>> respondToSwap(@PathVariable Long requestId, @RequestBody java.util.Map<String, String> payload, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        String action = payload.getOrDefault("action", "");
+        if ("CANCEL".equalsIgnoreCase(action)) {
+            roscaService.cancelSwap(requestId, currentUser.getUserId());
+            return ResponseEntity.ok(ApiResponse.success(null, "Request cancelled"));
+        }
+        boolean accept = "ACCEPT".equalsIgnoreCase(action) || "ACCEPTED".equalsIgnoreCase(action);
+        roscaService.respondToSwap(requestId, currentUser.getUserId(), accept);
+        return ResponseEntity.ok(ApiResponse.success(null, accept ? "Turns swapped" : "Request declined"));
     }
     @PostMapping("/cycles/{cycleId}/payout")
     public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> processPayout(
