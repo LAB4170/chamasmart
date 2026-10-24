@@ -18,4 +18,5 @@ public interface ContributionRepository extends JpaRepository<Contribution, Long
     @Query("SELECT c FROM Contribution c WHERE c.contributionId = :id")
     Optional<Contribution> findByIdWithPessimisticLock(@Param("id") Long id);
     boolean existsByReference(String reference);
+    boolean existsByReferenceIgnoreCase(String reference);
 }

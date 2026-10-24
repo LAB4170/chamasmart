@@ -82,7 +82,7 @@ class ContributionServiceTest {
 
     @Test void duplicateReceiptReferenceIsRejected() {
         member(7, "TREASURER", true); member(6, "MEMBER", true);
-        when(contribRepo.existsByReference("RCP1")).thenReturn(true);
+        when(contribRepo.existsByReferenceIgnoreCase("RCP1")).thenReturn(true);
         assertThrows(IllegalArgumentException.class, () -> service.record(1L, 7L, entry(6, "100", "RCP1"), true));
     }
 

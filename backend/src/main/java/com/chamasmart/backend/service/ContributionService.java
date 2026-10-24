@@ -72,10 +72,10 @@ public class ContributionService {
     }
 
     private String uniqueReference(String supplied, String prefix) {
-        String ref = supplied == null ? "" : supplied.trim();
+        String ref = supplied == null ? "" : supplied.replaceAll("\\s+", "").toUpperCase();
         if (ref.isEmpty()) return prefix + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         if (ref.length() > 100) throw new IllegalArgumentException("Reference is too long");
-        if (contributionRepository.existsByReference(ref)) throw new IllegalArgumentException("A contribution with reference " + ref + " already exists");
+        if (contributionRepository.existsByReferenceIgnoreCase(ref)) throw new IllegalArgumentException("A contribution with reference " + ref + " already exists");
         return ref;
     }
 
@@ -166,7 +166,7 @@ public class ContributionService {
         List<ContributionSummaryDto> out = new ArrayList<>();
         for (Entry e : entries) {
             if (e.userId() == null) throw new IllegalArgumentException("Every line needs a member");
-            if (e.reference() != null && !e.reference().isBlank() && !refsInBatch.add(e.reference().trim())) {
+            if (e.reference() != null && !e.reference().isBlank() && !refsInBatch.add(e.reference().replaceAll("\\s+", "").toUpperCase())) {
                 throw new IllegalArgumentException("Reference " + e.reference().trim() + " appears more than once in this batch");
             }
             activeMember(chamaId, e.userId());

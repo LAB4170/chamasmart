@@ -25,6 +25,7 @@ public class MembershipService {
     private final ChamaMemberRepository chamaMemberRepository;
     private final UserRepository userRepository;
     private final LoanRepository loanRepository;
+    private final com.chamasmart.backend.repository.LoanGuarantorRepository loanGuarantorRepository;
 
     public ChamaMember activeMember(Long chamaId, Long userId) {
         return chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
@@ -95,6 +96,11 @@ public class MembershipService {
         boolean openLoan = loanRepository.findByBorrowerUserId(targetUserId).stream()
                 .anyMatch(l -> l.getChama().getChamaId().equals(chamaId) && OPEN_LOAN.contains(String.valueOf(l.getStatus()).toUpperCase()));
         if (openLoan) throw new IllegalStateException("This member has a loan that is not settled yet");
+        boolean guaranteeing = loanGuarantorRepository.findByGuarantorUserUserId(targetUserId).stream()
+                .anyMatch(g -> g.getLoan().getChama().getChamaId().equals(chamaId)
+                        && !"REJECTED".equalsIgnoreCase(g.getStatus())
+                        && OPEN_LOAN.contains(String.valueOf(g.getLoan().getStatus()).toUpperCase()));
+        if (guaranteeing) throw new IllegalStateException("This member is guaranteeing a loan that is not settled yet. The borrower must repay or replace the guarantor first");
         target.setIsActive(false);
         target.setStatus("INACTIVE");
         chamaMemberRepository.save(target);

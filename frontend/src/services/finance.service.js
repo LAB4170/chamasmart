@@ -33,6 +33,7 @@ export const loanAPI = {
     repay: (chamaId, loanId, repaymentData) =>
         api.post(`/loans/${chamaId}/${loanId}/repay`, repaymentData),
     getBorrowingLimit: (chamaId) => api.get(`/loans/${chamaId}/limit`),
+    getArrears: (chamaId) => api.get(`/loans/${chamaId}/arrears`),
     getPendingRepayments: (chamaId) => api.get(`/loans/${chamaId}/repayments/pending`),
     verifyRepayment: (chamaId, repaymentId) => api.post(`/loans/${chamaId}/repayments/${repaymentId}/verify`),
     rejectRepayment: (chamaId, repaymentId, reason) => api.post(`/loans/${chamaId}/repayments/${repaymentId}/reject`, { reason }),

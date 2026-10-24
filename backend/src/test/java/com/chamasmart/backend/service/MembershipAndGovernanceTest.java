@@ -29,6 +29,7 @@ class MembershipAndGovernanceTest {
     @Mock ChamaMemberRepository memberRepo;
     @Mock UserRepository userRepo;
     @Mock LoanRepository loanRepo;
+    @Mock LoanGuarantorRepository guarantorRepo;
     @Mock MeetingRepository meetingRepo;
     @Mock NotificationRepository notifRepo;
     @Mock InviteRepository inviteRepo;
@@ -54,7 +55,7 @@ class MembershipAndGovernanceTest {
         when(memberRepo.save(any(ChamaMember.class))).thenAnswer(i -> i.getArgument(0));
         when(inviteRepo.save(any(Invite.class))).thenAnswer(i -> i.getArgument(0));
         when(joinRepo.save(any(JoinRequest.class))).thenAnswer(i -> i.getArgument(0));
-        membership = new MembershipService(chamaRepo, memberRepo, userRepo, loanRepo);
+        membership = new MembershipService(chamaRepo, memberRepo, userRepo, loanRepo, guarantorRepo);
         governance = new GovernanceService(meetingRepo, notifRepo, inviteRepo, joinRepo, chamaRepo, userRepo, memberRepo, membership);
     }
 
@@ -175,6 +176,14 @@ class MembershipAndGovernanceTest {
         member(7, "TREASURER", true); member(5, "MEMBER", true);
         Loan l = new Loan(); l.setChama(chama); l.setStatus("DISBURSED");
         when(loanRepo.findByBorrowerUserId(5L)).thenReturn(List.of(l));
+        assertThrows(IllegalStateException.class, () -> membership.removeMember(1L, 7L, 5L));
+    }
+
+    @Test void memberGuaranteeingAnOpenLoanCannotBeRemoved() {
+        member(7, "TREASURER", true); member(5, "MEMBER", true);
+        Loan l = new Loan(); l.setChama(chama); l.setStatus("ACTIVE");
+        LoanGuarantor g = new LoanGuarantor(); g.setLoan(l); g.setStatus("APPROVED");
+        when(guarantorRepo.findByGuarantorUserUserId(5L)).thenReturn(List.of(g));
         assertThrows(IllegalStateException.class, () -> membership.removeMember(1L, 7L, 5L));
     }
 

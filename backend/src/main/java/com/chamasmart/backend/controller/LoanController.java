@@ -18,6 +18,7 @@ import java.util.Map;
 @Slf4j
 public class LoanController {
     private final LoanService loanService;
+    private final com.chamasmart.backend.service.LoanArrearsService loanArrearsService;
     @PostMapping({"/apply", "/{chamaId}/apply"})
     public ResponseEntity<ApiResponse<LoanSummaryDto>> applyForLoan(@PathVariable(value = "chamaId", required = false) Long chamaId,
                                                                     @RequestBody LoanApplicationRequestDto requestDto,
@@ -170,6 +171,10 @@ public class LoanController {
         data.put("repayment_id", r.getRepaymentId());
         data.put("status", r.getStatus());
         return ResponseEntity.ok(ApiResponse.success(data, "Repayment submitted. It counts once an official verifies it"));
+    }
+    @GetMapping("/{chamaId}/arrears")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> arrears(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(loanArrearsService.arrears(chamaId, currentUser.getUserId()), "Arrears retrieved"));
     }
     @GetMapping("/{chamaId}/repayments/pending")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> pendingRepayments(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails currentUser) {
