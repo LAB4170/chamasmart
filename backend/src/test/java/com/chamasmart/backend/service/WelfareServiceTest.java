@@ -96,6 +96,29 @@ class WelfareServiceTest {
         assertEquals("REJECTED", claim.getStatus());
     }
 
+    @Test void shortFundLeavesClaimApprovedThenPayClearsItAfterTopUp() {
+        official(7, "TREASURER"); official(8, "CHAIRPERSON");
+        fund.setBalance(new BigDecimal("1000"));
+        service.approveClaim(10L, 7L, "APPROVED", null);
+        service.approveClaim(10L, 8L, "APPROVED", null);
+        assertEquals("APPROVED", claim.getStatus());
+        assertThrows(IllegalStateException.class, () -> service.payApprovedClaim(10L, 7L));
+        assertEquals("APPROVED", claim.getStatus());
+        fund.setBalance(new BigDecimal("5000"));
+        service.payApprovedClaim(10L, 7L);
+        assertEquals("PAID", claim.getStatus());
+        assertEquals(0, new BigDecimal("2000").compareTo(fund.getBalance()));
+    }
+
+    @Test void payRejectsClaimantAndNonApprovedClaims() {
+        official(5, "TREASURER"); official(7, "TREASURER");
+        claim.setStatus("APPROVED");
+        assertThrows(AccessDeniedException.class, () -> service.payApprovedClaim(10L, 5L));
+        claim.setStatus("PAID");
+        assertThrows(IllegalStateException.class, () -> service.payApprovedClaim(10L, 7L));
+        assertEquals(0, new BigDecimal("10000").compareTo(fund.getBalance()));
+    }
+
     @Test void outsiderCannotReadTheLedger() {
         when(memberRepo.findByChamaChamaIdAndUserUserId(1L, 9L)).thenReturn(Optional.empty());
         assertThrows(AccessDeniedException.class, () -> service.getLedger(1L, 9L));

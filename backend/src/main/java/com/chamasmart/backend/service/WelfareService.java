@@ -151,34 +151,55 @@ public class WelfareService {
             claim.setStatus("APPROVED");
             claim.setApprovedAt(ZonedDateTime.now());
             claim.setApprovedBy(approver);
-            // Disburse from Welfare Fund
-            WelfareFund fund = welfareFundRepository.findByChamaIdWithPessimisticLock(claim.getChama().getChamaId())
-                    .orElseThrow(() -> new RuntimeException("Welfare fund not found"));
-            if (fund.getBalance().compareTo(claim.getClaimAmount()) < 0) {
-                log.warn("Insufficient welfare funds for Chama ID: {}. Claim approved but awaiting fund replenishment.", claim.getChama().getChamaId());
-            } else {
-                fund.setBalance(fund.getBalance().subtract(claim.getClaimAmount()));
-                welfareFundRepository.save(fund);
-                ledger.post(claim.getChama(), LedgerEntry.WELFARE_FUND, claim.getClaimAmount().negate(), "WELFARE_PAYOUT", "WELFARE_CLAIM", claim.getClaimId(), approverUserId, "Claim " + claim.getClaimId());
-                claim.setStatus("PAID");
-                // Write Financial Audit Log
-                FinancialAuditLog auditLog = FinancialAuditLog.builder()
-                        .user(claim.getMember())
-                        .transactionType("WELFARE_DISBURSEMENT")
-                        .amount(claim.getClaimAmount())
-                        .chama(claim.getChama())
-                        .referenceId(claim.getClaimId())
-                        .description("Welfare claim disbursed. Claim ID: " + claim.getClaimId() + ", Reason: " + claim.getDescription())
-                        .ipAddress(com.chamasmart.backend.security.ClientIp.current())
-                        .userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent())
-                        .build();
-                auditLogRepository.save(auditLog);
-                log.info("Welfare claim ID: {} fully approved and disbursed from fund.", claimId);
-            }
+            disburseIfFunded(claim, approverUserId);
         }
         WelfareClaim updatedClaim = welfareClaimRepository.save(claim);
         return WelfareClaimSummaryDto.fromEntity(updatedClaim);
     }
+    /** Debits the fund and marks the claim PAID, or leaves it APPROVED when the fund is short. */
+    private boolean disburseIfFunded(WelfareClaim claim, Long actorId) {
+        WelfareFund fund = welfareFundRepository.findByChamaIdWithPessimisticLock(claim.getChama().getChamaId())
+                .orElseThrow(() -> new RuntimeException("Welfare fund not found"));
+        if (fund.getBalance().compareTo(claim.getClaimAmount()) < 0) {
+            log.warn("Insufficient welfare funds for Chama ID: {}. Claim {} approved, awaiting fund top-up.", claim.getChama().getChamaId(), claim.getClaimId());
+            return false;
+        }
+        fund.setBalance(fund.getBalance().subtract(claim.getClaimAmount()));
+        welfareFundRepository.save(fund);
+        ledger.post(claim.getChama(), LedgerEntry.WELFARE_FUND, claim.getClaimAmount().negate(), "WELFARE_PAYOUT", "WELFARE_CLAIM", claim.getClaimId(), actorId, "Claim " + claim.getClaimId());
+        claim.setStatus("PAID");
+        auditLogRepository.save(FinancialAuditLog.builder()
+                .user(claim.getMember())
+                .transactionType("WELFARE_DISBURSEMENT")
+                .amount(claim.getClaimAmount())
+                .chama(claim.getChama())
+                .referenceId(claim.getClaimId())
+                .description("Welfare claim disbursed. Claim ID: " + claim.getClaimId() + ", Reason: " + claim.getDescription())
+                .ipAddress(com.chamasmart.backend.security.ClientIp.current())
+                .userAgent(com.chamasmart.backend.security.ClientIp.currentUserAgent())
+                .build());
+        return true;
+    }
+
+    /** W-02: pays an approved claim that was waiting for the fund to be topped up. */
+    @Transactional
+    public WelfareClaimSummaryDto payApprovedClaim(Long claimId, Long officialId) {
+        WelfareClaim claim = welfareClaimRepository.findByIdWithPessimisticLock(claimId)
+                .orElseThrow(() -> new RuntimeException("Welfare claim not found"));
+        validateUserIsOfficial(claim.getChama().getChamaId(), officialId);
+        if (claim.getMember().getUserId().equals(officialId)) {
+            throw new org.springframework.security.access.AccessDeniedException("You can't pay out your own claim");
+        }
+        if (!"APPROVED".equals(claim.getStatus())) {
+            throw new IllegalStateException("Only approved claims waiting for funds can be paid. This claim is " + claim.getStatus());
+        }
+        if (!disburseIfFunded(claim, officialId)) {
+            WelfareFund fund = welfareFundRepository.findByChamaIdWithPessimisticLock(claim.getChama().getChamaId()).orElseThrow();
+            throw new IllegalStateException("The welfare fund has " + fund.getBalance().toPlainString() + " but this claim needs " + claim.getClaimAmount().toPlainString() + ". Collect more welfare contributions first.");
+        }
+        return WelfareClaimSummaryDto.fromEntity(welfareClaimRepository.save(claim));
+    }
+
     @Transactional(readOnly = true)
     public List<WelfareConfigDto> getConfigsByChamaId(Long chamaId, Long actorId) {
         validateUserMembershipAndActiveStatus(chamaId, actorId);

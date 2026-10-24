@@ -88,6 +88,10 @@ public class WelfareController {
         WelfareClaimSummaryDto updatedClaim = welfareService.approveClaim(claimId, currentUser.getUserId(), decision, comments);
         return ResponseEntity.ok(ApiResponse.success(updatedClaim, "Welfare claim approval processed successfully"));
     }
+    @PostMapping("/claims/{claimId}/pay")
+    public ResponseEntity<ApiResponse<WelfareClaimSummaryDto>> payClaim(@PathVariable Long claimId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(welfareService.payApprovedClaim(claimId, currentUser.getUserId()), "Claim paid from the welfare fund"));
+    }
     @GetMapping("/chamas/{chamaId}/claims")
     public ResponseEntity<ApiResponse<List<WelfareClaimSummaryDto>>> getClaimsByChamaId(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to get welfare claims for chama ID: {}", chamaId);

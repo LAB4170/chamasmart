@@ -14,6 +14,8 @@ export default function WelfareDashboard() {
   const [error, setError] = useState(false);
   const [balance, setBalance] = useState(0);
   const [claims, setClaims] = useState([]);
+  const [waiting, setWaiting] = useState([]);
+  const [payingId, setPayingId] = useState(null);
   const [config, setConfig] = useState([]);
   const [role, setRole] = useState("");
   const [open, setOpen] = useState(false);
@@ -37,7 +39,15 @@ export default function WelfareDashboard() {
       setClaims((Array.isArray(allMine) ? allMine : []).filter((c) => !c.chama_id || String(c.chama_id) === String(id)));
       const cf = cfg.data?.data ?? [];
       setConfig(Array.isArray(cf) ? cf : []);
-      setRole((chama.data?.data?.role || "").toUpperCase());
+      const r = (chama.data?.data?.role || "").toUpperCase();
+      setRole(r);
+      if (OFFICIALS.includes(r)) {
+        try {
+          const all = await welfareAPI.getChamaClaims(id);
+          const list = all.data?.data ?? [];
+          setWaiting((Array.isArray(list) ? list : []).filter((c) => c.status === "APPROVED"));
+        } catch { setWaiting([]); }
+      } else setWaiting([]);
     } catch {
       setError(true);
     } finally {
@@ -63,6 +73,19 @@ export default function WelfareDashboard() {
       setFormError(err.response?.data?.message || "We couldn't submit your contribution.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const payClaim = async (claim) => {
+    setPayingId(claim.claim_id);
+    try {
+      await welfareAPI.payClaim(claim.claim_id);
+      toast.success("Paid from the welfare fund and recorded.");
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "That didn't go through. Nothing was changed.", { autoClose: 8000 });
+    } finally {
+      setPayingId(null);
     }
   };
 
@@ -119,6 +142,26 @@ export default function WelfareDashboard() {
               )}
             </section>
 
+            {waiting.length > 0 && (
+              <section className="cs-card" aria-label="Approved claims waiting for funds" style={{ marginBottom: 16 }}>
+                <h2 className="cs-card-title">Approved, waiting for funds</h2>
+                <p className="cs-help">These claims have two approvals but the fund was short when they were approved. Nothing has been paid yet.</p>
+                <ul className="cs-list">
+                  {waiting.map((c) => (
+                    <li key={c.claim_id} className="cs-list-item">
+                      <div className="cs-list-main">
+                        <div className="cs-list-title">{pretty(c.event_type)} · {formatKES(c.claim_amount)}</div>
+                        <div className="cs-list-meta">{c.member_name ? `${c.member_name} · ` : ""}{formatDate(c.created_at)}</div>
+                      </div>
+                      <Button size="sm" loading={payingId === c.claim_id} disabled={balance < Number(c.claim_amount)} onClick={() => payClaim(c)}>
+                        {balance < Number(c.claim_amount) ? "Fund too low" : "Pay now"}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
             <section className="cs-card" aria-label="Your claims">
               <h2 className="cs-card-title">Your claims</h2>
               {claims.length === 0 ? (
@@ -126,7 +169,7 @@ export default function WelfareDashboard() {
               ) : (
                 <ul className="cs-list">
                   {claims.map((c) => (
-                    <li key={c.id} className="cs-list-item">
+                    <li key={c.claim_id} className="cs-list-item">
                       <div className="cs-list-main">
                         <div className="cs-list-title">{pretty(c.event_type)}</div>
                         <div className="cs-list-meta">{formatDate(c.created_at)} · {formatKES(c.claim_amount)}</div>

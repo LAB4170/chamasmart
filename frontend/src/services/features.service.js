@@ -83,6 +83,7 @@ export const welfareAPI = {
     approveClaim: (claimId, decision) =>
         api.post(`/welfare/claims/${claimId}/approve`, decision),
     // Emergency Drives (not yet in Spring Boot — stubs)
+    payClaim: (claimId) => api.post(`/welfare/claims/${claimId}/pay`),
     getEmergencyDrives: (chamaId) => api.get(`/welfare/${chamaId}/emergency-drives`),
     createEmergencyDrive: (chamaId, payload) =>
         api.post(`/welfare/${chamaId}/emergency-drives`, payload),
