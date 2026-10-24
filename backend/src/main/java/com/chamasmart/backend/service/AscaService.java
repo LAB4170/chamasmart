@@ -36,6 +36,10 @@ public class AscaService {
     public AscaCycleDto createCycle(AscaCycleDto dto, Long chamaId, Long userId) {
         log.info("Creating ASCA cycle '{}' for chama ID: {} by user ID: {}", dto.getCycle_name(), chamaId, userId);
         validateUserIsOfficial(chamaId, userId);
+        if (dto.getCycle_name() == null || dto.getCycle_name().isBlank()) throw new IllegalArgumentException("Give the cycle a name");
+        if (dto.getShare_price() != null && dto.getShare_price().signum() <= 0) throw new IllegalArgumentException("The share price must be more than zero");
+        if (dto.getTotal_shares() != null && dto.getTotal_shares() <= 0) throw new IllegalArgumentException("The number of shares must be more than zero");
+        if (dto.getDividend_rate() != null && (dto.getDividend_rate().signum() < 0 || dto.getDividend_rate().compareTo(BigDecimal.valueOf(100)) > 0)) throw new IllegalArgumentException("The dividend rate must be between 0 and 100");
         Chama chama = chamaRepository.findById(chamaId)
                 .orElseThrow(() -> new RuntimeException("Chama not found"));
         if (!"ASCA".equalsIgnoreCase(chama.getChamaType())) {
@@ -58,12 +62,15 @@ public class AscaService {
         return AscaCycleDto.fromEntity(savedCycle, members);
     }
     @Transactional
-    public AscaCycleDto purchaseShares(Long cycleId, Long userId, Integer sharesToPurchase) {
+    public AscaCycleDto purchaseShares(Long cycleId, Long actorId, Long userId, Integer sharesToPurchase) {
+        if (sharesToPurchase == null || sharesToPurchase <= 0) throw new IllegalArgumentException("Enter a number of shares above zero");
         log.info("Processing share purchase of {} shares by user ID: {} in cycle ID: {}", sharesToPurchase, userId, cycleId);
         AscaCycle cycle = ascaCycleRepository.findByIdWithPessimisticLock(cycleId)
                 .orElseThrow(() -> new RuntimeException("ASCA cycle not found"));
         Chama chama = chamaRepository.findByIdWithPessimisticLock(cycle.getChama().getChamaId())
                 .orElseThrow(() -> new RuntimeException("Chama not found"));
+        // Shares are only recorded by an official once payment has actually been received.
+        validateUserIsOfficial(chama.getChamaId(), actorId);
         validateUserMembershipAndActiveStatus(chama.getChamaId(), userId);
         if (!"ACTIVE".equals(cycle.getStatus())) {
             throw new RuntimeException("Cannot purchase shares in an inactive cycle");
@@ -108,7 +115,8 @@ public class AscaService {
         return AscaCycleDto.fromEntity(updatedCycle, members);
     }
     @Transactional(readOnly = true)
-    public List<AscaCycleDto> getCyclesByChamaId(Long chamaId) {
+    public List<AscaCycleDto> getCyclesByChamaId(Long chamaId, Long actorId) {
+        validateUserMembershipAndActiveStatus(chamaId, actorId);
         log.info("Fetching ASCA cycles for chama ID: {}", chamaId);
         List<AscaCycle> cycles = ascaCycleRepository.findByChamaChamaId(chamaId);
         return cycles.stream().map(cycle -> {

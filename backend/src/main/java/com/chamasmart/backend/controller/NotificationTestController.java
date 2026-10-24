@@ -15,12 +15,6 @@ public class NotificationTestController {
     public static class TestMessage {
         private String content;
     }
-    // Simple HTTP endpoint to trigger a notification (useful for manual testing)
-    @PostMapping("/api/v1/test/notify")
-    public void sendTestNotification(@RequestBody TestMessage message) {
-        // Broadcast to all subscribed clients on the STOMP topic
-        messagingTemplate.convertAndSend("/topic/new_notification", message);
-    }
     // STOMP endpoint (if you want to accept messages from clients)
     @MessageMapping("new_notification")
     @SendTo("/topic/new_notification")

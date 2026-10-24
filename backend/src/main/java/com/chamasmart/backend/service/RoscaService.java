@@ -22,13 +22,25 @@ public class RoscaService {
     private final UserRepository userRepository;
     private final ContributionRepository contributionRepository;
     private final FinancialAuditLogRepository auditLogRepository;
+    private final MembershipService membershipService;
+    private final ContributionService contributionService;
     @Transactional
-    public RoscaCycleDto createCycle(RoscaCycleDto dto, Long chamaId) {
+    public RoscaCycleDto createCycle(RoscaCycleDto dto, Long chamaId, Long actorId) {
+        membershipService.activeOfficial(chamaId, actorId);
         log.info("Creating ROSCA cycle '{}' for chama ID: {}", dto.getCycle_name(), chamaId);
         Chama chama = chamaRepository.findById(chamaId)
                 .orElseThrow(() -> new RuntimeException("Chama not found"));
         if (!"ROSCA".equalsIgnoreCase(chama.getChamaType())) {
             throw new RuntimeException("Chama is not configured as a ROSCA / Merry-Go-Round group");
+        }
+        if (dto.getCycle_name() == null || dto.getCycle_name().isBlank()) {
+            throw new IllegalArgumentException("Give the cycle a name");
+        }
+        if (dto.getContribution_amount() != null && dto.getContribution_amount().signum() <= 0) {
+            throw new IllegalArgumentException("The contribution amount must be more than zero");
+        }
+        if (roscaCycleRepository.findByChamaChamaId(chamaId).stream().anyMatch(c -> "ACTIVE".equalsIgnoreCase(c.getStatus()))) {
+            throw new IllegalStateException("This chama already has an active cycle. Finish or cancel it first.");
         }
         List<ChamaMember> activeMembers = chamaMemberRepository.findByChamaChamaIdAndIsActiveTrue(chamaId);
         if (activeMembers.isEmpty()) {
@@ -63,7 +75,8 @@ public class RoscaService {
         return RoscaCycleDto.fromEntity(savedCycle, rosterList);
     }
     @Transactional(readOnly = true)
-    public List<RoscaCycleDto> getCyclesByChamaId(Long chamaId) {
+    public List<RoscaCycleDto> getCyclesByChamaId(Long chamaId, Long actorId) {
+        membershipService.activeMember(chamaId, actorId);
         log.info("Fetching ROSCA cycles for chama ID: {}", chamaId);
         List<RoscaCycle> cycles = roscaCycleRepository.findByChamaChamaId(chamaId);
         return cycles.stream().map(cycle -> {
@@ -81,9 +94,12 @@ public class RoscaService {
         // Validate officer rights
         ChamaMember officer = chamaMemberRepository.findByChamaChamaIdAndUserUserId(chama.getChamaId(), officerUserId)
                 .filter(ChamaMember::getIsActive)
-                .orElseThrow(() -> new RuntimeException("User is not an active member of this Chama"));
+                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("You are not an active member of this chama"));
         if (!"CHAIRPERSON".equalsIgnoreCase(officer.getRole()) && !"TREASURER".equalsIgnoreCase(officer.getRole()) && !"SECRETARY".equalsIgnoreCase(officer.getRole())) {
             throw new org.springframework.security.access.AccessDeniedException("Lacks official privileges to trigger payout");
+        }
+        if (!"ACTIVE".equalsIgnoreCase(cycle.getStatus())) {
+            throw new IllegalStateException("This cycle is " + cycle.getStatus().toLowerCase() + ", so no payout can be recorded");
         }
         // Fetch roster to find the next active recipient
         List<RoscaRoster> rosterList = roscaRosterRepository.findByCycleCycleIdOrderByPositionAsc(cycleId);
@@ -91,6 +107,9 @@ public class RoscaService {
                 .filter(r -> "ACTIVE".equalsIgnoreCase(r.getStatus()))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("No active roster positions left to pay out in this cycle"));
+        if (nextRecipient.getUser().getUserId().equals(officerUserId)) {
+            throw new org.springframework.security.access.AccessDeniedException("You are the next recipient, so another official must record this payout");
+        }
         // Pot amount is total members * contribution amount
         BigDecimal potAmount = cycle.getContributionAmount().multiply(BigDecimal.valueOf(cycle.getTotalMembers()));
         if (chama.getCurrentFund().compareTo(potAmount) < 0) {
@@ -125,48 +144,52 @@ public class RoscaService {
         auditLogRepository.save(auditLog);
         log.info("Successfully completed pot payout of KES {} to user: {}", potAmount, recipientFullName);
     }
+    /** A member reports a payment for the active cycle. Nothing is credited until an official verifies it. */
     @Transactional
-    public void makeContribution(Long cycleId, Long userId, BigDecimal amount) {
-        log.info("Recording ROSCA cycle contribution. Cycle ID: {}, User ID: {}, Amount: {}", cycleId, userId, amount);
-        RoscaCycle cycle = roscaCycleRepository.findByIdWithPessimisticLock(cycleId)
-                .orElseThrow(() -> new RuntimeException("ROSCA cycle not found"));
-        Chama chama = chamaRepository.findByIdWithPessimisticLock(cycle.getChama().getChamaId())
-                .orElseThrow(() -> new RuntimeException("Chama not found"));
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        ChamaMember member = chamaMemberRepository.findByChamaChamaIdAndUserUserId(chama.getChamaId(), userId)
-                .filter(ChamaMember::getIsActive)
-                .orElseThrow(() -> new RuntimeException("User is not an active member of this Chama"));
-        // Create contribution record
-        Contribution contribution = Contribution.builder()
-                .chama(chama)
-                .user(user)
-                .amount(amount)
-                .reference("ROSCA-" + cycleId + "-" + System.currentTimeMillis())
-                .status("COMPLETED")
-                .contributionType("ROSCA")
-                .isDeleted(false)
-                .build();
-        Contribution savedContribution = contributionRepository.save(contribution);
-        // Update member total contributions
-        member.setTotalContributions(member.getTotalContributions().add(amount));
-        member.setLastContributionDate(ZonedDateTime.now());
-        chamaMemberRepository.save(member);
-        // Update Chama current fund
-        chama.setCurrentFund(chama.getCurrentFund().add(amount));
-        chamaRepository.save(chama);
-        // Write Financial Audit Log
-        FinancialAuditLog auditLog = FinancialAuditLog.builder()
-                .user(user)
-                .transactionType("ROSCA_CONTRIBUTION")
-                .amount(amount)
-                .chama(chama)
-                .referenceId(savedContribution.getContributionId())
-                .description("ROSCA Cycle contribution. Cycle: " + cycle.getCycleName() + ", Ref: " + contribution.getReference())
-                .ipAddress("127.0.0.1")
-                .userAgent("System-Service")
-                .build();
-        auditLogRepository.save(auditLog);
+    public ContributionSummaryDto makeContribution(Long chamaId, Long cycleId, Long userId, BigDecimal amount) {
+        RoscaCycle cycle = requireCycle(cycleId, chamaId);
+        if (!"ACTIVE".equalsIgnoreCase(cycle.getStatus())) {
+            throw new IllegalStateException("This cycle is not active");
+        }
+        return contributionService.submit(chamaId, userId,
+                new ContributionService.Entry(userId, amount, null, "ROSCA", "[cycle:" + cycleId + "] " + cycle.getCycleName(), null));
+    }
+
+    private RoscaCycle requireCycle(Long cycleId, Long chamaId) {
+        RoscaCycle cycle = roscaCycleRepository.findById(cycleId).orElseThrow(() -> new IllegalArgumentException("ROSCA cycle not found"));
+        if (chamaId != null && !cycle.getChama().getChamaId().equals(chamaId)) {
+            throw new IllegalArgumentException("ROSCA cycle not found");
+        }
+        return cycle;
+    }
+
+    @Transactional(readOnly = true)
+    public RoscaCycleDto getCycle(Long cycleId, Long actorId) {
+        RoscaCycle cycle = requireCycle(cycleId, null);
+        membershipService.activeMember(cycle.getChama().getChamaId(), actorId);
+        return RoscaCycleDto.fromEntity(cycle, roscaRosterRepository.findByCycleCycleIdOrderByPositionAsc(cycleId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ContributionSummaryDto> getCycleContributions(Long cycleId, Long actorId) {
+        RoscaCycle cycle = requireCycle(cycleId, null);
+        Long chamaId = cycle.getChama().getChamaId();
+        return contributionService.list(chamaId, actorId, null, null).stream()
+                .filter(c -> "ROSCA".equalsIgnoreCase(c.getContribution_type()) && c.getNotes() != null && c.getNotes().startsWith("[cycle:" + cycleId + "]"))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void cancelCycle(Long cycleId, Long actorId) {
+        RoscaCycle cycle = roscaCycleRepository.findByIdWithPessimisticLock(cycleId).orElseThrow(() -> new IllegalArgumentException("ROSCA cycle not found"));
+        membershipService.activeOfficial(cycle.getChama().getChamaId(), actorId);
+        if (!"ACTIVE".equalsIgnoreCase(cycle.getStatus())) {
+            throw new IllegalStateException("Only an active cycle can be cancelled");
+        }
+        if (roscaRosterRepository.findByCycleCycleIdOrderByPositionAsc(cycleId).stream().anyMatch(r -> "PAID".equalsIgnoreCase(r.getStatus()))) {
+            throw new IllegalStateException("A payout has already been made in this cycle, so it can't be cancelled");
+        }
+        cycle.setStatus("CANCELLED");
+        roscaCycleRepository.save(cycle);
     }
 }
-

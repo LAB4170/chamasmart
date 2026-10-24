@@ -23,6 +23,8 @@ public class UserController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final ProfilePictureService profilePictureService;
+    private final com.chamasmart.backend.repository.LoanRepository loanRepository;
+    private final com.chamasmart.backend.repository.ChamaMemberRepository chamaMemberRepository;
     /** GET /users/profile Ã¢â‚¬â€ returns the currently authenticated user's profile */
     @GetMapping("/users/profile")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getProfile(
@@ -40,6 +42,13 @@ public class UserController {
         log.info("REST request to update profile for user ID: {}", currentUser.getUserId());
         User user = userRepository.findById(currentUser.getUserId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
+        for (String key : new String[]{"firstName", "first_name", "lastName", "last_name"}) {
+            if (body.get(key) != null && body.get(key).length() > 100) throw new IllegalArgumentException("Names must be 100 characters or fewer");
+        }
+        String phoneIn = body.containsKey("phoneNumber") ? body.get("phoneNumber") : body.get("phone_number");
+        if (phoneIn != null && !phoneIn.isBlank() && !phoneIn.trim().matches("^\\+?[0-9 ]{9,15}$")) {
+            throw new IllegalArgumentException("Enter a valid phone number");
+        }
         String fn = body.containsKey("firstName") ? body.get("firstName") : body.get("first_name");
         if (fn != null && !fn.isBlank()) user.setFirstName(fn);
         String ln = body.containsKey("lastName") ? body.get("lastName") : body.get("last_name");
@@ -58,13 +67,15 @@ public class UserController {
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> searchUsers(
             @RequestParam String query) {
         log.info("REST request to search users with query: {}", query);
-        String q = query.toLowerCase();
-        List<Map<String, Object>> results = userRepository.findAll().stream()
-                .filter(u -> u.getEmail().toLowerCase().contains(q)
-                        || u.getFirstName().toLowerCase().contains(q)
-                        || u.getLastName().toLowerCase().contains(q))
-                .map(this::buildMaskedUserMap)
-                .collect(Collectors.toList());
+        // Exact email or phone only: this must not become a way to browse every user.
+        String q = query == null ? "" : query.trim();
+        List<Map<String, Object>> results = new java.util.ArrayList<>();
+        if (q.length() >= 7) {
+            java.util.Optional<User> found = q.contains("@")
+                    ? userRepository.findByEmail(q.toLowerCase())
+                    : userRepository.findByPhoneNumber(q);
+            found.ifPresent(u -> results.add(buildMaskedUserMap(u)));
+        }
         return ResponseEntity.ok(ApiResponse.success(results, "Search results"));
     }
     @DeleteMapping("/users/account")
@@ -72,6 +83,16 @@ public class UserController {
         log.info("REST request to delete account for user ID: {}", currentUser.getUserId());
         User user = userRepository.findById(currentUser.getUserId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
+        boolean openLoan = loanRepository.findByBorrowerUserId(user.getUserId()).stream()
+                .anyMatch(l -> java.util.List.of("PENDING", "APPROVED", "DISBURSED", "ACTIVE", "DEFAULTED").contains(String.valueOf(l.getStatus())));
+        if (openLoan) {
+            return ResponseEntity.status(409).body(ApiResponse.error("You still have a loan that isn't settled, so the account can't be closed yet"));
+        }
+        boolean chairs = chamaMemberRepository.findActiveMembershipsByUserId(user.getUserId()).stream()
+                .anyMatch(m -> "CHAIRPERSON".equalsIgnoreCase(m.getRole()) && Boolean.TRUE.equals(m.getChama().getIsActive()));
+        if (chairs) {
+            return ResponseEntity.status(409).body(ApiResponse.error("You are the chairperson of an active chama. Retire it first so the group isn't left without one"));
+        }
         user.setIsActive(false);
         userRepository.save(user);
         return ResponseEntity.ok(ApiResponse.success(null, "Account deleted successfully"));
@@ -87,6 +108,9 @@ public class UserController {
         String newPassword = body.get("newPassword");
         if (currentPassword == null || newPassword == null || currentPassword.isBlank() || newPassword.isBlank()) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Passwords cannot be blank"));
+        }
+        if (newPassword.length() < 8) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Your new password must be at least 8 characters"));
         }
         if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
             return ResponseEntity.status(400).body(ApiResponse.error("Current password is incorrect"));

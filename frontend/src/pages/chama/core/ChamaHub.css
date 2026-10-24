@@ -1,0 +1,25 @@
+/* Chama hub: calm iOS-style shell over the legacy "lux" tab content.
+   Scoped to .chama-details-lux-root and uses !important only to neutralise the legacy frame. */
+.chama-details-lux-root { background: var(--cs-bg) !important; animation: none !important; padding-bottom: var(--cs-8, 2rem); }
+.chama-details-lux-root .page-frame-lux {
+  background: transparent !important; border: 0 !important; box-shadow: none !important; backdrop-filter: none !important;
+  border-radius: 0 !important; padding: 0 !important; margin: 0 auto !important; max-width: 1200px; min-height: 0 !important;
+}
+.chama-details-lux-root .page-frame-lux::before, .chama-details-lux-root .page-frame-lux::after { display: none !important; }
+.chama-details-lux-root .container { padding: 80px var(--cs-4, 1rem) 0; }
+.cs-hub-header { margin-bottom: var(--cs-5, 1.25rem); }
+.cs-hub-back { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0; border: 0; background: none; color: var(--cs-link, var(--cs-primary)); font: 500 1rem var(--cs-font); cursor: pointer; }
+.cs-hub-titlerow { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--cs-4, 1rem); }
+.cs-hub-title { margin: 0; font-size: 2rem; line-height: 1.15; font-weight: 700; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.cs-hub-meta { display: flex; flex-wrap: wrap; gap: var(--cs-2, .5rem); margin-top: var(--cs-2, .5rem); }
+.cs-hub-actions { display: flex; flex-wrap: wrap; gap: var(--cs-2, .5rem); }
+.cs-hub-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--cs-3, .75rem); margin-bottom: var(--cs-5, 1.25rem); }
+.cs-hub-tabs { margin-bottom: var(--cs-5, 1.25rem); }
+.cs-chip-count { margin-left: 6px; min-width: 20px; padding: 0 6px; border-radius: 10px; background: var(--cs-danger-fg, #b00020); color: #fff; font-size: .75rem; line-height: 20px; display: inline-block; }
+@media (max-width: 768px) {
+  .chama-details-lux-root .container { padding: 60px var(--cs-4, 1rem) 0; }
+  .cs-hub-title { font-size: 2.125rem; }
+  .cs-hub-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cs-hub-actions { width: 100%; }
+  .cs-hub-actions .cs-btn { flex: 1; }
+}

@@ -31,55 +31,38 @@ public class AscaController {
                                                                     @RequestBody Map<String, Integer> payload,
                                                                     @AuthenticationPrincipal CustomUserDetails currentUser) {
         Integer shares = payload.get("shares");
+        Integer target = payload.get("user_id");
         log.info("REST request to purchase {} shares in cycle ID: {} by user ID: {}", shares, cycleId, currentUser.getUserId());
-        AscaCycleDto updatedCycle = ascaService.purchaseShares(cycleId, currentUser.getUserId(), shares);
-        return ResponseEntity.ok(ApiResponse.success(updatedCycle, "Shares purchased successfully"));
+        AscaCycleDto updatedCycle = ascaService.purchaseShares(cycleId, currentUser.getUserId(), target == null ? currentUser.getUserId() : target.longValue(), shares);
+        return ResponseEntity.ok(ApiResponse.success(updatedCycle, "Share purchase recorded"));
     }
     @GetMapping("/chamas/{chamaId}/cycles")
-    public ResponseEntity<ApiResponse<List<AscaCycleDto>>> getCyclesByChamaId(@PathVariable Long chamaId) {
+    public ResponseEntity<ApiResponse<List<AscaCycleDto>>> getCyclesByChamaId(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to get ASCA cycles for chama ID: {}", chamaId);
-        List<AscaCycleDto> cycles = ascaService.getCyclesByChamaId(chamaId);
+        List<AscaCycleDto> cycles = ascaService.getCyclesByChamaId(chamaId, currentUser.getUserId());
         return ResponseEntity.ok(ApiResponse.success(cycles, "ASCA cycles retrieved successfully"));
+    }
+    private static <T> ResponseEntity<ApiResponse<T>> notAvailable(String what) {
+        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(ApiResponse.error(what + " is not available yet"));
     }
     @GetMapping("/{chamaId}/proposals")
     public ResponseEntity<ApiResponse<List<Object>>> getProposals(@PathVariable Long chamaId) {
-        log.info("REST request to get proposals for chama ID: {}", chamaId);
-        return ResponseEntity.ok(ApiResponse.success(new java.util.ArrayList<>(), "Proposals retrieved"));
+        return ResponseEntity.ok(ApiResponse.success(new java.util.ArrayList<>(), "No proposals"));
     }
     @PostMapping("/{chamaId}/proposals")
-    public ResponseEntity<ApiResponse<Object>> createProposal(@PathVariable Long chamaId, @RequestBody Map<String, Object> payload) {
-        log.info("REST request to create proposal for chama ID: {}", chamaId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(null, "Proposal created"));
-    }
+    public ResponseEntity<ApiResponse<Object>> createProposal(@PathVariable Long chamaId, @RequestBody Map<String, Object> payload) { return notAvailable("Proposals"); }
     @PostMapping("/{chamaId}/proposals/{proposalId}/vote")
-    public ResponseEntity<ApiResponse<Void>> voteProposal(@PathVariable Long chamaId, @PathVariable Long proposalId, @RequestBody Map<String, Object> payload) {
-        log.info("REST request to vote on proposal ID: {} for chama ID: {}", proposalId, chamaId);
-        return ResponseEntity.ok(ApiResponse.success(null, "Vote recorded successfully"));
-    }
+    public ResponseEntity<ApiResponse<Void>> voteProposal(@PathVariable Long chamaId, @PathVariable Long proposalId, @RequestBody Map<String, Object> payload) { return notAvailable("Voting"); }
     @GetMapping("/{chamaId}/assets")
     public ResponseEntity<ApiResponse<List<Object>>> getAssets(@PathVariable Long chamaId) {
-        log.info("REST request to get assets for chama ID: {}", chamaId);
-        return ResponseEntity.ok(ApiResponse.success(new java.util.ArrayList<>(), "Assets retrieved"));
+        return ResponseEntity.ok(ApiResponse.success(new java.util.ArrayList<>(), "No assets recorded"));
     }
     @PostMapping("/{chamaId}/assets")
-    public ResponseEntity<ApiResponse<Object>> createAsset(@PathVariable Long chamaId, @RequestBody Map<String, Object> payload) {
-        log.info("REST request to create asset for chama ID: {}", chamaId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(null, "Asset created"));
-    }
+    public ResponseEntity<ApiResponse<Object>> createAsset(@PathVariable Long chamaId, @RequestBody Map<String, Object> payload) { return notAvailable("Asset records"); }
     @GetMapping("/{chamaId}/reports/summary")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getReportsSummary(@PathVariable Long chamaId) {
-        log.info("REST request to get reports summary for chama ID: {}", chamaId);
-        return ResponseEntity.ok(ApiResponse.success(new java.util.HashMap<>(), "Reports summary retrieved"));
-    }
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getReportsSummary(@PathVariable Long chamaId) { return notAvailable("Reports"); }
     @GetMapping("/{chamaId}/reports/member-statement")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getMemberStatement(@PathVariable Long chamaId) {
-        log.info("REST request to get member statement for chama ID: {}", chamaId);
-        return ResponseEntity.ok(ApiResponse.success(new java.util.HashMap<>(), "Member statement retrieved"));
-    }
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getMemberStatement(@PathVariable Long chamaId) { return notAvailable("Member statements"); }
     @GetMapping("/{chamaId}/reports/standing")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getStanding(@PathVariable Long chamaId) {
-        log.info("REST request to get standing for chama ID: {}", chamaId);
-        return ResponseEntity.ok(ApiResponse.success(new java.util.HashMap<>(), "Standing retrieved"));
-    }
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getStanding(@PathVariable Long chamaId) { return notAvailable("Standing reports"); }
 }
-

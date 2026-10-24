@@ -13,30 +13,17 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 public class ApiKeyController {
+    private static <T> ResponseEntity<ApiResponse<T>> notAvailable() {
+        return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_IMPLEMENTED).body(ApiResponse.error("API keys are not available yet"));
+    }
     @PostMapping
-    public ResponseEntity<ApiResponse<Map<String, Object>>> createApiKey(@RequestBody Map<String, Object> keyData) {
-        log.info("REST request to create API key");
-        return ResponseEntity.ok(ApiResponse.success(new HashMap<>(), "API key created successfully"));
-    }
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createApiKey(@RequestBody Map<String, Object> keyData) { return notAvailable(); }
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Object>>> listApiKeys() {
-        log.info("REST request to list API keys");
-        return ResponseEntity.ok(ApiResponse.success(new ArrayList<>(), "API keys retrieved successfully"));
-    }
+    public ResponseEntity<ApiResponse<List<Object>>> listApiKeys() { return ResponseEntity.ok(ApiResponse.success(new ArrayList<>(), "No API keys")); }
     @PostMapping("/{keyId}/revoke")
-    public ResponseEntity<ApiResponse<Void>> revokeApiKey(@PathVariable Long keyId) {
-        log.info("REST request to revoke API key ID: {}", keyId);
-        return ResponseEntity.ok(ApiResponse.success(null, "API key revoked successfully"));
-    }
+    public ResponseEntity<ApiResponse<Void>> revokeApiKey(@PathVariable Long keyId) { return notAvailable(); }
     @DeleteMapping("/{keyId}")
-    public ResponseEntity<ApiResponse<Void>> deleteApiKey(@PathVariable Long keyId) {
-        log.info("REST request to delete API key ID: {}", keyId);
-        return ResponseEntity.ok(ApiResponse.success(null, "API key deleted successfully"));
-    }
+    public ResponseEntity<ApiResponse<Void>> deleteApiKey(@PathVariable Long keyId) { return notAvailable(); }
     @PostMapping("/{keyId}/rotate")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> rotateApiKey(@PathVariable Long keyId) {
-        log.info("REST request to rotate API key ID: {}", keyId);
-        return ResponseEntity.ok(ApiResponse.success(new HashMap<>(), "API key rotated successfully"));
-    }
+    public ResponseEntity<ApiResponse<Map<String, Object>>> rotateApiKey(@PathVariable Long keyId) { return notAvailable(); }
 }
-

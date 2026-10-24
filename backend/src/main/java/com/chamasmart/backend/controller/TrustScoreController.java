@@ -18,10 +18,18 @@ public class TrustScoreController {
     private final TrustScoreService trustScoreService;
     private final ChamaMemberRepository memberRepo;
     @GetMapping("/member/{memberId}")
-    public ResponseEntity<ApiResponse<Integer>> getMemberScore(@PathVariable Long memberId) {
+    public ResponseEntity<ApiResponse<Integer>> getMemberScore(@PathVariable Long memberId, @org.springframework.security.core.annotation.AuthenticationPrincipal com.chamasmart.backend.security.CustomUserDetails me) {
         log.info("REST request to get trust score for member ID: {}", memberId);
         ChamaMember member = memberRepo.findById(memberId)
                 .orElseThrow(() -> new RuntimeException("Member not found"));
+        boolean self = member.getUser().getUserId().equals(me.getUserId());
+        if (!self) {
+            com.chamasmart.backend.domain.ChamaMember asker = memberRepo.findByChamaChamaIdAndUserUserId(member.getChama().getChamaId(), me.getUserId())
+                    .filter(com.chamasmart.backend.domain.ChamaMember::getIsActive)
+                    .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("You can't view this score"));
+            if (!java.util.List.of("CHAIRPERSON", "TREASURER", "SECRETARY").contains(String.valueOf(asker.getRole()).toUpperCase()))
+                throw new org.springframework.security.access.AccessDeniedException("You can't view this score");
+        }
         // Re-compute on every call
         int score = trustScoreService.recomputeTrustScore(member);
         return ResponseEntity.ok(ApiResponse.success(score, "Trust score retrieved successfully"));

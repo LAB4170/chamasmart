@@ -14,6 +14,8 @@ export const contributionAPI = {
         api.get(`/contributions/${chamaId}/pending`),
     initiateMpesaPayment: (paymentData) =>
         api.post('/payments/mpesa/stk-push', paymentData),
+    getMpesaStatus: (checkoutRequestId) =>
+        api.get(`/payments/mpesa/transactions/${encodeURIComponent(checkoutRequestId)}`),
     delete: (chamaId, id) => api.delete(`/contributions/${chamaId}/${id}`),
     getAll: (chamaId, params) => api.get(`/contributions/${chamaId}`, { params }),
 };

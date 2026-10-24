@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { loanAPI, chamaAPI, userAPI } from "../../../services/api";
+import { loanAPI, chamaAPI } from "../../../services/api";
 import { toast } from "react-toastify";
 import { BarChart2, ArrowLeft, Plus, X, ShieldCheck } from "lucide-react";
 import "../core/ChamaDetailsLux.css";

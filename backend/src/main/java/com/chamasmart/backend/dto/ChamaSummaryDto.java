@@ -42,6 +42,7 @@ public class ChamaSummaryDto {
     @JsonAlias({"totalMembers", "total_members"})
     private Integer total_members;
     private String visibility;
+    private Long deletion_requested_by;
     @JsonProperty("is_active")
     @JsonAlias({"isActive", "is_active"})
     private Boolean is_active;
@@ -111,6 +112,7 @@ public class ChamaSummaryDto {
                 .total_members(chama.getTotalMembers())
                 .visibility(chama.getVisibility())
                 .is_active(chama.getIsActive())
+                .deletion_requested_by(chama.getDeletionRequestedBy())
                 .created_at(chama.getCreatedAt())
                 .meeting_day(chama.getMeetingDay())
                 .meeting_time(chama.getMeetingTime())

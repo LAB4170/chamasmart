@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChamaSmart design system</title>
+<link rel="stylesheet" href="../src/styles/design-system.css">
+<style>body{margin:0;background:var(--cs-bg);font-family:var(--cs-font);color:var(--cs-text)}</style></head>
+<body>
+<main class="cs-page">
+  <header class="cs-page-header">
+    <div><h1 class="cs-page-title">Contributions</h1><p class="cs-page-sub">Everything your group has paid in, with its current status.</p></div>
+    <div class="cs-actions"><button class="cs-btn cs-btn--secondary">Export</button><button class="cs-btn cs-btn--primary">Record contribution</button></div>
+  </header>
+  <div class="cs-grid">
+    <div class="cs-card cs-stat"><span class="cs-stat-label">Group funds</span><span class="cs-stat-value">KES 1,248,500.00</span><span class="cs-stat-note">Updated 24 Oct 2026</span></div>
+    <div class="cs-card cs-stat"><span class="cs-stat-label">Collected this month</span><span class="cs-stat-value">KES 86,000.00</span></div>
+    <div class="cs-card cs-stat"><span class="cs-stat-label">Outstanding</span><span class="cs-stat-value">KES 14,000.00</span><span class="cs-stat-note">3 members</span></div>
+  </div>
+  <section class="cs-section"><h2 class="cs-section-title">Buttons and status</h2>
+    <div class="cs-card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+      <button class="cs-btn cs-btn--primary">Primary</button><button class="cs-btn cs-btn--secondary">Secondary</button>
+      <button class="cs-btn cs-btn--tertiary">Tertiary</button><button class="cs-btn cs-btn--danger">Remove member</button>
+      <button class="cs-btn cs-btn--primary" data-loading="true" disabled><span class="cs-spinner"></span>Saving</button>
+      <span class="cs-status cs-status--success">Completed</span><span class="cs-status cs-status--warning">Pending</span>
+      <span class="cs-status cs-status--danger">Failed</span><span class="cs-status cs-status--info">Disbursed</span><span class="cs-status cs-status--neutral">Reversed</span>
+    </div></section>
+  <section class="cs-section"><h2 class="cs-section-title">Recent transactions</h2>
+    <div class="cs-card cs-card--flush">
+      <div class="cs-toolbar"><input class="cs-input" type="search" placeholder="Search" aria-label="Search"></div>
+      <div class="cs-table-wrap"><table class="cs-table cs-table--records"><caption class="cs-sr-only">Transactions</caption>
+        <thead><tr><th>Date</th><th>Member</th><th>Reference</th><th>Status</th><th class="cs-num">Amount</th></tr></thead>
+        <tbody>
+          <tr><td data-label="Date">24 Oct 2026</td><td data-label="Member">Wanjiru Kamau</td><td data-label="Reference">UJO8K2L9QX</td><td data-label="Status"><span class="cs-status cs-status--success">Completed</span></td><td data-label="Amount" class="cs-num">KES 5,000.00</td></tr>
+          <tr><td data-label="Date">23 Oct 2026</td><td data-label="Member">Otieno Abdulrahman Mwangi-Njoroge</td><td data-label="Reference">UJN7H1A2BC</td><td data-label="Status"><span class="cs-status cs-status--warning">Pending</span></td><td data-label="Amount" class="cs-num">KES 12,500.00</td></tr>
+          <tr><td data-label="Date">22 Oct 2026</td><td data-label="Member">Achieng Odhiambo</td><td data-label="Reference">UJM3P9ZZ11</td><td data-label="Status"><span class="cs-status cs-status--danger">Failed</span></td><td data-label="Amount" class="cs-num">KES 1,000,000.00</td></tr>
+        </tbody></table></div>
+      <div class="cs-table-foot"><span>3 records · <span class="cs-totals">Total KES 1,017,500.00</span></span></div>
+    </div></section>
+  <section class="cs-section"><h2 class="cs-section-title">Form</h2>
+    <div class="cs-card" style="max-width:420px">
+      <div class="cs-field"><label class="cs-label" for="a">Amount (KES)<span class="cs-required">*</span></label><input id="a" class="cs-input cs-input--amount" aria-invalid="true" value="-50"><span class="cs-error">Enter an amount greater than 0.</span></div>
+      <div class="cs-field"><label class="cs-label" for="p">M-Pesa phone number</label><input id="p" class="cs-input" placeholder="07XX XXX XXX"><span class="cs-help">An STK prompt will be sent to this number.</span></div>
+      <button class="cs-btn cs-btn--primary cs-btn--block">Pay with M-Pesa</button></div></section>
+  <section class="cs-section"><div class="cs-card"><div class="cs-empty"><h3>No loans yet</h3><p>When a member applies for a loan it will show up here.</p><button class="cs-btn cs-btn--primary">Apply for a loan</button></div></div></section>
+</main></body></html>

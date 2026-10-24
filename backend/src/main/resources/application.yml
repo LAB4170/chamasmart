@@ -49,6 +49,7 @@ app:
     env: ${MPESA_ENV:sandbox}
     consumer-key: ${MPESA_CONSUMER_KEY:cpQnnxLsrtEU7WQ94G5XwfBGG11yUckjQAnAJPQXM9JkHycV}
     consumer-secret: ${MPESA_CONSUMER_SECRET:YOUR_DARAJA_SANDBOX_CONSUMER_SECRET}
+    callback-secret: ${MPESA_CALLBACK_SECRET:}
     shortcode: ${MPESA_SHORTCODE:174379}
     # Official Safaricom Sandbox Passkey (public for sandbox use)
     passkey: ${MPESA_PASSKEY:bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919}
@@ -69,5 +70,5 @@ management:
 
 logging:
   level:
-    org.springframework.security: DEBUG
-    org.springframework.web: DEBUG
+    org.springframework.security: ${LOG_LEVEL_SECURITY:INFO}
+    org.springframework.web: ${LOG_LEVEL_WEB:INFO}

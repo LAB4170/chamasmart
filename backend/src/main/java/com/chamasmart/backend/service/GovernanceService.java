@@ -22,6 +22,7 @@ public class GovernanceService {
     private final ChamaRepository chamaRepository;
     private final UserRepository userRepository;
     private final ChamaMemberRepository chamaMemberRepository;
+    private final MembershipService membershipService;
     // Ã¢â€â‚¬Ã¢â€â‚¬ Role guard Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     /** Asserts that userId is an active CHAIRPERSON, SECRETARY, or TREASURER of chamaId. */
     private void validateIsOfficial(Long chamaId, Long userId) {
@@ -78,127 +79,203 @@ public class GovernanceService {
     @Transactional
     public InviteDto createInvite(InviteDto dto, Long chamaId, Long inviterUserId) {
         log.info("Creating invite for chama ID: {} by user ID: {}", chamaId, inviterUserId);
-        validateIsOfficial(chamaId, inviterUserId);
-        Chama chama = chamaRepository.findById(chamaId)
-                .orElseThrow(() -> new RuntimeException("Chama not found"));
+        ChamaMember inviterMembership = membershipService.activeOfficial(chamaId, inviterUserId);
+        String role = dto.getRole() == null || dto.getRole().isBlank() ? "MEMBER" : dto.getRole().trim().toUpperCase();
+        if (!MembershipService.ASSIGNABLE_ROLES.contains(role)) {
+            throw new IllegalArgumentException("An invitation can only offer the role MEMBER, TREASURER or SECRETARY");
+        }
+        if (!"MEMBER".equals(role) && !"CHAIRPERSON".equalsIgnoreCase(inviterMembership.getRole())) {
+            throw new org.springframework.security.access.AccessDeniedException("Only the chairperson can invite someone as an official");
+        }
+        Chama chama = chamaRepository.findById(chamaId).filter(c -> Boolean.TRUE.equals(c.getIsActive()))
+                .orElseThrow(() -> new IllegalArgumentException("Chama not found"));
         User inviter = userRepository.findById(inviterUserId)
-                .orElseThrow(() -> new RuntimeException("Inviter user not found"));
-        String inviteCode = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+                .orElseThrow(() -> new IllegalArgumentException("Inviter user not found"));
+        String email = dto.getEmail() == null || dto.getEmail().isBlank() ? null : dto.getEmail().trim().toLowerCase();
+        String phone = dto.getPhone_number() == null || dto.getPhone_number().isBlank() ? null : dto.getPhone_number().trim();
         Invite invite = Invite.builder()
                 .chama(chama)
                 .invitedBy(inviter)
-                .inviteCode(inviteCode)
-                .email(dto.getEmail())
-                .phoneNumber(dto.getPhone_number())
-                .role(dto.getRole() != null ? dto.getRole() : "MEMBER")
+                .inviteCode(UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase())
+                .email(email)
+                .phoneNumber(phone)
+                .role(role)
                 .status("ACTIVE")
                 .expiresAt(ZonedDateTime.now().plusDays(7))
                 .build();
-        Invite savedInvite = inviteRepository.save(invite);
-        log.info("Successfully created invite code: {}", inviteCode);
-        return InviteDto.fromEntity(savedInvite);
+        return InviteDto.fromEntity(inviteRepository.save(invite));
     }
+
     @Transactional
     public InviteDto acceptInvite(String inviteCode, Long acceptingUserId) {
-        log.info("Accepting invite code: {} by user ID: {}", inviteCode, acceptingUserId);
-        Invite invite = inviteRepository.findByInviteCode(inviteCode)
-                .orElseThrow(() -> new RuntimeException("Invite not found or invalid code"));
+        log.info("Accepting an invite by user ID: {}", acceptingUserId);
+        Invite invite = inviteRepository.findByInviteCode(inviteCode == null ? "" : inviteCode.trim().toUpperCase())
+                .orElseThrow(() -> new IllegalArgumentException("This invitation code is not valid"));
         if (!"ACTIVE".equals(invite.getStatus()) || invite.getExpiresAt().isBefore(ZonedDateTime.now())) {
-            throw new RuntimeException("Invite has expired or is no longer active");
+            throw new IllegalStateException("This invitation has expired or is no longer active");
+        }
+        if (!Boolean.TRUE.equals(invite.getChama().getIsActive())) {
+            throw new IllegalStateException("This chama is no longer active");
         }
         User user = userRepository.findById(acceptingUserId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        // An invitation addressed to an email or phone number can only be used by that person.
+        if (invite.getEmail() != null && (user.getEmail() == null || !invite.getEmail().equalsIgnoreCase(user.getEmail().trim()))) {
+            throw new org.springframework.security.access.AccessDeniedException("This invitation was sent to a different email address");
+        }
+        if (invite.getPhoneNumber() != null && !invite.getPhoneNumber().equals(user.getPhoneNumber())) {
+            throw new org.springframework.security.access.AccessDeniedException("This invitation was sent to a different phone number");
+        }
+        Long chamaId = invite.getChama().getChamaId();
+        ChamaMember existing = chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, acceptingUserId).orElse(null);
+        if (existing != null && Boolean.TRUE.equals(existing.getIsActive())) {
+            throw new IllegalStateException("You are already a member of this chama");
+        }
+        String role = MembershipService.ASSIGNABLE_ROLES.contains(String.valueOf(invite.getRole()).toUpperCase()) ? invite.getRole().toUpperCase() : "MEMBER";
+        if (existing == null) {
+            chamaMemberRepository.save(ChamaMember.builder().chama(invite.getChama()).user(user).role(role).status("ACTIVE").isActive(true).build());
+        } else {
+            existing.setIsActive(true);
+            existing.setStatus("ACTIVE");
+            existing.setRole(role);
+            chamaMemberRepository.save(existing);
+        }
         invite.setStatus("ACCEPTED");
         invite.setAcceptedAt(ZonedDateTime.now());
         invite.setAcceptedBy(user);
-        Invite updatedInvite = inviteRepository.save(invite);
-        // Add user as ChamaMember
-        Optional<ChamaMember> existingMember = chamaMemberRepository.findByChamaChamaIdAndUserUserId(invite.getChama().getChamaId(), acceptingUserId);
-        if (existingMember.isEmpty()) {
-            ChamaMember newMember = ChamaMember.builder()
-                    .chama(invite.getChama())
-                    .user(user)
-                    .role(invite.getRole())
-                    .isActive(true)
-                    .build();
-            chamaMemberRepository.save(newMember);
-        }
-        return InviteDto.fromEntity(updatedInvite);
+        Invite updated = inviteRepository.save(invite);
+        membershipService.syncMemberCount(invite.getChama());
+        return InviteDto.fromEntity(updated);
     }
+
     @Transactional
     public JoinRequestDto createJoinRequest(JoinRequestDto dto, Long chamaId, Long requestingUserId) {
         log.info("Creating join request for chama ID: {} by user ID: {}", chamaId, requestingUserId);
-        Chama chama = chamaRepository.findById(chamaId)
-                .orElseThrow(() -> new RuntimeException("Chama not found"));
-        User user = userRepository.findById(requestingUserId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        Optional<JoinRequest> existing = joinRequestRepository.findByChamaChamaIdAndUserUserId(chamaId, requestingUserId);
-        if (existing.isPresent() && "PENDING".equals(existing.get().getStatus())) {
-            throw new RuntimeException("A pending join request already exists for this group");
+        Chama chama = chamaRepository.findById(chamaId).filter(c -> Boolean.TRUE.equals(c.getIsActive()))
+                .orElseThrow(() -> new IllegalArgumentException("Chama not found"));
+        if (!"PUBLIC".equalsIgnoreCase(chama.getVisibility())) {
+            throw new org.springframework.security.access.AccessDeniedException("This chama is private. You need an invitation to join");
         }
-        JoinRequest request = JoinRequest.builder()
-                .chama(chama)
-                .user(user)
-                .message(dto.getMessage())
-                .status("PENDING")
-                .build();
-        JoinRequest savedRequest = joinRequestRepository.save(request);
-        log.info("Successfully created join request ID: {}", savedRequest.getRequestId());
-        return JoinRequestDto.fromEntity(savedRequest);
+        User user = userRepository.findById(requestingUserId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        if (chamaMemberRepository.existsByChamaChamaIdAndUserUserIdAndIsActiveTrue(chamaId, requestingUserId)) {
+            throw new IllegalStateException("You are already a member of this chama");
+        }
+        if (joinRequestRepository.findAllByChamaChamaIdAndUserUserId(chamaId, requestingUserId).stream().anyMatch(r -> "PENDING".equals(r.getStatus()))) {
+            throw new IllegalStateException("You already have a pending request for this chama");
+        }
+        String message = dto.getMessage();
+        if (message != null && message.length() > 4000) throw new IllegalArgumentException("Your message is too long");
+        JoinRequest saved = joinRequestRepository.save(JoinRequest.builder().chama(chama).user(user).message(message).status("PENDING").build());
+        return JoinRequestDto.fromEntity(saved);
     }
+
     @Transactional
     public JoinRequestDto reviewJoinRequest(Long requestId, Long reviewerUserId, String decision, String comments) {
-        log.info("Reviewing join request ID: {} by user ID: {}, decision: {}", requestId, reviewerUserId, decision);
+        log.info("Reviewing join request ID: {} by user ID: {}", requestId, reviewerUserId);
         JoinRequest request = joinRequestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Join request not found"));
-        if (!"PENDING".equals(request.getStatus())) {
-            throw new RuntimeException("Join request is already processed");
+                .orElseThrow(() -> new IllegalArgumentException("Join request not found"));
+        Long chamaId = request.getChama().getChamaId();
+        membershipService.activeOfficial(chamaId, reviewerUserId);
+        if (request.getUser().getUserId().equals(reviewerUserId)) {
+            throw new org.springframework.security.access.AccessDeniedException("You cannot review your own request");
         }
-        User reviewer = userRepository.findById(reviewerUserId)
-                .orElseThrow(() -> new RuntimeException("Reviewer user not found"));
-        request.setStatus(decision.toUpperCase()); // APPROVED, REJECTED
+        String verdict = decision == null ? "" : decision.trim().toUpperCase();
+        if (!verdict.equals("APPROVED") && !verdict.equals("REJECTED")) throw new IllegalArgumentException("Decision must be APPROVED or REJECTED");
+        if (!"PENDING".equals(request.getStatus())) throw new IllegalStateException("This request has already been reviewed");
+        User reviewer = userRepository.findById(reviewerUserId).orElseThrow(() -> new IllegalArgumentException("Reviewer user not found"));
+        request.setStatus(verdict);
         request.setReviewedAt(ZonedDateTime.now());
         request.setReviewedBy(reviewer);
         request.setReviewComments(comments);
-        if ("APPROVED".equalsIgnoreCase(decision)) {
-            // Add user as ChamaMember
-            Optional<ChamaMember> existingMember = chamaMemberRepository.findByChamaChamaIdAndUserUserId(request.getChama().getChamaId(), request.getUser().getUserId());
-            if (existingMember.isEmpty()) {
-                ChamaMember newMember = ChamaMember.builder()
-                        .chama(request.getChama())
-                        .user(request.getUser())
-                        .role("MEMBER")
-                        .isActive(true)
-                        .build();
-                chamaMemberRepository.save(newMember);
+        if (verdict.equals("APPROVED")) {
+            ChamaMember existing = chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, request.getUser().getUserId()).orElse(null);
+            if (existing == null) {
+                chamaMemberRepository.save(ChamaMember.builder().chama(request.getChama()).user(request.getUser()).role("MEMBER").status("ACTIVE").isActive(true).build());
+            } else if (!Boolean.TRUE.equals(existing.getIsActive())) {
+                existing.setIsActive(true);
+                existing.setStatus("ACTIVE");
+                existing.setRole("MEMBER");
+                chamaMemberRepository.save(existing);
             }
-            // Notify user
-            Notification n = Notification.builder()
-                    .user(request.getUser())
-                    .title("Join Request Approved")
-                    .message("Your request to join " + request.getChama().getChamaName() + " has been approved!")
-                    .type("JOIN_APPROVED")
-                    .entityType("CHAMA")
-                    .entityId(request.getChama().getChamaId())
-                    .build();
-            notificationRepository.save(n);
-        } else {
-            // Notify user of rejection
-            Notification n = Notification.builder()
-                    .user(request.getUser())
-                    .title("Join Request Declined")
-                    .message("Your request to join " + request.getChama().getChamaName() + " was declined. Comments: " + comments)
-                    .type("JOIN_REJECTED")
-                    .entityType("CHAMA")
-                    .entityId(request.getChama().getChamaId())
-                    .build();
-            notificationRepository.save(n);
+            membershipService.syncMemberCount(request.getChama());
         }
-        JoinRequest updatedRequest = joinRequestRepository.save(request);
-        return JoinRequestDto.fromEntity(updatedRequest);
+        String chamaName = request.getChama().getChamaName();
+        notificationRepository.save(Notification.builder()
+                .user(request.getUser())
+                .title(verdict.equals("APPROVED") ? "Join Request Approved" : "Join Request Declined")
+                .message(verdict.equals("APPROVED") ? "Your request to join " + chamaName + " has been approved."
+                        : "Your request to join " + chamaName + " was declined." + (comments != null && !comments.isBlank() ? " Comments: " + comments : ""))
+                .type(verdict.equals("APPROVED") ? "JOIN_APPROVED" : "JOIN_REJECTED")
+                .entityType("CHAMA")
+                .entityId(chamaId)
+                .build());
+        return JoinRequestDto.fromEntity(joinRequestRepository.save(request));
     }
+
+    /** The signed-in user's own requests, with real statuses. */
     @Transactional(readOnly = true)
-    public List<MeetingDto> getMeetingsByChamaId(Long chamaId) {
+    public List<JoinRequestDto> getMyJoinRequests(Long userId) {
+        return joinRequestRepository.findByUserUserId(userId).stream().map(JoinRequestDto::fromEntity).collect(Collectors.toList());
+    }
+
+    private Meeting meetingOf(Long chamaId, Long meetingId) {
+        Meeting m = meetingRepository.findById(meetingId).orElseThrow(() -> new IllegalArgumentException("Meeting not found"));
+        if (!m.getChama().getChamaId().equals(chamaId)) throw new IllegalArgumentException("Meeting not found");
+        return m;
+    }
+
+    @Transactional(readOnly = true)
+    public MeetingDto getMeeting(Long chamaId, Long meetingId, Long requesterUserId) {
+        membershipService.activeMember(chamaId, requesterUserId);
+        return MeetingDto.fromEntity(meetingOf(chamaId, meetingId));
+    }
+
+    @Transactional
+    public MeetingDto updateMeeting(Long chamaId, Long meetingId, MeetingDto dto, Long requesterUserId) {
+        membershipService.activeOfficial(chamaId, requesterUserId);
+        Meeting m = meetingOf(chamaId, meetingId);
+        if ("CANCELLED".equals(m.getStatus()) || "COMPLETED".equals(m.getStatus())) {
+            throw new IllegalStateException("A " + m.getStatus().toLowerCase() + " meeting can't be changed");
+        }
+        if (dto.getTitle() != null) {
+            if (dto.getTitle().isBlank()) throw new IllegalArgumentException("The meeting needs a title");
+            m.setTitle(dto.getTitle().trim());
+        }
+        if (dto.getDescription() != null) m.setDescription(dto.getDescription());
+        if (dto.getScheduled_date() != null) m.setScheduledDate(dto.getScheduled_date());
+        if (dto.getLocation() != null) m.setLocation(dto.getLocation());
+        if (dto.getMeeting_link() != null) m.setMeetingLink(dto.getMeeting_link());
+        if (dto.getAgenda() != null) m.setAgenda(dto.getAgenda());
+        if (dto.getMinutes() != null) m.setMinutes(dto.getMinutes());
+        return MeetingDto.fromEntity(meetingRepository.save(m));
+    }
+
+    /** Publishing the minutes closes the meeting. */
+    @Transactional
+    public MeetingDto publishMinutes(Long chamaId, Long meetingId, Long requesterUserId) {
+        membershipService.activeOfficial(chamaId, requesterUserId);
+        Meeting m = meetingOf(chamaId, meetingId);
+        if ("CANCELLED".equals(m.getStatus())) throw new IllegalStateException("A cancelled meeting has no minutes");
+        if (m.getMinutes() == null || m.getMinutes().isBlank()) throw new IllegalStateException("Write the minutes before publishing them");
+        m.setStatus("COMPLETED");
+        m.setRecordedBy(userRepository.findById(requesterUserId).orElseThrow(() -> new IllegalArgumentException("User not found")));
+        return MeetingDto.fromEntity(meetingRepository.save(m));
+    }
+
+    /** Meetings are cancelled, not erased, so the record of what was scheduled stays. */
+    @Transactional
+    public MeetingDto cancelMeeting(Long chamaId, Long meetingId, Long requesterUserId) {
+        membershipService.activeOfficial(chamaId, requesterUserId);
+        Meeting m = meetingOf(chamaId, meetingId);
+        if ("COMPLETED".equals(m.getStatus())) throw new IllegalStateException("A meeting with published minutes can't be cancelled");
+        m.setStatus("CANCELLED");
+        return MeetingDto.fromEntity(meetingRepository.save(m));
+    }
+
+    @Transactional(readOnly = true)
+    public List<MeetingDto> getMeetingsByChamaId(Long chamaId, Long requesterUserId) {
+        membershipService.activeMember(chamaId, requesterUserId);
         return meetingRepository.findByChamaChamaIdOrderByScheduledDateDesc(chamaId).stream()
                 .map(MeetingDto::fromEntity)
                 .collect(Collectors.toList());
@@ -220,24 +297,25 @@ public class GovernanceService {
         }
     }
     @Transactional(readOnly = true)
-    public List<InviteDto> getInvitesByChamaId(Long chamaId, String status) {
+    public List<InviteDto> getInvitesByChamaId(Long chamaId, String status, Long requesterUserId) {
+        membershipService.activeOfficial(chamaId, requesterUserId);
         return inviteRepository.findByChamaChamaIdAndStatus(chamaId, status).stream()
                 .map(InviteDto::fromEntity)
                 .collect(Collectors.toList());
     }
     @Transactional(readOnly = true)
-    public List<JoinRequestDto> getJoinRequestsByChamaId(Long chamaId, String status) {
+    public List<JoinRequestDto> getJoinRequestsByChamaId(Long chamaId, String status, Long requesterUserId) {
+        membershipService.activeOfficial(chamaId, requesterUserId);
         return joinRequestRepository.findByChamaChamaIdAndStatus(chamaId, status).stream()
                 .map(JoinRequestDto::fromEntity)
                 .collect(Collectors.toList());
     }
     @Transactional
-    public void deactivateInvite(Long inviteId) {
-        log.info("Deactivating invite ID: {}", inviteId);
-        inviteRepository.findById(inviteId).ifPresent(invite -> {
-            invite.setStatus("REVOKED");
-            inviteRepository.save(invite);
-        });
+    public void deactivateInvite(Long inviteId, Long requesterUserId) {
+        Invite invite = inviteRepository.findById(inviteId).orElseThrow(() -> new IllegalArgumentException("Invitation not found"));
+        membershipService.activeOfficial(invite.getChama().getChamaId(), requesterUserId);
+        if (!"ACTIVE".equals(invite.getStatus())) throw new IllegalStateException("This invitation is no longer active");
+        invite.setStatus("REVOKED");
+        inviteRepository.save(invite);
     }
 }
-

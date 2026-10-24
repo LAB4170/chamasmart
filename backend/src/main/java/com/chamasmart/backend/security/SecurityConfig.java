@@ -61,7 +61,7 @@ public class SecurityConfig {
                 .requestMatchers("/auth/login", "/auth/register", "/auth/firebase-sync").permitAll()
                 .requestMatchers("/public/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                .requestMatchers("/actuator/**").permitAll()
+                .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                 .requestMatchers("/mpesa/callback", "/payments/mpesa/callback").permitAll()
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/chat/ai-support").permitAll()
@@ -76,7 +76,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.asList("http://localhost:*", "https://chamasmart-xcym.onrender.com", "https://*.onrender.com", "https://chamasmart.netlify.app"));
+        configuration.setAllowedOriginPatterns(Arrays.asList("http://localhost:*", "https://chamasmart-xcym.onrender.com", "https://*.onrender.com", "https://chamasmart.netlify.app", "https://localhost", "capacitor://localhost"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
         configuration.setExposedHeaders(Arrays.asList("Content-Range", "X-Total-Count"));

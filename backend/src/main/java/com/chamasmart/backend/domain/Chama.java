@@ -52,6 +52,11 @@ public class Chama {
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;
+    /** Two-official handshake for retiring a chama: who asked, and when. */
+    @Column(name = "deletion_requested_by")
+    private Long deletionRequestedBy;
+    @Column(name = "deletion_requested_at")
+    private java.time.ZonedDateTime deletionRequestedAt;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;

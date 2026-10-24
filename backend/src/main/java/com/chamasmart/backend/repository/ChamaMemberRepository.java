@@ -12,6 +12,7 @@ public interface ChamaMemberRepository extends JpaRepository<ChamaMember, Long> 
     List<ChamaMember> findActiveMembershipsByUserId(@Param("userId") Long userId);
     Optional<ChamaMember> findByChamaChamaIdAndUserUserId(Long chamaId, Long userId);
     List<ChamaMember> findByChamaChamaIdAndIsActiveTrue(Long chamaId);
+    long countByChamaChamaIdAndIsActiveTrue(Long chamaId);
     boolean existsByChamaChamaIdAndUserUserIdAndIsActiveTrue(Long chamaId, Long userId);
 }
 

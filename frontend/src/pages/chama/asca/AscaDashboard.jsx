@@ -1,142 +1,89 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ascaAPI } from "../../../services/api";
-import { toast } from "react-toastify";
-import {
-    TrendingUp, Coins, PieChart as PieChartIcon, Percent,
-    ShoppingCart, Vote, ArrowLeft, ArrowRight, Wallet
-} from "lucide-react";
-import "./Asca.css";
+import { useAuth } from "../../../context/AuthContext";
+import { Button, PageHeader, StatCard, EmptyState, Skeleton, DataTable } from "../../../components/ui";
+import { formatKES, formatDate } from "../../../utils/format";
 
-const AscaDashboard = () => {
-    const { id } = useParams();
-    const [equity, setEquity] = useState(null);
-    const [loading, setLoading] = useState(true);
+export default function AscaDashboard() {
+  const { id } = useParams();
+  const { user } = useAuth();
+  const [cycles, setCycles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-    useEffect(() => {
-        let isMounted = true;
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await ascaAPI.getEquity(id);
+      const list = res.data?.data ?? [];
+      setCycles(Array.isArray(list) ? list : []);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
-        const fetchEquity = async () => {
-            try {
-                const res = await ascaAPI.getEquity(id);
-                if (isMounted) {
-                    setEquity(res.data.data || res.data);
-                    setLoading(false);
-                }
-            } catch (err) {
-                console.error(err);
-                if (isMounted) {
-                    toast.error("Failed to fetch equity data");
-                    setLoading(false);
-                }
-            }
-        };
+  useEffect(() => { load(); }, [load]);
 
-        fetchEquity();
-        return () => { isMounted = false; };
-    }, [id]);
+  const cycle = cycles.find((c) => c.status === "ACTIVE") || cycles[0] || null;
+  const members = cycle?.members ?? [];
+  const mine = members.find((m) => String(m.user_id) === String(user?.user_id));
+  const totalOwned = members.reduce((s, m) => s + (m.shares_owned || 0), 0);
+  const myShares = mine?.shares_owned || 0;
+  const price = Number(cycle?.share_price || 0);
+  const ownership = totalOwned > 0 ? (myShares / totalOwned) * 100 : 0;
 
-    if (loading) return <div className="loading-spinner">Loading equity...</div>;
+  const columns = [
+    { key: "member_name", header: "Member" },
+    { key: "shares_owned", header: "Shares", align: "num" },
+    { key: "total_investment", header: "Invested", align: "num", sortValue: (r) => Number(r.total_investment || 0), render: (r) => formatKES(r.total_investment) },
+  ];
 
-    const ownershipNum = equity?.percentage || 0;
+  return (
+    <div className="cs-shell">
+      <main className="cs-page">
+        <PageHeader
+          title="Shares"
+          subtitle="Who owns what in the chama's share pool."
+          actions={(
+            <>
+              <Link to={`/chamas/${id}`} className="cs-btn cs-btn--secondary">Back to chama</Link>
+              <Link to={`/chamas/${id}/asca/buy-shares`} className="cs-btn cs-btn--primary">Record share purchase</Link>
+            </>
+          )}
+        />
 
-    return (
-        <div className="page asca-dashboard">
-            <div className="container">
-                {/* Page Header */}
-                <div className="page-header-modern">
-                    <Link to={`/chamas/${id}`} className="back-link">
-                        <ArrowLeft size={18} />
-                        <span>Back to Chama</span>
-                    </Link>
-                    <div className="page-header-row">
-                        <div className="page-header-info">
-                            <div className="page-header-icon green">
-                                <TrendingUp size={24} />
-                            </div>
-                            <div>
-                                <h1>Investment & Lending</h1>
-                                <p className="page-subtitle">Accumulating Savings & Credit (ASCA)</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        {error && (
+          <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 16, alignItems: "center", justifyContent: "space-between" }}>
+            <span>We couldn&apos;t load the share cycle.</span><Button size="sm" onClick={load}>Try again</Button>
+          </div>
+        )}
 
-                {/* Equity Stats */}
-                <div className="stats-row">
-                    <div className="mini-stat-card">
-                        <div className="mini-stat-icon blue">
-                            <Coins size={20} />
-                        </div>
-                        <div>
-                            <div className="mini-stat-value">{equity?.shares || 0}</div>
-                            <div className="mini-stat-label">Shares Owned</div>
-                        </div>
-                    </div>
-                    <div className="mini-stat-card">
-                        <div className="mini-stat-icon green">
-                            <Wallet size={20} />
-                        </div>
-                        <div>
-                            <div className="mini-stat-value">KES {equity?.value?.toLocaleString() || 0}</div>
-                            <div className="mini-stat-label">Total Value</div>
-                        </div>
-                    </div>
-                    <div className="mini-stat-card">
-                        <div className="mini-stat-icon purple">
-                            <Percent size={20} />
-                        </div>
-                        <div>
-                            <div className="mini-stat-value">{ownershipNum}%</div>
-                            <div className="mini-stat-label">Ownership</div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Ownership Progress */}
-                <div className="card-modern">
-                    <h3 className="card-modern-title">Your Ownership Share</h3>
-                    <div className="ownership-bar-container">
-                        <div className="ownership-bar">
-                            <div
-                                className="ownership-bar-fill"
-                                style={{ width: `${Math.min(ownershipNum, 100)}%` }}
-                            />
-                        </div>
-                        <div className="ownership-bar-labels">
-                            <span>0%</span>
-                            <span className="ownership-current">{ownershipNum}%</span>
-                            <span>100%</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Quick Actions */}
-                <div className="action-cards-grid">
-                    <Link to={`/chamas/${id}/asca/buy`} className="action-card green">
-                        <div className="action-card-icon">
-                            <ShoppingCart size={24} />
-                        </div>
-                        <div className="action-card-content">
-                            <h3>Buy Shares</h3>
-                            <p>Increase your equity by purchasing additional shares in the pool.</p>
-                        </div>
-                        <ArrowRight size={18} className="action-card-arrow" />
-                    </Link>
-                    <Link to={`/chamas/${id}/asca/proposals`} className="action-card purple">
-                        <div className="action-card-icon">
-                            <Vote size={24} />
-                        </div>
-                        <div className="action-card-content">
-                            <h3>Investment Proposals</h3>
-                            <p>View, vote on, and propose new investment opportunities for the group.</p>
-                        </div>
-                        <ArrowRight size={18} className="action-card-arrow" />
-                    </Link>
-                </div>
+        {loading ? (
+          <div className="cs-card" aria-busy="true" aria-label="Loading shares"><Skeleton height={20} width="40%" /><Skeleton height={60} style={{ marginTop: 12 }} /></div>
+        ) : !error && (!cycle ? (
+          <div className="cs-card"><EmptyState title="No share cycle yet" message="An official needs to start a share cycle before shares can be recorded." /></div>
+        ) : (
+          <>
+            <p className="cs-list-meta" style={{ marginBottom: 12 }}>
+              {cycle.cycle_name} · {formatDate(cycle.start_date)} to {formatDate(cycle.end_date)} · {formatKES(price)} a share
+            </p>
+            <div className="cs-grid" style={{ marginBottom: 16 }}>
+              <StatCard label="Your shares" value={String(myShares)} note={`Worth ${formatKES(myShares * price)} at today's price`} />
+              <StatCard label="Your ownership" value={`${ownership.toFixed(1)}%`} note="Share of shares sold so far" />
+              <StatCard label="Shares still available" value={String(cycle.available_shares ?? 0)} note={`${cycle.total_shares ?? 0} in total`} />
             </div>
-        </div>
-    );
-};
-
-export default AscaDashboard;
+            <section className="cs-card" aria-label="Shareholders">
+              <h2 className="cs-card-title">Shareholders</h2>
+              <DataTable columns={columns} rows={members} rowKey={(r) => r.membership_id} caption="Shareholders in this cycle" emptyMessage="No shares have been recorded yet." summarize={(rs) => `${rs.reduce((t, r) => t + (r.shares_owned || 0), 0)} shares · ${formatKES(rs.reduce((t, r) => t + Number(r.total_investment || 0), 0))} invested`} />
+            </section>
+            <p className="cs-footnote">Dividends and investment proposals aren&apos;t available yet. Share purchases are recorded by an official once payment is received.</p>
+          </>
+        ))}
+      </main>
+    </div>
+  );
+}

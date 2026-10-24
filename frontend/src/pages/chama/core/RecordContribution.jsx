@@ -1,317 +1,171 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { chamaAPI, contributionAPI } from "../../../services/api";
-import { roscaAPI } from "../../../services/api";
-import LoadingSkeleton from "../../../components/LoadingSkeleton";
-import { AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
+import { useParams, Link } from "react-router-dom";
+import { chamaAPI, contributionAPI, roscaAPI } from "../../../services/api";
+import { Button, PageHeader, Skeleton } from "../../../components/ui";
+import { formatKES } from "../../../utils/format";
 
-const RecordContribution = () => {
+const METHODS = [
+  { value: "MPESA", label: "M-Pesa" },
+  { value: "CASH", label: "Cash" },
+  { value: "BANK_TRANSFER", label: "Bank transfer" },
+  { value: "CHEQUE", label: "Cheque" },
+];
+
+export default function RecordContribution() {
   const { id } = useParams();
-  const navigate = useNavigate();
-
   const [chama, setChama] = useState(null);
   const [members, setMembers] = useState([]);
-  const [activeCycle, setActiveCycle] = useState(null);
-  const [cycleWarning, setCycleWarning] = useState("");
-  const [formData, setFormData] = useState({
-    userId: "",
-    amount: "",
-    paymentMethod: "MPESA",
-    receiptNumber: "",
-    contributionDate: new Date().toISOString().split("T")[0],
-    notes: "",
-  });
-  const [loading, setLoading] = useState(false);
-  const [pageLoading, setPageLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [cycle, setCycle] = useState(null);
+  const [cycleNote, setCycleNote] = useState("");
+  const [form, setForm] = useState({ userId: "", amount: "", method: "MPESA", reference: "", notes: "" });
+  const [touched, setTouched] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [recorded, setRecorded] = useState(null); // set only after the server confirms
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchData = async () => {
-      try {
-        if (isMounted) setPageLoading(true);
-        const [chamaRes, membersRes] = await Promise.all([
-          chamaAPI.getById(id),
-          chamaAPI.getMembers(id),
-        ]);
-
-        if (isMounted) {
-          const chamaData = chamaRes.data.data;
-          setChama(chamaData);
-          setMembers(membersRes.data.data || []);
-
-          // For ROSCA chamas, fetch the active cycle to show expected amount
-          if (chamaData.chama_type === "ROSCA") {
-            try {
-              const cyclesRes = await roscaAPI.getCycles(id);
-              const cycles = cyclesRes.data.data || [];
-              const active = cycles.find(c => c.status === "ACTIVE");
-              const pending = !active && cycles.find(c => c.status === "PENDING");
-              const cycle = active || pending;
-
-              if (cycle) {
-                setActiveCycle(cycle);
-                // Pre-fill expected amount from cycle
-                setFormData(prev => ({
-                  ...prev,
-                  amount: cycle.contribution_amount || chamaData.contribution_amount || ""
-                }));
-                if (!active && pending) {
-                  setCycleWarning(`Cycle "${cycle.cycle_name}" is PENDING — not yet started. Contributions will be saved against this cycle.`);
-                }
-              } else {
-                setCycleWarning("⚠️ No active or pending cycle found. Please create a ROSCA cycle before recording contributions.");
-                setFormData(prev => ({ ...prev, amount: chamaData.contribution_amount || "" }));
-              }
-            } catch {
-              setCycleWarning("Could not load cycle data. Proceeding with chama default amount.");
-              setFormData(prev => ({ ...prev, amount: chamaData.contribution_amount || "" }));
-            }
-          } else {
-            setFormData(prev => ({ ...prev, amount: chamaData.contribution_amount || "" }));
-          }
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const [c, m] = await Promise.all([chamaAPI.getById(id), chamaAPI.getMembers(id)]);
+      const chamaData = c.data?.data;
+      setChama(chamaData);
+      setMembers(m.data?.data || []);
+      let amount = chamaData?.contribution_amount || "";
+      if (chamaData?.chama_type === "ROSCA") {
+        try {
+          const cycles = (await roscaAPI.getCycles(id)).data?.data || [];
+          const active = cycles.find((x) => x.status === "ACTIVE");
+          const pending = !active && cycles.find((x) => x.status === "PENDING");
+          const picked = active || pending || null;
+          setCycle(picked);
+          if (picked) amount = picked.contribution_amount || amount;
+          setCycleNote(!picked ? "There is no active or pending cycle. Create a cycle before recording contributions." : !active ? `Cycle “${picked.cycle_name}” has not started yet.` : "");
+        } catch {
+          setCycleNote("We couldn't load the cycle, so the chama's default amount is shown.");
         }
-      } catch (err) {
-        if (isMounted) {
-          setError("Failed to load chama data");
-          console.error(err);
-        }
-      } finally {
-        if (isMounted) setPageLoading(false);
       }
-    };
-
-    fetchData();
-    return () => { isMounted = false; };
+      setForm((f) => ({ ...f, amount }));
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  useEffect(() => { load(); }, [load]);
+
+  const isROSCA = chama?.chama_type === "ROSCA";
+  const noCycle = isROSCA && !cycle;
+  const expected = cycle?.contribution_amount || chama?.contribution_amount;
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const blur = (k) => () => setTouched((t) => ({ ...t, [k]: true }));
+
+  const errors = {
+    userId: form.userId ? "" : "Choose the member who paid.",
+    amount: !form.amount || Number(form.amount) <= 0 ? "Enter an amount greater than zero." : "",
   };
+  const member = members.find((m) => String(m.user_id) === String(form.userId));
 
-  const handleSubmit = async (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
-    setLoading(true);
-
+    setTouched({ userId: true, amount: true });
+    if (errors.userId || errors.amount || busy || noCycle) return;
+    setBusy(true);
+    setSubmitError("");
     try {
-      const res = await contributionAPI.record(id, {
-        ...formData,
-        userId: parseInt(formData.userId),
-        amount: parseFloat(formData.amount),
+      const notes = [`Paid by ${METHODS.find((m) => m.value === form.method)?.label}`, form.notes.trim()].filter(Boolean).join(". ");
+      await contributionAPI.record(id, {
+        userId: Number(form.userId),
+        amount: Number(form.amount),
+        paymentMethod: form.method,
+        receiptNumber: form.reference.trim() || undefined,
+        notes,
       });
-      const warn = res.data?.warning;
-      setSuccess(`Contribution recorded successfully!${warn ? ` Note: ${warn}` : ""}`);
-      setTimeout(() => {
-        navigate(`/chamas/${id}`, { state: { refresh: true, tab: "contributions" } });
-      }, 1800);
+      setRecorded({ name: member ? `${member.first_name} ${member.last_name}` : "the member", amount: Number(form.amount) });
+      setForm((f) => ({ ...f, userId: "", reference: "", notes: "" }));
+      setTouched({});
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to record contribution");
-      setLoading(false);
+      setSubmitError(err.response?.data?.message || "We couldn't record this payment. Nothing was changed, so you can try again.");
+    } finally {
+      setBusy(false);
     }
   };
 
-  const formatCurrency = useCallback((amount) => {
-    return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES" }).format(amount);
-  }, []);
-
-  if (pageLoading) {
-    return (
-      <div className="page">
-        <div className="container">
-          <LoadingSkeleton type="detail" />
-        </div>
-      </div>
-    );
-  }
-
-  const isROSCA = chama?.chama_type === "ROSCA";
-  const noCycle = isROSCA && !activeCycle;
-  const expectedAmount = activeCycle?.contribution_amount || chama?.contribution_amount;
+  const back = <Link to={`/chamas/${id}`} className="cs-btn cs-btn--secondary">Back to chama</Link>;
 
   return (
-    <div className="chama-details-lux-root">
-      <div className="page-frame-lux">
-        <div className="chama-main-frame">
-          <div className="chama-header-lux">
-            <div className="chama-title-area">
-              <button className="btn-return-lux mb-4" onClick={() => navigate(`/chamas/${id}`)}>
-                ← Return to Chama
-              </button>
-              <h1>Record Contribution</h1>
-              <div className="chama-badges mt-2">
-                <span className="badge-lux badge-gold">
-                  {chama?.chama_name}
-                </span>
-                {isROSCA && <span className="badge-lux" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)' }}>Merry-Go-Round</span>}
-              </div>
-            </div>
+    <div className="cs-shell">
+      <main className="cs-page cs-page--narrow">
+        <PageHeader title="Record a payment" subtitle={chama?.chama_name} actions={back} />
+
+        {loading && <div className="cs-card" aria-busy="true" aria-label="Loading"><Skeleton height={16} width="40%" /><Skeleton height={40} style={{ marginTop: 12 }} /></div>}
+        {loadError && (
+          <div className="cs-notice cs-notice--danger" role="alert" style={{ alignItems: "center", justifyContent: "space-between" }}>
+            <span>We couldn&apos;t load this chama.</span><Button size="sm" onClick={load}>Try again</Button>
           </div>
+        )}
 
-          {error && <div className="alert alert-error">{error}</div>}
-          {success && <div className="alert alert-success">{success}</div>}
-
-          {/* ROSCA Cycle Context */}
-          {isROSCA && (
-            <div className={`alert ${noCycle ? "alert-error" : activeCycle?.status === "ACTIVE" ? "alert-success" : "alert-warning"} mb-6`}>
-              <div className="flex items-start gap-3">
-                <div className="mt-1">
-                  {noCycle ? <AlertCircle size={20} /> : activeCycle?.status === "ACTIVE" ? <CheckCircle2 size={20} /> : <RefreshCw size={20} />}
-                </div>
-                <div>
-                  {noCycle ? (
-                    <><strong>No Active Cycle!</strong> <p className="m-0 text-sm mt-1">{cycleWarning}</p></>
-                  ) : (
-                    <>
-                      <strong>Cycle: {activeCycle?.cycle_name}</strong>
-                      <span className="status-pill-lux ml-3" style={{ 
-                        background: activeCycle?.status === "ACTIVE" ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                        color: activeCycle?.status === "ACTIVE" ? '#10b981' : '#f59e0b',
-                        border: `1px solid ${activeCycle?.status === "ACTIVE" ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`
-                      }}>
-                        {activeCycle?.status}
-                      </span>
-                      <div className="text-sm mt-2">Expected contribution: <strong>{formatCurrency(activeCycle?.contribution_amount)}</strong> per member</div>
-                      {cycleWarning && <div className="text-sm text-warning mt-1">{cycleWarning}</div>}
-                    </>
-                  )}
-                </div>
+        {chama && !loading && (
+          <>
+            {recorded && (
+              <div className="cs-notice cs-notice--success" role="status" style={{ marginBottom: 16, flexDirection: "column" }}>
+                <strong>Recorded {formatKES(recorded.amount)} for {recorded.name}.</strong>
+                <span>It now counts towards their total and the chama fund. You can record another payment below.</span>
               </div>
-            </div>
-          )}
+            )}
+            {isROSCA && cycleNote && <div className={`cs-notice ${noCycle ? "cs-notice--danger" : "cs-notice--warning"}`} role={noCycle ? "alert" : undefined} style={{ marginBottom: 16 }}>{cycleNote}</div>}
+            {isROSCA && cycle && <p className="cs-help">Cycle: {cycle.cycle_name}</p>}
+            {submitError && <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 16 }}>{submitError}</div>}
 
-          {!isROSCA && (
-            <div className="alert mb-6" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-              <strong>Recording Payment</strong> — Use this form to manually log a payment received from a member.
-              It will update their contribution total and appear in reports.
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="mt-4">
-            <div className="form-group">
-              <label className="form-label-lux">Select Member *</label>
-              <select
-                name="userId"
-                className="form-select-lux"
-                value={formData.userId}
-                onChange={handleChange}
-                required
-              >
-                <option value="">Choose a member...</option>
-                {members.map((member) => (
-                  <option key={member.user_id} value={member.user_id}>
-                    {member.first_name} {member.last_name} ({member.role}) — Paid: {formatCurrency(member.total_contributions || 0)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-              <div className="form-group m-0">
-                <label className="form-label-lux">Amount (KES) *</label>
-                <input
-                  type="number"
-                  name="amount"
-                  className="form-input-lux"
-                  min="1"
-                  step="0.01"
-                  value={formData.amount}
-                  onChange={handleChange}
-                  required
-                />
-                {expectedAmount && (
-                  <small style={{ fontSize: '0.75rem', color: 'var(--lux-text-secondary)', marginTop: '0.5rem', display: 'block' }}>
-                    {isROSCA ? `Cycle expected: ` : `Chama default: `}
-                    <strong style={{ color: 'var(--gold-text)' }}>{formatCurrency(expectedAmount)}</strong>
-                  </small>
-                )}
+            <form className="cs-card" onSubmit={submit} noValidate>
+              <div className="cs-field">
+                <label className="cs-label" htmlFor="member">Member<span className="cs-required" aria-hidden="true">*</span></label>
+                <select id="member" className="cs-input" value={form.userId} onChange={set("userId")} onBlur={blur("userId")} disabled={busy}
+                  aria-invalid={Boolean(touched.userId && errors.userId)} aria-describedby="member-msg">
+                  <option value="">Choose a member</option>
+                  {members.map((m) => <option key={m.user_id} value={m.user_id}>{m.first_name} {m.last_name} — paid so far {formatKES(m.total_contributions || 0)}</option>)}
+                </select>
+                <span id="member-msg" className={touched.userId && errors.userId ? "cs-error" : "cs-help"}>{touched.userId && errors.userId ? errors.userId : " "}</span>
               </div>
 
-              <div className="form-group m-0">
-                <label className="form-label-lux">Payment Method *</label>
-                <select
-                  name="paymentMethod"
-                  className="form-select-lux"
-                  value={formData.paymentMethod}
-                  onChange={handleChange}
-                  required
-                >
-                  <option value="MPESA">M-Pesa</option>
-                  <option value="CASH">Cash</option>
-                  <option value="BANK_TRANSFER">Bank Transfer</option>
-                  <option value="CHEQUE">Cheque</option>
+              <div className="cs-field" style={{ marginTop: 12 }}>
+                <label className="cs-label" htmlFor="amount">Amount (KES)<span className="cs-required" aria-hidden="true">*</span></label>
+                <input id="amount" className="cs-input cs-input--amount" type="number" inputMode="decimal" min="0.01" step="0.01" value={form.amount}
+                  onChange={set("amount")} onBlur={blur("amount")} disabled={busy} aria-invalid={Boolean(touched.amount && errors.amount)} aria-describedby="amount-msg" />
+                <span id="amount-msg" className={touched.amount && errors.amount ? "cs-error" : "cs-help"}>
+                  {touched.amount && errors.amount ? errors.amount : expected ? `${isROSCA ? "Cycle amount" : "Chama default"}: ${formatKES(expected)}` : " "}
+                </span>
+              </div>
+
+              <div className="cs-field" style={{ marginTop: 12 }}>
+                <label className="cs-label" htmlFor="method">How was it paid?</label>
+                <select id="method" className="cs-input" value={form.method} onChange={set("method")} disabled={busy}>
+                  {METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
                 </select>
               </div>
-            </div>
 
-            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-              <div className="form-group m-0">
-                <label className="form-label-lux">Receipt / Reference Number</label>
-                <input
-                  type="text"
-                  name="receiptNumber"
-                  className="form-input-lux"
-                  placeholder="e.g., QBX123456"
-                  value={formData.receiptNumber}
-                  onChange={handleChange}
-                />
+              <div className="cs-field" style={{ marginTop: 12 }}>
+                <label className="cs-label" htmlFor="reference">Receipt or reference number</label>
+                <input id="reference" className="cs-input" type="text" value={form.reference} onChange={set("reference")} disabled={busy} placeholder="e.g. QBX123456" autoComplete="off" aria-describedby="ref-msg" />
+                <span id="ref-msg" className="cs-help">Each reference can only be used once. Leave blank to generate one.</span>
               </div>
 
-              <div className="form-group m-0">
-                <label className="form-label-lux">Contribution Date *</label>
-                <input
-                  type="date"
-                  name="contributionDate"
-                  className="form-input-lux"
-                  value={formData.contributionDate}
-                  max={new Date().toISOString().split("T")[0]}
-                  onChange={handleChange}
-                  required
-                />
+              <div className="cs-field" style={{ marginTop: 12 }}>
+                <label className="cs-label" htmlFor="notes">Notes</label>
+                <textarea id="notes" className="cs-input" rows={3} value={form.notes} onChange={set("notes")} disabled={busy} />
               </div>
-            </div>
 
-            <div className="form-group">
-              <label className="form-label-lux">Notes</label>
-              <textarea
-                name="notes"
-                className="form-input-lux"
-                style={{ resize: 'vertical', minHeight: '100px' }}
-                placeholder="Any additional notes — e.g., late payment, partial payment reason..."
-                value={formData.notes}
-                onChange={handleChange}
-                rows="3"
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '2.5rem', paddingTop: '2rem', borderTop: '1px solid var(--lux-border)' }}>
-              <button
-                type="button"
-                className="btn-lux btn-lux-outline"
-                onClick={() => navigate(`/chamas/${id}`)}
-                style={{ flex: 1, justifyContent: 'center', padding: '1rem' }}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn-lux btn-lux-primary"
-                disabled={loading || noCycle}
-                title={noCycle ? "Create a ROSCA cycle first" : ""}
-                style={{ flex: 2, justifyContent: 'center', padding: '1rem', fontSize: '1rem' }}
-              >
-                {loading ? "Recording Transaction..." : "Confirm & Record Contribution"}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+              <div className="cs-actions" style={{ marginTop: 20 }}>
+                <Button type="submit" variant="primary" loading={busy} disabled={noCycle}>{busy ? "Recording…" : "Record payment"}</Button>
+                <Link to={`/chamas/${id}/bulk-record`} className="cs-btn cs-btn--tertiary">Record many at once</Link>
+              </div>
+            </form>
+          </>
+        )}
+      </main>
     </div>
   );
-};
-
-export default RecordContribution;
+}

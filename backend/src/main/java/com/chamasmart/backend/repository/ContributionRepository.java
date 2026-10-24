@@ -11,5 +11,5 @@ public interface ContributionRepository extends JpaRepository<Contribution, Long
     List<Contribution> findByChamaChamaIdAndIsDeletedFalse(@Param("chamaId") Long chamaId);
     @Query("SELECT c FROM Contribution c JOIN FETCH c.chama WHERE c.user.userId = :userId AND c.isDeleted = false ORDER BY c.contributionDate DESC")
     List<Contribution> findByUserUserIdAndIsDeletedFalse(@Param("userId") Long userId);
+    boolean existsByReference(String reference);
 }
-

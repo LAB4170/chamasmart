@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { auditAPI } from "../../services/api";
 import { toast } from "react-toastify";
-import { useNavigate } from "react-router-dom";
 import {
     ShieldCheck, ShieldAlert, Activity, RefreshCw,
     Lock, AlertTriangle, Terminal, Eye, MoreHorizontal,
@@ -11,7 +10,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 
 const SecurityMonitor = () => {
-    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [logs, setLogs] = useState([]);
     const [stats, setStats] = useState({

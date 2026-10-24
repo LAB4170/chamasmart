@@ -1,449 +1,165 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { welfareAPI, chamaAPI } from "../../../services/api";
-import { useAuth } from "../../../context/AuthContext";
+import { useParams, Link } from "react-router-dom";
 import { toast } from "react-toastify";
-import {
-    HeartHandshake, Wallet, AlertTriangle, ShieldCheck,
-    FileText, ArrowLeft, CheckCircle2, Clock, XCircle,
-    Settings, Plus, Heart, Users, Target, Loader2
-} from "lucide-react";
-import "./WelfareDashboard.css";
+import { welfareAPI, chamaAPI } from "../../../services/api";
+import { Button, PageHeader, StatCard, StatusBadge, EmptyState, Skeleton, Dialog } from "../../../components/ui";
+import { formatKES, formatDate } from "../../../utils/format";
 
-const WelfareDashboard = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
-    const { user } = useAuth();
+const OFFICIALS = ["CHAIRPERSON", "SECRETARY", "TREASURER"];
+const pretty = (s) => (s || "").replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
 
-    const [loading, setLoading] = useState(true);
-    const [fundValues, setFundValues] = useState(null);
-    const [myClaims, setMyClaims] = useState([]);
-    const [config, setConfig] = useState([]);
-    const [emergencyDrives, setEmergencyDrives] = useState([]);
-    const [ledger, setLedger] = useState([]);
-    const [error, setError] = useState(null);
-    const [userRole, setUserRole] = useState(null);
+export default function WelfareDashboard() {
+  const { id } = useParams();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [balance, setBalance] = useState(0);
+  const [claims, setClaims] = useState([]);
+  const [config, setConfig] = useState([]);
+  const [role, setRole] = useState("");
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [method, setMethod] = useState("CASH");
+  const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
 
-    // Contribute Modal
-    const [showContributeModal, setShowContributeModal] = useState(false);
-    const [contributeAmount, setContributeAmount] = useState("");
-    const [paymentMethod, setPaymentMethod] = useState("CASH");
-    const [isContributing, setIsContributing] = useState(false);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const [fund, mine, cfg, chama] = await Promise.all([
+        welfareAPI.getFund(id),
+        welfareAPI.getMemberClaims(),
+        welfareAPI.getConfig(id),
+        chamaAPI.getById(id),
+      ]);
+      setBalance(Number(fund.data?.data?.balance ?? 0));
+      const allMine = mine.data?.data ?? [];
+      setClaims((Array.isArray(allMine) ? allMine : []).filter((c) => !c.chama_id || String(c.chama_id) === String(id)));
+      const cf = cfg.data?.data ?? [];
+      setConfig(Array.isArray(cf) ? cf : []);
+      setRole((chama.data?.data?.role || "").toUpperCase());
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
-    // Emergency Drive Contribute Modal
-    const [activeDriveId, setActiveDriveId] = useState(null);
-    const [driveContributeAmount, setDriveContributeAmount] = useState("");
-    const [isDriveContributing, setIsDriveContributing] = useState(false);
+  useEffect(() => { load(); }, [load]);
 
-    const fetchWelfareData = useCallback(async () => {
-        try {
-            setLoading(true);
-            setError(null);
+  const submit = async (e) => {
+    e.preventDefault();
+    const value = Number(amount);
+    if (!Number.isFinite(value) || value <= 0) return setFormError("Enter an amount greater than zero.");
+    setFormError("");
+    setSaving(true);
+    try {
+      await welfareAPI.makeContribution(id, { amount: value, paymentMethod: method });
+      toast.info("Submitted. It joins the welfare fund once an official verifies it.");
+      setOpen(false);
+      setAmount("");
+      await load();
+    } catch (err) {
+      setFormError(err.response?.data?.message || "We couldn't submit your contribution.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
-            const [fundRes, claimsRes, configRes, membersRes, drivesRes, ledgerRes] = await Promise.allSettled([
-                welfareAPI.getFund(id),
-                welfareAPI.getMemberClaims(id, user.user_id),
-                welfareAPI.getConfig(id),
-                chamaAPI.getMembers(id),
-                welfareAPI.getEmergencyDrives(id),
-                welfareAPI.getPayoutLedger(id),
-            ]);
+  const maxCover = config.reduce((m, c) => Math.max(m, Number(c.payout_amount) || 0), 0);
+  const low = maxCover > 0 && balance < maxCover;
 
-            setFundValues(fundRes.status === "fulfilled" ? fundRes.value.data : null);
-            setMyClaims(claimsRes.status === "fulfilled" ? (claimsRes.value.data?.data || claimsRes.value.data || []) : []);
-            setConfig(configRes.status === "fulfilled" ? (configRes.value.data?.data || configRes.value.data || []) : []);
-            setEmergencyDrives(drivesRes.status === "fulfilled" ? (drivesRes.value.data?.data || []) : []);
-            setLedger(ledgerRes.status === "fulfilled" ? (ledgerRes.value.data?.data || []) : []);
+  return (
+    <div className="cs-shell">
+      <main className="cs-page">
+        <PageHeader
+          title="Welfare fund"
+          subtitle="Support for members in difficult times."
+          actions={(
+            <>
+              <Link to={`/chamas/${id}`} className="cs-btn cs-btn--secondary">Back to chama</Link>
+              <Link to={`/chamas/${id}/welfare/submit-claim`} className="cs-btn cs-btn--secondary">File a claim</Link>
+              {OFFICIALS.includes(role) && <Link to={`/chamas/${id}/welfare/admin`} className="cs-btn cs-btn--secondary">Manage</Link>}
+              <Button onClick={() => setOpen(true)}>Contribute</Button>
+            </>
+          )}
+        />
 
-            if (membersRes.status === "fulfilled") {
-                const members = membersRes.value.data?.data || membersRes.value.data || [];
-                const currentMember = members.find(m => m.user_id === user.user_id);
-                setUserRole(currentMember?.role || "MEMBER");
-            }
-        } catch (err) {
-            const msg = err.response?.data?.message || "Failed to load welfare information.";
-            setError(msg);
-            toast.error(msg);
-        } finally {
-            setLoading(false);
-        }
-    }, [id, user.user_id]);
+        {error && (
+          <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 16, alignItems: "center", justifyContent: "space-between" }}>
+            <span>We couldn&apos;t load the welfare fund.</span><Button size="sm" onClick={load}>Try again</Button>
+          </div>
+        )}
 
-    useEffect(() => { fetchWelfareData(); }, [fetchWelfareData]);
-
-    const handleContribute = async (e) => {
-        e.preventDefault();
-        const amount = parseFloat(contributeAmount);
-        if (!amount || amount <= 0) return toast.error("Please enter a valid amount.");
-
-        setIsContributing(true);
-        try {
-            const res = await welfareAPI.makeContribution(id, { amount, paymentMethod });
-            const newBalance = res.data?.data?.new_balance;
-            toast.success(`✅ KES ${amount.toLocaleString()} contributed to welfare fund!`);
-            setShowContributeModal(false);
-            setContributeAmount("");
-            if (newBalance !== undefined) {
-                setFundValues(prev => ({ ...prev, balance: newBalance }));
-            } else {
-                await fetchWelfareData();
-            }
-        } catch (err) {
-            toast.error(err.response?.data?.message || "Contribution failed.");
-        } finally {
-            setIsContributing(false);
-        }
-    };
-
-    const handleDriveContribute = async (e) => {
-        e.preventDefault();
-        const amount = parseFloat(driveContributeAmount);
-        if (!amount || amount <= 0 || !activeDriveId) return;
-
-        setIsDriveContributing(true);
-        try {
-            await welfareAPI.contributeToEmergencyDrive(activeDriveId, { amount });
-            toast.success(`❤️ KES ${amount.toLocaleString()} contributed to the drive!`);
-            setActiveDriveId(null);
-            setDriveContributeAmount("");
-            await fetchWelfareData();
-        } catch (err) {
-            toast.error(err.response?.data?.message || "Drive contribution failed.");
-        } finally {
-            setIsDriveContributing(false);
-        }
-    };
-
-    if (loading) return <div className="loading-spinner">Loading Welfare Data...</div>;
-
-    const getStatusIcon = (status) => {
-        switch (status) {
-            case "APPROVED": return <CheckCircle2 size={14} />;
-            case "PAID": return <ShieldCheck size={14} />;
-            case "REJECTED": return <XCircle size={14} />;
-            default: return <Clock size={14} />;
-        }
-    };
-    const getStatusClass = (status) => {
-        switch (status) {
-            case "APPROVED": return "badge-success";
-            case "PAID": return "badge-info";
-            case "REJECTED": return "badge-danger";
-            default: return "badge-warning";
-        }
-    };
-
-    const balance = Number(fundValues?.balance ?? 0);
-    const isOfficial = ["CHAIRPERSON", "ADMIN", "TREASURER", "SECRETARY"].includes(userRole?.toUpperCase());
-    const maxCoverage = config.length > 0 ? Math.max(...config.map(c => Number(c.payout_amount))) : 0;
-    const fundIsLow = balance < maxCoverage;
-
-    return (
-        <div className="page">
-            <div className="container">
-                {/* Page Header */}
-                <div className="page-header-modern">
-                    <Link to={`/chamas/${id}`} className="back-link">
-                        <ArrowLeft size={18} /><span>Back to Chama</span>
-                    </Link>
-                    <div className="page-header-row">
-                        <div className="page-header-info">
-                            <div className="page-header-icon purple">
-                                <HeartHandshake size={24} />
-                            </div>
-                            <div>
-                                <h1>Welfare &amp; Benevolent Fund</h1>
-                                <p className="page-subtitle">Support for members during difficult times</p>
-                            </div>
-                        </div>
-                        <div className="page-header-actions">
-                            <button
-                                className="btn-action-primary"
-                                onClick={() => setShowContributeModal(true)}
-                            >
-                                <Heart size={16} />
-                                <span>Contribute</span>
-                            </button>
-                            <button
-                                className="btn-action-secondary"
-                                onClick={() => navigate(`/chamas/${id}/welfare/submit-claim`)}
-                            >
-                                <AlertTriangle size={16} />
-                                <span>File Claim</span>
-                            </button>
-                            {isOfficial && (
-                                <button
-                                    className="btn-action-secondary"
-                                    onClick={() => navigate(`/chamas/${id}/welfare/admin`)}
-                                >
-                                    <Settings size={16} />
-                                    <span>Admin</span>
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {error && <div className="error-banner"><AlertTriangle size={16} /> {error}</div>}
-
-                {/* Low Fund Warning */}
-                {fundIsLow && maxCoverage > 0 && (
-                    <div className="alert-banner warning">
-                        <AlertTriangle size={16} />
-                        <span>
-                            <strong>Low Fund Alert:</strong> The welfare fund balance (KES {balance.toLocaleString()}) is below the maximum coverage payout of KES {maxCoverage.toLocaleString()}. Please encourage members to contribute.
-                        </span>
-                    </div>
-                )}
-
-                {/* Stats */}
-                <div className="stats-row">
-                    <div className="mini-stat-card">
-                        <div className={`mini-stat-icon ${fundIsLow ? "red" : "green"}`}>
-                            <Wallet size={20} />
-                        </div>
-                        <div>
-                            <div className={`mini-stat-value ${fundIsLow ? "text-danger" : ""}`}>
-                                KES {balance.toLocaleString()}
-                            </div>
-                            <div className="mini-stat-label">Fund Balance</div>
-                        </div>
-                    </div>
-                    <div className="mini-stat-card">
-                        <div className="mini-stat-icon blue">
-                            <FileText size={20} />
-                        </div>
-                        <div>
-                            <div className="mini-stat-value">{myClaims.length}</div>
-                            <div className="mini-stat-label">Your Claims</div>
-                        </div>
-                    </div>
-                    <div className="mini-stat-card">
-                        <div className="mini-stat-icon amber">
-                            <ShieldCheck size={20} />
-                        </div>
-                        <div>
-                            <div className="mini-stat-value">{config.length}</div>
-                            <div className="mini-stat-label">Coverage Types</div>
-                        </div>
-                    </div>
-                    <div className="mini-stat-card">
-                        <div className="mini-stat-icon purple">
-                            <Target size={20} />
-                        </div>
-                        <div>
-                            <div className="mini-stat-value">
-                                {emergencyDrives.filter(d => d.status === "ACTIVE").length}
-                            </div>
-                            <div className="mini-stat-label">Active Drives</div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Coverage Config */}
-                {config.length > 0 && (
-                    <div className="card-modern">
-                        <h3 className="card-modern-title">Your Coverage</h3>
-                        <div className="coverage-grid">
-                            {config.map(item => (
-                                <div key={item.id} className="coverage-item">
-                                    <div className="coverage-name">{item.event_type.replace(/_/g, " ")}</div>
-                                    <div className="coverage-amount">KES {Number(item.payout_amount).toLocaleString()}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Emergency Drives */}
-                {emergencyDrives.length > 0 && (
-                    <div className="card-modern">
-                        <h3 className="card-modern-title">🆘 Emergency Drives</h3>
-                        <div className="drives-list">
-                            {emergencyDrives.map(drive => {
-                                const raised = Number(drive.total_raised || 0);
-                                const target = Number(drive.target_amount || 1);
-                                const pct = Math.min(100, Math.round((raised / target) * 100));
-                                return (
-                                    <div key={drive.id} className="drive-card">
-                                        <div className="drive-header">
-                                            <div>
-                                                <div className="drive-title">{drive.description}</div>
-                                                <div className="drive-meta">
-                                                    <Users size={12} /> {drive.contributor_count} contributor(s) · For: <strong>{drive.beneficiary_name}</strong>
-                                                </div>
-                                            </div>
-                                            <span className={`status-pill ${drive.status === "ACTIVE" ? "badge-warning" : "badge-success"}`}>
-                                                {drive.status}
-                                            </span>
-                                        </div>
-                                        <div className="drive-progress-bar-wrap">
-                                            <div className="drive-progress-bar" style={{ width: `${pct}%` }} />
-                                        </div>
-                                        <div className="drive-amounts">
-                                            <span>KES {raised.toLocaleString()} raised</span>
-                                            <span>Target: KES {target.toLocaleString()} ({pct}%)</span>
-                                        </div>
-                                        {drive.status === "ACTIVE" && (
-                                            <button
-                                                className="btn-action-primary btn-sm"
-                                                onClick={() => { setActiveDriveId(drive.id); setDriveContributeAmount(""); }}
-                                            >
-                                                <Heart size={13} /> Donate
-                                            </button>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
-
-                {/* Claims History */}
-                <div className="card-modern">
-                    <h3 className="card-modern-title">Your Claim History</h3>
-                    {myClaims.length === 0 ? (
-                        <div className="empty-state-modern compact">
-                            <div className="empty-state-icon"><FileText size={36} strokeWidth={1.5} /></div>
-                            <h3>No Claims Submitted</h3>
-                            <p>You haven't submitted any welfare claims yet.</p>
-                        </div>
-                    ) : (
-                        <div className="claims-list">
-                            {myClaims.map(claim => (
-                                <div key={claim.id} className="claim-row">
-                                    <div className="claim-info">
-                                        <div className="claim-event">{claim.event_type?.replace(/_/g, " ")}</div>
-                                        <div className="claim-date">{new Date(claim.created_at).toLocaleDateString()}</div>
-                                        {claim.total_stages > 1 && (
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '0.25rem' }}>
-                                                Tranche Progress: Stage {claim.disbursement_stage} of {claim.total_stages}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="claim-amount">
-                                        KES {Number(claim.claim_amount).toLocaleString()}
-                                        {claim.amount_disbursed_so_far > 0 && claim.amount_disbursed_so_far < claim.claim_amount && (
-                                            <div className="text-success fw-bold mt-1" style={{ fontSize: '0.75rem' }}>
-                                                {Number(claim.amount_disbursed_so_far).toLocaleString()} Paid Out
-                                            </div>
-                                        )}
-                                    </div>
-                                    <span className={`status-pill ${getStatusClass(claim.status)}`}>
-                                        {getStatusIcon(claim.status)} {claim.status}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* Transparency Ledger (Phase 23) */}
-                <div className="card-modern mt-4">
-                    <h3 className="card-modern-title d-flex align-center"><ShieldCheck size={18} className="mr-2 text-success"/> Transparency Payout Ledger</h3>
-                    <p className="text-sm text-muted mb-3" style={{ fontSize: '0.85rem' }}>Publicly accessible record of all welfare fund disbursements protecting against fund mismanagement.</p>
-                    {ledger.length === 0 ? (
-                        <div className="empty-state-modern compact">
-                            <p className="text-muted text-sm my-3">No payouts recorded yet.</p>
-                        </div>
-                    ) : (
-                        <div className="table-responsive">
-                            <table className="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Disbursed On</th>
-                                        <th>Beneficiary</th>
-                                        <th>Event Type</th>
-                                        <th>Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {ledger.map(row => (
-                                        <tr key={row.claim_id}>
-                                            <td>{new Date(row.last_disbursed_at).toLocaleDateString()}</td>
-                                            <td><strong>{row.beneficiary}</strong></td>
-                                            <td><span className="badge badge-secondary">{row.event_type ? row.event_type.replace(/_/g, " ") : "Unknown"}</span></td>
-                                            <td className="text-success font-bold">KES {Number(row.total_disbursed).toLocaleString()}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
+        {loading ? (
+          <div className="cs-card" aria-busy="true" aria-label="Loading welfare fund"><Skeleton height={20} width="40%" /><Skeleton height={60} style={{ marginTop: 12 }} /></div>
+        ) : !error && (
+          <>
+            {low && (
+              <div className="cs-notice cs-notice--warning" role="status" style={{ marginBottom: 16 }}>
+                <strong>Low fund.</strong>&nbsp;The balance ({formatKES(balance)}) is below the largest payout ({formatKES(maxCover)}).
+              </div>
+            )}
+            <div className="cs-grid" style={{ marginBottom: 16 }}>
+              <StatCard label="Fund balance" value={formatKES(balance)} note="Verified contributions only" />
+              <StatCard label="Your claims" value={String(claims.length)} />
+              <StatCard label="Cover types" value={String(config.length)} />
             </div>
 
-            {/* Contribute to Fund Modal */}
-            {showContributeModal && (
-                <div className="modal-overlay" onClick={() => setShowContributeModal(false)}>
-                    <div className="modal-card" onClick={e => e.stopPropagation()}>
-                        <h3 className="modal-title"><Heart size={18} /> Contribute to Welfare Fund</h3>
-                        <p className="modal-subtitle">Your contribution helps protect members during emergencies.</p>
-                        <form onSubmit={handleContribute} className="modal-form">
-                            <div className="form-group">
-                                <label>Amount (KES)</label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    step="1"
-                                    placeholder="e.g. 500"
-                                    value={contributeAmount}
-                                    onChange={e => setContributeAmount(e.target.value)}
-                                    required
-                                    className="form-input"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Payment Method</label>
-                                <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="form-input">
-                                    <option value="CASH">Cash</option>
-                                    <option value="MPESA">M-Pesa</option>
-                                    <option value="BANK_TRANSFER">Bank Transfer</option>
-                                </select>
-                            </div>
-                            <div className="modal-actions">
-                                <button type="button" className="btn-secondary" onClick={() => setShowContributeModal(false)}>Cancel</button>
-                                <button type="submit" className="btn-primary" disabled={isContributing}>
-                                    {isContributing ? <><Loader2 size={14} className="spin" /> Processing...</> : "Confirm Contribution"}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+            <section className="cs-card" aria-label="Coverage" style={{ marginBottom: 16 }}>
+              <h2 className="cs-card-title">What the fund covers</h2>
+              {config.length === 0 ? (
+                <EmptyState title="No cover set up yet" message="An official needs to set the payout amounts before claims can be filed." />
+              ) : (
+                <dl className="cs-kv">
+                  {config.map((c) => (
+                    <div key={c.id ?? c.event_type}><dt>{pretty(c.event_type)}</dt><dd>{formatKES(c.payout_amount)}</dd></div>
+                  ))}
+                </dl>
+              )}
+            </section>
 
-            {/* Emergency Drive Donate Modal */}
-            {activeDriveId && (
-                <div className="modal-overlay" onClick={() => setActiveDriveId(null)}>
-                    <div className="modal-card" onClick={e => e.stopPropagation()}>
-                        <h3 className="modal-title">🆘 Donate to Emergency Drive</h3>
-                        <p className="modal-subtitle">Every shilling counts. Thank you for showing up for your member.</p>
-                        <form onSubmit={handleDriveContribute} className="modal-form">
-                            <div className="form-group">
-                                <label>Amount (KES)</label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    step="1"
-                                    placeholder="e.g. 1000"
-                                    value={driveContributeAmount}
-                                    onChange={e => setDriveContributeAmount(e.target.value)}
-                                    required
-                                    className="form-input"
-                                />
-                            </div>
-                            <div className="modal-actions">
-                                <button type="button" className="btn-secondary" onClick={() => setActiveDriveId(null)}>Cancel</button>
-                                <button type="submit" className="btn-primary" disabled={isDriveContributing}>
-                                    {isDriveContributing ? <><Loader2 size={14} className="spin" /> Processing...</> : "Donate"}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
+            <section className="cs-card" aria-label="Your claims">
+              <h2 className="cs-card-title">Your claims</h2>
+              {claims.length === 0 ? (
+                <EmptyState title="No claims" message="You haven't filed a welfare claim." />
+              ) : (
+                <ul className="cs-list">
+                  {claims.map((c) => (
+                    <li key={c.id} className="cs-list-item">
+                      <div className="cs-list-main">
+                        <div className="cs-list-title">{pretty(c.event_type)}</div>
+                        <div className="cs-list-meta">{formatDate(c.created_at)} · {formatKES(c.claim_amount)}</div>
+                      </div>
+                      <StatusBadge status={c.status} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+            <p className="cs-footnote">ChamaSmart records the fund. Cash or transfers happen outside the app.</p>
+          </>
+        )}
 
-export default WelfareDashboard;
+        <Dialog
+          open={open}
+          onClose={() => setOpen(false)}
+          title="Contribute to the welfare fund"
+          actions={(<><Button onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" form="welfare-form" loading={saving}>Submit</Button></>)}
+        >
+          <form id="welfare-form" onSubmit={submit} noValidate>
+            {formError && <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 12 }}>{formError}</div>}
+            <div className="cs-field"><label className="cs-label" htmlFor="wf-amount">Amount (KES)</label><input id="wf-amount" className="cs-input" type="number" inputMode="decimal" min="1" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
+            <div className="cs-field">
+              <label className="cs-label" htmlFor="wf-method">How did you pay?</label>
+              <select id="wf-method" className="cs-select" value={method} onChange={(e) => setMethod(e.target.value)}>
+                <option value="CASH">Cash</option><option value="MPESA">M-Pesa</option><option value="BANK_TRANSFER">Bank transfer</option>
+              </select>
+              <span className="cs-help">An official confirms it before it counts.</span>
+            </div>
+          </form>
+        </Dialog>
+      </main>
+    </div>
+  );
+}

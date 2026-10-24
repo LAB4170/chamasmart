@@ -26,35 +26,31 @@ public class GovernanceController {
                 .body(ApiResponse.success(createdMeeting, "Meeting scheduled successfully"));
     }
     @GetMapping("/chamas/{chamaId}/meetings")
-    public ResponseEntity<ApiResponse<List<MeetingDto>>> getMeetingsByChamaId(@PathVariable Long chamaId) {
+    public ResponseEntity<ApiResponse<List<MeetingDto>>> getMeetingsByChamaId(@PathVariable Long chamaId,
+                                                                           @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to get meetings for chama ID: {}", chamaId);
-        List<MeetingDto> meetings = governanceService.getMeetingsByChamaId(chamaId);
+        List<MeetingDto> meetings = governanceService.getMeetingsByChamaId(chamaId, currentUser.getUserId());
         return ResponseEntity.ok(ApiResponse.success(meetings, "Meetings retrieved successfully"));
     }
     @GetMapping("/chamas/{chamaId}/meetings/{id}")
-    public ResponseEntity<ApiResponse<MeetingDto>> getMeetingById(@PathVariable Long chamaId, @PathVariable Long id) {
-        log.info("REST request to get meeting ID: {} for chama ID: {}", id, chamaId);
-        return ResponseEntity.ok(ApiResponse.success(null, "Meeting retrieved successfully"));
+    public ResponseEntity<ApiResponse<MeetingDto>> getMeetingById(@PathVariable Long chamaId, @PathVariable Long id, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(governanceService.getMeeting(chamaId, id, currentUser.getUserId()), "Meeting retrieved successfully"));
     }
     @PutMapping("/chamas/{chamaId}/meetings/{id}")
-    public ResponseEntity<ApiResponse<MeetingDto>> updateMeeting(@PathVariable Long chamaId, @PathVariable Long id, @RequestBody MeetingDto meetingDto) {
-        log.info("REST request to update meeting ID: {}", id);
-        return ResponseEntity.ok(ApiResponse.success(null, "Meeting updated successfully"));
+    public ResponseEntity<ApiResponse<MeetingDto>> updateMeeting(@PathVariable Long chamaId, @PathVariable Long id, @RequestBody MeetingDto meetingDto, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(governanceService.updateMeeting(chamaId, id, meetingDto, currentUser.getUserId()), "Meeting updated successfully"));
     }
     @PostMapping("/chamas/{chamaId}/meetings/{id}/attendance")
     public ResponseEntity<ApiResponse<Void>> recordAttendance(@PathVariable Long chamaId, @PathVariable Long id, @RequestBody Map<String, Object> payload) {
-        log.info("REST request to record attendance for meeting ID: {}", id);
-        return ResponseEntity.ok(ApiResponse.success(null, "Attendance recorded successfully"));
+        return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_IMPLEMENTED).body(ApiResponse.error("Attendance tracking is not available yet"));
     }
     @PostMapping("/chamas/{chamaId}/meetings/{id}/publish")
-    public ResponseEntity<ApiResponse<Void>> publishMinutes(@PathVariable Long chamaId, @PathVariable Long id) {
-        log.info("REST request to publish minutes for meeting ID: {}", id);
-        return ResponseEntity.ok(ApiResponse.success(null, "Meeting minutes published successfully"));
+    public ResponseEntity<ApiResponse<MeetingDto>> publishMinutes(@PathVariable Long chamaId, @PathVariable Long id, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(governanceService.publishMinutes(chamaId, id, currentUser.getUserId()), "Meeting minutes published"));
     }
     @DeleteMapping("/chamas/{chamaId}/meetings/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteMeeting(@PathVariable Long chamaId, @PathVariable Long id) {
-        log.info("REST request to delete meeting ID: {}", id);
-        return ResponseEntity.ok(ApiResponse.success(null, "Meeting deleted successfully"));
+    public ResponseEntity<ApiResponse<MeetingDto>> deleteMeeting(@PathVariable Long chamaId, @PathVariable Long id, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(governanceService.cancelMeeting(chamaId, id, currentUser.getUserId()), "Meeting cancelled"));
     }
     @PostMapping("/chamas/{chamaId}/invites")
     public ResponseEntity<ApiResponse<InviteDto>> createInvite(@PathVariable Long chamaId,
@@ -93,17 +89,23 @@ public class GovernanceController {
     }
     @GetMapping("/chamas/{chamaId}/invites")
     public ResponseEntity<ApiResponse<List<InviteDto>>> getInvitesByChamaId(@PathVariable Long chamaId,
-                                                                            @RequestParam(defaultValue = "ACTIVE") String status) {
+                                                                            @RequestParam(defaultValue = "ACTIVE") String status,
+                                                                            @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to get invites for chama ID: {} with status: {}", chamaId, status);
-        List<InviteDto> invites = governanceService.getInvitesByChamaId(chamaId, status);
+        List<InviteDto> invites = governanceService.getInvitesByChamaId(chamaId, status, currentUser.getUserId());
         return ResponseEntity.ok(ApiResponse.success(invites, "Invitations retrieved successfully"));
     }
     @GetMapping("/chamas/{chamaId}/join-requests")
     public ResponseEntity<ApiResponse<List<JoinRequestDto>>> getJoinRequestsByChamaId(@PathVariable Long chamaId,
-                                                                                      @RequestParam(defaultValue = "PENDING") String status) {
+                                                                                      @RequestParam(defaultValue = "PENDING") String status,
+                                                                                      @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to get join requests for chama ID: {} with status: {}", chamaId, status);
-        List<JoinRequestDto> requests = governanceService.getJoinRequestsByChamaId(chamaId, status);
+        List<JoinRequestDto> requests = governanceService.getJoinRequestsByChamaId(chamaId, status, currentUser.getUserId());
         return ResponseEntity.ok(ApiResponse.success(requests, "Join requests retrieved successfully"));
+    }
+    @GetMapping("/join-requests/my")
+    public ResponseEntity<ApiResponse<List<JoinRequestDto>>> getMyJoinRequests(@AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(governanceService.getMyJoinRequests(currentUser.getUserId()), "Your join requests retrieved successfully"));
     }
     @GetMapping("/notifications/my")
     public ResponseEntity<ApiResponse<List<NotificationDto>>> getMyNotifications(@AuthenticationPrincipal CustomUserDetails currentUser) {
@@ -119,9 +121,10 @@ public class GovernanceController {
         return ResponseEntity.ok(ApiResponse.success(null, "Notification marked as read"));
     }
     @DeleteMapping("/invites/{inviteId}")
-    public ResponseEntity<ApiResponse<Void>> deactivateInvite(@PathVariable Long inviteId) {
+    public ResponseEntity<ApiResponse<Void>> deactivateInvite(@PathVariable Long inviteId,
+                                                              @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to deactivate invite ID: {}", inviteId);
-        governanceService.deactivateInvite(inviteId);
+        governanceService.deactivateInvite(inviteId, currentUser.getUserId());
         return ResponseEntity.ok(ApiResponse.success(null, "Invitation deactivated successfully"));
     }
 }

@@ -47,7 +47,7 @@ export default function LoanConfigCard({ chamaId }) {
     }
   };
 
-  const toggleCategory = (value) => {
+  const _toggleCategory = (value) => {
     setConfig(prev => ({
       ...prev,
       allowed_categories: prev.allowed_categories.includes(value)

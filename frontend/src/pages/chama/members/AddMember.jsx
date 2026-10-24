@@ -1,497 +1,100 @@
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import {
-    UserPlus, Search, Mail, Link as LinkIcon,
-    Copy, User, AlertCircle, Loader,
-    CheckCircle2, ArrowLeft, Send, Sparkles,
-    ShieldCheck, RefreshCw, ChevronRight,
-    Building2, Users, ShieldAlert, Zap
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
 import { toast } from "react-toastify";
-import { userAPI, memberAPI, inviteAPI, chamaAPI } from "../../../services/api";
+import { userAPI, memberAPI, chamaAPI } from "../../../services/api";
+import { Button, PageHeader } from "../../../components/ui";
 
-const AddMember = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
+export default function AddMember() {
+  const { id } = useParams();
+  const [chama, setChama] = useState(null);
+  const [query, setQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [found, setFound] = useState(null);
+  const [notFound, setNotFound] = useState(false);
+  const [role, setRole] = useState("MEMBER");
+  const [adding, setAdding] = useState(false);
 
-    // UI State
-    const [activeTab, setActiveTab] = useState("SEARCH");
-    const [chamaName, setChamaName] = useState("");
-    const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    chamaAPI.getById(id).then((r) => setChama(r.data?.data || null)).catch(() => {});
+  }, [id]);
 
-    // Search State
-    const [searchQuery, setSearchQuery] = useState("");
-    const [isSearching, setIsSearching] = useState(false);
-    const [searchResult, setSearchResult] = useState(null);
-    const [searchError, setSearchError] = useState("");
-    const [selectedRole, setSelectedRole] = useState("MEMBER");
+  const isChair = (chama?.role || "").toUpperCase() === "CHAIRPERSON";
 
-    // Invite State
-    const [inviteEmail, setInviteEmail] = useState("");
+  const search = async (e) => {
+    e.preventDefault();
+    if (!query.trim()) return;
+    setSearching(true);
+    setFound(null);
+    setNotFound(false);
+    try {
+      const res = await userAPI.search(query.trim());
+      const list = res.data?.data;
+      const first = Array.isArray(list) ? list[0] : null;
+      if (first) setFound(first); else setNotFound(true);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "We couldn't search right now.");
+    } finally {
+      setSearching(false);
+    }
+  };
 
-    // Code State
-    const [activeCode, setActiveCode] = useState(null);
-    const [codeLoading, setCodeLoading] = useState(false);
+  // Confirmation comes from the server; the form clears only after it succeeds.
+  const add = async () => {
+    setAdding(true);
+    try {
+      await memberAPI.add(id, { userId: found.user_id, role });
+      toast.success(`${found.first_name} was added to the chama.`);
+      setFound(null);
+      setQuery("");
+      setRole("MEMBER");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "We couldn't add this person.");
+    } finally {
+      setAdding(false);
+    }
+  };
 
-    useEffect(() => {
-        const fetchChamaDetails = async () => {
-            try {
-                const response = await chamaAPI.getById(id);
-                setChamaName(response.data.data.chama_name);
-            } catch (err) {
-                console.error("Failed to fetch chama details:", err);
-            }
-        };
-        fetchChamaDetails();
-    }, [id]);
+  return (
+    <div className="cs-shell">
+      <main className="cs-page cs-page--narrow">
+        <PageHeader
+          title="Add a member"
+          subtitle={chama ? `Add someone who already has a ChamaSmart account to ${chama.chama_name}.` : "Add someone who already has a ChamaSmart account."}
+          actions={<Link to={`/chamas/${id}`} className="cs-btn cs-btn--secondary">Back to chama</Link>}
+        />
 
-    const handleSearch = async (e) => {
-        if (e) e.preventDefault();
-        if (!searchQuery.trim()) return;
+        <form className="cs-card" onSubmit={search} style={{ marginBottom: 16 }}>
+          <div className="cs-field">
+            <label className="cs-label" htmlFor="am-query">Their full email or phone number</label>
+            <input id="am-query" className="cs-input" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" inputMode="email" />
+          </div>
+          <div className="cs-actions"><Button type="submit" variant="primary" loading={searching}>Find person</Button></div>
+        </form>
 
-        setIsSearching(true);
-        setSearchError("");
-        setSearchResult(null);
+        {notFound && (
+          <div className="cs-notice cs-notice--info" role="status" style={{ marginBottom: 16 }}>
+            <span>No account matches that. Ask them to sign up, or <Link to={`/chamas/${id}/invites`}>create an invitation code</Link> for them.</span>
+          </div>
+        )}
 
-        try {
-            const response = await userAPI.search(searchQuery);
-            if (response.data.success) {
-                setSearchResult(response.data.data);
-            }
-        } catch (err) {
-            setSearchError(err.response?.data?.message || "User not found in the ecosystem. Try an email or phone number.");
-        } finally {
-            setIsSearching(false);
-        }
-    };
-
-    const handleAddMember = async () => {
-        if (!searchResult) return;
-        setLoading(true);
-        try {
-            await memberAPI.add(id, {
-                userId: searchResult.user_id,
-                role: selectedRole
-            });
-            toast.success(`${searchResult.first_name} has been added!`, {
-                icon: <CheckCircle2 className="text-success" />
-            });
-            setSearchResult(null);
-            setSearchQuery("");
-        } catch (err) {
-            toast.error(err.response?.data?.message || "Failed to add member to chama");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSendInvite = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        try {
-            const response = await inviteAPI.send(id, inviteEmail, selectedRole);
-            const { isAdded, deliveryMode, message } = response.data;
-
-            if (isAdded) {
-                toast.success(message || `${inviteEmail} has been added directly!`);
-            } else {
-                toast.success(message || `Invitation sent to ${inviteEmail}`);
-            }
-            setInviteEmail("");
-        } catch (err) {
-            toast.error(err.response?.data?.message || "Failed to send invitation");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleFetchCode = async () => {
-        setCodeLoading(true);
-        try {
-            const listRes = await inviteAPI.getAll(id);
-            const active = listRes.data.data.find(inv => new Date(inv.expires_at) > new Date() && inv.is_active);
-
-            if (active) {
-                setActiveCode(active);
-            } else {
-                const genRes = await inviteAPI.generate(id, {
-                    maxUses: 10,
-                    expiresInDays: 7,
-                    role: selectedRole
-                });
-                setActiveCode(genRes.data.data);
-            }
-        } catch (err) {
-            toast.error("Failed to handle invite codes");
-        } finally {
-            setCodeLoading(false);
-        }
-    };
-
-    const copyCode = () => {
-        if (!activeCode) return;
-        navigator.clipboard.writeText(activeCode.invite_code);
-        toast.info("Access code copied to clipboard!");
-    };
-
-    const TABS = [
-        { id: "SEARCH", label: "Protocol Search", icon: Search, desc: "Direct ecosystem search" },
-        { id: "INVITE", label: "External Invite", icon: Mail, desc: "Invite via email" },
-        { id: "CODE", label: "Access Code", icon: LinkIcon, desc: "Shared vault access" },
-    ];
-
-    return (
-        <div className="page manage-page-root">
-            <div className="container">
-                <div className="page-frame-lux">
-                    <motion.div 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8 }}
-                    >
-                        <div className="chama-header-lux">
-                            <div className="chama-title-area">
-                                <div className="flex align-center gap-3 mb-2">
-                                    <div style={{ background: 'rgba(212, 175, 55, 0.1)', padding: '6px', borderRadius: '10px' }}>
-                                        <UserPlus size={24} color="var(--lux-gold)" />
-                                    </div>
-                                    <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--lux-gold)' }}>
-                                        Growth Terminal
-                                    </span>
-                                </div>
-                                <h1 className="m-0">Expand Member Base</h1>
-                                <p className="mt-2" style={{ color: 'var(--lux-text-secondary)', fontSize: '0.95rem' }}>
-                                    Strategic expansion for <strong style={{ color: 'var(--lux-text-primary)' }}>{chamaName}</strong>
-                                </p>
-                            </div>
-                            <button
-                                className="btn-lux btn-lux-outline flex items-center gap-2"
-                                onClick={() => navigate(`/chamas/${id}`)}
-                            >
-                                <ArrowLeft size={16} /> <span>Back to Dashboard</span>
-                            </button>
-                        </div>
-
-                        {/* Segmented Tab Controls */}
-                        <div style={{
-                            background: 'var(--lux-bg-soft)',
-                            border: '1px solid var(--lux-border)',
-                            padding: '6px',
-                            borderRadius: '18px',
-                            display: 'flex',
-                            gap: '8px',
-                            marginBottom: '32px'
-                        }}>
-                            {TABS.map(tab => {
-                                const isActive = activeTab === tab.id;
-                                return (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() => setActiveTab(tab.id)}
-                                        style={{
-                                            flex: 1,
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            gap: '12px',
-                                            padding: '14px',
-                                            borderRadius: '14px',
-                                            border: 'none',
-                                            cursor: 'pointer',
-                                            background: isActive ? 'var(--gold-gradient)' : 'transparent',
-                                            color: isActive ? 'white' : 'var(--lux-text-secondary)',
-                                            fontWeight: 800,
-                                            fontSize: '0.9rem',
-                                            boxShadow: isActive ? '0 10px 20px rgba(212, 175, 55, 0.2)' : 'none',
-                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-                                        }}
-                                    >
-                                        <tab.icon size={18} />
-                                        {tab.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        {/* Protocol Content */}
-                        <div className="dashboard-card-lux" style={{
-                            padding: '40px',
-                            minHeight: '460px',
-                            position: 'relative'
-                        }}>
-                            <AnimatePresence mode="wait">
-                                {activeTab === "SEARCH" && (
-                                    <motion.div
-                                        key="SEARCH"
-                                        initial={{ opacity: 0, scale: 0.98 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.98 }}
-                                    >
-                                        <div style={{ marginBottom: '32px' }}>
-                                            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.4rem', fontWeight: 800, color: 'var(--lux-text-primary)' }}>Protocol Search</h3>
-                                            <p style={{ margin: 0, color: 'var(--lux-text-secondary)' }}>Identify existing users within the global financial ecosystem.</p>
-                                        </div>
-
-                                        <form onSubmit={handleSearch} style={{ position: 'relative', marginBottom: '32px' }}>
-                                            <Search size={22} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--lux-gold)' }} />
-                                            <input
-                                                type="text"
-                                                placeholder="Enter registered email or mobile terminal number..."
-                                                value={searchQuery}
-                                                onChange={(e) => setSearchQuery(e.target.value)}
-                                                className="form-input-lux"
-                                                style={{
-                                                    paddingLeft: '60px',
-                                                    fontSize: '1.1rem',
-                                                    paddingTop: '20px',
-                                                    paddingBottom: '20px'
-                                                }}
-                                            />
-                                            {isSearching && (
-                                                <div className="spinner" style={{ position: 'absolute', right: '20px', top: '50%', transform: 'translateY(-50%)', width: '24px', height: '24px' }} />
-                                            )}
-                                        </form>
-
-                                        {searchError && (
-                                            <div style={{ padding: '20px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                                <AlertCircle size={20} /> {searchError}
-                                            </div>
-                                        )}
-
-                                        {searchResult && (
-                                            <div className="dashboard-card-lux" style={{
-                                                padding: '32px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                                background: 'var(--lux-bg-soft)',
-                                                border: '1px solid var(--lux-border)'
-                                            }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                                                    <div style={{ 
-                                                        width: '64px', height: '64px', borderRadius: '20px', 
-                                                        background: 'var(--gold-gradient)', color: 'white', 
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                                                        fontSize: '1.5rem', fontWeight: 800,
-                                                        boxShadow: '0 10px 20px rgba(212, 175, 55, 0.2)'
-                                                    }}>
-                                                        {searchResult.first_name.charAt(0)}
-                                                    </div>
-                                                    <div>
-                                                        <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: 'var(--lux-text-primary)' }}>{searchResult.first_name} {searchResult.last_name}</h4>
-                                                        <div style={{ display: 'flex', gap: '20px', marginTop: '6px', fontSize: '0.85rem', color: 'var(--lux-text-secondary)' }}>
-                                                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Mail size={14} /> {searchResult.email}</span>
-                                                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Zap size={14} /> Trusted Member</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                                                    <select
-                                                        value={selectedRole}
-                                                        onChange={(e) => setSelectedRole(e.target.value)}
-                                                        className="form-select-lux"
-                                                        style={{ width: 'auto', minWidth: '150px' }}
-                                                    >
-                                                        <option value="MEMBER">Member</option>
-                                                        <option value="TREASURER">Treasurer</option>
-                                                        <option value="SECRETARY">Secretary</option>
-                                                        <option value="CHAIRPERSON">Chairperson</option>
-                                                    </select>
-                                                    <button
-                                                        onClick={handleAddMember}
-                                                        disabled={loading}
-                                                        className="btn-action-primary"
-                                                        style={{ padding: '12px 32px', borderRadius: '12px' }}
-                                                    >
-                                                        {loading ? <div className="spinner" style={{ width: '18px', height: '18px' }} /> : <UserPlus size={18} />}
-                                                        <span>Add</span>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {!searchResult && !isSearching && !searchError && (
-                                            <div style={{ textAlign: 'center', padding: '60px 0', opacity: 0.8 }}>
-                                                <Sparkles size={64} style={{ color: 'var(--lux-gold)', marginBottom: '20px', opacity: 0.3 }} />
-                                                <h4 style={{ margin: '0 0 8px 0', fontWeight: 800, color: 'var(--lux-text-primary)' }}>Direct Integration</h4>
-                                                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--lux-text-secondary)' }}>Search for established members to bypass admission protocols.</p>
-                                            </div>
-                                        )}
-                                    </motion.div>
-                                )}
-
-                                {activeTab === "INVITE" && (
-                                    <motion.div
-                                        key="INVITE"
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: -20 }}
-                                    >
-                                        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                                            <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(212, 175, 55, 0.1)', color: 'var(--lux-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-                                                <Mail size={32} />
-                                            </div>
-                                            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.4rem', fontWeight: 800, color: 'var(--lux-text-primary)' }}>External Invitation</h3>
-                                            <p style={{ color: 'var(--lux-text-secondary)' }}>Securely invite prospective members via their external email terminal.</p>
-                                        </div>
-
-                                        <form onSubmit={handleSendInvite} style={{ maxWidth: '440px', margin: '0 auto' }}>
-                                            <div style={{ marginBottom: '24px' }}>
-                                                <label style={{ display: 'block', marginBottom: '10px', fontWeight: 800, fontSize: '0.85rem', color: 'var(--gold-text)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                                                  Email Terminal
-                                                </label>
-                                                <div style={{ position: 'relative' }}>
-                                                  <Mail size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--gold-text)' }} />
-                                                  <input
-                                                    type="email"
-                                                    required
-                                                    placeholder="recipient@example.com"
-                                                    value={inviteEmail}
-                                                    onChange={(e) => setInviteEmail(e.target.value)}
-                                                    className="form-input-lux"
-                                                    style={{ paddingLeft: '48px' }}
-                                                  />
-                                                </div>
-                                            </div>
-                                            <div style={{ marginBottom: '32px' }}>
-                                                <label style={{ display: 'block', marginBottom: '10px', fontWeight: 800, fontSize: '0.85rem', color: 'var(--gold-text)', textTransform: 'uppercase', letterSpacing: '1px' }}>Designated Role</label>
-                                                <select
-                                                     value={selectedRole}
-                                                     onChange={(e) => setSelectedRole(e.target.value)}
-                                                     className="form-select-lux"
-                                                 >
-                                                     <option value="MEMBER">Member</option>
-                                                     <option value="TREASURER">Treasurer</option>
-                                                     <option value="SECRETARY">Secretary</option>
-                                                     <option value="CHAIRPERSON">Chairperson</option>
-                                                 </select>
-                                            </div>
-                                            <button
-                                                type="submit"
-                                                disabled={loading}
-                                                className="btn-action-primary"
-                                                style={{ width: '100%', padding: '16px', borderRadius: '14px' }}
-                                            >
-                                                {loading ? <div className="spinner" style={{ width: '20px', height: '20px' }} /> : <Send size={20} />}
-                                                <span>Initialize Invitation</span>
-                                            </button>
-                                        </form>
-                                    </motion.div>
-                                )}
-
-                                {activeTab === "CODE" && (
-                                    <motion.div
-                                        key="CODE"
-                                        initial={{ opacity: 0, scale: 0.95 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.95 }}
-                                        onViewportEnter={handleFetchCode}
-                                    >
-                                        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                                            <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'var(--gold-gradient)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: 'var(--gold-glow)' }}>
-                                                <ShieldCheck size={36} />
-                                            </div>
-                                            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.4rem', fontWeight: 800 }}>Vault Access Code</h3>
-                                            <p style={{ color: 'var(--text-secondary)' }}>Generate a secure high-authority code for rapid group joining.</p>
-                                        </div>
-
-                                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
-                                            <div style={{ width: '100%', maxWidth: '320px' }}>
-                                                <label style={{ display: 'block', marginBottom: '10px', fontSize: '0.85rem', fontWeight: 800, color: 'var(--gold-text)', textTransform: 'uppercase', letterSpacing: '1px' }}>Authorized Role</label>
-                                                <select
-                                                     value={selectedRole}
-                                                     onChange={(e) => setSelectedRole(e.target.value)}
-                                                     className="form-select-lux"
-                                                 >
-                                                     <option value="MEMBER">Member</option>
-                                                     <option value="TREASURER">Treasurer</option>
-                                                     <option value="SECRETARY">Secretary</option>
-                                                     <option value="CHAIRPERSON">Chairperson</option>
-                                                 </select>
-                                            </div>
-                                        </div>
-
-                                        {codeLoading ? (
-                                            <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-                                                <div className="spinner" style={{ width: '48px', height: '48px' }} />
-                                            </div>
-                                        ) : activeCode ? (
-                                            <div style={{ maxWidth: '440px', margin: '0 auto', textAlign: 'center' }}>
-                                                <motion.div
-                                                    whileHover={{ scale: 1.02, backgroundColor: 'var(--lux-bg-soft)' }}
-                                                    whileTap={{ scale: 0.98 }}
-                                                    onClick={copyCode}
-                                                    style={{
-                                                        background: 'var(--lux-bg-soft)',
-                                                        border: '2px dashed var(--lux-gold)',
-                                                        borderRadius: '24px',
-                                                        padding: '32px',
-                                                        marginBottom: '24px',
-                                                        cursor: 'pointer',
-                                                        transition: 'all 0.3s',
-                                                        boxShadow: '0 10px 30px rgba(0,0,0,0.05)'
-                                                    }}
-                                                >
-                                                    <div style={{ fontSize: '3rem', fontWeight: 900, letterSpacing: '8px', color: 'var(--gold-text)', fontFamily: 'monospace', textShadow: '0 4px 10px rgba(212,175,55,0.2)' }}>
-                                                        {activeCode.invite_code}
-                                                    </div>
-                                                    <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--lux-text-secondary)', fontSize: '0.9rem', fontWeight: 700 }}>
-                                                        <Copy size={14} /> Click to secure copy
-                                                    </div>
-                                                </motion.div>
-
-                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                                                    <div style={{ padding: '16px', background: 'var(--lux-bg-soft)', borderRadius: '16px', border: '1px solid var(--lux-border)', textAlign: 'left' }}>
-                                                        <p style={{ margin: '0 0 4px 0', fontSize: '0.75rem', fontWeight: 700, color: 'var(--lux-text-secondary)', textTransform: 'uppercase' }}>Security Expiry</p>
-                                                        <p style={{ margin: 0, fontWeight: 800, color: 'var(--lux-text-primary)' }}>{new Date(activeCode.expires_at).toLocaleDateString()}</p>
-                                                    </div>
-                                                    <div style={{ padding: '16px', background: 'var(--lux-bg-soft)', borderRadius: '16px', border: '1px solid var(--lux-border)', textAlign: 'left' }}>
-                                                        <p style={{ margin: '0 0 4px 0', fontSize: '0.75rem', fontWeight: 700, color: 'var(--lux-text-secondary)', textTransform: 'uppercase' }}>Usage Quota</p>
-                                                        <p style={{ margin: 0, fontWeight: 800, color: 'var(--lux-text-primary)' }}>{activeCode.uses_count} / {activeCode.max_uses}</p>
-                                                    </div>
-                                                </div>
-
-                                                <button
-                                                    onClick={handleFetchCode}
-                                                    disabled={codeLoading}
-                                                    className="btn-lux btn-lux-outline"
-                                                    style={{ margin: '0 auto', fontSize: '0.85rem' }}
-                                                >
-                                                    <RefreshCw size={14} className={codeLoading ? "animate-spin" : ""} /> 
-                                                    {codeLoading ? "Resetting Protocol..." : "Reset Protocol Code"}
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div style={{ textAlign: 'center', padding: '40px' }}>
-                                                <p style={{ color: '#ef4444' }}>Terminal handoff failed</p>
-                                                <button onClick={handleFetchCode} className="btn-action-secondary" style={{ marginTop: '16px' }}>Retry Protocol</button>
-                                            </div>
-                                        )}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-
-                        {/* Security Notice */}
-                        <div style={{ 
-                            marginTop: '40px', padding: '24px', 
-                            background: 'var(--lux-bg-soft)', 
-                            borderRadius: '24px', border: '1px dashed var(--lux-border)',
-                            display: 'flex', alignItems: 'center', gap: '16px'
-                        }}>
-                            <ShieldAlert size={20} color="var(--lux-gold)" />
-                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--lux-text-secondary)', lineHeight: 1.5 }}>
-                                Member addition is a high-security event. All additions are logged and subject to audit by the board of trustees. 
-                                Ensure you are onboarding verified participants to maintain vault integrity.
-                            </p>
-                        </div>
-                    </motion.div>
-                </div>
+        {found && (
+          <section className="cs-card" aria-label="Person found">
+            <h2 className="cs-card-title">{found.first_name} {found.last_name}</h2>
+            <p className="cs-list-meta">{found.email}</p>
+            <div className="cs-field">
+              <label className="cs-label" htmlFor="am-role">Role</label>
+              <select id="am-role" className="cs-select" value={role} onChange={(e) => setRole(e.target.value)}>
+                <option value="MEMBER">Member</option>
+                {isChair && <option value="TREASURER">Treasurer</option>}
+                {isChair && <option value="SECRETARY">Secretary</option>}
+              </select>
             </div>
-        </div>
-    );
-};
+            <div className="cs-actions"><Button variant="primary" loading={adding} onClick={add}>Add to chama</Button></div>
+          </section>
+        )}
 
-export default AddMember;
+        <p className="cs-footnote">Prefer to let them accept? <Link to={`/chamas/${id}/invites`}>Create an invitation</Link>.</p>
+      </main>
+    </div>
+  );
+}

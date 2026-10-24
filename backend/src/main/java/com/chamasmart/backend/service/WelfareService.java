@@ -38,6 +38,15 @@ public class WelfareService {
     public WelfareConfigDto createConfig(WelfareConfigDto dto, Long chamaId, Long userId) {
         log.info("Creating welfare config event '{}' for chama ID: {} by user ID: {}", dto.getEvent_type(), chamaId, userId);
         validateUserIsOfficial(chamaId, userId);
+        if (dto.getEvent_type() == null || dto.getEvent_type().isBlank()) {
+            throw new IllegalArgumentException("Give the event a name");
+        }
+        if (dto.getPayout_amount() == null || dto.getPayout_amount().signum() <= 0) {
+            throw new IllegalArgumentException("The payout amount must be more than zero");
+        }
+        if (dto.getContribution_amount() != null && dto.getContribution_amount().signum() < 0) {
+            throw new IllegalArgumentException("The contribution amount can't be negative");
+        }
         Chama chama = chamaRepository.findById(chamaId)
                 .orElseThrow(() -> new RuntimeException("Chama not found"));
         WelfareConfig config = WelfareConfig.builder()
@@ -72,7 +81,10 @@ public class WelfareService {
         WelfareConfig eventType;
         if (requestDto.getEvent_type_id() != null) {
             eventType = welfareConfigRepository.findById(requestDto.getEvent_type_id())
-                    .orElseThrow(() -> new RuntimeException("Welfare event type not found"));
+                    .orElseThrow(() -> new IllegalArgumentException("Welfare event type not found"));
+            if (!eventType.getChama().getChamaId().equals(requestDto.getChama_id()) || !Boolean.TRUE.equals(eventType.getIsActive())) {
+                throw new IllegalArgumentException("That event type isn't available in this chama");
+            }
         } else {
             String customName = requestDto.getCustom_event_name() != null ? requestDto.getCustom_event_name().trim() : "CUSTOM";
             eventType = welfareConfigRepository.findByChamaChamaIdAndEventType(requestDto.getChama_id(), customName)
@@ -88,6 +100,13 @@ public class WelfareService {
                                 .build();
                         return welfareConfigRepository.save(newConfig);
                     });
+        }
+        if (requestDto.getClaim_amount() != null) {
+            if (requestDto.getClaim_amount().signum() <= 0) throw new IllegalArgumentException("The claim amount must be more than zero");
+            if (eventType.getPayoutAmount() != null && eventType.getPayoutAmount().signum() > 0
+                    && requestDto.getClaim_amount().compareTo(eventType.getPayoutAmount()) > 0) {
+                throw new IllegalArgumentException("The claim can't be more than the event's payout of " + eventType.getPayoutAmount());
+            }
         }
         WelfareClaim claim = WelfareClaim.builder()
                 .chama(chama)
@@ -109,6 +128,16 @@ public class WelfareService {
         WelfareClaim claim = welfareClaimRepository.findByIdWithPessimisticLock(claimId)
                 .orElseThrow(() -> new RuntimeException("Welfare claim not found"));
         validateUserIsOfficial(claim.getChama().getChamaId(), approverUserId);
+        String verdict = decision == null ? "" : decision.trim().toUpperCase();
+        if (!"APPROVED".equals(verdict) && !"REJECTED".equals(verdict)) {
+            throw new IllegalArgumentException("Decision must be APPROVED or REJECTED");
+        }
+        if (claim.getMember().getUserId().equals(approverUserId)) {
+            throw new org.springframework.security.access.AccessDeniedException("You can't decide on your own claim");
+        }
+        if (welfareClaimApprovalRepository.findByClaimClaimId(claimId).stream().anyMatch(a -> a.getApprover().getUserId().equals(approverUserId))) {
+            throw new IllegalStateException("You have already responded to this claim");
+        }
         if (!"SUBMITTED".equals(claim.getStatus()) && !"VERIFIED".equals(claim.getStatus())) {
             throw new RuntimeException("Claim is not in a valid state for approval. Current status: " + claim.getStatus());
         }
@@ -117,7 +146,7 @@ public class WelfareService {
         WelfareClaimApproval approval = WelfareClaimApproval.builder()
                 .claim(claim)
                 .approver(approver)
-                .status(decision.toUpperCase()) // APPROVED, REJECTED
+                .status(verdict)
                 .comments(comments)
                 .build();
         welfareClaimApprovalRepository.save(approval);
@@ -130,7 +159,7 @@ public class WelfareService {
             claim.setRejectionReason(comments);
             claim.setApprovedAt(ZonedDateTime.now());
             claim.setApprovedBy(approver);
-        } else if (allApproved && approvals.size() >= 2) { // Assume 2 official signatures required
+        } else if (allApproved && approvals.stream().map(a -> a.getApprover().getUserId()).distinct().count() >= 2) { // two different officials must approve
             claim.setStatus("APPROVED");
             claim.setApprovedAt(ZonedDateTime.now());
             claim.setApprovedBy(approver);
@@ -162,16 +191,20 @@ public class WelfareService {
         return WelfareClaimSummaryDto.fromEntity(updatedClaim);
     }
     @Transactional(readOnly = true)
-    public List<WelfareConfigDto> getConfigsByChamaId(Long chamaId) {
+    public List<WelfareConfigDto> getConfigsByChamaId(Long chamaId, Long actorId) {
+        validateUserMembershipAndActiveStatus(chamaId, actorId);
         log.info("Fetching welfare configs for chama ID: {}", chamaId);
         return welfareConfigRepository.findByChamaChamaIdAndIsActiveTrue(chamaId).stream()
                 .map(WelfareConfigDto::fromEntity)
                 .collect(Collectors.toList());
     }
     @Transactional(readOnly = true)
-    public List<WelfareClaimSummaryDto> getClaimsByChamaId(Long chamaId) {
+    public List<WelfareClaimSummaryDto> getClaimsByChamaId(Long chamaId, Long actorId) {
         log.info("Fetching welfare claims for chama ID: {}", chamaId);
+        ChamaMember me = validateUserMembershipAndActiveStatus(chamaId, actorId);
+        boolean official = List.of("CHAIRPERSON", "TREASURER", "SECRETARY").contains(String.valueOf(me.getRole()).toUpperCase());
         return welfareClaimRepository.findByChamaChamaIdOrderByCreatedAtDesc(chamaId).stream()
+                .filter(c -> official || c.getMember().getUserId().equals(actorId))
                 .map(WelfareClaimSummaryDto::fromEntity)
                 .collect(Collectors.toList());
     }
@@ -183,7 +216,8 @@ public class WelfareService {
                 .collect(Collectors.toList());
     }
     @Transactional(readOnly = true)
-    public java.util.Map<String, Object> getLedger(Long chamaId) {
+    public java.util.Map<String, Object> getLedger(Long chamaId, Long actorId) {
+        validateUserMembershipAndActiveStatus(chamaId, actorId);
         log.info("Fetching welfare ledger for chama ID: {}", chamaId);
         Chama chama = chamaRepository.findById(chamaId)
                 .orElseThrow(() -> new RuntimeException("Chama not found"));

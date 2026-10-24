@@ -1,430 +1,206 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import { userAPI, chamaAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
-import { toast } from "react-toastify";
-import { 
-    Camera, Loader2, Shield, User, Lock, Trash2, 
-    CheckCircle2, Mail, Phone, CreditCard, Activity,
-    Calendar, Trophy, ShieldCheck
-} from "lucide-react";
-import { uploadMediaToFirebase } from "../../services/firebaseStorage";
 import { getImageUrl } from "../../utils/imageUtils";
-import { motion, AnimatePresence } from "framer-motion";
-import "./UserProfile.css";
+import { Button, PageHeader, Skeleton, Dialog } from "../../components/ui";
+import { formatDate } from "../../utils/format";
 
-const UserProfile = () => {
-    const { logout } = useAuth();
-    const navigate = useNavigate();
-    const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState({ groups: 0, since: "..." });
-    const [profile, setProfile] = useState({
-        first_name: "",
-        last_name: "",
-        phone_number: "",
-        email: "",
-        national_id: "",
-        profile_picture_url: ""
-    });
-    // State to handle editing of national ID for masking
-    const [isEditingNationalId, setIsEditingNationalId] = useState(false);
-    // Utility to mask national ID e.g., 07968***05
-    const maskNationalId = (id) => {
-        if (!id) return "";
-        if (id.length <= 7) return id;
-        return `${id.slice(0,5)}***${id.slice(-2)}`;
-    };
+const maskId = (v) => (!v ? "" : v.length <= 7 ? v : `${v.slice(0, 3)}***${v.slice(-2)}`);
 
-    const [passwordData, setPasswordData] = useState({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: ""
-    });
+export default function UserProfile() {
+  const { logout, updateUser } = useAuth();
+  const navigate = useNavigate();
+  const fileRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [groups, setGroups] = useState(0);
+  const [since, setSince] = useState(null);
+  const [profile, setProfile] = useState({ first_name: "", last_name: "", phone_number: "", email: "", national_id: "", profile_picture_url: "" });
+  const [editingId, setEditingId] = useState(false);
+  const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [changing, setChanging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [closeOpen, setCloseOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [closing, setClosing] = useState(false);
 
-    const [updating, setUpdating] = useState(false);
-    const [changingPassword, setChangingPassword] = useState(false);
-    const [uploadingImage, setUploadingImage] = useState(false);
-    const [showTerminateModal, setShowTerminateModal] = useState(false);
-    const [deleteConfirmation, setDeleteConfirmation] = useState("");
-    const fileInputRef = useRef(null);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setFailed(false);
+    try {
+      const [p, c] = await Promise.all([userAPI.getProfile(), chamaAPI.getMyChamas()]);
+      const d = p.data?.data || p.data;
+      setProfile({
+        first_name: d.first_name || "",
+        last_name: d.last_name || "",
+        phone_number: d.phone_number || "",
+        email: d.email || "",
+        national_id: d.national_id || "",
+        profile_picture_url: d.profilePictureUrl || d.profile_picture_url || "",
+      });
+      setSince(d.created_at || null);
+      const list = c.data?.data || c.data || [];
+      setGroups(Array.isArray(list) ? list.length : 0);
+    } catch {
+      setFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    useEffect(() => {
-        fetchProfile();
-    }, []);
+  useEffect(() => { load(); }, [load]);
 
-    const fetchProfile = async () => {
-        try {
-            const [profileRes, chamasRes] = await Promise.all([
-                userAPI.getProfile(),
-                chamaAPI.getMyChamas()
-            ]);
-            
-            const data = profileRes.data.data || profileRes.data;
-            const myChamas = chamasRes.data.data || chamasRes.data || [];
-            
-            setProfile({
-                first_name: data.first_name,
-                last_name: data.last_name,
-                phone_number: data.phone_number,
-                email: data.email,
-                national_id: data.national_id || "",
-                profile_picture_url: data.profilePictureUrl || data.profile_picture_url || ""
-            });
+  const setP = (e) => setProfile((x) => ({ ...x, [e.target.name]: e.target.value }));
 
-            // Derive some stats
-            const joinDate = new Date(data.created_at || Date.now());
-            setStats({
-                groups: myChamas.length,
-                since: joinDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-            });
+  const upload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return toast.error("Choose an image file.");
+    if (file.size > 5 * 1024 * 1024) return toast.error("The image must be 5MB or smaller.");
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const { data } = await userAPI.uploadProfilePicture(form);
+      setProfile((x) => ({ ...x, profile_picture_url: data.url }));
+      updateUser({ profilePictureUrl: data.url });
+      toast.success("Profile picture updated.");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "The upload failed.");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
 
-            setLoading(false);
-        } catch (err) {
-            console.error(err);
-            toast.error("Failed to load profile details");
-            setLoading(false);
-        }
-    };
+  const saveProfile = async (e) => {
+    e.preventDefault();
+    const er = {};
+    if (!profile.first_name.trim()) er.first_name = "Enter your first name.";
+    if (!profile.last_name.trim()) er.last_name = "Enter your last name.";
+    if (!/^\+?[0-9 ]{9,15}$/.test(profile.phone_number.trim())) er.phone_number = "Enter a valid phone number.";
+    setErrors(er);
+    if (Object.keys(er).length) return;
+    setSaving(true);
+    try {
+      await userAPI.updateProfile({
+        firstName: profile.first_name.trim(),
+        lastName: profile.last_name.trim(),
+        phoneNumber: profile.phone_number.trim(),
+        nationalId: profile.national_id.trim(),
+      });
+      updateUser({ firstName: profile.first_name.trim(), lastName: profile.last_name.trim() });
+      toast.success("Profile saved.");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "We couldn't save your profile.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
-const handleImageUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+  const changePassword = async (e) => {
+    e.preventDefault();
+    const er = {};
+    if (!pw.current) er.current = "Enter your current password.";
+    if (pw.next.length < 8) er.next = "Use at least 8 characters.";
+    if (pw.next !== pw.confirm) er.confirm = "The passwords don't match.";
+    setErrors(er);
+    if (Object.keys(er).length) return;
+    setChanging(true);
+    try {
+      await userAPI.changePassword({ currentPassword: pw.current, newPassword: pw.next });
+      toast.success("Password changed.");
+      setPw({ current: "", next: "", confirm: "" });
+    } catch (err) {
+      toast.error(err.response?.data?.message || "We couldn't change your password.");
+    } finally {
+      setChanging(false);
+    }
+  };
 
-  if (!file.type.startsWith('image/')) return toast.error('Invalid image file');
-  if (file.size > 5 * 1024 * 1024) return toast.error('Image too large (max 5MB)');
+  const closeAccount = async () => {
+    setClosing(true);
+    try {
+      await userAPI.deleteAccount();
+      toast.success("Your account has been closed.");
+      logout();
+      navigate("/");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "We couldn't close your account.");
+      setClosing(false);
+    }
+  };
 
-  setUploadingImage(true);
-  try {
-    const form = new FormData();
-    form.append('file', file);
-    const { data } = await userAPI.uploadProfilePicture(form);
-    // backend returns { url: 'uploads/avatars/...'}
-    setProfile(prev => ({ ...prev, profile_picture_url: data.url }));
-    toast.success('Profile picture updated successfully');
-  } catch (err) {
-    toast.error(err.response?.data?.message || 'Upload failed');
-    console.error(err);
-  } finally {
-    setUploadingImage(false);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  }
-};
+  const aria = (n, id) => ({ id, name: n, "aria-invalid": errors[n] ? "true" : undefined, "aria-describedby": errors[n] ? `${id}-err` : undefined });
+  const err = (n, id) => errors[n] && <span className="cs-error" id={`${id}-err`} role="alert">{errors[n]}</span>;
+  const pic = getImageUrl(profile.profile_picture_url);
+  const initials = ((profile.first_name[0] || "") + (profile.last_name[0] || "")).toUpperCase();
 
-    const handleProfileUpdate = async (e) => {
-        e.preventDefault();
-        setUpdating(true);
-        try {
-            const updateData = {
-                firstName: profile.first_name,
-                lastName: profile.last_name,
-                email: profile.email,
-                phoneNumber: profile.phone_number,
-                nationalId: profile.national_id,
-                profilePictureUrl: profile.profile_picture_url
-            };
-            await userAPI.updateProfile(updateData);
-            toast.success("Profile records secured");
-        } catch (err) {
-            toast.error(err.response?.data?.message || "Sync failed");
-        } finally {
-            setUpdating(false);
-        }
-    };
+  if (loading) return <div className="cs-shell"><main className="cs-page"><div className="cs-card" aria-busy="true" aria-label="Loading profile"><Skeleton height={20} width="40%" /><Skeleton height={80} style={{ marginTop: 12 }} /></div></main></div>;
+  if (failed) return (
+    <div className="cs-shell"><main className="cs-page">
+      <div className="cs-notice cs-notice--danger" role="alert" style={{ alignItems: "center", justifyContent: "space-between" }}><span>We couldn&apos;t load your profile.</span><Button size="sm" onClick={load}>Try again</Button></div>
+    </main></div>
+  );
 
-    const handlePasswordChange = async (e) => {
-        e.preventDefault();
-        if (passwordData.newPassword !== passwordData.confirmPassword) {
-            return toast.error("Passwords do not match");
-        }
+  return (
+    <div className="cs-shell">
+      <main className="cs-page">
+        <PageHeader title="Your profile" subtitle={`${groups} ${groups === 1 ? "chama" : "chamas"}${since ? ` · member since ${formatDate(since)}` : ""}`} />
 
-        setChangingPassword(true);
-        try {
-            await userAPI.changePassword({
-                currentPassword: passwordData.currentPassword,
-                newPassword: passwordData.newPassword
-            });
-            toast.success("Credentials updated successfully");
-            setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-        } catch (err) {
-            toast.error(err.response?.data?.message || "Credential update failed");
-        } finally {
-            setChangingPassword(false);
-        }
-    };
-
-    const handleDeleteAccount = (e) => {
-        e.preventDefault();
-        setShowTerminateModal(true);
-    };
-
-    const executeTerminateAccount = async () => {
-        if (deleteConfirmation !== "DELETE") {
-            return toast.error("Type DELETE to confirm");
-        }
-        try {
-            await userAPI.deleteAccount();
-            toast.success("Account terminated");
-            logout();
-            navigate("/");
-        } catch (err) {
-            toast.error("Termination failed");
-        }
-    };
-
-    if (loading) return (
-        <div className="flex-center" style={{ height: '80vh', flexDirection: 'column', gap: '1.5rem' }}>
-            <div className="spinner-modern" />
-            <p style={{ color: 'var(--text-secondary)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px' }}>
-                Securing Profile Session...
-            </p>
-        </div>
-    );
-
-    return (
-        <div className="profile-page-wrapper">
-            <div className="page-frame-lux">
-                <motion.div 
-                    className="profile-container-lux"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6 }}
-                >
-                {/* ── Left Sidebar: Identity ── */}
-                <aside className="identity-card-lux">
-                    <div className="identity-avatar-group">
-                        <div className="identity-avatar-ring" />
-                        <div className="identity-avatar-wrapper" onClick={() => fileInputRef.current?.click()}>
-                            {getImageUrl(profile.profile_picture_url) ? (
-                                <img src={getImageUrl(profile.profile_picture_url)} alt="Profile" className="identity-avatar-img" />
-                            ) : (
-                                <div className="identity-avatar-placeholder">
-                                    {(profile.first_name?.[0] || "") + (profile.last_name?.[0] || "")}
-                                </div>
-                            )}
-                            <div className="identity-avatar-overlay">
-                                {uploadingImage ? <Loader2 className="animate-spin" /> : <Camera />}
-                            </div>
-                        </div>
-                        <input 
-                            type="file" 
-                            ref={fileInputRef} 
-                            style={{ display: 'none' }} 
-                            onChange={handleImageUpload}
-                            accept="image/*"
-                        />
-                    </div>
-
-                    <h2 className="identity-name">{profile.first_name} {profile.last_name}</h2>
-                    <p className="identity-email">{profile.email}</p>
-                    
-                    <div className="identity-badge-lux">
-                        <ShieldCheck size={14} />
-                        Verified Member
-                    </div>
-
-                    <div className="identity-stats-lux">
-                        <div className="identity-stat-item">
-                            <span className="identity-stat-val">{stats.groups}</span>
-                            <span className="identity-stat-label">Groups</span>
-                        </div>
-                        <div className="identity-stat-item">
-                            <span className="identity-stat-val">{stats.since}</span>
-                            <span className="identity-stat-label">Joined</span>
-                        </div>
-                    </div>
-                </aside>
-
-                {/* ── Right Content: Configuration ── */}
-                <main className="profile-content-lux">
-                    
-                    {/* Personal Info */}
-                    <div className="profile-card-lux">
-                        <div className="card-header-lux">
-                            <User size={20} className="text-gold" />
-                            <h3>Personal Information</h3>
-                        </div>
-                        <div className="card-body-lux">
-                            <form onSubmit={handleProfileUpdate} className="lux-form-grid">
-                                <div className="lux-input-group">
-                                    <label className="lux-label">First Name</label>
-                                    <input 
-                                        className="lux-input" 
-                                        value={profile.first_name} 
-                                        onChange={e => setProfile({...profile, first_name: e.target.value})}
-                                        required
-                                    />
-                                </div>
-                                <div className="lux-input-group">
-                                    <label className="lux-label">Last Name</label>
-                                    <input 
-                                        className="lux-input" 
-                                        value={profile.last_name} 
-                                        onChange={e => setProfile({...profile, last_name: e.target.value})}
-                                        required
-                                    />
-                                </div>
-                                <div className="lux-input-group">
-                                    <label className="lux-label">Email Address</label>
-                                    <input 
-                                        className="lux-input" 
-                                        type="email"
-                                        value={profile.email} 
-                                        onChange={e => setProfile({...profile, email: e.target.value})}
-                                    />
-                                </div>
-                                <div className="lux-input-group">
-                                    <label className="lux-label">National ID</label>
-                                    <input 
-                                        className="lux-input" 
-                                        value={isEditingNationalId ? profile.national_id : maskNationalId(profile.national_id)} 
-                                        onChange={e => setProfile({ ...profile, national_id: e.target.value })}
-                                        onFocus={() => setIsEditingNationalId(true)}
-                                        onBlur={() => setIsEditingNationalId(false)}
-                                        placeholder="Identification Number"
-                                    />
-                                </div>
-                                <div className="lux-input-group" style={{ gridColumn: '1 / -1' }}>
-                                    <label className="lux-label">Phone Number</label>
-                                    <input 
-                                        className="lux-input" 
-                                        value={profile.phone_number} 
-                                        onChange={e => setProfile({...profile, phone_number: e.target.value})}
-                                        required
-                                    />
-                                </div>
-                                <button type="submit" className="btn-lux-save" disabled={updating}>
-                                    {updating ? "Syncing Records..." : "Save Profile Changes"}
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-
-                    {/* Security */}
-                    <div className="profile-card-lux security-card-lux">
-                        <div className="card-header-lux">
-                            <Lock size={20} className="text-primary" />
-                            <h3>Access Credentials</h3>
-                        </div>
-                        <div className="card-body-lux">
-                            <form onSubmit={handlePasswordChange} className="lux-form-grid">
-                                <div className="lux-input-group" style={{ gridColumn: '1 / -1' }}>
-                                    <label className="lux-label">Current Password</label>
-                                    <input 
-                                        type="password"
-                                        className="lux-input" 
-                                        value={passwordData.currentPassword}
-                                        onChange={e => setPasswordData({...passwordData, currentPassword: e.target.value})}
-                                        required
-                                    />
-                                </div>
-                                <div className="lux-input-group">
-                                    <label className="lux-label">New Password</label>
-                                    <input 
-                                        type="password"
-                                        className="lux-input" 
-                                        value={passwordData.newPassword}
-                                        onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})}
-                                        required
-                                    />
-                                </div>
-                                <div className="lux-input-group">
-                                    <label className="lux-label">Confirm New Password</label>
-                                    <input 
-                                        type="password"
-                                        className="lux-input" 
-                                        value={passwordData.confirmPassword}
-                                        onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                                        required
-                                    />
-                                </div>
-                                <button type="submit" className="btn-lux-secondary" style={{ gridColumn: '1 / -1' }} disabled={changingPassword}>
-                                    {changingPassword ? "Updating Access..." : "Update Security Credentials"}
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-
-                    {/* Danger Zone */}
-                    <div className="profile-card-lux danger-card-lux">
-                        <div className="card-header-lux">
-                            <Trash2 size={20} className="text-danger" />
-                            <h3>System Override</h3>
-                        </div>
-                        <div className="card-body-lux">
-                            <p className="danger-text-lux">
-                                Terminating your account will permanently remove all stake records, history, and access from the ChamaSmart network. This operation is irreversible.
-                            </p>
-                            <button onClick={handleDeleteAccount} className="btn-lux-danger">
-                                Terminate Account Access
-                            </button>
-                        </div>
-                    </div>
-
-                </main>
-            </motion.div>
+        <section className="cs-card" aria-label="Personal details" style={{ marginBottom: 16, maxWidth: 720 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
+            {pic ? <img src={pic} alt="Your profile" width={72} height={72} style={{ borderRadius: "50%", objectFit: "cover" }} /> : <div aria-hidden="true" style={{ width: 72, height: 72, borderRadius: "50%", display: "grid", placeItems: "center", background: "var(--cs-surface-2)", fontWeight: 700, fontSize: "1.5rem" }}>{initials || "?"}</div>}
+            <div>
+              <Button size="sm" loading={uploading} onClick={() => fileRef.current?.click()}>Change photo</Button>
+              <input ref={fileRef} type="file" accept="image/*" onChange={upload} hidden aria-label="Choose a profile photo" />
+            </div>
           </div>
+          <form onSubmit={saveProfile} noValidate>
+            <div className="cs-form-grid">
+              <div className="cs-field"><label className="cs-label" htmlFor="up-first">First name</label><input className="cs-input" autoComplete="given-name" {...aria("first_name", "up-first")} value={profile.first_name} onChange={setP} />{err("first_name", "up-first")}</div>
+              <div className="cs-field"><label className="cs-label" htmlFor="up-last">Last name</label><input className="cs-input" autoComplete="family-name" {...aria("last_name", "up-last")} value={profile.last_name} onChange={setP} />{err("last_name", "up-last")}</div>
+              <div className="cs-field"><label className="cs-label" htmlFor="up-email">Email</label><input id="up-email" className="cs-input" type="email" value={profile.email} readOnly aria-describedby="up-email-help" /><span className="cs-help" id="up-email-help">Your email is your sign-in and can&apos;t be changed here.</span></div>
+              <div className="cs-field"><label className="cs-label" htmlFor="up-phone">Phone number</label><input className="cs-input" type="tel" autoComplete="tel" {...aria("phone_number", "up-phone")} value={profile.phone_number} onChange={setP} />{err("phone_number", "up-phone")}</div>
+              <div className="cs-field">
+                <label className="cs-label" htmlFor="up-nid">National ID</label>
+                <input id="up-nid" name="national_id" className="cs-input" inputMode="numeric" value={editingId ? profile.national_id : maskId(profile.national_id)} onChange={setP} onFocus={() => setEditingId(true)} onBlur={() => setEditingId(false)} />
+              </div>
+            </div>
+            <div className="cs-actions"><Button type="submit" loading={saving}>Save changes</Button></div>
+          </form>
+        </section>
 
-          {/* Terminate Account Modal */}
-          <AnimatePresence>
-              {showTerminateModal && (
-                  <motion.div 
-                      className="modal-overlay"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                  >
-                      <motion.div 
-                          className="modal-content danger-modal"
-                          initial={{ scale: 0.9, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          exit={{ scale: 0.9, opacity: 0 }}
-                      >
-                          <div className="modal-header">
-                              <Trash2 size={24} className="text-danger" />
-                              <h3>Confirm Permanent Termination</h3>
-                          </div>
-                          <div className="modal-body">
-                              <p style={{ color: "var(--text-secondary)", marginBottom: "1.5rem" }}>
-                                  This action is <strong>irreversible</strong>. All your personal data, group associations, and contribution history will be permanently anonymized or removed.
-                              </p>
-                              <div className="lux-input-group">
-                                  <label className="lux-label" style={{ color: "var(--danger)" }}>Type DELETE to confirm</label>
-                                  <input 
-                                      type="text" 
-                                      className="lux-input" 
-                                      value={deleteConfirmation}
-                                      onChange={(e) => setDeleteConfirmation(e.target.value)}
-                                      placeholder="DELETE"
-                                      style={{ border: "1px solid var(--danger)", background: "rgba(220, 38, 38, 0.05)" }}
-                                  />
-                              </div>
-                          </div>
-                          <div className="modal-actions" style={{ marginTop: "2rem", display: "flex", gap: "1rem" }}>
-                              <button 
-                                  className="btn-lux-secondary" 
-                                  onClick={() => {
-                                      setShowTerminateModal(false);
-                                      setDeleteConfirmation("");
-                                  }}
-                                  style={{ flex: 1 }}
-                              >
-                                  Cancel
-                              </button>
-                              <button 
-                                  className="btn-lux-danger" 
-                                  onClick={executeTerminateAccount}
-                                  disabled={deleteConfirmation !== "DELETE"}
-                                  style={{ flex: 1, opacity: deleteConfirmation !== "DELETE" ? 0.5 : 1 }}
-                              >
-                                  Confirm Deletion
-                              </button>
-                          </div>
-                      </motion.div>
-                  </motion.div>
-              )}
-          </AnimatePresence>
-        </div>
-    );
-};
+        <form className="cs-card" onSubmit={changePassword} noValidate aria-label="Change password" style={{ marginBottom: 16, maxWidth: 720 }}>
+          <h2 className="cs-card-title">Change password</h2>
+          <div className="cs-field"><label className="cs-label" htmlFor="pw-current">Current password</label><input type="password" autoComplete="current-password" className="cs-input" {...aria("current", "pw-current")} value={pw.current} onChange={(e) => setPw((x) => ({ ...x, current: e.target.value }))} />{err("current", "pw-current")}</div>
+          <div className="cs-form-grid">
+            <div className="cs-field"><label className="cs-label" htmlFor="pw-next">New password</label><input type="password" autoComplete="new-password" className="cs-input" {...aria("next", "pw-next")} value={pw.next} onChange={(e) => setPw((x) => ({ ...x, next: e.target.value }))} />{err("next", "pw-next")}</div>
+            <div className="cs-field"><label className="cs-label" htmlFor="pw-confirm">Confirm new password</label><input type="password" autoComplete="new-password" className="cs-input" {...aria("confirm", "pw-confirm")} value={pw.confirm} onChange={(e) => setPw((x) => ({ ...x, confirm: e.target.value }))} />{err("confirm", "pw-confirm")}</div>
+          </div>
+          <div className="cs-actions"><Button type="submit" loading={changing}>Change password</Button></div>
+        </form>
 
-export default UserProfile;
+        <section className="cs-card" aria-label="Close account" style={{ maxWidth: 720 }}>
+          <h2 className="cs-card-title">Close account</h2>
+          <p>This signs you out for good and can&apos;t be undone. You can&apos;t close your account while you have an open loan or chair an active chama.</p>
+          <Button variant="danger" onClick={() => { setConfirmText(""); setCloseOpen(true); }}>Close my account</Button>
+        </section>
+
+        <Dialog
+          open={closeOpen}
+          onClose={() => setCloseOpen(false)}
+          title="Close your account?"
+          actions={(<><Button onClick={() => setCloseOpen(false)}>Keep my account</Button><Button variant="danger" loading={closing} disabled={confirmText !== "DELETE"} onClick={closeAccount}>Close account</Button></>)}
+        >
+          <p>Type <strong>DELETE</strong> to confirm.</p>
+          <div className="cs-field"><label className="cs-label" htmlFor="del-confirm">Confirmation</label><input id="del-confirm" className="cs-input" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} autoComplete="off" /></div>
+        </Dialog>
+      </main>
+    </div>
+  );
+}

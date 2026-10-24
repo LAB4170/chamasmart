@@ -1,139 +1,81 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { roscaAPI } from "../../../services/api";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
-import { ArrowLeft, ArrowRight, Plus, Clock } from "lucide-react";
-import "./Rosca.css";
+import { roscaAPI } from "../../../services/api";
+import { Button, PageHeader } from "../../../components/ui";
 
-const CreateCycle = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
-    const [submitting, setSubmitting] = useState(false);
-    const [formData, setFormData] = useState({
-        name: "",
-        amount: "",
-        frequency: "MONTHLY",
-        startDate: ""
-    });
+const today = () => new Date().toISOString().split("T")[0];
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setSubmitting(true);
-        try {
-            await roscaAPI.createCycle({
-                chama_id: id,
-                ...formData
-            });
-            toast.success("Cycle created successfully");
-            navigate(`/chamas/${id}/rosca`);
-        } catch (err) {
-            console.error(err);
-            toast.error(err.response?.data?.message || "Failed to create cycle");
-        } finally {
-            setSubmitting(false);
-        }
-    };
+export default function CreateCycle() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [form, setForm] = useState({ name: "", amount: "", startDate: today() });
 
-    return (
-        <div className="page rosca-create-page">
-            <div className="container">
-                <div className="page-header-modern">
-                    <button onClick={() => navigate(-1)} className="back-link-premium">
-                        <ArrowLeft size={16} />
-                        <span>Cancel & Return</span>
-                    </button>
-                    <div className="header-info">
-                        <div className="header-icon-wrapper">
-                            <Plus size={28} />
-                        </div>
-                        <div>
-                            <h1>Start New Round</h1>
-                            <p>Initialize a new rotating savings cycle for your members</p>
-                        </div>
-                    </div>
-                </div>
+  const set = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
-                <div className="card-premium max-w-2xl mx-auto">
-                    <form onSubmit={handleSubmit} className="premium-form">
-                        <div className="form-group-premium">
-                            <label>Cycle Name</label>
-                            <input
-                                type="text"
-                                className="input-premium"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                required
-                                placeholder="e.g., Q1 2024 Rounds"
-                            />
-                        </div>
+  const validate = () => {
+    const er = {};
+    if (form.name.trim().length < 3) er.name = "Give the cycle a name of at least 3 characters.";
+    const amt = Number(form.amount);
+    if (!Number.isFinite(amt) || amt <= 0) er.amount = "Enter the amount each member pays per round.";
+    if (!form.startDate) er.startDate = "Choose a start date.";
+    setErrors(er);
+    return Object.keys(er).length === 0;
+  };
 
-                        <div className="form-row-premium">
-                            <div className="form-group-premium">
-                                <label>Contribution Amount (per person)</label>
-                                <div className="input-with-icon">
-                                    <span className="input-icon">KES</span>
-                                    <input
-                                        type="number"
-                                        className="input-premium with-icon"
-                                        value={formData.amount}
-                                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                                        required
-                                        min="100"
-                                    />
-                                </div>
-                            </div>
-                            <div className="form-group-premium">
-                                <label>Frequency</label>
-                                <select
-                                    className="input-premium"
-                                    value={formData.frequency}
-                                    onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
-                                >
-                                    <option value="WEEKLY">Weekly</option>
-                                    <option value="BIWEEKLY">Bi-Weekly</option>
-                                    <option value="MONTHLY">Monthly</option>
-                                </select>
-                            </div>
-                        </div>
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+    setSaving(true);
+    try {
+      await roscaAPI.createCycle({
+        chama_id: Number(id),
+        cycle_name: form.name.trim(),
+        contribution_amount: Number(form.amount),
+        start_date: form.startDate,
+      });
+      toast.success("Cycle created.");
+      navigate(`/chamas/${id}/rosca`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "We couldn't create the cycle.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
-                        <div className="form-group-premium">
-                            <label>Start Date</label>
-                            <input
-                                type="date"
-                                className="input-premium"
-                                value={formData.startDate}
-                                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                                required
-                            />
-                            <p className="form-help-text">
-                                <Clock size={12} /> Rounds will automatically activate on this date.
-                            </p>
-                        </div>
+  const aria = (n) => ({ id: `cc-${n}`, name: n, "aria-invalid": errors[n] ? "true" : undefined, "aria-describedby": errors[n] ? `cc-${n}-err` : undefined });
+  const err = (n) => errors[n] && <span className="cs-error" id={`cc-${n}-err`} role="alert">{errors[n]}</span>;
 
-                        <div className="form-actions-premium mt-4">
-                            <button
-                                type="submit"
-                                className="btn-create-premium w-full justify-center"
-                                disabled={submitting}
-                            >
-                                {submitting ? (
-                                    <>
-                                        <div className="spinner-mini"></div>
-                                        <span>Creating...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>Initialize Cycle</span>
-                                        <ArrowRight size={18} />
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </form>
-                </div>
+  return (
+    <div className="cs-shell">
+      <main className="cs-page">
+        <PageHeader title="Start a new round" subtitle="A rotating savings cycle for your active members." actions={<Link to={`/chamas/${id}/rosca`} className="cs-btn cs-btn--secondary">Cancel</Link>} />
+        <form className="cs-card" onSubmit={submit} noValidate style={{ maxWidth: 560 }}>
+          <div className="cs-field">
+            <label className="cs-label" htmlFor="cc-name">Cycle name</label>
+            <input className="cs-input" {...aria("name")} value={form.name} onChange={set} placeholder="Round 1" maxLength={80} />
+            {err("name")}
+          </div>
+          <div className="cs-form-grid">
+            <div className="cs-field">
+              <label className="cs-label" htmlFor="cc-amount">Each member pays (KES)</label>
+              <input className="cs-input" type="number" inputMode="decimal" min="1" {...aria("amount")} value={form.amount} onChange={set} />
+              {err("amount")}
             </div>
-        </div>
-    );
-};
-
-export default CreateCycle;
+            <div className="cs-field">
+              <label className="cs-label" htmlFor="cc-startDate">Start date</label>
+              <input className="cs-input" type="date" {...aria("startDate")} value={form.startDate} onChange={set} />
+              {err("startDate")}
+            </div>
+          </div>
+          <p className="cs-help">The cycle includes every active member. You can only have one active cycle at a time.</p>
+          <div className="cs-actions">
+            <Button type="submit" loading={saving}>Create cycle</Button>
+          </div>
+        </form>
+      </main>
+    </div>
+  );
+}

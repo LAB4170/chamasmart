@@ -57,7 +57,7 @@ export const welfareAPI = {
     getConfig: (chamaId) => api.get(`/welfare/chamas/${chamaId}/configs`),
     updateConfig: (chamaId, config) =>
         api.post(`/welfare/chamas/${chamaId}/configs`, config),
-    getFund: (chamaId) => api.get(`/welfare/chamas/${chamaId}/configs`),
+    getFund: (chamaId) => api.get(`/welfare/${chamaId}/ledger`),
     makeContribution: (chamaId, payload) =>
         api.post(`/welfare/chamas/${chamaId}/contributions`, payload),
     // POST /welfare/claims
@@ -76,7 +76,7 @@ export const welfareAPI = {
     },
     // GET /welfare/chamas/{chamaId}/claims
     getChamaClaims: (chamaId) => api.get(`/welfare/chamas/${chamaId}/claims`),
-    getMemberClaims: (chamaId, memberId) => {
+    getMemberClaims: () => {
         return api.get(`/welfare/claims/my`);
     },
     // POST /welfare/claims/{claimId}/approve

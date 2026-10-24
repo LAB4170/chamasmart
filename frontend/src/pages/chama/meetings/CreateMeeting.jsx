@@ -1,218 +1,93 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { meetingAPI } from "../../../services/api";
 import { toast } from "react-toastify";
-import "./Meetings.css";
+import { meetingAPI } from "../../../services/api";
+import { Button, PageHeader } from "../../../components/ui";
 
-const CreateMeeting = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
-    const [loading, setLoading] = useState(false);
-    const [formData, setFormData] = useState({
-        title: "",
-        date: "",
-        time: "",
-        location: "",
-        agenda: "",
-        type: "PHYSICAL", // PHYSICAL, VIRTUAL, HYBRID
-        meetingLink: ""
-    });
+const today = () => new Date().toISOString().split("T")[0];
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
-    };
+export default function CreateMeeting() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [form, setForm] = useState({ title: "", date: "", time: "", location: "", agenda: "", type: "PHYSICAL", meetingLink: "" });
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+  const set = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
-        // Basic validation
-        if (!formData.title || !formData.date || !formData.time) {
-            toast.error("Please fill in all required fields");
-            return;
-        }
+  const validate = () => {
+    const e = {};
+    if (form.title.trim().length < 3) e.title = "Give the meeting a title of at least 3 characters.";
+    if (!form.date) e.date = "Choose a date.";
+    if (!form.time) e.time = "Choose a time.";
+    if (form.date && form.time && new Date(`${form.date}T${form.time}`) < new Date()) e.time = "The meeting must be in the future.";
+    if (form.type !== "VIRTUAL" && !form.location.trim()) e.location = "Say where the meeting will be held.";
+    if (form.type === "VIRTUAL" && !form.meetingLink.trim()) e.meetingLink = "Add the online meeting link.";
+    if (form.meetingLink && !/^https?:\/\//i.test(form.meetingLink.trim())) e.meetingLink = "The link must start with http:// or https://";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
-        try {
-            setLoading(true);
+  const submit = async (ev) => {
+    ev.preventDefault();
+    if (!validate()) return;
+    const at = new Date(`${form.date}T${form.time}`).toISOString();
+    setSaving(true);
+    try {
+      await meetingAPI.create(id, {
+        title: form.title.trim(),
+        description: form.agenda.trim(),
+        scheduledAt: at,
+        location: form.location.trim(),
+        type: form.type,
+        meetingLink: form.meetingLink.trim(),
+        validUntil: at,
+      });
+      toast.success("Meeting scheduled.");
+      navigate(`/chamas/${id}/meetings`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "We couldn't schedule the meeting.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
-            // Combine date and time
-            const scheduledAt = new Date(`${formData.date}T${formData.time}`);
+  const field = (name, label, input, hint) => (
+    <div className="cs-field">
+      <label className="cs-label" htmlFor={`m-${name}`}>{label}</label>
+      {input}
+      {hint && !errors[name] && <span className="cs-help">{hint}</span>}
+      {errors[name] && <span className="cs-error" id={`m-${name}-err`} role="alert">{errors[name]}</span>}
+    </div>
+  );
+  const aria = (name) => ({ id: `m-${name}`, name, "aria-invalid": errors[name] ? "true" : undefined, "aria-describedby": errors[name] ? `m-${name}-err` : undefined });
 
-            const payload = {
-                title: formData.title,
-                description: formData.agenda,
-                scheduledAt: scheduledAt.toISOString(),
-                location: formData.location,
-                type: formData.type,
-                meetingLink: formData.meetingLink,
-                validUntil: scheduledAt.toISOString() // Default valid until meeting start
-            };
-
-            await meetingAPI.create(id, payload);
-            toast.success("Meeting scheduled successfully!");
-            navigate(`/chamas/${id}/meetings`);
-        } catch (err) {
-            console.error(err);
-            toast.error(err.response?.data?.message || "Failed to schedule meeting");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <div className="page">
-            <div className="container">
-                <div className="meetings-page">
-                    <div className="page-header">
-                        <div>
-                            <button onClick={() => navigate(-1)} className="btn btn-outline btn-sm mb-2">
-                                ← Back
-                            </button>
-                            <h1>Schedule Meeting</h1>
-                            <p className="subtitle">Create a new meeting for your chama members.</p>
-                        </div>
-                    </div>
-
-                    <div className="card" style={{ maxWidth: '800px', margin: '0 auto' }}>
-                        <form onSubmit={handleSubmit}>
-                            <div className="form-group">
-                                <label className="form-label">Meeting Title *</label>
-                                <input
-                                    type="text"
-                                    name="title"
-                                    className="form-input"
-                                    placeholder="e.g., Monthly Review Meeting"
-                                    value={formData.title}
-                                    onChange={handleChange}
-                                    required
-                                />
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">Date *</label>
-                                    <input
-                                        type="date"
-                                        name="date"
-                                        className="form-input"
-                                        value={formData.date}
-                                        onChange={handleChange}
-                                        min={new Date().toISOString().split('T')[0]}
-                                        required
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Time *</label>
-                                    <input
-                                        type="time"
-                                        name="time"
-                                        className="form-input"
-                                        value={formData.time}
-                                        onChange={handleChange}
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">Meeting Type</label>
-                                    <select
-                                        name="type"
-                                        className="form-select"
-                                        value={formData.type}
-                                        onChange={handleChange}
-                                    >
-                                        <option value="PHYSICAL">Physical Location</option>
-                                        <option value="VIRTUAL">Virtual (Online)</option>
-                                        <option value="HYBRID">Hybrid</option>
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">
-                                        {formData.type === 'VIRTUAL' ? 'Meeting Link' : 'Location'}
-                                    </label>
-                                    {formData.type === 'VIRTUAL' ? (
-                                        <input
-                                            type="url"
-                                            name="meetingLink"
-                                            className="form-input"
-                                            placeholder="https://zoom.us/..."
-                                            value={formData.meetingLink}
-                                            onChange={handleChange}
-                                        />
-                                    ) : (
-                                        <input
-                                            type="text"
-                                            name="location"
-                                            className="form-input"
-                                            placeholder="e.g., Community Hall"
-                                            value={formData.location}
-                                            onChange={handleChange}
-                                        />
-                                    )}
-                                </div>
-                            </div>
-
-                            {formData.type === 'HYBRID' && (
-                                <div className="form-group">
-                                    <label className="form-label">Meeting Link (Optional)</label>
-                                    <input
-                                        type="url"
-                                        name="meetingLink"
-                                        className="form-input"
-                                        placeholder="https://zoom.us/..."
-                                        value={formData.meetingLink}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                            )}
-
-                            <div className="form-group">
-                                <label className="form-label">Agenda / Description</label>
-                                <textarea
-                                    name="agenda"
-                                    className="form-textarea"
-                                    placeholder="What will be discussed?"
-                                    value={formData.agenda}
-                                    onChange={handleChange}
-                                    rows="4"
-                                ></textarea>
-                            </div>
-
-                            <div className="form-actions-modern">
-                                <button
-                                    type="button"
-                                    className="btn btn-outline"
-                                    onClick={() => navigate(-1)}
-                                    disabled={loading}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="btn btn-primary"
-                                    disabled={loading}
-                                >
-                                    {loading ? (
-                                        <>
-                                            <span className="spinner-sm" style={{ marginRight: '8px' }}></span>
-                                            Scheduling...
-                                        </>
-                                    ) : (
-                                        'Schedule Meeting'
-                                    )}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-export default CreateMeeting;
+  return (
+    <div className="cs-shell">
+      <main className="cs-page">
+        <PageHeader title="Schedule a meeting" subtitle="Members will see it under Meetings." actions={<Button variant="secondary" onClick={() => navigate(-1)}>Back</Button>} />
+        <form className="cs-card" onSubmit={submit} noValidate style={{ maxWidth: 720 }}>
+          {field("title", "Title", <input className="cs-input" {...aria("title")} value={form.title} onChange={set} placeholder="Monthly review meeting" maxLength={120} />)}
+          <div className="cs-form-grid">
+            {field("date", "Date", <input className="cs-input" type="date" {...aria("date")} value={form.date} onChange={set} min={today()} />)}
+            {field("time", "Time", <input className="cs-input" type="time" {...aria("time")} value={form.time} onChange={set} />)}
+          </div>
+          {field("type", "Format", (
+            <select className="cs-select" {...aria("type")} value={form.type} onChange={set}>
+              <option value="PHYSICAL">In person</option>
+              <option value="VIRTUAL">Online</option>
+              <option value="HYBRID">In person and online</option>
+            </select>
+          ))}
+          {form.type !== "VIRTUAL" && field("location", "Location", <input className="cs-input" {...aria("location")} value={form.location} onChange={set} placeholder="Community hall" />)}
+          {form.type !== "PHYSICAL" && field("meetingLink", form.type === "HYBRID" ? "Online link (optional)" : "Online link", <input className="cs-input" type="url" {...aria("meetingLink")} value={form.meetingLink} onChange={set} placeholder="https://meet.google.com/…" />)}
+          {field("agenda", "Agenda", <textarea className="cs-textarea" {...aria("agenda")} value={form.agenda} onChange={set} rows={4} placeholder="What will be discussed?" />)}
+          <div className="cs-actions">
+            <Button type="button" variant="secondary" onClick={() => navigate(-1)} disabled={saving}>Cancel</Button>
+            <Button type="submit" loading={saving}>Schedule meeting</Button>
+          </div>
+        </form>
+      </main>
+    </div>
+  );
+}

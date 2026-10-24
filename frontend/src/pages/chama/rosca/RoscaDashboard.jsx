@@ -1,531 +1,158 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import { roscaAPI, chamaAPI } from "../../../services/api";
-import { useAuth } from "../../../context/AuthContext";
 import { toast } from "react-toastify";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import {
-    Plus, RefreshCw, Calendar, Users, ArrowRight, CircleDot, CheckCircle2,
-    Clock, ArrowLeft, CreditCard, Store, Smartphone, Copy, X, Send, Info
-} from "lucide-react";
-import "./Rosca.css";
+import { roscaAPI, chamaAPI } from "../../../services/api";
+import { Button, PageHeader, StatCard, StatusBadge, EmptyState, Skeleton, Dialog } from "../../../components/ui";
+import { formatKES, formatDate } from "../../../utils/format";
 
-const RoscaDashboard = () => {
-    const { id } = useParams();
-    const { user } = useAuth();
-    const [chama, setChama] = useState(null);
-    const [cycles, setCycles] = useState([]);
-    const [swapRequests, setSwapRequests] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [userRole, setUserRole] = useState('MEMBER');
-    const [showPayModal, setShowPayModal] = useState(false);
-    const [selectedCycle, setSelectedCycle] = useState(null);
+const OFFICIALS = ["CHAIRPERSON", "SECRETARY", "TREASURER"];
+const CHANNEL = { PAYBILL: "M-Pesa Paybill", TILL: "Buy Goods Till", POCHI: "Pochi la Biashara" };
 
-    useEffect(() => {
-        let isMounted = true;
+function PaymentDetails({ methods }) {
+  if (!methods?.type) return null;
+  const d = methods.details || {};
+  const number = d.businessNumber || d.tillNumber || d.phoneNumber;
+  if (!number) return null;
+  return (
+    <section className="cs-card" aria-label="Where to pay" style={{ marginBottom: 16 }}>
+      <h2 className="cs-card-title">Where to pay</h2>
+      <dl className="cs-kv">
+        <div><dt>Channel</dt><dd>{CHANNEL[methods.type] || methods.type}</dd></div>
+        <div><dt>{methods.type === "PAYBILL" ? "Business number" : methods.type === "TILL" ? "Till number" : "Phone number"}</dt><dd>{number}</dd></div>
+        {methods.type === "PAYBILL" && d.accountNumber && <div><dt>Account</dt><dd>{d.accountNumber}</dd></div>}
+      </dl>
+      <p className="cs-help" style={{ marginBottom: 0 }}>Pay outside the app, then record it here so an official can verify it.</p>
+    </section>
+  );
+}
 
-        const fetchCycles = async () => {
-            try {
-                const [cyclesRes, membersRes, chamaRes, swapRes] = await Promise.all([
-                    roscaAPI.getCycles(id),
-                    chamaAPI.getMembers(id),
-                    chamaAPI.getById(id),
-                    roscaAPI.getSwapRequests()
-                ]);
+export default function RoscaDashboard() {
+  const { id } = useParams();
+  const [cycles, setCycles] = useState([]);
+  const [chama, setChama] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [paying, setPaying] = useState(null);
+  const [amount, setAmount] = useState("");
+  const [reference, setReference] = useState("");
+  const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
 
-                if (isMounted) {
-                    setCycles(cyclesRes.data.data || cyclesRes.data);
-                    const members = membersRes.data.data || membersRes.data;
-                    const currentMember = members.find(m => m.user_id === user.user_id);
-                    setUserRole(currentMember?.role || 'MEMBER');
-                    setChama(chamaRes.data.data || chamaRes.data);
-                    
-                    // Filter pending swaps for this chama
-                    const allSwaps = swapRes.data.data || swapRes.data || [];
-                    setSwapRequests(allSwaps.filter(s => s.chama_id === parseInt(id) && s.status === 'PENDING'));
-                    
-                    setLoading(false);
-                }
-            } catch (err) {
-                console.error(err);
-                if (isMounted) {
-                    toast.error("Failed to fetch dashboard data");
-                    setLoading(false);
-                }
-            }
-        };
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const [cy, ch] = await Promise.all([roscaAPI.getCycles(id), chamaAPI.getById(id)]);
+      const list = cy.data?.data ?? [];
+      setCycles(Array.isArray(list) ? list : []);
+      setChama(ch.data?.data ?? null);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
-        fetchCycles();
-        return () => { isMounted = false; };
-    }, [id]);
+  useEffect(() => { load(); }, [load]);
 
-    const handleActivate = async (cycleId) => {
-        if (!window.confirm("Are you sure you want to activate this cycle? This will start the contribution rounds.")) return;
+  const openPay = (cycle) => {
+    setPaying(cycle);
+    setAmount(String(cycle.contribution_amount ?? ""));
+    setReference("");
+    setFormError("");
+  };
 
-        try {
-            await roscaAPI.activateCycle(cycleId);
-            toast.success("Cycle activated successfully!");
-            const res = await roscaAPI.getCycles(id);
-            setCycles(res.data.data || res.data);
-        } catch (err) {
-            console.error(err);
-            toast.error(err.response?.data?.message || "Failed to activate cycle");
-        }
-    };
+  const submit = async (e) => {
+    e.preventDefault();
+    const value = Number(amount);
+    if (!Number.isFinite(value) || value <= 0) return setFormError("Enter an amount greater than zero.");
+    setSaving(true);
+    try {
+      await roscaAPI.makeContribution(id, paying.cycle_id, { amount: value, reference: reference.trim() || undefined });
+      toast.info("Submitted. It counts toward the pot once an official verifies your payment.");
+      setPaying(null);
+      await load();
+    } catch (err) {
+      setFormError(err.response?.data?.message || "We couldn't submit your contribution.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
-    const handlePayClick = (cycle) => {
-        setSelectedCycle(cycle);
-        setShowPayModal(true);
-    };
+  const role = (chama?.role || "").toUpperCase();
+  const canManage = OFFICIALS.includes(role);
+  const active = cycles.filter((c) => c.status === "ACTIVE");
+  const past = cycles.filter((c) => c.status !== "ACTIVE");
 
-    if (loading) return (
-        <div className="loading-container">
-            <div className="spinner-modern"></div>
-            <p>Gathering your rounds...</p>
+  const card = (c) => (
+    <article key={c.cycle_id} className="cs-card cs-loan">
+      <header className="cs-loan-head">
+        <div className="cs-list-main">
+          <h3 className="cs-loan-title">{c.cycle_name}</h3>
+          <div className="cs-list-meta">{formatDate(c.start_date)} to {formatDate(c.end_date)}</div>
         </div>
-    );
+        <StatusBadge status={c.status} />
+      </header>
+      <dl className="cs-kv">
+        <div><dt>Each pays</dt><dd>{formatKES(c.contribution_amount)}</dd></div>
+        <div><dt>Members</dt><dd>{c.total_members ?? 0}</dd></div>
+      </dl>
+      <footer className="cs-actions">
+        <Link to={`/chamas/${id}/rosca/${c.cycle_id}`} className="cs-btn cs-btn--secondary cs-btn--sm">Open</Link>
+        {c.status === "ACTIVE" && <Button size="sm" onClick={() => openPay(c)}>Record my payment</Button>}
+      </footer>
+    </article>
+  );
 
-    const activeCycles = cycles.filter(c => c.status === 'ACTIVE');
-    const pendingCycles = cycles.filter(c => c.status === 'PENDING');
-    const completedCycles = cycles.filter(c => c.status === 'COMPLETED');
+  return (
+    <div className="cs-shell">
+      <main className="cs-page">
+        <PageHeader
+          title="Merry-go-round"
+          subtitle="Members take turns receiving the pot."
+          actions={(
+            <>
+              <Link to={`/chamas/${id}`} className="cs-btn cs-btn--secondary">Back to chama</Link>
+              {canManage && <Link to={`/chamas/${id}/rosca/create-cycle`} className="cs-btn cs-btn--primary">Start a new round</Link>}
+            </>
+          )}
+        />
 
-    const chartData = [
-        { name: 'Active', value: activeCycles.length, color: '#10b981' },
-        { name: 'Pending', value: pendingCycles.length, color: '#f59e0b' },
-        { name: 'Completed', value: completedCycles.length, color: '#6366f1' }
-    ];
+        {error && (
+          <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 16, alignItems: "center", justifyContent: "space-between" }}>
+            <span>We couldn&apos;t load the rounds.</span><Button size="sm" onClick={load}>Try again</Button>
+          </div>
+        )}
 
-    const canManage = ['CHAIRPERSON', 'TREASURER', 'SECRETARY'].includes(userRole);
-
-    const PaymentInstructionCard = ({ methods }) => {
-        if (!methods || !methods.type) return (
-            <div className="card-premium mb-6 bg-gradient-to-br from-gray-50 to-gray-100 border-dashed">
-                <div className="p-4 flex flex-col items-center text-center text-gray-500">
-                    <div className="bg-white p-3 rounded-full shadow-sm mb-3">
-                        <CreditCard size={24} />
-                    </div>
-                    <h4 className="font-semibold text-gray-700">No Payment Method</h4>
-                    <p className="text-sm mt-1">The chairperson hasn't set up payment details yet.</p>
-                </div>
+        {loading ? (
+          <div className="cs-card" aria-busy="true" aria-label="Loading rounds"><Skeleton height={20} width="40%" /><Skeleton height={60} style={{ marginTop: 12 }} /></div>
+        ) : !error && (cycles.length === 0 ? (
+          <div className="cs-card"><EmptyState title="No rounds yet" message={canManage ? "Start the first round to set the payout order." : "An official hasn't started a round yet."} /></div>
+        ) : (
+          <>
+            <div className="cs-grid" style={{ marginBottom: 16 }}>
+              <StatCard label="Active rounds" value={String(active.length)} />
+              <StatCard label="All rounds" value={String(cycles.length)} />
             </div>
-        );
+            <PaymentDetails methods={chama?.payment_methods} />
+            {active.length > 0 && <><h2 className="cs-card-title">Active</h2><div className="cs-loan-grid" style={{ marginBottom: 16 }}>{active.map(card)}</div></>}
+            {past.length > 0 && <><h2 className="cs-card-title">Finished or cancelled</h2><div className="cs-loan-grid">{past.map(card)}</div></>}
+          </>
+        ))}
 
-        const isPaybill = methods.type === 'PAYBILL';
-        const isTill = methods.type === 'TILL';
-
-        return (
-            <div className="card-premium mb-6 overflow-hidden relative">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
-                <div className="p-5">
-                    <h3 className="card-title-premium flex items-center gap-2 mb-4">
-                        <div className="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg">
-                            <CreditCard size={18} />
-                        </div>
-                        Payment Details
-                    </h3>
-
-                    <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100/50">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="w-10 h-10 bg-white rounded-lg shadow-sm flex items-center justify-center text-emerald-600">
-                                {isPaybill ? <CreditCard size={20} /> : isTill ? <Store size={20} /> : <Smartphone size={20} />}
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-gray-800">
-                                    {isPaybill ? 'M-Pesa Paybill' : isTill ? 'Buy Goods Till' : 'Pochi la Biashara'}
-                                </h4>
-                                <p className="text-xs text-emerald-600 font-medium tracking-wide uppercase">Official Channel</p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-3">
-                            <div className="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm">
-                                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">
-                                    {isPaybill ? 'Business Number' : isTill ? 'Till Number' : 'Phone Number'}
-                                </p>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xl font-mono font-bold text-gray-900 tracking-tight">
-                                        {methods.details.businessNumber || methods.details.tillNumber || methods.details.phoneNumber}
-                                    </span>
-                                    <button
-                                        className="text-gray-400 hover:text-emerald-600 transition-colors"
-                                        onClick={() => {
-                                            navigator.clipboard.writeText(methods.details.businessNumber || methods.details.tillNumber || methods.details.phoneNumber);
-                                            toast.success("Copied to clipboard!");
-                                        }}
-                                    >
-                                        <Copy size={16} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {isPaybill && (
-                                <div className="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm">
-                                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Account Number</p>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-base font-medium text-gray-800">
-                                            {methods.details.accountNumber}
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="mt-4 flex gap-2 text-xs text-gray-500 bg-white/60 p-2 rounded-lg">
-                            <div className="min-w-[4px] bg-emerald-400 rounded-full"></div>
-                            <p>To pay manually, go to M-Pesa &gt; {isPaybill ? 'Lipa na M-Pesa > Paybill' : isTill ? 'Lipa na M-Pesa > Buy Goods' : 'Pochi la Biashara'} and use details above.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-    const PaymentModal = () => {
-        if (!showPayModal) return null;
-
-        const [amount, setAmount] = useState(selectedCycle?.contribution_amount || '');
-        const [phone, setPhone] = useState(user?.phoneNumber || '');
-        const [processing, setProcessing] = useState(false);
-
-        const handlePay = async (e) => {
-            e.preventDefault();
-            setProcessing(true);
-
-            try {
-                await roscaAPI.makeContribution(id, selectedCycle.cycle_id, {
-                    amount: parseFloat(amount),
-                    phoneNumber: phone,
-                    payment_method: 'MPESA'
-                });
-                
-                setProcessing(false);
-                setShowPayModal(false);
-                toast.success("Contribution recorded successfully!");
-                
-                // Refresh the cycles list to reflect potential status changes
-                const cyclesRes = await roscaAPI.getCycles(id);
-                setCycles(cyclesRes.data.data || cyclesRes.data);
-            } catch (err) {
-                console.error(err);
-                setProcessing(false);
-                toast.error(err.response?.data?.message || "Failed to record contribution");
-            }
-        };
-
-        return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
-                <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-slideDown">
-                    <div className="bg-emerald-600 p-6 text-white text-center relative">
-                        <button
-                            onClick={() => setShowPayModal(false)}
-                            className="absolute top-4 right-4 text-emerald-100 hover:text-white transition-colors"
-                        >
-                            <X size={20} />
-                        </button>
-                        <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-3 backdrop-blur-md">
-                            <Send size={32} />
-                        </div>
-                        <h3 className="text-xl font-bold">Send Contribution</h3>
-                        <p className="text-emerald-100 text-sm mt-1">{selectedCycle?.cycle_name}</p>
-                    </div>
-
-                    <form onSubmit={handlePay} className="p-6">
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (KES)</label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">KES</span>
-                                    <input
-                                        type="number"
-                                        value={amount}
-                                        onChange={e => setAmount(e.target.value)}
-                                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all font-bold text-lg text-gray-800"
-                                        placeholder="0.00"
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">M-Pesa Phone Number</label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                                        <Smartphone size={18} />
-                                    </span>
-                                    <input
-                                        type="tel"
-                                        value={phone}
-                                        onChange={e => setPhone(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
-                                        placeholder="07..."
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="bg-blue-50 p-3 rounded-lg flex gap-3 items-start text-xs text-blue-700">
-                                <Info size={16} className="shrink-0 mt-0.5" />
-                                <p>You will receive an M-Pesa prompt on your phone. Enter your PIN to complete the transaction.</p>
-                            </div>
-                        </div>
-
-                        <div className="mt-6">
-                            <button
-                                type="submit"
-                                disabled={processing}
-                                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-lg shadow-lg shadow-emerald-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                            >
-                                {processing ? (
-                                    <>
-                                        <RefreshCw size={20} className="animate-spin" />
-                                        Processing...
-                                    </>
-                                ) : (
-                                    <>
-                                        Pay KES {Number(amount).toLocaleString()}
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        );
-    };
-
-    const renderCycleGrid = (title, items, type) => {
-        if (items.length === 0) return null;
-        return (
-            <div className={`cycle-section ${type}`}>
-                <h2 className="section-title">
-                    {type === 'active' && <CircleDot size={20} className="text-success" />}
-                    {type === 'pending' && <Clock size={20} className="text-warning" />}
-                    {type === 'completed' && <CheckCircle2 size={20} className="text-indigo" />}
-                    {title}
-                </h2>
-                <div className="rosca-grid">
-                    {items.map(cycle => (
-                        <div key={cycle.cycle_id} className="cycle-card-modern">
-                            <Link to={`/chamas/${id}/rosca/${cycle.cycle_id}`} className="cycle-card-content">
-                                <div className="cycle-card-top">
-                                    <span className={`cycle-badge badge-${type}`}>
-                                        {type === 'active' ? 'Active' : type === 'pending' ? 'Pending' : 'Completed'}
-                                    </span>
-                                    <ArrowRight size={16} className="cycle-arrow" />
-                                </div>
-                                <h3 className="cycle-card-name">{cycle.cycle_name}</h3>
-                                <div className="cycle-card-amount">
-                                    KES {Number(cycle.contribution_amount)?.toLocaleString()}
-                                    <span className="amount-label">/ person</span>
-                                </div>
-                                <div className="cycle-card-meta">
-                                    <span><Calendar size={14} /> {cycle.frequency}</span>
-                                    <span><Users size={14} /> {cycle.total_members || 0} Members</span>
-                                </div>
-                            </Link>
-
-                            {type === 'active' && (
-                                <div className="cycle-card-actions mt-3 pt-3 border-t border-gray-100">
-                                    <button
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            handlePayClick(cycle);
-                                        }}
-                                        className="w-full py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors"
-                                    >
-                                        <Send size={14} /> Pay Now
-                                    </button>
-                                </div>
-                            )}
-
-                            {type === 'pending' && canManage && (
-                                <div className="cycle-card-actions">
-                                    <button
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            handleActivate(cycle.cycle_id);
-                                        }}
-                                        className="btn-activate-mini"
-                                    >
-                                        <Plus size={14} /> Activate Now
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
-    };
-
-    return (
-        <div className="page rosca-dashboard-page">
-            <div className="container">
-                <div className="page-frame-lux">
-                    <PaymentModal />
-                    {/* Page Header */}
-                    <div className="page-header-modern">
-                        <Link to={`/chamas/${id}`} className="back-link-premium">
-                            <ArrowLeft size={16} />
-                            <span>Chama Dashboard</span>
-                        </Link>
-                        <div className="header-content">
-                            <div className="header-info">
-                                <div className="header-icon-wrapper">
-                                    <RefreshCw size={28} className="rotate-slow" />
-                                </div>
-                                <div>
-                                    <h1>Merry-Go-Round</h1>
-                                    <p>Manage your ROSCA cycles and contributions</p>
-                                </div>
-                            </div>
-                            {canManage && (
-                                <Link to={`/chamas/${id}/rosca/create`} className="btn-create-premium">
-                                    <Plus size={20} />
-                                    <span>Start New Round</span>
-                                </Link>
-                            )}
-                        </div>
-                    </div>
-
-                    {cycles.length === 0 ? (
-                        <div className="empty-state-card-premium">
-                            <div className="empty-illustration">
-                                <RefreshCw size={64} />
-                            </div>
-                            <h2>No active rounds yet</h2>
-                            <p>Launch your first merry-go-round cycle to start rotating savings today.</p>
-                            {canManage && (
-                                <Link to={`/chamas/${id}/rosca/create`} className="btn-create-premium large">
-                                    <Plus size={20} />
-                                    <span>Initialize First Cycle</span>
-                                </Link>
-                            )}
-                        </div>
-                    ) : (
-                        <>
-                            {/* Stats Summary */}
-                            <div className="stats-grid-premium">
-                                <div className="stat-card-premium active">
-                                    <div className="stat-icon"><CircleDot size={20} /></div>
-                                    <div className="stat-data">
-                                        <span className="stat-value">{activeCycles.length}</span>
-                                        <span className="stat-label">Active Rounds</span>
-                                    </div>
-                                </div>
-                                <div className="stat-card-premium pending">
-                                    <div className="stat-icon"><Clock size={20} /></div>
-                                    <div className="stat-data">
-                                        <span className="stat-value">{pendingCycles.length}</span>
-                                        <span className="stat-label">Upcoming</span>
-                                    </div>
-                                </div>
-                                <div className="stat-card-premium total">
-                                    <div className="stat-icon"><Users size={20} /></div>
-                                    <div className="stat-data">
-                                        <span className="stat-value">{cycles.length}</span>
-                                        <span className="stat-label">Total Cycles</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Content Sections */}
-                            <div className="dashboard-content-grid">
-                                <div className="main-content">
-                                    {swapRequests.length > 0 && (
-                                        <div className="card-premium mb-8 bg-amber-50 border-amber-200 shadow-amber-100/50">
-                                            <div className="p-5">
-                                                <h3 className="flex items-center gap-2 text-amber-800 font-bold mb-4">
-                                                    <RefreshCw size={18} className="animate-spin-slow" />
-                                                    Pending Swap Requests
-                                                </h3>
-                                                <div className="space-y-3">
-                                                    {swapRequests.map(request => (
-                                                        <div key={request.request_id} className="bg-white p-4 rounded-xl shadow-sm border border-amber-100 flex justify-between items-center animate-pulse-subtle">
-                                                            <div>
-                                                                <p className="text-sm font-bold text-gray-800">
-                                                                    {request.requester_first_name} {request.requester_last_name}
-                                                                </p>
-                                                                <p className="text-xs text-amber-600 font-medium">
-                                                                    Wants to swap Turn #{request.requester_position} for your Turn #{request.target_position} in <span className="underline">{request.cycle_name}</span>
-                                                                </p>
-                                                                {request.reason && <p className="text-[10px] text-gray-400 mt-1">"{request.reason}"</p>}
-                                                            </div>
-                                                            <Link 
-                                                                to={`/chamas/${id}/rosca/${request.cycle_id}`}
-                                                                className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all"
-                                                            >
-                                                                View & Respond
-                                                            </Link>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {renderCycleGrid("Ongoing Rounds", activeCycles, "active")}
-                                    {renderCycleGrid("Upcoming / Scheduled", pendingCycles, "pending")}
-                                    {renderCycleGrid("Past Rounds", completedCycles, "completed")}
-                                </div>
-
-                                <div className="side-content">
-                                    {chama?.payment_methods && (
-                                        <PaymentInstructionCard methods={chama.payment_methods} />
-                                    )}
-
-                                    <div className="card-premium chart-card-premium">
-                                        <h3 className="card-title-premium">Status Dictionary</h3>
-                                        <div className="chart-wrapper" style={{ marginTop: "1rem" }}>
-                                            <ResponsiveContainer width="100%" height={240}>
-                                                <PieChart>
-                                                    <Pie
-                                                        data={chartData}
-                                                        innerRadius={70}
-                                                        outerRadius={90}
-                                                        paddingAngle={8}
-                                                        dataKey="value"
-                                                        stroke="none"
-                                                    >
-                                                        {chartData.map((entry, index) => (
-                                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                                        ))}
-                                                    </Pie>
-                                                    <Tooltip 
-                                                        content={({ active, payload }) => {
-                                                            if (active && payload && payload.length) {
-                                                                return (
-                                                                    <div className="recharts-default-tooltip">
-                                                                        <p className="recharts-tooltip-label" style={{ margin: 0, fontSize: "0.8rem" }}>{payload[0].name}</p>
-                                                                        <p style={{ fontWeight: 800, margin: "4px 0 0 0", color: payload[0].payload.color }}>
-                                                                            {payload[0].value} Cycles
-                                                                        </p>
-                                                                    </div>
-                                                                );
-                                                            }
-                                                            return null;
-                                                        }}
-                                                    />
-                                                </PieChart>
-                                            </ResponsiveContainer>
-                                            <div className="chart-legend-premium">
-                                                {chartData.map(d => (
-                                                    <div key={d.name} className="legend-item">
-                                                        <span className="dot" style={{ backgroundColor: d.color }}></span>
-                                                        <span className="name">{d.name}</span>
-                                                        <span className="val">{d.value}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-export default RoscaDashboard;
+        <Dialog
+          open={!!paying}
+          onClose={() => setPaying(null)}
+          title={paying ? `Record payment: ${paying.cycle_name}` : ""}
+          actions={(<><Button onClick={() => setPaying(null)}>Cancel</Button><Button type="submit" form="rosca-pay" loading={saving}>Submit</Button></>)}
+        >
+          <form id="rosca-pay" onSubmit={submit} noValidate>
+            {formError && <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 12 }}>{formError}</div>}
+            <div className="cs-field"><label className="cs-label" htmlFor="rp-amount">Amount (KES)</label><input id="rp-amount" className="cs-input" type="number" inputMode="decimal" min="1" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
+            <div className="cs-field"><label className="cs-label" htmlFor="rp-ref">Payment reference (optional)</label><input id="rp-ref" className="cs-input" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="M-Pesa code" /><span className="cs-help">ChamaSmart doesn&apos;t move money. Pay first, then record it. An official confirms it.</span></div>
+          </form>
+        </Dialog>
+      </main>
+    </div>
+  );
+}

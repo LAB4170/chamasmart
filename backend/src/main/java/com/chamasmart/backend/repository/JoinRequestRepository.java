@@ -10,7 +10,9 @@ import java.util.Optional;
 public interface JoinRequestRepository extends JpaRepository<JoinRequest, Long> {
     @Query("SELECT jr FROM JoinRequest jr JOIN FETCH jr.chama JOIN FETCH jr.user WHERE jr.chama.chamaId = :chamaId AND jr.status = :status ORDER BY jr.createdAt DESC")
     List<JoinRequest> findByChamaChamaIdAndStatus(@Param("chamaId") Long chamaId, @Param("status") String status);
-    @Query("SELECT jr FROM JoinRequest jr JOIN FETCH jr.chama JOIN FETCH jr.user WHERE jr.chama.chamaId = :chamaId AND jr.user.userId = :userId")
-    Optional<JoinRequest> findByChamaChamaIdAndUserUserId(@Param("chamaId") Long chamaId, @Param("userId") Long userId);
+    @Query("SELECT jr FROM JoinRequest jr JOIN FETCH jr.chama JOIN FETCH jr.user WHERE jr.chama.chamaId = :chamaId AND jr.user.userId = :userId ORDER BY jr.createdAt DESC")
+    List<JoinRequest> findAllByChamaChamaIdAndUserUserId(@Param("chamaId") Long chamaId, @Param("userId") Long userId);
+    @Query("SELECT jr FROM JoinRequest jr JOIN FETCH jr.chama JOIN FETCH jr.user WHERE jr.user.userId = :userId ORDER BY jr.createdAt DESC")
+    List<JoinRequest> findByUserUserId(@Param("userId") Long userId);
 }
 

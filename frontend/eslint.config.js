@@ -23,7 +23,17 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'no-unused-vars': ['error', { varsIgnorePattern: '^(motion$|[A-Z_])', args: 'none', caughtErrors: 'none' }],
     },
+  },
+  {
+    // Context files export a provider and its hook together; that is deliberate here.
+    files: ['src/context/**/*.{js,jsx}'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
+  {
+    // Unit tests are written for Jest; they are linted with Jest globals. No test runner is configured yet.
+    files: ['src/__tests__/**/*.{js,jsx}'],
+    languageOptions: { globals: { ...globals.browser, ...globals.jest, require: 'readonly' } },
   },
 ])

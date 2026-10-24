@@ -34,9 +34,9 @@ export const auditAPI = {
         api.get(`/audit/chamas/${chamaId}`, { params }),
     getSecurityLogs: (params) => api.get("/audit/security", { params }),
     getChamaSummary: (chamaId) => api.get(`/audit/chamas/${chamaId}/summary`),
-    exportChamaLogs: (chamaId, format = "csv") =>
+    exportChamaLogs: (chamaId, format = "csv", extra = {}) =>
         api.get(`/audit/chamas/${chamaId}/export`, {
-            params: { format },
+            params: { ...extra, format },
             responseType: "blob",
         }),
 };
@@ -56,7 +56,7 @@ export const joinRequestAPI = {
     getAll: (chamaId) => api.get(`/governance/chamas/${chamaId}/join-requests`),
     respond: (requestId, status, comments = "") =>
         api.post(`/governance/join-requests/${requestId}/review`, { decision: status, comments }),
-    getMyRequests: () => api.get("/governance/notifications/my"),
+    getMyRequests: () => api.get("/governance/join-requests/my"),
 };
 
 // API Key Management calls (not in Spring Boot yet — stubs)

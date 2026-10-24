@@ -1,286 +1,178 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { chamaAPI, contributionAPI } from "../../../services/api";
-import LoadingSkeleton from "../../../components/LoadingSkeleton";
-import { useSocket } from "../../../context/SocketContext";
-import { useAuth } from "../../../context/AuthContext";
+import { Button, PageHeader, Skeleton } from "../../../components/ui";
+import { formatKES } from "../../../utils/format";
 
-const SubmitContribution = () => {
+const POLL_MS = 3000;
+const MAX_POLLS = 30; // about 90 seconds
+const PHONE_RE = /^(\+?254|0)[17]\d{8}$/;
+
+export default function SubmitContribution() {
   const { id } = useParams();
   const navigate = useNavigate();
-
   const [chama, setChama] = useState(null);
-  const [formData, setFormData] = useState({
-    amount: "",
-    phoneNumber: "",
-    notes: "",
-  });
-  const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
-  const [error, setError] = useState("");
-  // Prevent double submission via a ref (optional, kept for future use)
-  // const submitInProgressRef = useRef(false);
+  const [loadError, setLoadError] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [phone, setPhone] = useState("");
+  const [touched, setTouched] = useState({});
+  // idle -> starting -> waiting -> confirmed | failed | unconfirmed
+  const [stage, setStage] = useState("idle");
+  const [message, setMessage] = useState("");
+  const [receipt, setReceipt] = useState("");
+  const timer = useRef(null);
+  const alive = useRef(true);
 
-  const [success, setSuccess] = useState("");
+  useEffect(() => () => { alive.current = false; clearTimeout(timer.current); }, []);
 
-  const { socket } = useSocket();
-  const { user } = useAuth();
-  const [paymentStage, setPaymentStage] = useState("idle"); // idle, initiating, waiting, confirmed, failed
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchData = async () => {
-      try {
-        if (isMounted) setPageLoading(true);
-        const chamaRes = await chamaAPI.getById(id);
-
-        if (isMounted) {
-          const chamaData = chamaRes.data.data;
-          setChama(chamaData);
-
-          setFormData((prev) => ({
-            ...prev,
-            amount: chamaData.contribution_amount,
-          }));
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError("Failed to load chama data");
-          console.error(err);
-        }
-      } finally {
-        if (isMounted) setPageLoading(false);
-      }
-    };
-
-    fetchData();
-
-    return () => {
-      isMounted = false;
-    };
+  const loadChama = useCallback(async () => {
+    setPageLoading(true);
+    setLoadError(false);
+    try {
+      const res = await chamaAPI.getById(id);
+      const c = res.data?.data;
+      setChama(c);
+      if (c?.contribution_amount) setAmount(String(Math.round(Number(c.contribution_amount))));
+    } catch {
+      setLoadError(true);
+    } finally {
+      setPageLoading(false);
+    }
   }, [id]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  useEffect(() => { loadChama(); }, [loadChama]);
 
-  useEffect(() => {
-    if (!socket) return;
+  const amountError = !amount ? "Enter the amount" : !/^\d+$/.test(amount) || Number(amount) < 1 ? "Enter a whole number of shillings, at least 1" : "";
+  const phoneError = !phone ? "Enter your M-Pesa number" : !PHONE_RE.test(phone.replace(/\s/g, "")) ? "Use a Safaricom number such as 0712345678" : "";
+  const busy = stage === "starting" || stage === "waiting";
 
-    const handleSuccess = (data) => {
-      // Verify this payment belongs to the current user
-      const currentUserId = user?.user_id || user?.id;
-      if (data.userId && currentUserId && parseInt(data.userId) !== parseInt(currentUserId)) {
-        return;
-      }
-
-      setPaymentStage("confirmed");
-      setSuccess(`Payment of KES ${data.amount} received successfully!`);
-      
-      setTimeout(() => {
-        navigate(`/chamas/${id}`, { state: { refresh: true, tab: 'contributions' } });
-      }, 3000);
-    };
-
-    const handleFailure = (data) => {
-      // Verify this failure belongs to the current user (if payload includes it)
-      const currentUserId = user?.user_id || user?.id;
-      if (data.userId && currentUserId && parseInt(data.userId) !== parseInt(currentUserId)) {
-        return;
-      }
-      
-      setPaymentStage("failed");
-      setError(`Payment failed: ${data.message}`);
-      setLoading(false);
-    };
-
-    // Join the room to receive real-time updates for this chama
-    socket.emit("join_chama", id);
-
-    socket.on("contribution_recorded", handleSuccess);
-    socket.on("payment_failed", handleFailure);
-
-    return () => {
-      socket.off("contribution_recorded", handleSuccess);
-      socket.off("payment_failed", handleFailure);
-    };
-  }, [socket, id, navigate]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    // Guard against double submit
-    if (loading) return;
-    setError("");
-    setSuccess("");
-    setLoading(true);
-    setPaymentStage("initiating");
-
-    try {
-      const res = await contributionAPI.initiateMpesaPayment({
-        chamaId: parseInt(id),
-        amount: parseFloat(formData.amount),
-        phoneNumber: formData.phoneNumber,
-        notes: formData.notes
-      });
-      
-      setPaymentStage("waiting");
-      setSuccess("STK Push initiated. Please enter your PIN on your phone.");
-
-      // Safety timeout for 60 seconds
-      setTimeout(() => {
-        if (paymentStage === "waiting") {
-          setPaymentStage("idle");
-          setLoading(false);
-          setError("Payment confirmation timed out. Please check your transaction history in a few moments.");
+  // Success is shown only after the backend reports the payment as COMPLETED.
+  const poll = useCallback((checkoutId, attempt) => {
+    timer.current = setTimeout(async () => {
+      if (!alive.current) return;
+      try {
+        const res = await contributionAPI.getMpesaStatus(checkoutId);
+        const t = res.data?.data;
+        if (t?.status === "COMPLETED") { setReceipt(t.receipt || ""); setStage("confirmed"); return; }
+        if (t?.status === "FAILED" || t?.status === "CANCELLED") {
+          setMessage(t.message || "The payment was cancelled or failed.");
+          setStage("failed");
+          return;
         }
-      }, 60000);
+      } catch { /* a missed poll is retried below */ }
+      if (attempt >= MAX_POLLS) { setStage("unconfirmed"); return; }
+      poll(checkoutId, attempt + 1);
+    }, POLL_MS);
+  }, []);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setTouched({ amount: true, phone: true });
+    if (busy || amountError || phoneError) return;
+    setStage("starting");
+    setMessage("");
+    try {
+      const res = await contributionAPI.initiateMpesaPayment({ chamaId: Number(id), amount: Number(amount), phoneNumber: phone.replace(/\s/g, "") });
+      const checkoutId = res.data?.data?.checkout_request_id;
+      if (!checkoutId) throw new Error("missing checkout id");
+      setStage("waiting");
+      poll(checkoutId, 1);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to initiate M-Pesa payment");
-      setLoading(false);
-      setPaymentStage("failed");
+      setMessage(err.response?.data?.message || "We couldn't start the payment. Please try again.");
+      setStage("failed");
     }
   };
 
+  const back = () => navigate(`/chamas/${id}`);
+
   if (pageLoading) {
+    return <div className="cs-shell"><main className="cs-page"><Skeleton height={32} width="50%" /><div className="cs-card" style={{ marginTop: 24 }}><Skeleton height={140} /></div></main></div>;
+  }
+
+  if (loadError || !chama) {
     return (
-      <div className="page">
-        <div className="container">
-          <LoadingSkeleton type="detail" />
+      <div className="cs-shell"><main className="cs-page">
+        <PageHeader title="Pay with M-Pesa" />
+        <div className="cs-notice cs-notice--danger" role="alert" style={{ alignItems: "center", justifyContent: "space-between" }}>
+          <span>We couldn&apos;t load this chama.</span><Button size="sm" onClick={loadChama}>Try again</Button>
         </div>
-      </div>
+      </main></div>
     );
   }
 
-  if (chama?.custody_type === "SELF_MANAGED") {
+  if (chama.custody_type === "SELF_MANAGED") {
     return (
-      <div className="page">
-        <div className="container">
-          <div className="page-header">
-            <div>
-              <h1>Treasurer Managed Group</h1>
-              <p className="text-muted">{chama?.chama_name}</p>
-            </div>
-            <button
-              className="btn btn-outline btn-sm"
-              onClick={() => navigate(`/chamas/${id}`)}
-            >
-              ← Back to Chama
-            </button>
-          </div>
-          <div className="card text-center p-5" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', padding: '3rem' }}>
-            <div className="alert alert-warning mb-4" style={{ width: '100%' }}>
-              <strong>Treasurer Custody Active:</strong> This Chama is managed by the treasurer directly. Automatic platform payments are disabled.
-            </div>
-            <p className="mb-4">Please make your payment directly using the treasurer's configured details and submit the receipt for verification.</p>
-            <button 
-              className="btn btn-primary"
-              onClick={() => navigate(`/chamas/${id}`, { state: { openManualPayment: true } })}
-            >
-              Go to Payout/Receipt Submission
-            </button>
+      <div className="cs-shell"><main className="cs-page">
+        <PageHeader title="Pay your treasurer" subtitle={chama.chama_name} />
+        <div className="cs-card">
+          <p style={{ marginTop: 0 }}>This chama&apos;s treasurer collects contributions directly, so M-Pesa payment through ChamaSmart is switched off. Pay using the treasurer&apos;s details, then submit your receipt for verification.</p>
+          <div className="cs-actions">
+            <Button variant="primary" onClick={() => navigate(`/chamas/${id}`, { state: { openManualPayment: true } })}>Submit a receipt</Button>
+            <Button onClick={back}>Back to chama</Button>
           </div>
         </div>
-      </div>
+      </main></div>
+    );
+  }
+
+  if (stage === "confirmed") {
+    return (
+      <div className="cs-shell"><main className="cs-page">
+        <PageHeader title="Payment received" subtitle={chama.chama_name} />
+        <div className="cs-card" role="status">
+          <span className="cs-status cs-status--success">Confirmed by M-Pesa</span>
+          <p className="cs-stat-value" style={{ margin: "12px 0 4px" }}>{formatKES(amount)}</p>
+          {receipt && <p className="cs-help">M-Pesa receipt: <strong>{receipt}</strong></p>}
+          <div className="cs-actions" style={{ marginTop: 16 }}>
+            <Button variant="primary" onClick={() => navigate(`/chamas/${id}`, { state: { refresh: true, tab: "contributions" } })}>Back to chama</Button>
+          </div>
+        </div>
+      </main></div>
     );
   }
 
   return (
-    <div className="page">
-      <div className="container">
-        <div className="page-header">
-          <div>
-            <h1>Pay with M-Pesa</h1>
-            <p className="text-muted">{chama?.chama_name}</p>
+    <div className="cs-shell"><main className="cs-page" style={{ maxWidth: 560 }}>
+      <PageHeader title="Pay with M-Pesa" subtitle={chama.chama_name} />
+
+      {stage === "failed" && <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 16 }}>{message}</div>}
+      {stage === "unconfirmed" && (
+        <div className="cs-notice cs-notice--warning" role="status" style={{ marginBottom: 16 }}>
+          <span>We haven&apos;t received confirmation yet. If you entered your PIN, the payment may still arrive. Check <Link className="cs-link" to={`/chamas/${id}`}>the chama&apos;s contributions</Link> before paying again.</span>
+        </div>
+      )}
+
+      <form className="cs-card" onSubmit={submit} noValidate>
+        <div className="cs-field">
+          <label className="cs-label" htmlFor="phone">M-Pesa phone number<span className="cs-required" aria-hidden="true">*</span></label>
+          <input id="phone" className="cs-input" type="tel" inputMode="tel" autoComplete="tel" placeholder="0712 345 678" value={phone} disabled={busy}
+                 onChange={(e) => setPhone(e.target.value)} onBlur={() => setTouched((t) => ({ ...t, phone: true }))}
+                 aria-invalid={Boolean(touched.phone && phoneError)} aria-describedby="phone-msg" />
+          <span id="phone-msg" className={touched.phone && phoneError ? "cs-error" : "cs-help"}>{touched.phone && phoneError ? phoneError : "An M-Pesa prompt will be sent to this number."}</span>
+        </div>
+        <div className="cs-field">
+          <label className="cs-label" htmlFor="amount">Amount (KES)<span className="cs-required" aria-hidden="true">*</span></label>
+          <input id="amount" className="cs-input cs-input--amount" type="text" inputMode="numeric" value={amount} disabled={busy}
+                 onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))} onBlur={() => setTouched((t) => ({ ...t, amount: true }))}
+                 aria-invalid={Boolean(touched.amount && amountError)} aria-describedby="amount-msg" />
+          <span id="amount-msg" className={touched.amount && amountError ? "cs-error" : "cs-help"}>
+            {touched.amount && amountError ? amountError : chama.contribution_amount ? `Regular contribution: ${formatKES(chama.contribution_amount, { whole: true })}` : "Whole shillings only."}
+          </span>
+        </div>
+
+        {stage === "waiting" && (
+          <div className="cs-notice cs-notice--info" role="status" style={{ marginBottom: 16 }}>
+            <span className="cs-spinner" aria-hidden="true" />
+            <span>Check your phone and enter your M-Pesa PIN. This page updates when the payment is confirmed.</span>
           </div>
-          <button
-            className="btn btn-outline btn-sm"
-            onClick={() => navigate(`/chamas/${id}`)}
-          >
-            ← Back to Chama
-          </button>
+        )}
+
+        <div className="cs-actions">
+          <Button type="submit" variant="primary" block loading={busy}>{stage === "waiting" ? "Waiting for confirmation" : stage === "starting" ? "Sending prompt" : stage === "unconfirmed" ? "Try again" : "Pay with M-Pesa"}</Button>
+          {!busy && <Button block onClick={back}>Cancel</Button>}
         </div>
-
-        {error && <div className="alert alert-error">{error}</div>}
-        {success && <div className="alert alert-success">{success}</div>}
-
-        <div className="alert alert-info mb-4">
-          <strong>How this works:</strong> Enter your M-Pesa phone number and the amount. An STK Push prompt will appear on your phone. Enter your PIN to complete the payment.
-        </div>
-
-        <div className="card">
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label">Phone Number *</label>
-              <input
-                type="tel"
-                name="phoneNumber"
-                className="form-input"
-                placeholder="07XXXXXXXX or 2547XXXXXXXX"
-                value={formData.phoneNumber}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Amount (KES) *</label>
-              <input
-                type="number"
-                name="amount"
-                className="form-input"
-                min="1"
-                step="0.01"
-                value={formData.amount}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Notes</label>
-              <textarea
-                name="notes"
-                className="form-textarea"
-                placeholder="Any additional notes..."
-                value={formData.notes}
-                onChange={handleChange}
-                rows="3"
-              />
-            </div>
-
-            <div className="form-actions">
-              <button
-                type="button"
-                className="btn btn-outline"
-                onClick={() => navigate(`/chamas/${id}`)}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className={`btn ${paymentStage === 'confirmed' ? 'btn-success' : 'btn-primary'}`}
-                disabled={loading || paymentStage === 'waiting' || paymentStage === 'confirmed'}
-              >
-                {paymentStage === 'initiating' ? "Initiating..." : 
-                 paymentStage === 'waiting' ? "Waiting for PIN..." : 
-                 paymentStage === 'confirmed' ? "Payment Confirmed!" :
-                 "Initiate Payment"}
-              </button>
-            </div>
-          </form>
-          {paymentStage === 'waiting' && (
-            <div className="card-footer bg-light text-center py-4">
-              <div className="spinner-border text-primary mb-3" role="status"></div>
-              <p className="mb-0">Waiting for M-Pesa confirmation...</p>
-              <p className="text-muted small">Please do not refresh this page.</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+      </form>
+    </main></div>
   );
-};
-
-export default SubmitContribution;
+}

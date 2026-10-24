@@ -1,457 +1,157 @@
-import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useParams, Link } from "react-router-dom";
 import { chamaAPI, contributionAPI, roscaAPI } from "../../../services/api";
-import LoadingSkeleton from "../../../components/LoadingSkeleton";
-import { Save, X, Calendar, AlertCircle, CheckCircle2, RefreshCw, ArrowLeft } from "lucide-react";
-import "./ChamaDetailsLux.css";
+import { Button, PageHeader, Skeleton } from "../../../components/ui";
+import { formatKES } from "../../../utils/format";
 
-const BulkRecordContribution = () => {
+const METHODS = [
+  { value: "CASH", label: "Cash" },
+  { value: "MPESA", label: "M-Pesa" },
+  { value: "BANK_TRANSFER", label: "Bank transfer" },
+  { value: "CHEQUE", label: "Cheque" },
+];
+const iso = (d) => d.toLocaleDateString("en-CA", { timeZone: "Africa/Nairobi" });
+const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+
+export default function BulkRecordContribution() {
   const { id } = useParams();
-  const navigate = useNavigate();
-
   const [chama, setChama] = useState(null);
-  const [members, setMembers] = useState([]);
-  const [batch, setBatch] = useState([]);
-  const [existingContribs, setExistingContribs] = useState([]);
-  const [activeCycle, setActiveCycle] = useState(null);
-  const [cycleWarning, setCycleWarning] = useState("");
-  const [contributionDate, setContributionDate] = useState(new Date().toISOString().split("T")[0]);
-  const [loading, setLoading] = useState(false);
-  const [pageLoading, setPageLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [rows, setRows] = useState([]);
+  const [paid, setPaid] = useState({}); // userId -> amount already completed this month
+  const [cycle, setCycle] = useState(null);
+  const [cycleNote, setCycleNote] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [done, setDone] = useState(null);
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchData = async () => {
-      try {
-        if (isMounted) setPageLoading(true);
-
-        const [chamaRes, membersRes] = await Promise.all([
-          chamaAPI.getById(id),
-          chamaAPI.getMembers(id),
-        ]);
-
-        const chamaData = chamaRes.data.data;
-        const membersData = membersRes.data.data || [];
-
-        // Fetch this month's contributions (optional, non-blocking)
-        const contribRes = await contributionAPI.getAll(id, {
-          startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-            .toISOString().split("T")[0],
-          endDate: new Date().toISOString().split("T")[0]
-        }).catch(() => ({ data: { data: [] } }));
-
-        const contribData = contribRes.data.data || [];
-
-        // Resolve ROSCA cycle context
-        let cycle = null;
-        let warning = "";
-        if (chamaData.chama_type === "ROSCA") {
-          try {
-            const cyclesRes = await roscaAPI.getCycles(id);
-            const cycles = cyclesRes.data.data || [];
-            const active = cycles.find(c => c.status === "ACTIVE");
-            const pending = !active && cycles.find(c => c.status === "PENDING");
-            cycle = active || pending;
-
-            if (!cycle) {
-              warning = "⚠️ No active or pending ROSCA cycle found. Please create a cycle before recording contributions.";
-            } else if (!active && pending) {
-              warning = `Cycle "${cycle.cycle_name}" is PENDING — recording will be linked to this cycle.`;
-            }
-          } catch {
-            warning = "Could not load ROSCA cycle data.";
-          }
-        }
-
-        if (!isMounted) return;
-
-        setChama(chamaData);
-        setMembers(membersData);
-        setExistingContribs(contribData);
-        setActiveCycle(cycle);
-        setCycleWarning(warning);
-
-        // Determine expected amount: ROSCA cycle > chama default
-        const expectedAmount = (cycle?.contribution_amount) || chamaData.contribution_amount || 0;
-
-        setBatch(membersData.map(m => {
-          const uId = typeof m.user_id === 'object' && m.user_id !== null ? (m.user_id._id || m.user_id.id) : m.user_id;
-          const fName = m.first_name || (typeof m.user_id === 'object' ? m.user_id?.first_name : null) || "Unknown";
-          const lName = m.last_name || (typeof m.user_id === 'object' ? m.user_id?.last_name : null) || "User";
-          const phone = m.phone_number || (typeof m.user_id === 'object' ? m.user_id?.phone_number : null) || "";
-          
-          return {
-            userId: String(uId),
-            name: `${fName} ${lName}`,
-            phone: String(phone),
-            totalContributions: m.total_contributions || 0,
-            amount: expectedAmount,
-            paymentMethod: "CASH",
-            receiptNumber: "",
-            notes: "",
-            checked: false
-          };
-        }));
-      } catch (err) {
-        if (isMounted) {
-          setError("Failed to load chama data");
-          console.error(err);
-        }
-      } finally {
-        if (isMounted) setPageLoading(false);
-      }
-    };
-
-    fetchData();
-    return () => { isMounted = false; };
-  }, [id]);
-
-  const hasContributedThisMonth = useCallback((userId) => {
-    return existingContribs.some(c => {
-      const cId = typeof c.user_id === 'object' && c.user_id !== null ? (c.user_id._id || c.user_id.id) : c.user_id;
-      return String(cId) === String(userId);
-    });
-  }, [existingContribs]);
-
-  const getMonthlyContribAmount = useCallback((userId) => {
-    return existingContribs
-      .filter(c => {
-        const cId = typeof c.user_id === 'object' && c.user_id !== null ? (c.user_id._id || c.user_id.id) : c.user_id;
-        return String(cId) === String(userId);
-      })
-      .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
-  }, [existingContribs]);
-
-  const handleMemberToggle = (index) => {
-    const newBatch = [...batch];
-    newBatch[index].checked = !newBatch[index].checked;
-    setBatch(newBatch);
-  };
-
-  const handleBatchUpdate = (index, field, value) => {
-    const newBatch = [...batch];
-    newBatch[index][field] = value;
-    setBatch(newBatch);
-  };
-
-  const handleSelectAll = (checked) => {
-    setBatch(batch.map(b => ({ ...b, checked })));
-  };
-
-  const handleSelectUnpaid = () => {
-    setBatch(batch.map(b => ({ ...b, checked: !hasContributedThisMonth(b.userId) })));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const toSubmit = batch.filter(b => b.checked);
-    if (toSubmit.length === 0) {
-      setError("Please select at least one member to record contributions for.");
-      return;
-    }
-
-    if (!contributionDate) {
-      setError("Please select a contribution date.");
-      return;
-    }
-
-    setError("");
-    setSuccess("");
+  const load = useCallback(async () => {
     setLoading(true);
-
+    setLoadError(false);
     try {
-      const payload = {
-        contributions: toSubmit.map(b => ({
-          userId: b.userId,
-          amount: parseFloat(b.amount),
-          paymentMethod: b.paymentMethod,
-          receiptNumber: b.receiptNumber || undefined,
-          notes: b.notes || undefined,
-          contributionDate,
-          verificationStatus: "VERIFIED"
-        }))
-      };
+      const [c, m] = await Promise.all([chamaAPI.getById(id), chamaAPI.getMembers(id)]);
+      const chamaData = c.data?.data;
+      const members = m.data?.data || [];
+      const now = new Date();
+      const month = await contributionAPI.getAll(id, { startDate: iso(new Date(now.getFullYear(), now.getMonth(), 1)), endDate: iso(now) })
+        .then((r) => r.data?.data || []).catch(() => []);
+      const totals = {};
+      month.filter((x) => x.status === "COMPLETED").forEach((x) => { totals[x.user_id] = (totals[x.user_id] || 0) + num(x.amount); });
 
-      const res = await contributionAPI.bulkRecord(id, payload);
-      const warn = res.data?.warning;
-      const cycleName = res.data?.data?.cycleName;
-
-      setSuccess(
-        `Successfully recorded ${toSubmit.length} contribution${toSubmit.length > 1 ? "s" : ""}` +
-        (cycleName ? ` against cycle: ${cycleName}` : "") +
-        (warn ? `. Note: ${warn}` : "") +
-        "!"
-      );
-      setTimeout(() => {
-        navigate(`/chamas/${id}`, { state: { refresh: true, tab: "contributions" } });
-      }, 2000);
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to record bulk contributions");
+      let picked = null;
+      let note = "";
+      if (chamaData?.chama_type === "ROSCA") {
+        try {
+          const cycles = (await roscaAPI.getCycles(id)).data?.data || [];
+          const active = cycles.find((x) => x.status === "ACTIVE");
+          const pending = !active && cycles.find((x) => x.status === "PENDING");
+          picked = active || pending || null;
+          note = !picked ? "There is no active or pending cycle. Create a cycle before recording contributions." : !active ? `Cycle “${picked.cycle_name}” has not started yet.` : "";
+        } catch { note = "We couldn't load the cycle."; }
+      }
+      const expected = picked?.contribution_amount || chamaData?.contribution_amount || "";
+      setChama(chamaData); setPaid(totals); setCycle(picked); setCycleNote(note);
+      setRows(members.map((x) => ({ userId: x.user_id, name: `${x.first_name} ${x.last_name}`, total: num(x.total_contributions), amount: expected, method: "CASH", reference: "", checked: false })));
+    } catch {
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
+  }, [id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const update = (userId, patch) => setRows((rs) => rs.map((r) => (r.userId === userId ? { ...r, ...patch } : r)));
+  const selected = rows.filter((r) => r.checked);
+  const total = selected.reduce((s, r) => s + num(r.amount), 0);
+  const invalid = selected.filter((r) => num(r.amount) <= 0);
+  const refs = selected.map((r) => r.reference.trim()).filter(Boolean);
+  const dupRef = refs.find((r, i) => refs.indexOf(r) !== i);
+  const isROSCA = chama?.chama_type === "ROSCA";
+  const noCycle = isROSCA && !cycle;
+  const problem = selected.length === 0 ? "Tick at least one member." : invalid.length ? `Enter an amount for ${invalid.map((r) => r.name).join(", ")}.` : dupRef ? `Reference ${dupRef} is used more than once.` : "";
+  const unpaidCount = useMemo(() => rows.filter((r) => !paid[r.userId]).length, [rows, paid]);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (problem || busy || noCycle) return;
+    setBusy(true);
+    setSubmitError("");
+    try {
+      await contributionAPI.bulkRecord(id, {
+        contributions: selected.map((r) => ({
+          userId: r.userId,
+          amount: num(r.amount),
+          paymentMethod: r.method,
+          receiptNumber: r.reference.trim() || undefined,
+          notes: `Paid by ${METHODS.find((m) => m.value === r.method)?.label}`,
+        })),
+      });
+      setDone({ count: selected.length, total });
+      await load();
+    } catch (err) {
+      setSubmitError((err.response?.data?.message || "We couldn't record this batch.") + " Nothing was recorded, so you can fix it and try again.");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const formatCurrency = useCallback((amount) => {
-    return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES" }).format(amount || 0);
-  }, []);
+  return (
+    <div className="cs-shell">
+      <main className="cs-page">
+        <PageHeader title="Record many payments" subtitle={chama?.chama_name} actions={<Link to={`/chamas/${id}`} className="cs-btn cs-btn--secondary">Back to chama</Link>} />
 
-  if (pageLoading) return (
-    <div className="page"><div className="container"><LoadingSkeleton type="table" /></div></div>
-  );
-
-  const isROSCA = chama?.chama_type === "ROSCA";
-  const noCycle = isROSCA && !activeCycle;
-  const expectedAmount = activeCycle?.contribution_amount || chama?.contribution_amount;
-  const selectedBatch = batch.filter(b => b.checked);
-  const totalSelected = selectedBatch.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
-
-    return (
-        <div className="page manage-page-root">
-            <div className="container">
-                <div className="chama-header-lux">
-                    <div className="chama-title-area">
-                        <h1 className="flex align-center gap-3">
-                            <Save size={32} /> Bulk Entry Hub
-                        </h1>
-                        <div className="chama-badges mt-2">
-                            <span className="badge-lux badge-gold">Mass Contribution</span>
-                            <span className="badge-lux" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--lux-text-secondary)', border: '1px solid var(--lux-border)' }}>
-                                {chama?.chama_name} • {isROSCA ? "Merry-Go-Round" : chama?.chama_type}
-                            </span>
-                        </div>
-                    </div>
-            <div className="flex gap-3">
-                <button 
-                    className="btn-return-lux"
-                    onClick={() => navigate(`/chamas/${id}`)}
-                >
-                    <ArrowLeft size={18} /> Return to Vault
-                </button>
-                <button 
-                    className="btn-lux btn-lux-outline"
-                    style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)' }}
-                    onClick={() => navigate(`/chamas/${id}`)}
-                >
-                    <X size={18} /> Cancel Session
-                </button>
-            </div>
-        </div>
-
-        {error && <div className="alert alert-error">{error}</div>}
-        {success && <div className="alert alert-success">{success}</div>}
-
-        {/* ROSCA Cycle Status Banner */}
-        {isROSCA && (
-            <div className="dashboard-card-lux mb-8" style={{ 
-                background: noCycle ? 'rgba(239, 68, 68, 0.05)' : 'var(--lux-bg-soft)',
-                border: noCycle ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid var(--lux-border)'
-            }}>
-                <div className="flex items-center gap-4">
-                    <div style={{ 
-                        padding: '1rem', 
-                        borderRadius: '16px', 
-                        background: noCycle ? '#ef4444' : '#10b981',
-                        color: 'white'
-                    }}>
-                        {noCycle ? <AlertCircle size={28} /> : <CheckCircle2 size={28} />}
-                    </div>
-                    <div className="flex-1">
-                        {noCycle ? (
-                            <>
-                                <h4 className="m-0" style={{ color: '#ef4444', fontWeight: 900 }}>No Active ROSCA Cycle</h4>
-                                <p className="m-0 text-sm" style={{ color: 'var(--lux-text-secondary)' }}>{cycleWarning}</p>
-                                <button className="btn-lux btn-lux-outline mt-3" onClick={() => navigate(`/chamas/${id}`)}>
-                                    Initialize New Cycle
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <h4 className="m-0" style={{ color: 'var(--lux-text-primary)', fontWeight: 900 }}>Active Cycle: {activeCycle?.cycle_name}</h4>
-                                <div className="flex align-center gap-3 mt-1">
-                                    <span className={`status-pill-lux ${activeCycle?.status === "ACTIVE" ? "status-verified" : "status-pending"}`}>
-                                        {activeCycle?.status} Protocol
-                                    </span>
-                                    <span style={{ fontSize: '0.85rem', color: 'var(--lux-text-secondary)', fontWeight: 600 }}>
-                                        Quota: <strong style={{ color: 'var(--lux-gold)' }}>{formatCurrency(activeCycle?.contribution_amount)}</strong> per member
-                                    </span>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </div>
-            </div>
+        {loading && <div className="cs-card" aria-busy="true" aria-label="Loading members"><Skeleton height={20} /><Skeleton height={20} style={{ marginTop: 12 }} /></div>}
+        {loadError && (
+          <div className="cs-notice cs-notice--danger" role="alert" style={{ alignItems: "center", justifyContent: "space-between" }}>
+            <span>We couldn&apos;t load the members.</span><Button size="sm" onClick={load}>Try again</Button>
+          </div>
         )}
 
-        {/* Session Date Card */}
-        <div className="dashboard-card-lux mb-8">
-            <div className="card-header pb-4 mb-6 border-b border-white/5">
-                <h3 className="card-title-lux m-0">
-                    <Calendar size={20} /> Session Parameters
-                </h3>
-            </div>
-            <div className="flex align-center gap-10 flex-wrap">
-                <div className="form-group m-0" style={{ minWidth: '240px' }}>
-                    <label className="form-label-lux">Official Contribution Date</label>
-                    <input
-                        type="date"
-                        className="form-input-lux"
-                        value={contributionDate}
-                        onChange={e => setContributionDate(e.target.value)}
-                        max={new Date().toISOString().split("T")[0]}
-                        required
-                    />
-                </div>
-                <div className="flex gap-8">
-                    <div className="stat-mini">
-                        <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--lux-text-secondary)', letterSpacing: '1px' }}>Global Quota</span>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--lux-text-primary)' }}>{formatCurrency(expectedAmount)}</div>
-                    </div>
-                    <div className="stat-mini">
-                        <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--lux-text-secondary)', letterSpacing: '1px' }}>Monthly Velocity</span>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--lux-text-primary)' }}>{existingContribs.length} Recorded</div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        {!loading && !loadError && (
+          <form onSubmit={submit} noValidate>
+            {done && <div className="cs-notice cs-notice--success" role="status" style={{ marginBottom: 16 }}>Recorded {done.count} {done.count === 1 ? "payment" : "payments"} totalling {formatKES(done.total)}.</div>}
+            {cycleNote && <div className={`cs-notice ${noCycle ? "cs-notice--danger" : "cs-notice--warning"}`} style={{ marginBottom: 16 }}>{cycleNote}</div>}
+            {submitError && <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 16 }}>{submitError}</div>}
 
-        {/* Member Payments Table */}
-        <div className="dashboard-card-lux">
-            <div className="card-header pb-6 mb-4 border-b border-white/5 flex justify-between items-center flex-wrap gap-4">
-                <h3 className="card-title-lux m-0">
-                    <Save size={20} /> Batch Registry Entry
-                </h3>
-                <div className="flex gap-2">
-                    <button type="button" className="btn-lux btn-lux-outline btn-sm py-2" style={{ fontSize: '0.75rem' }} onClick={() => handleSelectAll(true)}>
-                        Select All
-                    </button>
-                    <button type="button" className="btn-lux btn-lux-outline btn-sm py-2" style={{ fontSize: '0.75rem' }} onClick={() => handleSelectAll(false)}>
-                        Deselect
-                    </button>
-                    <button type="button" className="btn-lux btn-lux-primary btn-sm py-2" style={{ fontSize: '0.75rem' }} onClick={handleSelectUnpaid}>
-                        Identify Unpaid
-                    </button>
-                </div>
+            <div className="cs-chips" role="group" aria-label="Quick selection" style={{ marginBottom: 12 }}>
+              <button type="button" className="cs-chip" aria-pressed="false" onClick={() => setRows((rs) => rs.map((r) => ({ ...r, checked: true })))}>Select all</button>
+              <button type="button" className="cs-chip" aria-pressed="false" onClick={() => setRows((rs) => rs.map((r) => ({ ...r, checked: !paid[r.userId] })))}>Not yet paid this month ({unpaidCount})</button>
+              <button type="button" className="cs-chip" aria-pressed="false" onClick={() => setRows((rs) => rs.map((r) => ({ ...r, checked: false })))}>Clear</button>
             </div>
-            <form onSubmit={handleSubmit}>
-                <div style={{ overflowX: 'auto' }}>
-                    <table className="table-lux">
-                        <thead>
-                            <tr>
-                                <th style={{ width: "50px" }}>
-                                    <input
-                                        type="checkbox"
-                                        onChange={e => handleSelectAll(e.target.checked)}
-                                        checked={batch.length > 0 && batch.every(b => b.checked)}
-                                    />
-                                </th>
-                                <th>Validated Member</th>
-                                <th>Status</th>
-                                <th>Lifetime</th>
-                                <th>Amount (KES)</th>
-                                <th>Method</th>
-                                <th>Reference</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {batch.map((item, index) => {
-                                const userContribs = existingContribs.filter(c => {
-                                    const rawId = c.member_id || c.user_id;
-                                    const cId = typeof rawId === 'object' && rawId !== null ? (rawId._id || rawId.id) : rawId;
-                                    return String(cId) === String(item.userId);
-                                });
-                                const monthAmount = userContribs.reduce((sum, c) => sum + parseFloat(c.amount), 0);
-                                const paid = monthAmount >= (chama?.contribution_amount || 0);
 
-                                return (
-                                    <tr key={item.userId} className={item.checked ? "row-active-lux" : paid ? "row-verified-lux" : ""}>
-                                    <td>
-                                        <input
-                                            type="checkbox"
-                                            checked={item.checked}
-                                            onChange={() => handleMemberToggle(index)}
-                                        />
-                                    </td>
-                                    <td>
-                                        <div style={{ fontWeight: 800, color: 'var(--lux-text-primary)' }}>{item.name}</div>
-                                        <div style={{ fontSize: '0.7rem', color: 'var(--lux-text-secondary)' }}>{item.phone || "No Auth Device"}</div>
-                                    </td>
-                                    <td>
-                                        {paid ? (
-                                            <span className="status-pill-lux status-verified">✓ Paid {formatCurrency(monthAmount)}</span>
-                                        ) : (
-                                            <span className="status-pill-lux status-pending">Pending Quota</span>
-                                        )}
-                                    </td>
-                                    <td style={{ fontWeight: 700, color: 'var(--lux-text-secondary)', fontSize: '0.85rem' }}>
-                                        {formatCurrency(item.totalContributions)}
-                                    </td>
-                                    <td>
-                                        <input
-                                            type="number"
-                                            className="form-input-lux py-2"
-                                            style={{ width: "120px", fontSize: '0.9rem', fontWeight: 800 }}
-                                            value={item.amount}
-                                            min={1}
-                                            step={1}
-                                            onChange={e => handleBatchUpdate(index, "amount", e.target.value)}
-                                            disabled={!item.checked}
-                                        />
-                                    </td>
-                                    <td>
-                                        <select
-                                            className="form-select-lux py-2"
-                                            style={{ width: "120px", fontSize: '0.85rem' }}
-                                            value={item.paymentMethod}
-                                            onChange={e => handleBatchUpdate(index, "paymentMethod", e.target.value)}
-                                            disabled={!item.checked}
-                                        >
-                                            <option value="CASH">Cash</option>
-                                            <option value="MPESA">M-Pesa</option>
-                                            <option value="BANK_TRANSFER">Bank</option>
-                                            <option value="CHEQUE">Cheque</option>
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <input
-                                            type="text"
-                                            className="form-input-lux py-2"
-                                            placeholder="Audit Ref..."
-                                            value={item.receiptNumber}
-                                            onChange={e => handleBatchUpdate(index, "receiptNumber", e.target.value)}
-                                            disabled={!item.checked}
-                                            style={{ width: "130px", fontSize: '0.85rem' }}
-                                        />
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
+            <div className="cs-card cs-card--flush">
+              <div className="cs-table-wrap">
+                <table className="cs-table cs-table--records">
+                  <caption className="cs-sr-only">Members and the payment to record for each</caption>
+                  <thead><tr><th scope="col">Record</th><th scope="col">Member</th><th scope="col" className="cs-num">Paid this month</th><th scope="col">Amount (KES)</th><th scope="col">Method</th><th scope="col">Reference</th></tr></thead>
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr key={r.userId}>
+                        <td data-label="Record"><input type="checkbox" checked={r.checked} onChange={(e) => update(r.userId, { checked: e.target.checked })} aria-label={`Record a payment for ${r.name}`} /></td>
+                        <td data-label="Member"><strong>{r.name}</strong></td>
+                        <td data-label="Paid this month" className="cs-num">{paid[r.userId] ? formatKES(paid[r.userId]) : "Not yet"}</td>
+                        <td data-label="Amount (KES)"><input className="cs-input cs-input--amount" type="number" inputMode="decimal" min="0.01" step="0.01" value={r.amount} onChange={(e) => update(r.userId, { amount: e.target.value })} aria-label={`Amount for ${r.name}`} disabled={busy} /></td>
+                        <td data-label="Method"><select className="cs-input" value={r.method} onChange={(e) => update(r.userId, { method: e.target.value })} aria-label={`Payment method for ${r.name}`} disabled={busy}>{METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}</select></td>
+                        <td data-label="Reference"><input className="cs-input" type="text" value={r.reference} onChange={(e) => update(r.userId, { reference: e.target.value })} aria-label={`Receipt reference for ${r.name}`} placeholder="Optional" autoComplete="off" disabled={busy} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
                 </table>
+              </div>
+              <div className="cs-table-foot">
+                <span>{selected.length} selected · <span className="cs-totals">Total {formatKES(total)}</span></span>
+              </div>
             </div>
 
-            <div className="flex justify-between items-center p-8 mt-4 border-t border-white/5" style={{ background: 'var(--lux-bg-soft)', borderRadius: '0 0 24px 24px' }}>
-                <div style={{ color: 'var(--lux-text-secondary)', fontSize: '0.9rem' }}>
-                    <strong>{selectedBatch.length}</strong> Official Selections •{" "}
-                    Batch Value: <strong style={{ color: 'var(--lux-gold)', fontSize: '1.1rem' }}>{formatCurrency(totalSelected)}</strong>
-                </div>
-                <button
-                    type="submit"
-                    className="btn-lux btn-lux-primary"
-                    disabled={loading || selectedBatch.length === 0 || noCycle}
-                    style={{ minWidth: '220px' }}
-                >
-                    {loading ? <RefreshCw className="spin" /> : <Save size={18} />}
-                    {loading ? "Committing Batch..." : "Authorize & Save Batch"}
-                </button>
+            <div className="cs-actions" style={{ marginTop: 16, alignItems: "center" }}>
+              <Button type="submit" variant="primary" loading={busy} disabled={Boolean(problem) || noCycle}>{busy ? "Recording…" : `Record ${selected.length || ""} ${selected.length === 1 ? "payment" : "payments"}`}</Button>
+              {problem && selected.length > 0 && <span className="cs-error" role="alert">{problem}</span>}
             </div>
-        </form>
-    </div>
-        </div>
+          </form>
+        )}
+      </main>
     </div>
   );
-};
-
-export default BulkRecordContribution;
+}

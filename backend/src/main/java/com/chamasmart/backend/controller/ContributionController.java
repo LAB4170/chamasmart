@@ -1,8 +1,6 @@
 package com.chamasmart.backend.controller;
 import lombok.extern.slf4j.Slf4j;
-import com.chamasmart.backend.domain.*;
 import com.chamasmart.backend.dto.*;
-import com.chamasmart.backend.repository.*;
 import com.chamasmart.backend.security.CustomUserDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,26 +10,17 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/contributions")
 @RequiredArgsConstructor
 @Slf4j
 public class ContributionController {
-    private final ContributionRepository contributionRepository;
-    private final ChamaRepository chamaRepository;
-    private final UserRepository userRepository;
-    private final ChamaMemberRepository chamaMemberRepository;
-    private final FinancialAuditLogRepository auditLogRepository;
-    private final WelfareFundRepository welfareFundRepository;
+    private final com.chamasmart.backend.service.ContributionService contributionService;
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -69,315 +58,63 @@ public class ContributionController {
         private String contributionDate;
         private String verificationStatus;
     }
+    private static com.chamasmart.backend.service.ContributionService.Entry entry(ContributionRequest r, Long fallbackUser) {
+        Long uid = r.getUser_id() != null ? r.getUser_id() : r.getUserId() != null ? r.getUserId() : fallbackUser;
+        return new com.chamasmart.backend.service.ContributionService.Entry(uid, r.getAmount(),
+                r.getReference() != null ? r.getReference() : r.getReceiptNumber(),
+                r.getContribution_type() != null ? r.getContribution_type() : r.getContributionType(), r.getNotes(), r.getPaymentProof());
+    }
+
     @PostMapping("/{chamaId}/record")
-    @Transactional
-    public ResponseEntity<ApiResponse<ContributionSummaryDto>> recordContribution(
-            @PathVariable Long chamaId,
-            @RequestBody ContributionRequest request,
-            @AuthenticationPrincipal CustomUserDetails currentUser) {
-        log.info("REST request to manually record contribution for chama ID: {}", chamaId);
-        Chama chama = chamaRepository.findById(chamaId)
-                .orElseThrow(() -> new RuntimeException("Chama not found"));
-        Long targetUserId = request.getUser_id() != null ? request.getUser_id() : request.getUserId();
-        if (targetUserId == null) {
-            targetUserId = currentUser.getUserId();
-        }
-        User user = userRepository.findById(targetUserId)
-                .orElseThrow(() -> new RuntimeException("Target user not found"));
-        String ref = request.getReference() != null ? request.getReference() : request.getReceiptNumber();
-        if (ref == null || ref.trim().isEmpty()) {
-            ref = "REC-" + System.currentTimeMillis();
-        }
+    public ResponseEntity<ApiResponse<ContributionSummaryDto>> recordContribution(@PathVariable Long chamaId, @RequestBody ContributionRequest request,
+                                                                                   @AuthenticationPrincipal CustomUserDetails currentUser) {
         String status = request.getStatus() != null ? request.getStatus() : request.getVerificationStatus();
-        if (status == null) {
-            status = "COMPLETED";
-        }
-        String type = request.getContribution_type() != null ? request.getContribution_type() : request.getContributionType();
-        if (type == null) {
-            type = "REGULAR";
-        }
-        Contribution contribution = Contribution.builder()
-                .chama(chama)
-                .user(user)
-                .amount(request.getAmount())
-                .reference(ref)
-                .status(status)
-                .contributionType(type)
-                .notes(request.getNotes())
-                .paymentProof(request.getPaymentProof())
-                .isDeleted(false)
-                .build();
-        Contribution savedContribution = contributionRepository.save(contribution);
-        if ("COMPLETED".equalsIgnoreCase(status) || "VERIFIED".equalsIgnoreCase(status) || "APPROVED".equalsIgnoreCase(status)) {
-            savedContribution.setStatus("COMPLETED");
-            // Update ChamaMember total contributions
-            chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, targetUserId)
-                    .ifPresent(member -> {
-                        member.setTotalContributions(member.getTotalContributions().add(request.getAmount()));
-                        member.setLastContributionDate(ZonedDateTime.now());
-                        chamaMemberRepository.save(member);
-                    });
-            if ("WELFARE".equalsIgnoreCase(type)) {
-                WelfareFund fund = welfareFundRepository.findByChamaIdWithPessimisticLock(chamaId)
-                        .orElseGet(() -> welfareFundRepository.save(WelfareFund.builder()
-                                .chama(chama)
-                                .balance(BigDecimal.ZERO)
-                                .build()));
-                fund.setBalance(fund.getBalance().add(request.getAmount()));
-                welfareFundRepository.save(fund);
-            } else {
-                // Update Chama current fund
-                chama.setCurrentFund(chama.getCurrentFund().add(request.getAmount()));
-                chamaRepository.save(chama);
-            }
-            // Write Financial Audit Log
-            FinancialAuditLog auditLog = FinancialAuditLog.builder()
-                    .user(userRepository.findById(currentUser.getUserId()).orElse(user))
-                    .transactionType("MANUAL_CONTRIBUTION")
-                    .amount(request.getAmount())
-                    .chama(chama)
-                    .referenceId(savedContribution.getContributionId())
-                    .description("Manual contribution recorded. Reference: " + ref)
-                    .ipAddress("127.0.0.1")
-                    .userAgent("System-Admin-Console")
-                    .build();
-            auditLogRepository.save(auditLog);
-        }
-        return ResponseEntity.ok(ApiResponse.success(ContributionSummaryDto.fromEntity(savedContribution), "Contribution recorded successfully"));
+        boolean credited = status == null || List.of("COMPLETED", "VERIFIED", "APPROVED").contains(status.toUpperCase());
+        return ResponseEntity.ok(ApiResponse.success(contributionService.record(chamaId, currentUser.getUserId(), entry(request, currentUser.getUserId()), credited), "Contribution recorded successfully"));
     }
+
     @PostMapping("/{chamaId}/submit")
-    @Transactional
-    public ResponseEntity<ApiResponse<ContributionSummaryDto>> submitContribution(
-            @PathVariable Long chamaId,
-            @RequestBody ContributionRequest request,
-            @AuthenticationPrincipal CustomUserDetails currentUser) {
-        log.info("REST request to submit contribution receipt for verification for chama ID: {} by user ID: {}", chamaId, currentUser.getUserId());
-        Chama chama = chamaRepository.findById(chamaId)
-                .orElseThrow(() -> new RuntimeException("Chama not found"));
-        User user = userRepository.findById(currentUser.getUserId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        String ref = request.getReference() != null ? request.getReference() : request.getReceiptNumber();
-        if (ref == null || ref.trim().isEmpty()) {
-            ref = "SUB-" + System.currentTimeMillis();
-        }
-        String type = request.getContribution_type() != null ? request.getContribution_type() : request.getContributionType();
-        if (type == null) {
-            type = "REGULAR";
-        }
-        Contribution contribution = Contribution.builder()
-                .chama(chama)
-                .user(user)
-                .amount(request.getAmount())
-                .reference(ref)
-                .status("PENDING")
-                .contributionType(type)
-                .notes(request.getNotes())
-                .paymentProof(request.getPaymentProof())
-                .isDeleted(false)
-                .build();
-        Contribution savedContribution = contributionRepository.save(contribution);
-        return ResponseEntity.ok(ApiResponse.success(ContributionSummaryDto.fromEntity(savedContribution), "Receipt submitted successfully. Awaiting verification."));
+    public ResponseEntity<ApiResponse<ContributionSummaryDto>> submitContribution(@PathVariable Long chamaId, @RequestBody ContributionRequest request,
+                                                                                   @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(contributionService.submit(chamaId, currentUser.getUserId(), entry(request, currentUser.getUserId())), "Receipt submitted successfully. Awaiting verification."));
     }
+
     @PostMapping("/{chamaId}/bulk-record")
-    @Transactional
-    public ResponseEntity<ApiResponse<List<ContributionSummaryDto>>> bulkRecordContributions(
-            @PathVariable Long chamaId,
-            @RequestBody BulkContributionRequest request,
-            @AuthenticationPrincipal CustomUserDetails currentUser) {
-        log.info("REST request to record bulk contributions for chama ID: {}", chamaId);
-        Chama chama = chamaRepository.findById(chamaId)
-                .orElseThrow(() -> new RuntimeException("Chama not found"));
-        List<ContributionSummaryDto> savedDtos = new ArrayList<>();
+    public ResponseEntity<ApiResponse<List<ContributionSummaryDto>>> bulkRecordContributions(@PathVariable Long chamaId, @RequestBody BulkContributionRequest request,
+                                                                                              @AuthenticationPrincipal CustomUserDetails currentUser) {
+        List<com.chamasmart.backend.service.ContributionService.Entry> entries = new ArrayList<>();
         if (request.getContributions() != null) {
-            for (SingleContributionRequest req : request.getContributions()) {
-                Long targetUserId = req.getUserId() != null ? req.getUserId() : req.getUser_id();
-                if (targetUserId == null) continue;
-                User user = userRepository.findById(targetUserId)
-                        .orElseThrow(() -> new RuntimeException("User " + targetUserId + " not found"));
-                String ref = req.getReference() != null ? req.getReference() : req.getReceiptNumber();
-                if (ref == null || ref.trim().isEmpty()) {
-                    ref = "BULK-" + System.currentTimeMillis();
-                }
-                Contribution contribution = Contribution.builder()
-                        .chama(chama)
-                        .user(user)
-                        .amount(req.getAmount())
-                        .reference(ref)
-                        .status("COMPLETED")
-                        .contributionType("REGULAR")
-                        .notes(req.getNotes())
-                        .isDeleted(false)
-                        .build();
-                Contribution savedContribution = contributionRepository.save(contribution);
-                // Update ChamaMember total contributions
-                chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, targetUserId)
-                        .ifPresent(member -> {
-                            member.setTotalContributions(member.getTotalContributions().add(req.getAmount()));
-                            member.setLastContributionDate(ZonedDateTime.now());
-                            chamaMemberRepository.save(member);
-                        });
-                // Update Chama current fund
-                chama.setCurrentFund(chama.getCurrentFund().add(req.getAmount()));
-                chamaRepository.save(chama);
-                // Write Financial Audit Log
-                FinancialAuditLog auditLog = FinancialAuditLog.builder()
-                        .user(userRepository.findById(currentUser.getUserId()).orElse(user))
-                        .transactionType("BULK_CONTRIBUTION")
-                        .amount(req.getAmount())
-                        .chama(chama)
-                        .referenceId(savedContribution.getContributionId())
-                        .description("Bulk contribution recorded. Member ID: " + targetUserId + ", Ref: " + ref)
-                        .ipAddress("127.0.0.1")
-                        .userAgent("System-Admin-Console")
-                        .build();
-                auditLogRepository.save(auditLog);
-                savedDtos.add(ContributionSummaryDto.fromEntity(savedContribution));
+            for (SingleContributionRequest r : request.getContributions()) {
+                entries.add(new com.chamasmart.backend.service.ContributionService.Entry(r.getUserId() != null ? r.getUserId() : r.getUser_id(), r.getAmount(),
+                        r.getReference() != null ? r.getReference() : r.getReceiptNumber(), "REGULAR", r.getNotes(), null));
             }
         }
-        return ResponseEntity.ok(ApiResponse.success(savedDtos, "Bulk contributions recorded successfully"));
+        return ResponseEntity.ok(ApiResponse.success(contributionService.bulkRecord(chamaId, currentUser.getUserId(), entries), "Bulk contributions recorded successfully"));
     }
+
     @PostMapping("/{chamaId}/verify/{contributionId}")
-    @Transactional
-    public ResponseEntity<ApiResponse<ContributionSummaryDto>> verifyContribution(
-            @PathVariable Long chamaId,
-            @PathVariable Long contributionId,
-            @RequestBody Map<String, String> payload,
-            @AuthenticationPrincipal CustomUserDetails currentUser) {
-        log.info("REST request to verify contribution ID: {} for chama ID: {}", contributionId, chamaId);
-        Contribution contribution = contributionRepository.findById(contributionId)
-                .orElseThrow(() -> new RuntimeException("Contribution not found"));
-        if (!contribution.getChama().getChamaId().equals(chamaId)) {
-            throw new RuntimeException("Contribution does not belong to this chama");
-        }
-        String decision = payload.get("status"); // COMPLETED / REJECTED
-        if (decision == null) {
-            decision = payload.get("decision");
-        }
-        if (decision == null) {
-            throw new RuntimeException("Status or decision parameter is missing");
-        }
-        if ("COMPLETED".equalsIgnoreCase(decision) || "APPROVED".equalsIgnoreCase(decision) || "VERIFIED".equalsIgnoreCase(decision)) {
-            contribution.setStatus("COMPLETED");
-            // Update ChamaMember total contributions
-            chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, contribution.getUser().getUserId())
-                    .ifPresent(member -> {
-                        member.setTotalContributions(member.getTotalContributions().add(contribution.getAmount()));
-                        member.setLastContributionDate(ZonedDateTime.now());
-                        chamaMemberRepository.save(member);
-                    });
-            Chama chama = contribution.getChama();
-            if ("WELFARE".equalsIgnoreCase(contribution.getContributionType())) {
-                WelfareFund fund = welfareFundRepository.findByChamaIdWithPessimisticLock(chamaId)
-                        .orElseGet(() -> welfareFundRepository.save(WelfareFund.builder()
-                                .chama(chama)
-                                .balance(BigDecimal.ZERO)
-                                .build()));
-                fund.setBalance(fund.getBalance().add(contribution.getAmount()));
-                welfareFundRepository.save(fund);
-            } else {
-                // Update Chama current fund
-                chama.setCurrentFund(chama.getCurrentFund().add(contribution.getAmount()));
-                chamaRepository.save(chama);
-            }
-            // Write Financial Audit Log
-            FinancialAuditLog auditLog = FinancialAuditLog.builder()
-                    .user(userRepository.findById(currentUser.getUserId()).orElse(contribution.getUser()))
-                    .transactionType("VERIFIED_CONTRIBUTION")
-                    .amount(contribution.getAmount())
-                    .chama(chama)
-                    .referenceId(contribution.getContributionId())
-                    .description("Receipt contribution approved. Ref: " + contribution.getReference())
-                    .ipAddress("127.0.0.1")
-                    .userAgent("System-Admin-Console")
-                    .build();
-            auditLogRepository.save(auditLog);
-        } else {
-            contribution.setStatus("FAILED");
-        }
-        Contribution updatedContribution = contributionRepository.save(contribution);
-        return ResponseEntity.ok(ApiResponse.success(ContributionSummaryDto.fromEntity(updatedContribution), "Contribution verification processed"));
+    public ResponseEntity<ApiResponse<ContributionSummaryDto>> verifyContribution(@PathVariable Long chamaId, @PathVariable Long contributionId,
+                                                                                   @RequestBody Map<String, String> payload, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        String decision = payload.get("status") != null ? payload.get("status") : payload.get("decision");
+        if (decision == null) throw new IllegalArgumentException("Status or decision is missing");
+        boolean approve = List.of("COMPLETED", "APPROVED", "VERIFIED").contains(decision.toUpperCase());
+        return ResponseEntity.ok(ApiResponse.success(contributionService.verify(chamaId, currentUser.getUserId(), contributionId, approve), "Contribution verification processed"));
     }
+
     @GetMapping("/{chamaId}/pending")
-    @Transactional(readOnly = true)
-    public ResponseEntity<ApiResponse<List<ContributionSummaryDto>>> getPendingContributions(@PathVariable Long chamaId) {
-        log.info("REST request to get pending contributions for chama ID: {}", chamaId);
-        List<ContributionSummaryDto> pending = contributionRepository.findByChamaChamaIdAndIsDeletedFalse(chamaId).stream()
-                .filter(c -> "PENDING".equalsIgnoreCase(c.getStatus()))
-                .map(ContributionSummaryDto::fromEntity)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(ApiResponse.success(pending, "Pending contributions retrieved successfully"));
+    public ResponseEntity<ApiResponse<List<ContributionSummaryDto>>> getPendingContributions(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(contributionService.pending(chamaId, currentUser.getUserId()), "Pending contributions retrieved successfully"));
     }
+
     @GetMapping("/{chamaId}")
-    @Transactional(readOnly = true)
-    public ResponseEntity<ApiResponse<List<ContributionSummaryDto>>> getAllContributions(
-            @PathVariable Long chamaId,
-            @RequestParam(required = false) String startDate,
-            @RequestParam(required = false) String endDate) {
-        log.info("REST request to get contributions for chama ID: {}", chamaId);
-        List<ContributionSummaryDto> all = contributionRepository.findByChamaChamaIdAndIsDeletedFalse(chamaId).stream()
-                .map(ContributionSummaryDto::fromEntity)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(ApiResponse.success(all, "All contributions retrieved successfully"));
+    public ResponseEntity<ApiResponse<List<ContributionSummaryDto>>> getAllContributions(@PathVariable Long chamaId, @RequestParam(required = false) String startDate,
+                                                                                          @RequestParam(required = false) String endDate, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(contributionService.list(chamaId, currentUser.getUserId(), startDate, endDate), "All contributions retrieved successfully"));
     }
+
     @DeleteMapping("/{chamaId}/{id}")
-    @Transactional
-    public ResponseEntity<ApiResponse<Void>> deleteContribution(
-            @PathVariable Long chamaId,
-            @PathVariable Long id) {
-        log.info("REST request to soft delete contribution ID: {} for chama ID: {}", id, chamaId);
-        Contribution contribution = contributionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Contribution not found"));
-        if (!contribution.getChama().getChamaId().equals(chamaId)) {
-            throw new RuntimeException("Contribution does not belong to this chama");
-        }
-        if ("COMPLETED".equalsIgnoreCase(contribution.getStatus())) {
-            // Deduct from member totalContributions
-            chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, contribution.getUser().getUserId())
-                    .ifPresent(member -> {
-                        BigDecimal updatedTotal = member.getTotalContributions().subtract(contribution.getAmount());
-                        if (updatedTotal.compareTo(BigDecimal.ZERO) < 0) {
-                            updatedTotal = BigDecimal.ZERO;
-                        }
-                        member.setTotalContributions(updatedTotal);
-                        chamaMemberRepository.save(member);
-                    });
-            // Deduct from Chama or Welfare fund
-            if ("WELFARE".equalsIgnoreCase(contribution.getContributionType())) {
-                welfareFundRepository.findByChamaIdWithPessimisticLock(chamaId)
-                        .ifPresent(fund -> {
-                            BigDecimal updatedBalance = fund.getBalance().subtract(contribution.getAmount());
-                            if (updatedBalance.compareTo(BigDecimal.ZERO) < 0) {
-                                updatedBalance = BigDecimal.ZERO;
-                            }
-                            fund.setBalance(updatedBalance);
-                            welfareFundRepository.save(fund);
-                        });
-            } else {
-                Chama chama = contribution.getChama();
-                BigDecimal updatedFund = chama.getCurrentFund().subtract(contribution.getAmount());
-                if (updatedFund.compareTo(BigDecimal.ZERO) < 0) {
-                    updatedFund = BigDecimal.ZERO;
-                }
-                chama.setCurrentFund(updatedFund);
-                chamaRepository.save(chama);
-            }
-            // Write Financial Audit Log reversal entry
-            FinancialAuditLog auditLog = FinancialAuditLog.builder()
-                    .user(contribution.getUser())
-                    .transactionType("CONTRIBUTION_REVERSAL")
-                    .amount(contribution.getAmount())
-                    .chama(contribution.getChama())
-                    .referenceId(contribution.getContributionId())
-                    .description("Contribution deleted/reversed. Original Ref: " + contribution.getReference())
-                    .ipAddress("127.0.0.1")
-                    .userAgent("System-Admin-Console")
-                    .build();
-            auditLogRepository.save(auditLog);
-        }
-        contribution.setIsDeleted(true);
-        contribution.setDeletedAt(ZonedDateTime.now());
-        contributionRepository.save(contribution);
+    public ResponseEntity<ApiResponse<Void>> deleteContribution(@PathVariable Long chamaId, @PathVariable Long id, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        contributionService.delete(chamaId, currentUser.getUserId(), id);
         return ResponseEntity.ok(ApiResponse.success(null, "Contribution deleted successfully"));
     }
 }
-

@@ -19,17 +19,28 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final com.chamasmart.backend.security.FirebaseTokenVerifier firebaseTokenVerifier;
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthResponse>> register(@RequestBody RegisterRequest request) {
-        log.info("Received registration request for email: {}", request.getEmail());
-        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+        String email = request.getEmail() == null ? "" : request.getEmail().trim().toLowerCase();
+        if (!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Enter a valid email address"));
+        }
+        if (request.getPassword() == null || request.getPassword().length() < 8) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Your password must be at least 8 characters"));
+        }
+        if (request.getFirstName() == null || request.getFirstName().isBlank() || request.getLastName() == null || request.getLastName().isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Enter your first and last name"));
+        }
+        log.info("Received registration request");
+        if (userRepository.findByEmail(email).isPresent()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.error("Email is already in use"));
         }
         User user = new User(
                 request.getFirstName(),
                 request.getLastName(),
-                request.getEmail(),
+                email,
                 request.getPhoneNumber(),
                 passwordEncoder.encode(request.getPassword()),
                 "MEMBER",
@@ -49,10 +60,16 @@ public class AuthController {
     }
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody LoginRequest request) {
-        log.info("Received login request for email: {}", request.getEmail());
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElse(null);
-        if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+        String loginEmail = request.getEmail() == null ? "" : request.getEmail().trim().toLowerCase();
+        User user = userRepository.findByEmail(loginEmail).orElse(null);
+        if (user != null && "google".equalsIgnoreCase(user.getAuthMethod())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("This account uses Google sign-in. Please continue with Google."));
+        }
+        if (user != null && Boolean.FALSE.equals(user.getIsActive())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("This account has been deactivated"));
+        }
+        if (user == null || request.getPassword() == null || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("Invalid email or password"));
         }
@@ -63,44 +80,32 @@ public class AuthController {
 );
         return ResponseEntity.ok(ApiResponse.success(authResponse, "Login successful"));
     }
+    private static <T> ResponseEntity<ApiResponse<T>> notAvailable(String what) {
+        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(ApiResponse.error(what + " is not available yet"));
+    }
     @PostMapping("/verify-email")
-    public ResponseEntity<ApiResponse<Void>> verifyEmail(@RequestBody Map<String, String> payload) {
-        log.info("REST request to verify email with token");
-        return ResponseEntity.ok(ApiResponse.success(null, "Email verified successfully"));
-    }
+    public ResponseEntity<ApiResponse<Void>> verifyEmail(@RequestBody Map<String, String> payload) { return notAvailable("Email verification"); }
     @PostMapping("/verify-phone")
-    public ResponseEntity<ApiResponse<Void>> verifyPhone(@RequestBody Map<String, String> payload) {
-        log.info("REST request to verify phone with OTP");
-        return ResponseEntity.ok(ApiResponse.success(null, "Phone verified successfully"));
-    }
+    public ResponseEntity<ApiResponse<Void>> verifyPhone(@RequestBody Map<String, String> payload) { return notAvailable("Phone verification"); }
     @PostMapping("/resend-email-verification")
-    public ResponseEntity<ApiResponse<Void>> resendEmailVerification() {
-        log.info("REST request to resend email verification");
-        return ResponseEntity.ok(ApiResponse.success(null, "Email verification resent successfully"));
-    }
+    public ResponseEntity<ApiResponse<Void>> resendEmailVerification() { return notAvailable("Email verification"); }
     @PostMapping("/resend-phone-verification")
-    public ResponseEntity<ApiResponse<Void>> resendPhoneVerification() {
-        log.info("REST request to resend phone verification");
-        return ResponseEntity.ok(ApiResponse.success(null, "Phone verification resent successfully"));
-    }
+    public ResponseEntity<ApiResponse<Void>> resendPhoneVerification() { return notAvailable("Phone verification"); }
     @PutMapping("/change-password")
-    public ResponseEntity<ApiResponse<Void>> changePassword(@RequestBody Map<String, String> payload) {
-        log.info("REST request to change password");
-        return ResponseEntity.ok(ApiResponse.success(null, "Password changed successfully"));
-    }
+    public ResponseEntity<ApiResponse<Void>> changePassword(@RequestBody Map<String, String> payload) { return notAvailable("This password endpoint (use /users/change-password)"); }
     @PostMapping("/firebase-sync")
     public ResponseEntity<ApiResponse<AuthResponse>> firebaseSync(@RequestBody FirebaseSyncRequest request) {
-        log.info("Firebase OAuth sync for email: {}", request.getEmail());
-
-        // Always resolve email first — it is the canonical identifier from Firebase
-        String email = (request.getEmail() != null && !request.getEmail().trim().isEmpty())
-                ? request.getEmail().trim().toLowerCase()
-                : null;
-
-        if (email == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("Email is required for Firebase sync"));
+        // The email comes from the verified token, never from the request body.
+        com.chamasmart.backend.security.FirebaseTokenVerifier.Identity identity;
+        try {
+            identity = firebaseTokenVerifier.verify(request.getIdToken());
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("We couldn't verify your Google sign-in. Please try again."));
         }
+        if (!identity.emailVerified()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Your Google email address isn't verified"));
+        }
+        String email = identity.email();
 
         // Find existing user by email or create a new one
         User user = userRepository.findByEmail(email).orElseGet(() -> {
@@ -113,7 +118,7 @@ public class AuthController {
 
             User newUser = new User(
                     firstName, lastName, email, phone,
-                    passwordEncoder.encode("OAuthUserSecureLocalFallbackPwd123!"),
+                    passwordEncoder.encode(java.util.UUID.randomUUID() + "-" + java.util.UUID.randomUUID()),
                     "MEMBER", true, true, phone != null, "google"
             );
             return userRepository.save(newUser);

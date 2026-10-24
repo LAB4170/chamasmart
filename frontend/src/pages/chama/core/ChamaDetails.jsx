@@ -12,7 +12,6 @@ import { useAuth } from "../../../context/AuthContext";
 import { useSocket } from "../../../context/SocketContext";
 import LoadingSkeleton from "../../../components/LoadingSkeleton";
 import CreateCycleModal from "../../../components/CreateCycleModal";
-import SwapRequestModal from "../../../components/SwapRequestModal";
 import PayoutConfirmationModal from "../../../components/PayoutConfirmationModal";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import LoanConfigCard from "../../../components/LoanConfigCard";
@@ -37,107 +36,71 @@ import HealthAlerts from "./HealthAlerts";
 import ChamaChat from "../../../components/chat/ChamaChat";
 import InvestmentProposals from "../asca/InvestmentProposals";
 import "./ChamaDetailsLux.css";
+import "./ChamaHub.css";
 
 // --- Memoized Sub-components ---
 
 const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavigate, isOfficial }) => (
-  <div className="chama-header-lux">
-    <div className="chama-title-area">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-        <button
-          onClick={() => onNavigate('/dashboard')}
-          aria-label="Back to Dashboard"
-          className="tab-btn-lux"
-          style={{ padding: '0.6rem', background: 'var(--lux-bg-soft)', border: '1px solid var(--lux-border)' }}
-        >
-          <ArrowRight size={20} style={{ transform: 'rotate(180deg)', color: 'var(--lux-text-primary)' }} />
-        </button>
-        <div>
-          <h1>{chama.chama_name}</h1>
-          <div className="chama-badges">
-            <span className="badge-lux badge-gold">
-              {isROSCA ? <RefreshCw size={13} /> : <DollarSign size={13} />}
-              {getChamaTypeLabel(chama.chama_type)}
-            </span>
-            <span className="badge-lux" style={{ background: 'var(--lux-bg-soft)', color: 'var(--lux-text-secondary)', border: '1px solid var(--lux-border)' }}>
-              <Shield size={11} /> {userRole}
-            </span>
-          </div>
+  <header className="cs-hub-header">
+    <button type="button" className="cs-hub-back" onClick={() => onNavigate('/chamas')} aria-label="Back to my chamas">
+      <ArrowRight size={18} aria-hidden="true" style={{ transform: 'rotate(180deg)' }} />
+      <span>My chamas</span>
+    </button>
+    <div className="cs-hub-titlerow">
+      <div className="cs-hub-titles">
+        <h1 className="cs-hub-title">{chama.chama_name}</h1>
+        <div className="cs-hub-meta">
+          <span className="cs-status cs-status--info">
+            {isROSCA ? <RefreshCw size={12} aria-hidden="true" /> : <DollarSign size={12} aria-hidden="true" />}
+            {getChamaTypeLabel(chama.chama_type)}
+          </span>
+          <span className="cs-status cs-status--neutral">Your role: {userRole}</span>
         </div>
       </div>
+      {isOfficial && (
+        <div className="cs-hub-actions">
+          <button type="button" className="cs-btn cs-btn--secondary" onClick={() => onNavigate(`/chamas/${chama.chama_id}/manage`)}>
+            <Settings size={16} aria-hidden="true" /> Manage
+          </button>
+          <button type="button" className="cs-btn cs-btn--primary" onClick={() => onNavigate(`/chamas/${chama.chama_id}/record-contribution`)}>
+            <CreditCard size={16} aria-hidden="true" /> Record payment
+          </button>
+        </div>
+      )}
     </div>
-
-    {isOfficial && (
-      <div style={{ display: 'flex', gap: '1rem' }}>
-        <button
-          onClick={() => onNavigate(`/chamas/${chama.chama_id}/manage`)}
-          className="tab-btn-lux"
-        >
-          <Settings size={16} /> Manage
-        </button>
-        <button
-          onClick={() => onNavigate(`/chamas/${chama.chama_id}/record-contribution`)}
-          className="tab-btn-lux active"
-        >
-          <CreditCard size={16} /> Record
-        </button>
-      </div>
-    )}
-  </div>
+  </header>
 ));
 
 const StatsSection = memo(({ stats, isROSCA, chama, members, formatCurrency }) => (
-  <div className="hero-stats-lux">
-    <div className="stat-card-lux">
-      <div className="flex items-center gap-2 mb-1">
-        <Users size={14} className="text-blue-400" />
-        <span className="stat-label-lux">Directors</span>
-      </div>
-      <div className="stat-value-lux">{stats.total_members || 0}</div>
-      <div className="stat-trend-lux stat-trend-up">
-        <TrendingUp size={12} /> {members.length} Active
-      </div>
+  <section className="cs-hub-stats" aria-label="Chama summary">
+    <div className="cs-card cs-stat">
+      <span className="cs-stat-label">Members</span>
+      <span className="cs-stat-value">{stats.total_members ?? members.length}</span>
+      <span className="cs-stat-note">{members.length} listed</span>
     </div>
-    <div className="stat-card-lux">
-      <div className="flex items-center gap-2 mb-1">
-        <DollarSign size={14} className="text-emerald-400" />
-        <span className="stat-label-lux">Revenue</span>
-      </div>
-      <div className="stat-value-lux">{formatCurrency(stats.total_contributions || 0)}</div>
-      <div className="stat-trend-lux stat-trend-up">
-        <TrendingUp size={12} /> Lifetime
-      </div>
+    <div className="cs-card cs-stat">
+      <span className="cs-stat-label">Total contributed</span>
+      <span className="cs-stat-value">{formatCurrency(stats.total_contributions || 0)}</span>
+      <span className="cs-stat-note">All time</span>
     </div>
-    <div className="stat-card-lux">
-      <div className="flex items-center gap-2 mb-1">
-        <Wallet size={14} className="text-amber-400" />
-        <span className="stat-label-lux">Treasury</span>
-      </div>
-      <div className="stat-value-lux">{formatCurrency(stats.total_fund || 0)}</div>
-      <div className="stat-trend-lux" style={{ color: 'var(--text-secondary)' }}>
-        <Shield size={12} /> Verified
-      </div>
+    <div className="cs-card cs-stat">
+      <span className="cs-stat-label">Group fund</span>
+      <span className="cs-stat-value">{formatCurrency(stats.total_fund || 0)}</span>
+      <span className="cs-stat-note">Current balance on record</span>
     </div>
-    <div className="stat-card-lux">
-      <div className="flex items-center gap-2 mb-1">
-        <Target size={14} className="text-purple-400" />
-        <span className="stat-label-lux">{isROSCA ? 'Next Payout' : 'Loan Volume'}</span>
-      </div>
-      <div className="stat-value-lux">
-        {isROSCA 
-          ? formatCurrency(chama.contribution_amount * members.length)
-          : formatCurrency(stats.total_loans_disbursed || 0)
-        }
-      </div>
-      <div className="stat-trend-lux" style={{ color: 'var(--text-secondary)' }}>
-        <Clock size={12} /> Upcoming
-      </div>
+    <div className="cs-card cs-stat">
+      <span className="cs-stat-label">{isROSCA ? 'Pot per round' : 'Loans disbursed'}</span>
+      <span className="cs-stat-value">
+        {isROSCA
+          ? formatCurrency((chama.contribution_amount || 0) * members.length)
+          : formatCurrency(stats.total_loans_disbursed || 0)}
+      </span>
+      <span className="cs-stat-note">{isROSCA ? 'Contribution × members' : 'All time'}</span>
     </div>
-  </div>
+  </section>
 ));
 
-
-const MembersTab = memo(({ members, isOfficial, isROSCA, roster, getMemberStatus, onNavigate, formatCurrency, formatDate, chamaId, userRole, onUpdateRole, activeUsers = [] }) => {
+const MembersTab = memo(({ members, isOfficial, isROSCA, roster, onNavigate, formatCurrency, chamaId, userRole, onUpdateRole, activeUsers = [] }) => {
   return (
     <div className="dashboard-card-lux" style={{ minHeight: '600px' }}>
       <div className="card-header pb-4 mb-8 border-b flex justify-between items-center" style={{ borderColor: 'var(--lux-border)' }}>
@@ -173,7 +136,6 @@ const MembersTab = memo(({ members, isOfficial, isROSCA, roster, getMemberStatus
       ) : (
         <div className="member-grid-lux">
           {members.map((member) => {
-            const status = getMemberStatus(member);
             const isOnline = activeUsers.includes(member.user_id.toString()) || activeUsers.includes(member.user_id);
             const initials = `${member.first_name?.[0] || ''}${member.last_name?.[0] || ''}`;
             const trustColor = member.trust_score >= 70 ? '#10b981' : member.trust_score >= 40 ? '#f59e0b' : '#ef4444';
@@ -321,14 +283,10 @@ const ChamaDetails = () => {
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [generalChannelId, setGeneralChannelId] = useState(null);
 
-  const [cycles, setCycles] = useState([]);
   const [activeCycle, setActiveCycle] = useState(null);
   const [roster, setRoster] = useState([]);
   const [currentCyclePosition, setCurrentCyclePosition] = useState(0);
   const [showCreateCycleModal, setShowCreateCycleModal] = useState(false);
-  const [showSwapModal, setShowSwapModal] = useState(false);
-  const [swapTarget, setSwapTarget] = useState(null);
-  const [swapRequests, setSwapRequests] = useState({ incoming: [], outgoing: [] });
   const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [payoutRecipient, setPayoutRecipient] = useState(null);
   const [showManualPaymentModal, setShowManualPaymentModal] = useState(false);
@@ -492,8 +450,8 @@ const ChamaDetails = () => {
   const fetchAscaReports = async () => {
     try {
       const [summaryRes, statementRes, standingRes] = await Promise.all([
-        ascaAPI.getReportsSummary(id),
-        ascaAPI.getMemberStatement(id),
+        ascaAPI.getReportsSummary(id).catch(() => ({ data: { data: null } })),
+        ascaAPI.getMemberStatement(id).catch(() => ({ data: { data: null } })),
         ascaAPI.getMemberStanding(id).catch(() => ({ data: { data: null } }))
       ]);
       setAscaReports(summaryRes.data.data);
@@ -603,7 +561,6 @@ const ChamaDetails = () => {
         try {
           const cyclesRes = await roscaAPI.getCycles(id);
           const cyclesData = cyclesRes.data.data;
-          setCycles(Array.isArray(cyclesData) ? cyclesData : (cyclesData?.data || []));
 
           // Find active or latest cycle
           const active = (Array.isArray(cyclesData) ? cyclesData : (cyclesData?.data || [])).find(c => c.status === 'ACTIVE' || c.status === 'PENDING');
@@ -617,11 +574,6 @@ const ChamaDetails = () => {
             const rosterArray = Array.isArray(rosterData) ? rosterData : (rosterData?.data || []);
             const paidCount = rosterArray.filter(r => r.status === 'PAID').length;
             setCurrentCyclePosition(paidCount);
-
-            // Fetch swap requests
-            const swapRes = await roscaAPI.getSwapRequests();
-            const swapData = swapRes.data.data;
-            setSwapRequests(Array.isArray(swapData) ? { incoming: swapData, outgoing: [] } : (swapData || { incoming: [], outgoing: [] }));
           }
         } catch (cycleErr) {
           console.error("Failed to load cycles:", cycleErr);
@@ -669,7 +621,7 @@ const ChamaDetails = () => {
     try {
       // Filter out empty values to prevent 500 errors
       const cleanFilters = Object.fromEntries(
-        Object.entries(f).filter(([key, v]) => v != null && v !== "")
+        Object.entries(f).filter(([, v]) => v != null && v !== "")
       );
 
       const response = await contributionAPI.getAll(id, cleanFilters);
@@ -684,27 +636,6 @@ const ChamaDetails = () => {
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleQuickFilter = (type) => {
-    const now = new Date();
-    let start = "", end = "";
-
-    if (type === 'thisMonth') {
-      start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-      end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-    } else if (type === 'lastMonth') {
-      start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
-      end = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
-    } else if (type === 'ytd') {
-      start = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
-      end = now.toISOString().split('T')[0];
-    } else if (type === 'all') {
-      start = "";
-      end = "";
-    }
-
-    setFilters(prev => ({ ...prev, startDate: start, endDate: end }));
   };
 
   const applyFilters = () => {
@@ -763,27 +694,6 @@ const ChamaDetails = () => {
   }, [userRole]);
 
   const isROSCA = useMemo(() => chama?.chama_type === "ROSCA", [chama]);
-
-  // Return the current unpaid member in the roster (first ACTIVE or PENDING member by position)
-  const getCurrentRecipient = useCallback(() => {
-    if (!isROSCA || !Array.isArray(roster) || roster.length === 0) return null;
-    // Find the first roster entry that hasn't been paid yet
-    const sortedRoster = [...roster].sort((a, b) => a.position - b.position);
-    const current = sortedRoster.find(r => r.status === 'ACTIVE' || r.status === 'PENDING');
-    if (!current) return null;
-    // Try to enrich with member name data from members list if roster entry lacks it
-    if (!current.first_name) {
-      const member = members.find(m => m.user_id === current.user_id);
-      return member ? { ...current, ...member } : current;
-    }
-    return current;
-  }, [isROSCA, roster, members]);
-
-  const getCycleProgress = useCallback(() => {
-    if (!isROSCA || !activeCycle || !Array.isArray(roster) || roster.length === 0) return 0;
-    const paidCount = roster.filter(r => r.status === 'PAID').length;
-    return (paidCount / roster.length) * 100;
-  }, [isROSCA, activeCycle, roster]);
 
   const getMemberStatus = useCallback((member) => {
     if (!isROSCA || !Array.isArray(roster)) return "MEMBER";
@@ -1053,7 +963,7 @@ const ChamaDetails = () => {
            try {
              const res = await loanAPI.getChamaLoans(id);
              loansToExport = res.data?.data?.loans || res.data?.loans || res.data?.data || res.data || [];
-           } catch(e) {}
+           } catch { /* ignore */ }
         }
         
         if (loansToExport.length > 0) {
@@ -1112,34 +1022,6 @@ const ChamaDetails = () => {
     });
   };
 
-  const handleActivateCycle = async (cycleId) => {
-    try {
-      setLoading(true);
-      await roscaAPI.activateCycle(cycleId);
-      toast.success("Cycle activated successfully!");
-      fetchChamaData();
-    } catch (err) {
-      console.error("Failed to activate cycle:", err);
-      toast.error(err.response?.data?.message || "Failed to activate cycle");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSwapResponse = async (requestId, action) => {
-    try {
-      setLoading(true);
-      await roscaAPI.respondToSwap(requestId, action);
-      toast.success(`Swap request ${action === 'ACCEPT' ? 'accepted' : 'rejected'}`);
-      fetchChamaData();
-    } catch (err) {
-      console.error("Failed to respond to swap request:", err);
-      toast.error(err.response?.data?.message || "Failed to respond to swap request");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="page">
@@ -1187,48 +1069,16 @@ const ChamaDetails = () => {
           formatCurrency={formatCurrency}
         />
 
-        <div className="tabs-nav-lux">
-          <button
-            className={`tab-btn-lux ${activeTab === "overview" ? "active" : ""}`}
-            onClick={() => setActiveTab("overview")}
-          >
-            <BarChart3 size={18} /> Overview
+        <div className="cs-hub-tabs cs-chips" role="group" aria-label="Chama sections">
+          <button type="button" className="cs-chip" aria-pressed={activeTab === "overview"} onClick={() => setActiveTab("overview")}>Overview</button>
+          <button type="button" className="cs-chip" aria-pressed={activeTab === "members"} onClick={() => setActiveTab("members")}>Members</button>
+          <button type="button" className="cs-chip" aria-pressed={activeTab === "contributions"} onClick={() => setActiveTab("contributions")}>Payments</button>
+          <button type="button" className="cs-chip" aria-pressed={activeTab === "chat"} onClick={() => { setActiveTab("chat"); setUnreadChatCount(0); }}>
+            Chat{unreadChatCount > 0 && <span className="cs-chip-count" aria-label={`${unreadChatCount} unread`}>{unreadChatCount}</span>}
           </button>
-          <button
-            className={`tab-btn-lux ${activeTab === "members" ? "active" : ""}`}
-            onClick={() => setActiveTab("members")}
-          >
-            <Users size={18} /> Members
-          </button>
-          <button
-            className={`tab-btn-lux ${activeTab === "contributions" ? "active" : ""}`}
-            onClick={() => setActiveTab("contributions")}
-          >
-            <DollarSign size={18} /> Payments
-          </button>
-          <button
-            className={`tab-btn-lux ${activeTab === "chat" ? "active" : ""}`}
-            onClick={() => {
-              setActiveTab("chat");
-              setUnreadChatCount(0);
-            }}
-          >
-            <MessageCircle size={18} /> Chat
-            {unreadChatCount > 0 && <span className="unread-dot">{unreadChatCount}</span>}
-          </button>
-          <button
-            className={`tab-btn-lux ${activeTab === "meetings" ? "active" : ""}`}
-            onClick={() => setActiveTab("meetings")}
-          >
-            <Calendar size={18} /> Meetings
-          </button>
+          <button type="button" className="cs-chip" aria-pressed={activeTab === "meetings"} onClick={() => setActiveTab("meetings")}>Meetings</button>
           {officialStatus && (
-            <button
-              className={`tab-btn-lux ${activeTab === "management" ? "active" : ""}`}
-              onClick={() => setActiveTab("management")}
-            >
-              <Shield size={18} /> Management
-            </button>
+            <button type="button" className="cs-chip" aria-pressed={activeTab === "management"} onClick={() => setActiveTab("management")}>Management</button>
           )}
         </div>
 
@@ -1322,346 +1172,6 @@ const ChamaDetails = () => {
               </div>
             )}
 
-            {isROSCA && activeTab === "cycle" && (
-              <div className="card">
-                <div className="card-header flex-between">
-                  <h3>ROSCA Cycle Progress</h3>
-                  {officialStatus && (
-                    <div className="cycle-actions flex gap-2">
-                      {activeCycle?.status === 'PENDING' && (
-                        <button
-                          className="btn btn-sm btn-success flex items-center gap-1"
-                          onClick={() => {
-                            confirmAction({
-                              title: "Activate Cycle",
-                              message: "Are you sure you want to start this cycle? This will lock the roster and allow members to start contributing and receiving payouts.",
-                              confirmLabel: "Activate Now",
-                              onConfirm: () => handleActivateCycle(activeCycle.cycle_id)
-                            });
-                          }}
-                        >
-                          <CheckCircle2 size={16} /> Activate Cycle
-                        </button>
-                      )}
-                      {!activeCycle && (
-                        <button
-                          className="btn btn-sm btn-primary"
-                          onClick={() => setShowCreateCycleModal(true)}
-                        >
-                          Start New Cycle
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {!activeCycle && (
-                  <div className="p-4 text-center text-muted">
-                    <p>No active cycle running.</p>
-                    {officialStatus && <p>Click "Start New Cycle" to begin.</p>}
-                  </div>
-                )}
-
-                {activeCycle && (
-                  <div className="rosca-cycle">
-                    {/* Swap Requests & Marketplace Section */}
-                    {(swapRequests.incoming.length > 0 || swapRequests.outgoing.length > 0 || activeCycle.autopilot_enabled) && (
-                      <div className="swap-requests-section mb-6">
-                        {/* Autopilot Status Indicator */}
-                        {activeCycle.autopilot_enabled && (
-                          <div className="alert alert-success mb-4 flex items-center justify-between border-success/30 bg-success/5">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-success/20 flex items-center justify-center text-success animate-pulse">
-                                <Smartphone size={20} />
-                              </div>
-                              <div>
-                                <h4 className="m-0 text-success font-bold text-sm">M-Pesa Autopilot Active</h4>
-                                <p className="text-xs text-success/70 m-0">Payouts will trigger automatically via M-Pesa once collective funds are secured.</p>
-                              </div>
-                            </div>
-                            <span className="badge badge-success px-2 py-1 text-[10px]">VERIFIED 10/10</span>
-                          </div>
-                        )}
-
-                        {swapRequests.incoming.length > 0 && (
-                          <div className="alert alert-info shadow-sm">
-                            <h4 className="flex items-center gap-2 mb-3 text-blue-700"><Bell size={18} /> Incoming Swap Requests</h4>
-                            <div className="grid gap-3">
-                              {swapRequests.incoming.map(req => (
-                                <div key={req.request_id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-xl border border-blue-100 dark:border-blue-900 gap-4 shadow-sm">
-                                  <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <strong className="text-gray-900 dark:text-gray-100">{req.requester_first_name} {req.requester_last_name}</strong>
-                                      <span className="text-gray-500 font-normal">wants to swap slots</span>
-                                    </div>
-                                    <div className="text-xs text-gray-600 dark:text-gray-400">
-                                      Reason: <span className="italic">"{req.reason}"</span>
-                                    </div>
-                                    {req.swap_fee > 0 && (
-                                      <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-md text-xs font-bold border border-amber-200 dark:border-amber-800">
-                                        <DollarSign size={12} /> Incentive Offered: {formatCurrency(req.swap_fee)}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="flex gap-2">
-                                    <button
-                                      className="btn btn-sm btn-success px-4"
-                                      onClick={() => handleSwapResponse(req.request_id, 'APPROVED')}
-                                    >
-                                      Accept Swap
-                                    </button>
-                                    <button
-                                      className="btn btn-sm btn-outline px-4"
-                                      onClick={() => handleSwapResponse(req.request_id, 'REJECTED')}
-                                    >
-                                      Decline
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {swapRequests.outgoing.map(req => (
-                          <div key={req.request_id} className="alert alert-secondary mt-2 flex items-center justify-between border-slate-200">
-                            <div className="flex items-center gap-2">
-                              <Clock size={16} className="text-slate-400" />
-                              <span>Pending swap request with <strong>{req.target_first_name} {req.target_last_name}</strong></span>
-                            </div>
-                            {req.swap_fee > 0 && <span className="text-xs font-bold text-slate-500">Fee: {formatCurrency(req.swap_fee)}</span>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                      <div className="card-premium">
-                        <span className="text-secondary text-xs uppercase font-bold tracking-wider block mb-2">Cycle Name</span>
-                        <span className="card-value-premium text-lg font-bold">{activeCycle.cycle_name}</span>
-                      </div>
-                      <div className="card-premium">
-                        <span className="text-secondary text-xs uppercase font-bold tracking-wider block mb-2">Progress</span>
-                        <span className="card-value-premium text-lg font-bold text-primary">
-                          {Math.round(getCycleProgress())}%
-                        </span>
-                      </div>
-                      <div className="card-premium">
-                        <span className="text-secondary text-xs uppercase font-bold tracking-wider block mb-2">Next Payout</span>
-                        <span className="card-value-premium text-lg font-bold text-success">
-                          {formatCurrency(
-                            activeCycle.contribution_amount * members.length
-                          )}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="h-4 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden border border-slate-200 dark:border-slate-600 mb-8">
-                      <div
-                        className="h-full bg-primary transition-all duration-1000"
-                        style={{ width: `${getCycleProgress()}%` }}
-                      ></div>
-                    </div>
-
-                    <div className="dashboard-card-lux mb-8 border border-success/30 relative overflow-hidden">
-                      <div className="absolute top-0 left-0 w-full h-1 bg-success"></div>
-                      
-                      <div className="card-header pb-4 mb-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
-                        <h4 className="flex items-center gap-2 m-0 text-gray-800 dark:text-gray-100 font-bold">
-                          <User size={18} className="text-success" />
-                          Current Recipient
-                        </h4>
-                        <span className="status-pill-lux status-verified px-3 py-1">Ready for Payout</span>
-                      </div>
-
-                      {getCurrentRecipient() && (
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                          
-                          <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-full bg-success/10 flex items-center justify-center text-success font-bold text-xl shrink-0 border border-success/20">
-                              {getCurrentRecipient().first_name[0]}
-                              {getCurrentRecipient().last_name[0]}
-                            </div>
-                            <div>
-                              <h5 className="text-xl font-bold text-gray-900 dark:text-gray-50 mb-1">
-                                {getCurrentRecipient().first_name} {getCurrentRecipient().last_name}
-                              </h5>
-                              <p className="text-sm text-gray-500 dark:text-gray-400 m-0 flex items-center gap-2">
-                                Expected Payout:
-                                <span className="font-bold text-lg text-gray-900 dark:text-gray-100 tracking-tight">
-                                  {formatCurrency(activeCycle.contribution_amount * members.length)}
-                                </span>
-                              </p>
-                            </div>
-                          </div>
-
-                          {['TREASURER', 'CHAIRPERSON'].includes(userRole) && (
-                            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto mt-2 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-gray-100 dark:border-gray-800">
-                              <button
-                                className="btn-lux btn-lux-primary flex-1 md:flex-none shadow-sm h-10 px-5 font-bold"
-                                onClick={() => {
-                                  setPayoutRecipient({
-                                    ...getCurrentRecipient(),
-                                    position: roster.find(r => r.user_id === getCurrentRecipient().user_id).position
-                                  });
-                                  setShowPayoutModal(true);
-                                }}
-                              >
-                                Disburse Funds
-                              </button>
-
-                              <button
-                                className="btn-lux btn-lux-outline flex-1 md:flex-none h-10 px-4 flex justify-center items-center gap-2 transition-colors cursor-pointer"
-                                onClick={() => {
-                                  confirmAction({
-                                    title: "Cancel ROSCA Cycle",
-                                    message: "Are you sure you want to cancel this cycle? This will stop future payouts but keep existing history.",
-                                    variant: "warning",
-                                    confirmLabel: "Yes, Cancel Cycle",
-                                    onConfirm: async () => {
-                                      try {
-                                        await roscaAPI.cancelCycle(activeCycle.cycle_id);
-                                        toast.success("Cycle cancelled successfully");
-                                        fetchChamaData();
-                                      } catch (err) {
-                                        toast.error(err.response?.data?.message || "Failed to cancel cycle");
-                                      }
-                                    }
-                                  });
-                                }}
-                              >
-                                <RefreshCw size={14} /> Cancel
-                              </button>
-
-                              <button
-                                className="btn-lux btn-lux-outline flex-1 md:flex-none h-10 px-4 flex justify-center items-center gap-2 cursor-pointer border-danger"
-                                onClick={() => {
-                                  if (window.confirm("Are you sure you want to delete this cycle? This action cannot be undone and will remove all roster and payment history for this cycle.")) {
-                                    roscaAPI.deleteCycle(activeCycle.cycle_id)
-                                      .then(() => {
-                                        toast.success("Cycle deleted successfully.");
-                                        fetchChamaData();
-                                      })
-                                      .catch(err => {
-                                        console.error(err);
-                                        toast.error(err.response?.data?.message || "Failed to delete cycle");
-                                      });
-                                  }
-                                }}
-                              >
-                                <Trash2 size={14} /> Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="dashboard-card-lux mb-8">
-                      <div className="card-header pb-4 mb-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                        <h4 className="flex items-center gap-2 m-0 text-gray-800 dark:text-gray-100">
-                          <Users size={18} className="text-primary" /> Cycle Roster
-                        </h4>
-                      </div>
-                      
-                      <div className="overflow-x-auto">
-                        <table className="table-lux w-full text-left border-collapse">
-                          <thead>
-                            <tr className="bg-gray-50 dark:bg-slate-800/50">
-                              <th className="p-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700 w-16 text-center">Pos</th>
-                              <th className="p-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">Member</th>
-                              <th className="p-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">Payout Status</th>
-                              <th className="p-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700 text-right">Expected Payout</th>
-                              <th className="p-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700 text-right">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                            {roster.map((member, index) => {
-                              const status = getMemberStatus(member);
-                              const isCurrentUser = member.user_id === user?.id;
-                              const isFutureSlot = status === "WAITING";
-                              const canRequestSwap = !isCurrentUser && isFutureSlot && roster.find(r => r.user_id === user?.id)?.status === "WAITING";
-                              
-                              const payoutAmount = activeCycle.contribution_amount * members.length;
-
-                              return (
-                                <tr 
-                                  key={member.user_id} 
-                                  className={`hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-colors ${status === 'CURRENT_RECIPIENT' ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}
-                                >
-                                  <td className="p-3 text-center">
-                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 dark:bg-slate-700 text-xs font-bold text-gray-700 dark:text-gray-300">
-                                      {index + 1}
-                                    </span>
-                                  </td>
-                                  <td className="p-3">
-                                    <div className="flex items-center gap-3">
-                                      <div className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 ${
-                                          status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400' :
-                                          status === 'CURRENT_RECIPIENT' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400' :
-                                          'bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400'
-                                        }`}
-                                      >
-                                        {status === "COMPLETED" && <CheckCircle2 size={14} />}
-                                        {status === "CURRENT_RECIPIENT" && <Target size={14} />}
-                                        {status === "WAITING" && <Clock size={14} />}
-                                      </div>
-                                      <div>
-                                        <div className="font-bold text-gray-900 dark:text-gray-100 text-sm">
-                                          {member.first_name} {member.last_name}
-                                          {isCurrentUser && <span className="ml-2 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">You</span>}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="p-3">
-                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
-                                      status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400' :
-                                      status === 'CURRENT_RECIPIENT' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400 border border-blue-200 dark:border-blue-800' :
-                                      'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-400'
-                                    }`}>
-                                      {status.replace("_", " ")}
-                                    </span>
-                                  </td>
-                                  <td className="p-3 text-right">
-                                    <div className={`text-sm font-semibold ${status === 'COMPLETED' ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'}`}>
-                                      {formatCurrency(payoutAmount)}
-                                    </div>
-                                  </td>
-                                  <td className="p-3 text-right">
-                                    {canRequestSwap ? (
-                                      <button
-                                        className="btn btn-xs btn-outline hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
-                                        onClick={() => {
-                                          setSwapTarget(member);
-                                          setShowSwapModal(true);
-                                        }}
-                                      >
-                                        <ArrowRightLeft size={14} className="mr-1" /> Swap
-                                      </button>
-                                    ) : (
-                                      <span className="text-gray-300 dark:text-gray-600">-</span>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    <ContributionMatrix
-                      roster={roster}
-                      members={members}
-                      contributions={contributions}
-                      formatCurrency={formatCurrency}
-                      activeCycle={activeCycle}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
 
 
 
@@ -2568,7 +2078,7 @@ const ChamaDetails = () => {
                       path:`/chamas/${id}/loan-config`,
                       show: ['TABLE_BANKING','ASCA'].includes(chama?.chama_type)
                     },
-                  ].filter(c => c.show).map(({ icon: Icon, color, bg, border, title, sub, path }) => (
+                  ].filter(c => c.show).map(({ color, bg, border, title, sub, path }) => (
                     <div
                       key={title}
                       onClick={() => navigate(path)}
@@ -2760,19 +2270,6 @@ const ChamaDetails = () => {
         />
       )}
 
-      {showSwapModal && swapTarget && (
-        <SwapRequestModal
-          cycle={activeCycle}
-          targetMember={swapTarget}
-          onClose={() => {
-            setShowSwapModal(false);
-            setSwapTarget(null);
-          }}
-          onSuccess={() => {
-            alert("Swap request sent successfully!");
-          }}
-        />
-      )}
       {showPayoutModal && payoutRecipient && (
         <PayoutConfirmationModal
           cycle={activeCycle}

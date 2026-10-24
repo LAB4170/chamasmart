@@ -113,15 +113,17 @@ public class LoanController {
         return ResponseEntity.ok(ApiResponse.success(responseDto, "Guarantor response processed successfully"));
     }
     @GetMapping("/{chamaId}")
-    public ResponseEntity<ApiResponse<List<LoanSummaryDto>>> getChamaLoans(@PathVariable Long chamaId) {
-        log.info("REST request to fetch loans for chama ID: {}", chamaId);
-        List<LoanSummaryDto> loans = new java.util.ArrayList<>();
+    public ResponseEntity<ApiResponse<List<LoanSummaryDto>>> getChamaLoans(@PathVariable Long chamaId,
+                                                                           @AuthenticationPrincipal CustomUserDetails currentUser) {
+        log.info("REST request to fetch loans for chama ID: {} by user ID: {}", chamaId, currentUser.getUserId());
+        List<LoanSummaryDto> loans = loanService.getChamaLoans(chamaId, currentUser.getUserId());
         return ResponseEntity.ok(ApiResponse.success(loans, "Chama loans retrieved successfully"));
     }
     @GetMapping("/{chamaId}/{loanId}")
-    public ResponseEntity<ApiResponse<LoanSummaryDto>> getLoanById(@PathVariable Long chamaId, @PathVariable Long loanId) {
-        log.info("REST request to fetch loan ID: {} for chama ID: {}", loanId, chamaId);
-        return ResponseEntity.ok(ApiResponse.success(null, "Loan retrieved successfully"));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getLoanById(@PathVariable Long chamaId, @PathVariable Long loanId,
+                                                                        @AuthenticationPrincipal CustomUserDetails currentUser) {
+        log.info("REST request to fetch loan ID: {} for chama ID: {} by user ID: {}", loanId, chamaId, currentUser.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(loanService.getLoanDetail(chamaId, loanId, currentUser.getUserId()), "Loan retrieved successfully"));
     }
     @PutMapping("/{chamaId}/{loanId}/approve")
     public ResponseEntity<ApiResponse<Void>> approveLoan(
@@ -167,17 +169,38 @@ public class LoanController {
         return ResponseEntity.ok(ApiResponse.success(null, "Loan repaid successfully"));
     }
     @GetMapping("/{chamaId}/reports/analytics")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getChamaAnalytics(@PathVariable Long chamaId) {
-        log.info("REST request to fetch analytics for chama ID: {}", chamaId);
-        return ResponseEntity.ok(ApiResponse.success(new HashMap<>(), "Analytics retrieved successfully"));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getChamaAnalytics(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(loanService.analytics(chamaId, currentUser.getUserId()), "Analytics retrieved successfully"));
     }
     @GetMapping("/{chamaId}/config")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getConfig(@PathVariable Long chamaId) {
-        return ResponseEntity.ok(ApiResponse.success(new HashMap<>(), "Config retrieved"));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getConfig(@PathVariable Long chamaId,
+                                                                      @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(configMap(loanService.getConfig(chamaId, currentUser.getUserId())), "Config retrieved"));
     }
     @PutMapping("/{chamaId}/config")
-    public ResponseEntity<ApiResponse<Void>> updateConfig(@PathVariable Long chamaId, @RequestBody Map<String, Object> config) {
-        return ResponseEntity.ok(ApiResponse.success(null, "Config updated"));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateConfig(@PathVariable Long chamaId, @RequestBody Map<String, Object> config,
+                                                                         @AuthenticationPrincipal CustomUserDetails currentUser) {
+        try {
+            com.chamasmart.backend.domain.LoanConfig saved = loanService.updateConfig(chamaId, currentUser.getUserId(),
+                    toDecimal(config.get("interest_rate")), config.get("interest_type") == null ? null : config.get("interest_type").toString(),
+                    toDecimal(config.get("loan_multiplier")), config.get("max_repayment_months") == null ? null : ((Number) config.get("max_repayment_months")).intValue(),
+                    config.get("require_guarantors") == null ? null : Boolean.valueOf(config.get("require_guarantors").toString()));
+            return ResponseEntity.ok(ApiResponse.success(configMap(saved), "Config updated"));
+        } catch (NumberFormatException | ClassCastException e) {
+            throw new IllegalArgumentException("Loan settings contain an invalid number");
+        }
+    }
+    private static BigDecimal toDecimal(Object o) {
+        return o == null ? null : new BigDecimal(o.toString());
+    }
+    private static Map<String, Object> configMap(com.chamasmart.backend.domain.LoanConfig c) {
+        Map<String, Object> m = new HashMap<>();
+        m.put("interest_rate", c.getInterestRate());
+        m.put("interest_type", c.getInterestType());
+        m.put("loan_multiplier", c.getLoanMultiplier());
+        m.put("max_repayment_months", c.getMaxRepaymentMonths());
+        m.put("require_guarantors", c.getRequireGuarantors());
+        return m;
     }
 }
 

@@ -106,7 +106,7 @@ export const SocketProvider = ({ children }) => {
         socketRef.current.disconnect();
       }
 
-      const apiUrl = 'https://chamasmart-khrb.onrender.com/api/v1';
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
       const baseUrl = apiUrl.replace(/\/api\/?$/, "");
 
               // Create a SockJS endpoint for STOMP over WebSocket

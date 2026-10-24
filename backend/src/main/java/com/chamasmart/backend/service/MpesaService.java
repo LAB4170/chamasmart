@@ -53,7 +53,19 @@ public class MpesaService {
     @Value("${app.mpesa.callback-url:https://chamasmart-xcym.onrender.com/api/v1/mpesa/callback}")
     private String callbackUrl;
 
+    @Value("${app.mpesa.callback-secret:}")
+    private String callbackSecret;
+
     private final RestTemplate restTemplate = new RestTemplate();
+
+    /** Callback URL registered with Daraja; carries the shared secret the callback endpoint verifies. */
+    private String effectiveCallbackUrl() {
+        if (callbackSecret == null || callbackSecret.isBlank()) {
+            return callbackUrl;
+        }
+        return callbackUrl + (callbackUrl.contains("?") ? "&" : "?") + "token="
+                + java.net.URLEncoder.encode(callbackSecret, java.nio.charset.StandardCharsets.UTF_8);
+    }
 
     private String getAccessToken() {
         String baseUrl = "production".equalsIgnoreCase(env) ? "https://api.safaricom.co.ke" : "https://sandbox.safaricom.co.ke";
@@ -86,13 +98,28 @@ public class MpesaService {
     @Transactional
     public MpesaTransaction initiateStkPush(MpesaStkPushRequestDto requestDto, Long userId) {
         log.info("Initiating M-Pesa STK Push for user ID: {}, chama ID: {}, amount: {}", userId, requestDto.getChamaId(), requestDto.getAmount());
+        BigDecimal requested = requestDto.getAmount();
+        if (requested == null || requested.signum() <= 0 || requested.stripTrailingZeros().scale() > 0) {
+            // M-Pesa charges whole shillings; accepting cents would charge less than we would record.
+            throw new IllegalArgumentException("Amount must be a whole number of shillings greater than zero");
+        }
+        String phone = requestDto.getPhoneNumber() == null ? "" : requestDto.getPhoneNumber().trim();
+        if (!phone.matches("^(\\+?254|0)[17]\\d{8}$")) {
+            throw new IllegalArgumentException("Enter a valid Safaricom number, for example 0712345678");
+        }
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         Chama chama = chamaRepository.findById(requestDto.getChamaId())
                 .orElseThrow(() -> new RuntimeException("Chama not found"));
-        // Check if we should use mock logic
+        if (!chamaMemberRepository.existsByChamaChamaIdAndUserUserIdAndIsActiveTrue(chama.getChamaId(), userId)) {
+            throw new org.springframework.security.access.AccessDeniedException("You are not an active member of this chama");
+        }
+        // Mock payments are allowed only outside production. A placeholder secret in production must fail loudly.
         if (consumerSecret.contains("YOUR_DARAJA")) {
-            log.info("Using MOCKED Daraja STK Push because consumer-secret is a placeholder.");
+            if ("production".equalsIgnoreCase(env)) {
+                throw new IllegalStateException("M-Pesa is not configured: set MPESA_CONSUMER_SECRET");
+            }
+            log.warn("Using MOCKED Daraja STK Push (non-production, placeholder consumer-secret).");
             String checkoutRequestId = "ws_CO_" + UUID.randomUUID().toString().substring(0, 15).replace("-", "");
             String merchantRequestId = "req_" + UUID.randomUUID().toString().substring(0, 10).replace("-", "");
             
@@ -141,7 +168,7 @@ public class MpesaService {
         body.put("PartyA", Long.parseLong(formattedPhone));
         body.put("PartyB", Integer.parseInt(shortcode));
         body.put("PhoneNumber", Long.parseLong(formattedPhone));
-        body.put("CallBackURL", callbackUrl);
+        body.put("CallBackURL", effectiveCallbackUrl());
         body.put("AccountReference", "ChamaSmart");
         body.put("TransactionDesc", "Chama Contribution");
 
@@ -235,23 +262,53 @@ public class MpesaService {
         Integer resultCode = stkCallback.getResultCode();
         String resultDesc = stkCallback.getResultDesc();
         log.info("Processing M-Pesa Callback for CheckoutRequestID: {}, ResultCode: {}", checkoutRequestId, resultCode);
-        MpesaTransaction transaction = mpesaTransactionRepository.findByCheckoutRequestId(checkoutRequestId)
-                .orElseThrow(() -> new RuntimeException("MpesaTransaction not found for CheckoutRequestID: " + checkoutRequestId));
+        if (checkoutRequestId == null || resultCode == null) {
+            log.error("M-Pesa callback missing CheckoutRequestID or ResultCode; ignored");
+            return;
+        }
+        MpesaTransaction transaction = mpesaTransactionRepository.findByCheckoutRequestIdForUpdate(checkoutRequestId).orElse(null);
+        if (transaction == null) {
+            log.warn("M-Pesa callback for unknown CheckoutRequestID {}; ignored", checkoutRequestId);
+            return;
+        }
+        // Idempotency: Daraja can retry callbacks. Only a PENDING payment may be settled, exactly once.
+        if (!"PENDING".equals(transaction.getStatus())) {
+            log.info("Duplicate M-Pesa callback for {} (already {}); ignored", checkoutRequestId, transaction.getStatus());
+            return;
+        }
         transaction.setResultCode(resultCode);
         transaction.setResultDesc(resultDesc);
         if (resultCode == 0) {
-            // Transaction Successful
-            transaction.setStatus("COMPLETED");
-            // Extract MpesaReceiptNumber from metadata
-            String mpesaReceipt = "MPESA" + System.currentTimeMillis();
+            // Extract receipt and paid amount from metadata; never invent a receipt.
+            String mpesaReceipt = null;
+            BigDecimal paidAmount = null;
             if (stkCallback.getCallbackMetadata() != null && stkCallback.getCallbackMetadata().getItem() != null) {
                 for (MpesaCallbackDto.Item item : stkCallback.getCallbackMetadata().getItem()) {
-                    if ("MpesaReceiptNumber".equalsIgnoreCase(item.getName()) && item.getValue() != null) {
+                    if (item.getValue() == null) continue;
+                    if ("MpesaReceiptNumber".equalsIgnoreCase(item.getName())) {
                         mpesaReceipt = item.getValue().toString();
-                        break;
+                    } else if ("Amount".equalsIgnoreCase(item.getName())) {
+                        try { paidAmount = new BigDecimal(item.getValue().toString()); } catch (NumberFormatException ignored) { }
                     }
                 }
             }
+            if (mpesaReceipt == null || mpesaReceipt.isBlank()
+                    || (paidAmount != null && paidAmount.compareTo(transaction.getAmount()) != 0)) {
+                log.error("M-Pesa callback for {} rejected: missing receipt or amount mismatch (expected {}, got {})",
+                        checkoutRequestId, transaction.getAmount(), paidAmount);
+                transaction.setStatus("FAILED");
+                transaction.setResultDesc("Callback rejected: missing receipt or amount mismatch");
+                mpesaTransactionRepository.save(transaction);
+                return;
+            }
+            if (contributionRepository.existsByReference(mpesaReceipt)) {
+                log.warn("M-Pesa receipt {} already recorded; ignored", mpesaReceipt);
+                transaction.setStatus("FAILED");
+                transaction.setResultDesc("Duplicate receipt");
+                mpesaTransactionRepository.save(transaction);
+                return;
+            }
+            transaction.setStatus("COMPLETED");
             transaction.setMpesaReceipt(mpesaReceipt);
             // Create Contribution record
             Contribution contribution = Contribution.builder()
@@ -296,8 +353,28 @@ public class MpesaService {
         }
         mpesaTransactionRepository.save(transaction);
     }
+    /** Status of one STK push, visible only to the member who started it. */
     @Transactional(readOnly = true)
-    public List<ContributionSummaryDto> getContributionsByChamaId(Long chamaId) {
+    public Map<String, Object> getTransactionStatus(String checkoutRequestId, Long requesterId) {
+        MpesaTransaction t = mpesaTransactionRepository.findByCheckoutRequestId(checkoutRequestId)
+                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+        if (t.getUser() == null || !t.getUser().getUserId().equals(requesterId)) {
+            throw new org.springframework.security.access.AccessDeniedException("This payment belongs to another user");
+        }
+        Map<String, Object> m = new java.util.HashMap<>();
+        m.put("checkout_request_id", t.getCheckoutRequestId());
+        m.put("status", t.getStatus());
+        m.put("amount", t.getAmount());
+        m.put("receipt", t.getMpesaReceipt());
+        m.put("message", t.getResultDesc());
+        return m;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ContributionSummaryDto> getContributionsByChamaId(Long chamaId, Long requesterId) {
+        if (!chamaMemberRepository.existsByChamaChamaIdAndUserUserIdAndIsActiveTrue(chamaId, requesterId)) {
+            throw new org.springframework.security.access.AccessDeniedException("You are not an active member of this chama");
+        }
         log.info("Fetching contributions for chama ID: {}", chamaId);
         return contributionRepository.findByChamaChamaIdAndIsDeletedFalse(chamaId).stream()
                 .map(ContributionSummaryDto::fromEntity)

@@ -17,9 +17,14 @@ import java.util.Map;
 @RequestMapping({"/mpesa", "/payments/mpesa"})
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = "https://chamasmart.netlify.app")
 public class MpesaController {
     private final MpesaService mpesaService;
+
+    @org.springframework.beans.factory.annotation.Value("${app.mpesa.callback-secret:}")
+    private String callbackSecret;
+
+    @org.springframework.beans.factory.annotation.Value("${app.mpesa.env:sandbox}")
+    private String mpesaEnv;
     @PostMapping({"/stkpush", "/stk-push"})
     public ResponseEntity<ApiResponse<Map<String, String>>> initiateStkPush(@RequestBody MpesaStkPushRequestDto requestDto,
                                                                             @AuthenticationPrincipal CustomUserDetails currentUser) {
@@ -32,17 +37,23 @@ public class MpesaController {
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(ApiResponse.success(responseData, "M-Pesa STK Push initiated successfully. Please check your phone to enter PIN."));
     }
-    // Public webhook endpoint for Safaricom Daraja servers
+    // Public webhook endpoint for Safaricom Daraja. Authenticated by a shared secret in the registered callback URL
+    // (IP headers such as X-Forwarded-For can be forged by any client, so they are not trusted).
     @PostMapping("/callback")
-    public ResponseEntity<Map<String, String>> mpesaCallback(@RequestBody MpesaCallbackDto callbackDto, jakarta.servlet.http.HttpServletRequest request) {
-        String ipAddress = request.getHeader("X-Forwarded-For");
-        if (ipAddress == null || ipAddress.isEmpty()) {
-            ipAddress = request.getRemoteAddr();
+    public ResponseEntity<Map<String, String>> mpesaCallback(@RequestBody MpesaCallbackDto callbackDto,
+                                                             @RequestParam(value = "token", required = false) String token) {
+        boolean secretConfigured = callbackSecret != null && !callbackSecret.isBlank();
+        boolean authorised;
+        if (secretConfigured) {
+            authorised = token != null && java.security.MessageDigest.isEqual(
+                    token.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                    callbackSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } else {
+            // No secret configured: tolerated only outside production (sandbox/local development).
+            authorised = !"production".equalsIgnoreCase(mpesaEnv);
         }
-        log.info("REST request received Safaricom M-Pesa Daraja Callback from IP: {}", ipAddress);
-        // Basic Safaricom IP Whitelist Validation (196.201.214.*, 196.201.213.*, 196.201.212.*)
-        if (ipAddress != null && !ipAddress.startsWith("196.201.") && !ipAddress.startsWith("127.0.0.1") && !ipAddress.startsWith("localhost")) {
-            log.warn("SECURITY ALERT: M-Pesa Callback blocked from unauthorized IP: {}", ipAddress);
+        if (!authorised) {
+            log.warn("SECURITY: M-Pesa callback rejected (missing or invalid token)");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         mpesaService.processCallback(callbackDto);
@@ -51,10 +62,16 @@ public class MpesaController {
         response.put("ResultDesc", "Callback processed successfully");
         return ResponseEntity.ok(response);
     }
+    @GetMapping("/transactions/{checkoutRequestId}")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getTransactionStatus(@PathVariable String checkoutRequestId,
+                                                                                 @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(mpesaService.getTransactionStatus(checkoutRequestId, currentUser.getUserId()), "Transaction status retrieved"));
+    }
     @GetMapping("/contributions/chamas/{chamaId}")
-    public ResponseEntity<ApiResponse<List<ContributionSummaryDto>>> getContributionsByChamaId(@PathVariable Long chamaId) {
+    public ResponseEntity<ApiResponse<List<ContributionSummaryDto>>> getContributionsByChamaId(@PathVariable Long chamaId,
+                                                                                                    @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to get contributions for chama ID: {}", chamaId);
-        List<ContributionSummaryDto> contributions = mpesaService.getContributionsByChamaId(chamaId);
+        List<ContributionSummaryDto> contributions = mpesaService.getContributionsByChamaId(chamaId, currentUser.getUserId());
         return ResponseEntity.ok(ApiResponse.success(contributions, "Contributions retrieved successfully"));
     }
     @GetMapping("/contributions/my")

@@ -1,8 +1,8 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import VerifyEmailPhone from "../pages/Auth/VerifyEmailPhone";
-import { AuthProvider, useAuth } from "../context/AuthContext";
+import VerifyEmailPhone from "../pages/auth/VerifyEmailPhone";
+import { AuthProvider } from "../context/AuthContext";
 
 // Mock AuthContext to control verifyEmail/verifyPhone behavior
 jest.mock("../context/AuthContext", () => {

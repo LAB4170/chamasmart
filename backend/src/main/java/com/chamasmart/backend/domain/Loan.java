@@ -32,6 +32,9 @@ public class Loan {
     @Column(name = "interest_rate", precision = 5, scale = 2)
     @Builder.Default
     private BigDecimal interestRate = BigDecimal.valueOf(10.0);
+    @Column(name = "interest_type", length = 20)
+    private String interestType; // null on older loans = FLAT
+
     @Column(name = "term_months", nullable = false)
     private Integer termMonths;
     @Column(columnDefinition = "TEXT")

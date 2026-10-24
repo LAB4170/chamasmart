@@ -1,634 +1,287 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useParams, Link } from "react-router-dom";
+import { toast } from "react-toastify";
 import { loanAPI, chamaAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
-import ConfirmDialog from "../../../components/ConfirmDialog";
+import { Button, PageHeader, StatCard, StatusBadge, DataTable, Dialog, Skeleton } from "../../../components/ui";
+import { formatKES, formatDate } from "../../../utils/format";
 import LoanAnalyticsDashboard from "./LoanAnalyticsDashboard";
-import {
-    ArrowLeft, Plus, BarChart2, Clock, CheckCircle2, Wallet,
-    AlertCircle, FileText, X, Check, DollarSign, Calendar
-} from "lucide-react";
-import { toast } from "react-toastify";
-import "../core/ChamaDetailsLux.css";
-import "../../loans/MyLoans.css";
 
-const LoanManagement = () => {
-    const { id } = useParams();
-    const { user } = useAuth();
-    const navigate = useNavigate();
+const OPEN = ["APPROVED", "DISBURSED", "DEFAULTED"];
+const PAID = ["COMPLETED", "PAID_OFF"];
+const FILTERS = [
+  { id: "ALL", label: "All" },
+  { id: "PENDING", label: "Pending" },
+  { id: "ACTIVE", label: "Active" },
+  { id: "PAID", label: "Paid off" },
+];
+const STATUS_LABELS = { PENDING: "Awaiting review", APPROVED: "Approved", DISBURSED: "Active", COMPLETED: "Paid off", PAID_OFF: "Paid off" };
+const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+const toList = (d) => (Array.isArray(d) ? d : d?.loans || []);
 
-    const [chama, setChama] = useState(null);
-    const [loans, setLoans] = useState([]);
-    const [members, setMembers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [filter, setFilter] = useState("ALL");
-    const [activeTab, setActiveTab] = useState("LOANS");
-    const [actionLoading, setActionLoading] = useState(null);
-    const [detailsLoading, setDetailsLoading] = useState(false);
-    const [selectedLoan, setSelectedLoan] = useState(null);
-    const [loanDetails, setLoanDetails] = useState(null);
+export default function LoanManagement() {
+  const { id } = useParams();
+  const { user } = useAuth();
 
-    // Dialog state
-    const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-    const [loanToReject, setLoanToReject] = useState(null);
-    const [rejectReason, setRejectReason] = useState("");
+  const [chama, setChama] = useState(null);
+  const [loans, setLoans] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [filter, setFilter] = useState("ALL");
+  const [tab, setTab] = useState("LOANS");
+  const [busyId, setBusyId] = useState(null);
 
-    useEffect(() => {
-        let isMounted = true;
+  const [details, setDetails] = useState(null); // { loan: row, data, loading, error }
+  const [approveFor, setApproveFor] = useState(null);
+  const [rejectFor, setRejectFor] = useState(null);
+  const [reason, setReason] = useState("");
 
-        const fetchData = async () => {
-            try {
-                if (isMounted) setLoading(true);
-                const [chamaRes, loansRes, membersRes] = await Promise.all([
-                    chamaAPI.getById(id),
-                    loanAPI.getChamaLoans(id),
-                    chamaAPI.getMembers(id),
-                ]);
-
-                if (isMounted) {
-                    setChama(chamaRes.data.data || chamaRes.data);
-                    const loansData = loansRes.data.data;
-                    setLoans(Array.isArray(loansData) ? loansData : (loansData?.loans || []));
-                    setMembers(membersRes.data.data || membersRes.data);
-                }
-            } catch (err) {
-                if (isMounted) {
-                    setError("Failed to load loan data");
-                    console.error(err);
-                }
-            } finally {
-                if (isMounted) setLoading(false);
-            }
-        };
-
-        fetchData();
-
-        return () => {
-            isMounted = false;
-        };
-    }, [id]);
-
-    const handleApproveLoan = async (loanId) => {
-        try {
-            setActionLoading(loanId);
-            const res = await loanAPI.approve(id, loanId);
-            
-            if (res.data?.message?.includes("already approved")) {
-                toast.info("This loan was already approved.");
-            } else {
-                toast.success("Loan approved successfully!");
-            }
-
-            // Refresh data
-            const loansRes = await loanAPI.getChamaLoans(id);
-            const loansData = loansRes.data.data;
-            setLoans(Array.isArray(loansData) ? loansData : (loansData?.loans || []));
-            setActionLoading(null);
-        } catch (err) {
-            console.error(err);
-            const message = err.response?.data?.message || "Failed to approve loan";
-            
-            if (err.response?.status === 403) {
-                toast.error(`Security Block: ${message}`, { autoClose: 6000 });
-            } else {
-                toast.error(message);
-            }
-            
-            setActionLoading(null);
-        }
-    };
-
-    const initiateRejectLoan = (loanId) => {
-        setLoanToReject(loanId);
-        setRejectReason("");
-        setRejectDialogOpen(true);
-    };
-
-    const handleConfirmReject = async () => {
-        if (!loanToReject || !rejectReason.trim()) return;
-
-        try {
-            setActionLoading(loanToReject);
-            setRejectDialogOpen(false);
-            await loanAPI.reject(id, loanToReject, rejectReason);
-            toast.success("Loan rejected successfully.");
-            // Refresh data
-            const loansRes = await loanAPI.getChamaLoans(id);
-            const loansData2 = loansRes.data.data;
-            setLoans(Array.isArray(loansData2) ? loansData2 : (loansData2?.loans || []));
-            setActionLoading(null);
-            setLoanToReject(null);
-        } catch (err) {
-            console.error(err);
-            toast.error(err.response?.data?.message || "Failed to reject loan");
-            setActionLoading(null);
-        }
-    };
-
-    const getUserRole = () => {
-        const member = members.find((m) => m.user_id === user?.id);
-        return member?.role || "MEMBER";
-    };
-
-    const isOfficial = () => {
-        const role = getUserRole();
-        return ["CHAIRPERSON", "SECRETARY", "TREASURER"].includes(role);
-    };
-
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat("en-KE", {
-            style: "currency",
-            currency: "KES",
-        }).format(amount);
-    };
-
-    const openLoanDetails = async (loan) => {
-        try {
-            setSelectedLoan(loan);
-            setDetailsLoading(true);
-            const res = await loanAPI.getLoanById(id, loan.loan_id);
-            setLoanDetails(res.data.data || res.data);
-        } catch (err) {
-            console.error(err);
-            setError(err.response?.data?.message || "Failed to load loan details");
-        } finally {
-            setDetailsLoading(false);
-        }
-    };
-
-    const closeLoanDetails = () => {
-        setSelectedLoan(null);
-        setLoanDetails(null);
-    };
-
-    const formatDate = (dateString) => {
-        if (!dateString) return "-";
-        return new Date(dateString).toLocaleDateString("en-KE", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-        });
-    };
-
-    const getStatusBadge = (status) => {
-        const normalized = status || "";
-        const badges = {
-            PENDING: "badge-warning",
-            APPROVED: "badge-info",
-            DISBURSED: "badge-success",
-            COMPLETED: "badge-primary",
-            DEFAULTED: "badge-error",
-            REJECTED: "badge-error",
-            CANCELLED: "badge-secondary",
-        };
-        return badges[normalized] || "badge-secondary";
-    };
-
-    const normalizedStatus = (status) => {
-        if (!status) return "UNKNOWN";
-        if (status === "PENDING") return "AWAITING REVIEW";
-        if (status === "APPROVED") return "APPROVED";
-        if (status === "DISBURSED") return "ACTIVE";
-        if (status === "COMPLETED") return "PAID OFF";
-        if (status === "DEFAULTED") return "DEFAULTED";
-        if (status === "REJECTED") return "REJECTED";
-        return status;
-    };
-
-    const filteredLoans =
-        filter === "ALL"
-            ? loans
-            : loans.filter((l) => {
-                if (filter === "PENDING") {
-                    return l.status === "PENDING";
-                }
-                if (filter === "ACTIVE") {
-                    return ["APPROVED", "DISBURSED", "DEFAULTED"].includes(l.status);
-                }
-                if (filter === "PAID") {
-                    return ["COMPLETED", "PAID_OFF"].includes(l.status);
-                }
-                return l.status === filter;
-            });
-
-    const stats = {
-        total: loans.length,
-        pending: loans.filter((l) => l.status === "PENDING").length,
-        active: loans.filter((l) => ["APPROVED", "DISBURSED", "DEFAULTED"].includes(l.status)).length,
-        totalAmount: loans
-            .filter((l) => ["APPROVED", "DISBURSED", "DEFAULTED"].includes(l.status))
-            .reduce((sum, l) => sum + parseFloat(l.loan_amount || 0), 0),
-    };
-
-    if (loading) {
-        return <div className="loading-spinner">Loading loans...</div>;
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const [c, l, m] = await Promise.all([chamaAPI.getById(id), loanAPI.getChamaLoans(id), chamaAPI.getMembers(id)]);
+      setChama(c.data?.data || c.data);
+      setLoans(toList(l.data?.data));
+      setMembers(m.data?.data || m.data || []);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
     }
+  }, [id]);
 
-    return (
-        <div className="manage-page-root">
-            <div className="container">
-                <div className="page-header-modern">
-                    <Link to={`/chamas/${id}`} className="btn-return-lux" style={{ marginBottom: "1.5rem", display: "inline-flex" }}>
-                        <ArrowLeft size={18} />
-                        <span>Back to Chama</span>
-                    </Link>
-                    <div className="page-header-row">
-                        <div className="page-header-info">
-                            <div className="page-header-icon amber">
-                                <DollarSign size={24} />
-                            </div>
-                            <div>
-                                <h1>Loan Management</h1>
-                                <p className="page-subtitle">{chama?.chama_name}</p>
-                            </div>
-                        </div>
-                        <Link to={`/chamas/${id}/loans/apply`} className="btn-action-primary">
-                            <Plus size={18} />
-                            <span>Apply for Loan</span>
-                        </Link>
-                    </div>
-                </div>
+  useEffect(() => { load(); }, [load]);
 
-                {isOfficial() && (
-                    <div style={{
-                        display: 'inline-flex',
-                        background: 'var(--surface-5)',
-                        border: '1px solid var(--border)',
-                        padding: '0.4rem',
-                        borderRadius: '999px',
-                        marginBottom: '2rem',
-                        gap: '0.5rem',
-                        boxShadow: 'var(--shadow-sm)'
-                    }}>
-                        <button 
-                            onClick={() => setActiveTab('LOANS')}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                padding: '0.6rem 1.25rem',
-                                borderRadius: '999px',
-                                fontSize: '0.875rem',
-                                fontWeight: 800,
-                                transition: 'all 0.3s ease',
-                                border: 'none',
-                                cursor: 'pointer',
-                                background: activeTab === 'LOANS' ? 'var(--primary)' : 'transparent',
-                                color: activeTab === 'LOANS' ? '#fff' : 'var(--text-secondary)',
-                                boxShadow: activeTab === 'LOANS' ? 'var(--shadow-md)' : 'none'
-                            }}
-                        >
-                            <Wallet size={16} /> Active Loans
-                        </button>
-                        <button 
-                            onClick={() => setActiveTab('DASHBOARD')}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                padding: '0.6rem 1.25rem',
-                                borderRadius: '999px',
-                                fontSize: '0.875rem',
-                                fontWeight: 800,
-                                transition: 'all 0.3s ease',
-                                border: 'none',
-                                cursor: 'pointer',
-                                background: activeTab === 'DASHBOARD' ? '#2563eb' : 'transparent',
-                                color: activeTab === 'DASHBOARD' ? '#ffffff' : 'var(--text-secondary)',
-                                boxShadow: activeTab === 'DASHBOARD' ? 'var(--shadow-md)' : 'none'
-                            }}
-                        >
-                            <BarChart2 size={16} /> Loan Analytics
-                        </button>
-                    </div>
-                )}
+  const refreshLoans = async () => {
+    const res = await loanAPI.getChamaLoans(id);
+    setLoans(toList(res.data?.data));
+  };
 
-                {activeTab === 'DASHBOARD' && isOfficial() ? (
-                    <LoanAnalyticsDashboard chamaId={id} />
-                ) : (
-                    <>
-                        {/* Stats - Only visible in Loans tab */}
-                        <div className="stats-row" style={{ marginBottom: "2.5rem" }}>
-                            <div className="mini-stat-card-lux">
-                                <div className="stat-icon-circle blue">
-                                    <BarChart2 size={20} />
-                                </div>
-                                <div className="stat-content">
-                                    <div className="stat-label">Total Loans</div>
-                                    <div className="stat-value">{stats.total}</div>
-                                </div>
-                            </div>
-                            <div className="mini-stat-card-lux">
-                                <div className="stat-icon-circle amber">
-                                    <Clock size={20} />
-                                </div>
-                                <div className="stat-content">
-                                    <div className="stat-label">Pending Approval</div>
-                                    <div className="stat-value">{stats.pending}</div>
-                                </div>
-                            </div>
-                            <div className="mini-stat-card-lux">
-                                <div className="stat-icon-circle green">
-                                    <CheckCircle2 size={20} />
-                                </div>
-                                <div className="stat-content">
-                                    <div className="stat-label">Active Loans</div>
-                                    <div className="stat-value">{stats.active}</div>
-                                </div>
-                            </div>
-                            <div className="mini-stat-card-lux">
-                                <div className="stat-icon-circle purple" style={{ background: "rgba(139, 92, 246, 0.15)", color: "#8b5cf6" }}>
-                                    <Wallet size={20} />
-                                </div>
-                                <div className="stat-content">
-                                    <div className="stat-label">Total Loaned</div>
-                                    <div className="stat-value">{formatCurrency(stats.totalAmount)}</div>
-                                </div>
-                            </div>
-                        </div>
-                    </>
-                )}
+  const myRole = members.find((m) => m.user_id === user?.id)?.role || "MEMBER";
+  const isOfficial = ["CHAIRPERSON", "SECRETARY", "TREASURER"].includes(myRole);
 
-                {/* Filter */}
-                <div className="filter-bar" style={{ marginBottom: "2.5rem", display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                    <button
-                        className={`filter-btn-lux ${filter === "ALL" ? "active" : ""}`}
-                        onClick={() => setFilter("ALL")}
-                    >
-                        All ({loans.length})
-                    </button>
-                    <button
-                        className={`filter-btn-lux ${filter === "PENDING" ? "active" : ""}`}
-                        onClick={() => setFilter("PENDING")}
-                    >
-                        Pending ({loans.filter((l) => l.status === "PENDING").length})
-                    </button>
-                    <button
-                        className={`filter-btn-lux ${filter === "ACTIVE" ? "active" : ""}`}
-                        onClick={() => setFilter("ACTIVE")}
-                    >
-                        Active ({loans.filter((l) => ["APPROVED", "DISBURSED"].includes(l.status)).length})
-                    </button>
-                    <button
-                        className={`filter-btn-lux ${filter === "PAID" ? "active" : ""}`}
-                        onClick={() => setFilter("PAID")}
-                    >
-                        Paid ({loans.filter((l) => ["COMPLETED", "PAID_OFF"].includes(l.status)).length})
-                    </button>
-                </div>
+  const approve = async () => {
+    const loan = approveFor;
+    setBusyId(loan.loan_id);
+    try {
+      const res = await loanAPI.approve(id, loan.loan_id);
+      toast[res.data?.message?.includes("already approved") ? "info" : "success"](res.data?.message?.includes("already approved") ? "This loan was already approved." : "Loan approved.");
+      setApproveFor(null);
+      await refreshLoans();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "We couldn't approve this loan.", { autoClose: 6000 });
+    } finally {
+      setBusyId(null);
+    }
+  };
 
-                {/* Loans List */}
-                <div className="table-card-lux">
-                    <div className="card-header" style={{ marginBottom: "24px" }}>
-                        <h3 style={{ fontSize: "1.5rem", fontWeight: 900 }}>Loans</h3>
-                    </div>
+  const reject = async () => {
+    const loan = rejectFor;
+    if (!reason.trim()) return;
+    setBusyId(loan.loan_id);
+    try {
+      await loanAPI.reject(id, loan.loan_id, reason.trim());
+      toast.success("Loan rejected.");
+      setRejectFor(null);
+      await refreshLoans();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "We couldn't reject this loan.");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
-                    {filteredLoans.length === 0 ? (
-                        <div className="empty-state-modern compact" style={{ padding: "40px 20px", textAlign: "center" }}>
-                            <div className="empty-state-icon" style={{ opacity: 0.4, marginBottom: "16px" }}>
-                                <FileText size={36} strokeWidth={1.5} />
-                            </div>
-                            <h3>No loans found</h3>
-                            <p>There are no loans matching your current filter.</p>
-                        </div>
-                    ) : (
-                        <div className="table-responsive">
-                            <table className="table-lux">
-                                <thead>
-                                    <tr>
-                                        <th>Borrower</th>
-                                        <th>Amount</th>
-                                        <th>Interest</th>
-                                        <th>Total Repayable</th>
-                                        <th>Paid</th>
-                                        <th>Due Date</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredLoans.map((loan) => (
-                                        <tr key={loan.loan_id}>
-                                            <td>
-                                                <strong>{loan.borrower_name}</strong>
-                                                {loan.purpose && (
-                                                    <div className="text-muted" style={{ fontSize: "0.85rem" }}>
-                                                        {loan.purpose}
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td>{formatCurrency(loan.loan_amount)}</td>
-                                            <td>{loan.interest_rate}%</td>
-                                            <td className="text-success">
-                                                {formatCurrency(loan.total_repayable)}
-                                            </td>
-                                            <td>
-                                                {formatCurrency(loan.amount_paid || 0)}
-                                                <div className="text-muted" style={{ fontSize: "0.85rem" }}>
-                                                    {((parseFloat(loan.amount_paid || 0) / parseFloat(loan.total_repayable)) * 100).toFixed(0)}%
-                                                </div>
-                                            </td>
-                                            <td>{formatDate(loan.due_date)}</td>
-                                            <td>
-                                                <span className={`badge ${getStatusBadge(loan.status)}`}>
-                                                    {normalizedStatus(loan.status)}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <div style={{ display: "flex", gap: "0.5rem", flexWrap: 'wrap' }}>
-                                                    <button
-                                                        className="btn btn-sm btn-outline"
-                                                        onClick={() => openLoanDetails(loan)}
-                                                    >
-                                                        Details
-                                                    </button>
-                                                    {loan.status === "PENDING" && isOfficial() && (
-                                                        <>
-                                                            <button
-                                                                className="btn btn-sm btn-success"
-                                                                onClick={() => handleApproveLoan(loan.loan_id)}
-                                                                disabled={actionLoading === loan.loan_id}
-                                                                title="Approve"
-                                                            >
-                                                                {actionLoading === loan.loan_id ? "..." : <Check size={14} />}
-                                                            </button>
-                                                            <button
-                                                                className="btn btn-sm btn-danger"
-                                                                onClick={() => initiateRejectLoan(loan.loan_id)}
-                                                                disabled={actionLoading === loan.loan_id}
-                                                                title="Reject"
-                                                            >
-                                                                <X size={14} />
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                    {(loan.is_borrower && ["APPROVED", "DISBURSED", "DEFAULTED"].includes(loan.status)) || 
-                                                     (loan.is_guarantor && loan.status === "DEFAULTED") ? (
-                                                        <Link
-                                                            to={`/chamas/${id}/loans/${loan.loan_id}/repay`}
-                                                            className={`btn btn-sm ${loan.status === "DEFAULTED" ? "btn-danger" : "btn-primary"}`}
-                                                            title={loan.is_guarantor ? "Settle Defaulted Loan" : "Make Repayment"}
-                                                        >
-                                                            {loan.is_guarantor ? "Settle Liability" : "Repay"}
-                                                        </Link>
-                                                    ) : null}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
+  const openDetails = async (loan) => {
+    setDetails({ loan, data: null, loading: true, error: false });
+    try {
+      const res = await loanAPI.getLoanById(id, loan.loan_id);
+      setDetails({ loan, data: res.data?.data || res.data, loading: false, error: false });
+    } catch {
+      setDetails({ loan, data: null, loading: false, error: true });
+    }
+  };
 
-            {/* Loan Details Modal */}
-            {selectedLoan && loanDetails && (
-                <div className="modal-overlay-lux" onClick={closeLoanDetails}>
-                    <div className="modal-content-lux" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
-                            <h3 style={{ fontSize: "1.5rem", fontWeight: 900, margin: 0 }}>Loan Details</h3>
-                            <button className="btn-icon" onClick={closeLoanDetails} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--lux-text-secondary)" }}>
-                                <X size={24} />
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            {detailsLoading ? (
-                                <div className="loading-spinner">Loading details...</div>
-                            ) : (
-                                <>
-                                    <div className="info-grid">
-                                        <div className="info-item">
-                                            <span className="info-label">Borrower</span>
-                                            <span className="info-value">{loanDetails.loan.borrower_name}</span>
-                                        </div>
-                                        <div className="info-item">
-                                            <span className="info-label">Amount</span>
-                                            <span className="info-value">{formatCurrency(loanDetails.loan.loan_amount)}</span>
-                                        </div>
-                                        <div className="info-item">
-                                            <span className="info-label">Interest Type</span>
-                                            <span className="info-value">{loanDetails.loan.interest_type}</span>
-                                        </div>
-                                        <div className="info-item">
-                                            <span className="info-label">Interest Rate</span>
-                                            <span className="info-value">{loanDetails.loan.interest_rate}%</span>
-                                        </div>
-                                        <div className="info-item">
-                                            <span className="info-label">Total Repayable</span>
-                                            <span className="info-value">{formatCurrency(loanDetails.loan.total_repayable)}</span>
-                                        </div>
-                                        <div className="info-item">
-                                            <span className="info-label">Amount Paid</span>
-                                            <span className="info-value text-success">{formatCurrency(loanDetails.loan.amount_paid || 0)}</span>
-                                        </div>
-                                        <div className="info-item">
-                                            <span className="info-label">Balance Remaining</span>
-                                            <span className="info-value text-error">{formatCurrency(loanDetails.loan.balance || 0)}</span>
-                                        </div>
-                                        <div className="info-item">
-                                            <span className="info-label">Monthly Payment</span>
-                                            <span className="info-value">{formatCurrency(loanDetails.loan.monthly_payment || 0)}</span>
-                                        </div>
-                                    </div>
+  const stats = useMemo(() => {
+    const open = loans.filter((l) => OPEN.includes(l.status));
+    return {
+      total: loans.length,
+      pending: loans.filter((l) => l.status === "PENDING").length,
+      active: open.length,
+      lent: open.reduce((s, l) => s + num(l.loan_amount), 0),
+    };
+  }, [loans]);
 
-                                    {loanDetails.schedule && loanDetails.schedule.length > 0 && (
-                                        <div style={{ marginTop: "1.5rem" }}>
-                                            <h4>Repayment Schedule</h4>
-                                            <div className="table-responsive">
-                                                <table className="table table-sm">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>#</th>
-                                                            <th>Due Date</th>
-                                                            <th>Total Due</th>
-                                                            <th>Principal</th>
-                                                            <th>Interest</th>
-                                                            <th>Balance</th>
-                                                            <th>Status</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {loanDetails.schedule.map((inst) => (
-                                                            <tr key={inst.installment_number}>
-                                                                <td>{inst.installment_number}</td>
-                                                                <td>{new Date(inst.due_date).toLocaleDateString("en-KE")}</td>
-                                                                <td><strong>{formatCurrency(inst.total_amount)}</strong></td>
-                                                                <td>{formatCurrency(inst.principal_amount)}</td>
-                                                                <td>{formatCurrency(inst.interest_amount)}</td>
-                                                                <td className="text-muted">{formatCurrency(inst.balance)}</td>
-                                                                <td><span className={`badge ${inst.status === 'PAID' ? 'badge-success' : 'badge-warning'}`}>{inst.status}</span></td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    )}
+  const rows = useMemo(() => loans.filter((l) => {
+    if (filter === "ALL") return true;
+    if (filter === "PENDING") return l.status === "PENDING";
+    if (filter === "ACTIVE") return OPEN.includes(l.status);
+    return PAID.includes(l.status);
+  }), [loans, filter]);
 
-                                    {loanDetails.guarantors && loanDetails.guarantors.length > 0 && (
-                                        <div style={{ marginTop: "1.5rem" }}>
-                                            <h4>Guarantors</h4>
-                                            {loanDetails.loan.status === 'DEFAULTED' && chama?.chama_type === 'ASCA' && (
-                                                <div className="alert alert-danger" style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                                                    <AlertCircle size={18} />
-                                                    <strong>ASCA Risk Alert:</strong> This loan has defaulted. Guarantors' shares are FROZEN to cover liabilities.
-                                                </div>
-                                            )}
-                                            <div className="table-responsive">
-                                                <table className="table table-sm">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Name</th>
-                                                            <th>Covering</th>
-                                                            <th>Status</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {loanDetails.guarantors.map((g, idx) => (
-                                                            <tr key={g.guarantor_user_id || idx} className={g.liability_status === 'FROZEN' ? 'bg-danger-light' : ''}>
-                                                                <td><strong>{g.guarantor_name || `${g.first_name || ''} ${g.last_name || ''}`.trim() || 'Unknown'}</strong></td>
-                                                                <td>{formatCurrency(g.guarantee_amount)}</td>
-                                                                <td>
-                                                                    <span className={`badge ${g.status === 'ACCEPTED' ? 'badge-success' : g.status === 'REJECTED' ? 'badge-error' : 'badge-warning'}`}>{g.status || 'PENDING'}</span>
-                                                                    {g.liability_status === 'FROZEN' && (
-                                                                        <span className="badge badge-error ml-2" style={{ marginLeft: "0.5rem" }}>FROZEN ❄️</span>
-                                                                    )}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                    </div>
-                </div>
+  const countFor = (f) => (f === "ALL" ? loans.length : f === "PENDING" ? stats.pending : f === "ACTIVE" ? stats.active : loans.filter((l) => PAID.includes(l.status)).length);
+
+  const columns = [
+    { key: "borrower_name", header: "Borrower", render: (l) => (<><strong>{l.borrower_name}</strong>{l.purpose && <div className="cs-list-meta">{l.purpose}</div>}</>), searchText: (l) => `${l.borrower_name} ${l.purpose || ""}` },
+    { key: "loan_amount", header: "Amount", align: "num", sortValue: (l) => num(l.loan_amount), render: (l) => formatKES(l.loan_amount) },
+    { key: "interest_rate", header: "Interest", align: "num", sortValue: (l) => num(l.interest_rate), render: (l) => (l.interest_rate != null ? `${num(l.interest_rate)}%` : "—") },
+    { key: "total_repayable", header: "Total repayable", align: "num", sortValue: (l) => num(l.total_repayable), render: (l) => formatKES(l.total_repayable) },
+    { key: "amount_paid", header: "Paid", align: "num", sortValue: (l) => num(l.amount_paid), render: (l) => formatKES(l.amount_paid || 0) },
+    { key: "due_date", header: "Due", sortValue: (l) => l.due_date || "", render: (l) => formatDate(l.due_date), searchText: (l) => formatDate(l.due_date) },
+    { key: "status", header: "Status", render: (l) => <StatusBadge status={l.status} label={STATUS_LABELS[l.status]} />, searchText: (l) => STATUS_LABELS[l.status] || l.status },
+    {
+      key: "actions", header: "Actions", sortValue: undefined, searchText: () => "",
+      render: (l) => (
+        <div className="cs-actions">
+          <Button size="sm" onClick={() => openDetails(l)}>Details</Button>
+          {l.status === "PENDING" && isOfficial && (
+            <>
+              <Button size="sm" variant="primary" disabled={busyId === l.loan_id} onClick={() => setApproveFor(l)}>Approve</Button>
+              <Button size="sm" variant="danger" disabled={busyId === l.loan_id} onClick={() => { setReason(""); setRejectFor(l); }}>Reject</Button>
+            </>
+          )}
+          {((l.is_borrower && OPEN.includes(l.status)) || (l.is_guarantor && l.status === "DEFAULTED")) && (
+            <Link to={`/chamas/${id}/loans/${l.loan_id}/repay`} className={`cs-btn cs-btn--sm ${l.status === "DEFAULTED" ? "cs-btn--danger" : "cs-btn--primary"}`}>
+              {l.is_guarantor ? "Settle liability" : "Repay"}
+            </Link>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const d = details?.data;
+  const scheduleCols = [
+    { key: "installment_number", header: "#", align: "num" },
+    { key: "due_date", header: "Due", render: (r) => formatDate(r.due_date) },
+    { key: "total_amount", header: "Total due", align: "num", render: (r) => formatKES(r.total_amount) },
+    { key: "principal_amount", header: "Principal", align: "num", render: (r) => formatKES(r.principal_amount) },
+    { key: "interest_amount", header: "Interest", align: "num", render: (r) => formatKES(r.interest_amount) },
+    { key: "balance", header: "Balance", align: "num", render: (r) => formatKES(r.balance) },
+    { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status === "PAID" ? "PAID" : "PENDING"} label={r.status === "PAID" ? "Paid" : "Due"} /> },
+  ];
+  const guarantorCols = [
+    { key: "name", header: "Guarantor", render: (g) => <strong>{g.guarantor_name || `${g.first_name || ""} ${g.last_name || ""}`.trim() || "Unknown"}</strong> },
+    { key: "guarantee_amount", header: "Covering", align: "num", render: (g) => formatKES(g.guarantee_amount) },
+    { key: "status", header: "Response", render: (g) => <StatusBadge status={g.status === "ACCEPTED" ? "APPROVED" : g.status || "PENDING"} label={g.status === "ACCEPTED" ? "Accepted" : g.status === "REJECTED" ? "Declined" : "Awaiting"} /> },
+    { key: "liability_status", header: "Savings", render: (g) => (g.liability_status === "FROZEN" ? <StatusBadge status="DEFAULTED" label="Frozen" /> : "—") },
+  ];
+
+  return (
+    <div className="cs-shell">
+      <main className="cs-page">
+        <PageHeader
+          title="Loans"
+          subtitle={chama?.chama_name}
+          actions={
+            <>
+              <Link to={`/chamas/${id}`} className="cs-btn cs-btn--secondary">Back to chama</Link>
+              <Link to={`/chamas/${id}/loans/apply`} className="cs-btn cs-btn--primary">Apply for a loan</Link>
+            </>
+          }
+        />
+
+        {error && (
+          <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 16, alignItems: "center", justifyContent: "space-between" }}>
+            <span>We couldn&apos;t load the loans for this chama.</span>
+            <Button size="sm" onClick={load}>Try again</Button>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="cs-grid" aria-busy="true" aria-label="Loading loans">
+            {[0, 1, 2, 3].map((i) => <div key={i} className="cs-card"><Skeleton height={14} width="50%" /><Skeleton height={30} style={{ marginTop: 12 }} /></div>)}
+          </div>
+        ) : !error && (
+          <>
+            {isOfficial && (
+              <div className="cs-chips" role="group" aria-label="View" style={{ marginBottom: 16 }}>
+                <button type="button" className="cs-chip" aria-pressed={tab === "LOANS"} onClick={() => setTab("LOANS")}>Loans</button>
+                <button type="button" className="cs-chip" aria-pressed={tab === "DASHBOARD"} onClick={() => setTab("DASHBOARD")}>Analytics</button>
+              </div>
             )}
 
-            {/* Reject Dialog */}
-            <ConfirmDialog
-                isOpen={rejectDialogOpen}
-                title="Reject Loan Application"
-                message="Please provide a reason for rejecting this loan application."
-                variant="danger"
-                confirmText="Reject Loan"
-                onConfirm={handleConfirmReject}
-                onCancel={() => setRejectDialogOpen(false)}
-                showInput={true}
-                inputLabel="Rejection Reason"
-                inputPlaceholder="e.g., Insufficient guarantors"
-                inputValue={rejectReason}
-                onInputChange={setRejectReason}
-                loading={actionLoading === loanToReject}
-            />
-        </div>
-        </div>
-    );
-};
+            {tab === "DASHBOARD" && isOfficial ? (
+              <LoanAnalyticsDashboard chamaId={id} />
+            ) : (
+              <>
+                <div className="cs-grid">
+                  <StatCard label="Loans" value={stats.total} note="All time" />
+                  <StatCard label="Awaiting review" value={stats.pending} />
+                  <StatCard label="Active loans" value={stats.active} />
+                  <StatCard label="Lent out" value={formatKES(stats.lent)} note="Principal on active loans" />
+                </div>
 
-export default LoanManagement;
+                <section className="cs-section" aria-labelledby="loan-table">
+                  <h2 id="loan-table" className="cs-section-title">All loans</h2>
+                  <div className="cs-chips" role="group" aria-label="Filter loans" style={{ marginBottom: 16 }}>
+                    {FILTERS.map((f) => (
+                      <button key={f.id} type="button" className="cs-chip" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>{f.label} ({countFor(f.id)})</button>
+                    ))}
+                  </div>
+                  <DataTable
+                    caption="Loans in this chama"
+                    columns={columns}
+                    rows={rows}
+                    rowKey={(l) => l.loan_id}
+                    searchPlaceholder="Search by borrower or purpose"
+                    emptyTitle="No loans in this view"
+                    emptyMessage="Try another filter, or apply for a loan."
+                    summarize={(filtered) => `Total borrowed ${formatKES(filtered.reduce((s, l) => s + num(l.loan_amount), 0))} · paid ${formatKES(filtered.reduce((s, l) => s + num(l.amount_paid), 0))}`}
+                  />
+                </section>
+              </>
+            )}
+          </>
+        )}
+      </main>
+
+      <Dialog open={Boolean(details)} title={details ? `Loan: ${details.loan.borrower_name}` : ""} onClose={() => setDetails(null)}
+        actions={<Button onClick={() => setDetails(null)}>Close</Button>}>
+        {details?.loading && <div aria-busy="true"><Skeleton height={16} width="60%" /><Skeleton height={16} style={{ marginTop: 8 }} /></div>}
+        {details?.error && <div className="cs-notice cs-notice--danger" role="alert">We couldn&apos;t load the details for this loan.</div>}
+        {d?.loan && (
+          <>
+            <dl className="cs-kv">
+              <div><dt>Amount</dt><dd>{formatKES(d.loan.loan_amount)}</dd></div>
+              <div><dt>Interest</dt><dd>{d.loan.interest_rate != null ? `${num(d.loan.interest_rate)}%` : "—"}{d.loan.interest_type ? ` (${String(d.loan.interest_type).toLowerCase()})` : ""}</dd></div>
+              <div><dt>Total repayable</dt><dd>{formatKES(d.loan.total_repayable)}</dd></div>
+              <div><dt>Paid</dt><dd>{formatKES(d.loan.amount_paid || 0)}</dd></div>
+              <div><dt>Balance</dt><dd>{formatKES(d.loan.balance || 0)}</dd></div>
+              <div><dt>Monthly payment</dt><dd>{formatKES(d.loan.monthly_payment || 0)}</dd></div>
+            </dl>
+            {d.schedule?.length > 0 && (
+              <section style={{ marginTop: 16 }}>
+                <h3 className="cs-section-title">Repayment schedule</h3>
+                <DataTable columns={scheduleCols} rows={d.schedule} rowKey={(r) => r.installment_number} searchable={false} pageSize={24} />
+              </section>
+            )}
+            {d.guarantors?.length > 0 && (
+              <section style={{ marginTop: 16 }}>
+                <h3 className="cs-section-title">Guarantors</h3>
+                {d.loan.status === "DEFAULTED" && chama?.chama_type === "ASCA" && (
+                  <div className="cs-notice cs-notice--danger" style={{ marginBottom: 12 }}>This loan has defaulted. Guarantors&apos; shares are frozen to cover the liability.</div>
+                )}
+                <DataTable columns={guarantorCols} rows={d.guarantors} rowKey={(g) => g.guarantor_user_id ?? g.guarantor_name ?? `${g.first_name}-${g.last_name}`} searchable={false} />
+              </section>
+            )}
+          </>
+        )}
+      </Dialog>
+
+      <Dialog open={Boolean(approveFor)} title="Approve this loan?" onClose={() => busyId === null && setApproveFor(null)}
+        actions={<><Button onClick={() => setApproveFor(null)} disabled={busyId !== null}>Cancel</Button><Button variant="primary" loading={busyId !== null} onClick={approve}>Approve loan</Button></>}>
+        {approveFor && <p>{approveFor.borrower_name} is asking for {formatKES(approveFor.loan_amount)}.</p>}
+      </Dialog>
+
+      <Dialog open={Boolean(rejectFor)} title="Reject this loan?" onClose={() => busyId === null && setRejectFor(null)}
+        actions={<><Button onClick={() => setRejectFor(null)} disabled={busyId !== null}>Cancel</Button><Button variant="danger" loading={busyId !== null} disabled={!reason.trim()} onClick={reject}>Reject loan</Button></>}>
+        <div className="cs-field">
+          <label className="cs-label" htmlFor="reject-reason">Reason<span className="cs-required" aria-hidden="true">*</span></label>
+          <textarea id="reject-reason" className="cs-input" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Not enough guarantors" />
+        </div>
+      </Dialog>
+    </div>
+  );
+}

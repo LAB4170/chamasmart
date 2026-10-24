@@ -1,277 +1,167 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { meetingAPI } from "../../../services/api";
-import { useAuth } from "../../../context/AuthContext";
+import { useState, useEffect, useCallback } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
-import { Calendar, MapPin, Clock, Video, Users, ArrowLeft, Save, Trash2, Globe, FileText, ClipboardList } from "lucide-react";
-import "./Meetings.css";
+import { meetingAPI, chamaAPI } from "../../../services/api";
+import { Button, PageHeader, StatusBadge, Skeleton, Dialog } from "../../../components/ui";
+import { formatDateTime } from "../../../utils/format";
 
-const MeetingDetails = () => {
-    const { id: chamaId, meetingId } = useParams();
-    const navigate = useNavigate();
-    const { user } = useAuth();
-    
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [meeting, setMeeting] = useState(null);
-    const [formData, setFormData] = useState({
-        title: "",
-        description: "",
-        date: "",
-        time: "",
-        location: "",
-        type: "PHYSICAL",
-        meetingLink: "",
-        status: "SCHEDULED"
-    });
+const OFFICIALS = ["CHAIRPERSON", "SECRETARY", "TREASURER"];
+const LABELS = { SCHEDULED: "Scheduled", IN_PROGRESS: "In progress", COMPLETED: "Held", CANCELLED: "Cancelled" };
 
-    useEffect(() => {
-        const fetchMeeting = async () => {
-            try {
-                setLoading(true);
-                const res = await meetingAPI.getById(chamaId, meetingId);
-                const data = res.data.data.meeting;
-                setMeeting(data);
-                
-                const scheduledDate = new Date(data.scheduled_date);
-                setFormData({
-                    title: data.title || "",
-                    description: data.description || "",
-                    date: scheduledDate.toISOString().split('T')[0],
-                    time: scheduledDate.toTimeString().slice(0, 5),
-                    location: data.location || "",
-                    type: data.meeting_type || "PHYSICAL",
-                    meetingLink: data.meeting_link || "",
-                    status: data.status || "SCHEDULED"
-                });
-            } catch (err) {
-                console.error(err);
-                toast.error("Failed to load meeting details");
-                navigate(`/chamas/${chamaId}/meetings`);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchMeeting();
-    }, [chamaId, meetingId, navigate]);
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleSave = async (e) => {
-        e.preventDefault();
-        try {
-            setSaving(true);
-            const scheduledAt = new Date(`${formData.date}T${formData.time}`);
-            
-            const payload = {
-                title: formData.title,
-                description: formData.description,
-                scheduledAt: scheduledAt.toISOString(),
-                location: formData.location,
-                type: formData.type,
-                meetingLink: formData.meetingLink,
-                status: formData.status
-            };
-
-            await meetingAPI.update(chamaId, meetingId, payload);
-            toast.success("Meeting updated successfully");
-            navigate(`/chamas/${chamaId}/meetings`);
-        } catch (err) {
-            console.error(err);
-            toast.error(err.response?.data?.message || "Failed to update meeting");
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const handleDelete = async () => {
-        if (!window.confirm("Are you sure you want to delete this meeting? This action cannot be undone.")) {
-            return;
-        }
-
-        try {
-            setSaving(true);
-            await meetingAPI.delete(chamaId, meetingId);
-            toast.success("Meeting deleted");
-            navigate(`/chamas/${chamaId}/meetings`);
-        } catch (err) {
-            console.error(err);
-            toast.error("Failed to delete meeting");
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    if (loading) return <div className="meetings-loading"><div className="spinner-modern"></div></div>;
-
-    return (
-        <div className="page meetings-page">
-            <div className="container">
-                <div className="meetings-header">
-                    <div>
-                        <button onClick={() => navigate(-1)} className="back-link-premium">
-                            <ArrowLeft size={16} /> Back
-                        </button>
-                        <h1 className="meetings-title">Manage Meeting</h1>
-                        {meeting && (
-                            <p className="meetings-subtitle">Edit details for: <strong>{meeting.title}</strong></p>
-                        )}
-                    </div>
-                    <div className="flex gap-3">
-                        {meeting?.status !== 'COMPLETED' && (
-                            <button 
-                                onClick={() => navigate(`/chamas/${chamaId}/meetings/${meetingId}/minutes`)} 
-                                className="btn-emerald"
-                            >
-                                <FileText size={18} /> Record Minutes
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                {meeting?.status === 'COMPLETED' && (
-                    <div className="minutes-vault-section mb-6">
-                        <div className="vault-card shadow-sm">
-                            <div className="vault-header">
-                                <ClipboardList size={22} />
-                                <h2 className="font-bold text-lg">Official Minutes Vault</h2>
-                            </div>
-                            <div className="vault-content">
-                                {meeting.description || "No official minutes were recorded for this meeting."}
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                <div className="card-modern">
-                    <form onSubmit={handleSave} className="meeting-form">
-                        <div className="form-group">
-                            <label className="form-label">Meeting Title</label>
-                            <input
-                                type="text"
-                                name="title"
-                                className="form-input"
-                                value={formData.title}
-                                onChange={handleChange}
-                                required
-                            />
-                        </div>
-
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label className="form-label">Date</label>
-                                <input
-                                    type="date"
-                                    name="date"
-                                    className="form-input"
-                                    value={formData.date}
-                                    onChange={handleChange}
-                                    required
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Time</label>
-                                <input
-                                    type="time"
-                                    name="time"
-                                    className="form-input"
-                                    value={formData.time}
-                                    onChange={handleChange}
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label className="form-label">Meeting Type</label>
-                                <select
-                                    name="type"
-                                    className="form-select"
-                                    value={formData.type}
-                                    onChange={handleChange}
-                                >
-                                    <option value="PHYSICAL">Physical</option>
-                                    <option value="VIRTUAL">Virtual</option>
-                                    <option value="HYBRID">Hybrid</option>
-                                </select>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Meeting Status</label>
-                                <select
-                                    name="status"
-                                    className="form-select"
-                                    value={formData.status}
-                                    onChange={handleChange}
-                                >
-                                    <option value="SCHEDULED">Scheduled</option>
-                                    <option value="COMPLETED">Completed</option>
-                                    <option value="CANCELLED">Cancelled</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label">
-                                {formData.type === 'VIRTUAL' ? 'Meeting Link' : 'Location'}
-                            </label>
-                            <input
-                                type="text"
-                                name={formData.type === 'VIRTUAL' ? 'meetingLink' : 'location'}
-                                className="form-input"
-                                value={formData.type === 'VIRTUAL' ? formData.meetingLink : formData.location}
-                                onChange={handleChange}
-                                placeholder={formData.type === 'VIRTUAL' ? "https://link.com" : "e.g. Community Hall"}
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label">Agenda / Minutes</label>
-                            <textarea
-                                name="description"
-                                className="form-textarea"
-                                rows="5"
-                                value={formData.description}
-                                onChange={handleChange}
-                            ></textarea>
-                        </div>
-
-                        <div className="form-actions-premium">
-                            <button
-                                type="button"
-                                onClick={handleDelete}
-                                className="btn-danger-outline"
-                                disabled={saving}
-                            >
-                                <Trash2 size={18} /> Delete Meeting
-                            </button>
-                            <div className="flex gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => navigate(-1)}
-                                    className="btn-hero-secondary"
-                                    disabled={saving}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="btn-hero-primary"
-                                    disabled={saving}
-                                >
-                                    <Save size={18} /> {saving ? "Saving..." : "Save Changes"}
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    );
+const toLocalParts = (iso) => {
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, "0");
+  return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}` };
 };
 
-export default MeetingDetails;
+export default function MeetingDetails() {
+  const { id: chamaId, meetingId } = useParams();
+  const navigate = useNavigate();
+  const [meeting, setMeeting] = useState(null);
+  const [role, setRole] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({ title: "", description: "", date: "", time: "", location: "", type: "PHYSICAL", meetingLink: "" });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setFailed(false);
+    try {
+      const [m, c] = await Promise.all([meetingAPI.getById(chamaId, meetingId), chamaAPI.getById(chamaId)]);
+      const data = m.data?.data;
+      setMeeting(data);
+      setRole((c.data?.data?.role || "").toUpperCase());
+      const { date, time } = toLocalParts(data.scheduled_date);
+      setForm({ title: data.title || "", description: data.description || "", date, time, location: data.location || "", type: data.meeting_type || "PHYSICAL", meetingLink: data.meeting_link || "" });
+    } catch {
+      setFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [chamaId, meetingId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const set = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  const isOfficial = OFFICIALS.includes(role);
+  const locked = meeting && (meeting.status === "CANCELLED" || meeting.status === "COMPLETED");
+
+  const save = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (form.title.trim().length < 3) return setError("Give the meeting a title of at least 3 characters.");
+    if (!form.date || !form.time) return setError("Choose a date and time.");
+    setSaving(true);
+    try {
+      await meetingAPI.update(chamaId, meetingId, {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        scheduledAt: new Date(`${form.date}T${form.time}`).toISOString(),
+        location: form.location.trim(),
+        type: form.type,
+        meetingLink: form.meetingLink.trim(),
+      });
+      toast.success("Meeting updated.");
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.message || "We couldn't save the changes.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const cancel = async () => {
+    setSaving(true);
+    try {
+      await meetingAPI.delete(chamaId, meetingId);
+      toast.success("Meeting cancelled. Members will see it as cancelled.");
+      setConfirmCancel(false);
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "We couldn't cancel the meeting.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="cs-shell"><main className="cs-page"><div className="cs-card" aria-busy="true" aria-label="Loading meeting"><Skeleton height={20} width="50%" /><Skeleton height={80} style={{ marginTop: 12 }} /></div></main></div>;
+  if (failed || !meeting) return (
+    <div className="cs-shell"><main className="cs-page">
+      <div className="cs-notice cs-notice--danger" role="alert" style={{ alignItems: "center", justifyContent: "space-between" }}>
+        <span>We couldn&apos;t load this meeting.</span>
+        <span className="cs-actions"><Button size="sm" onClick={load}>Try again</Button><Button size="sm" variant="secondary" onClick={() => navigate(`/chamas/${chamaId}/meetings`)}>Back to meetings</Button></span>
+      </div>
+    </main></div>
+  );
+
+  return (
+    <div className="cs-shell">
+      <main className="cs-page">
+        <PageHeader
+          title={meeting.title}
+          subtitle={formatDateTime(meeting.scheduled_date)}
+          actions={(
+            <>
+              <StatusBadge status={meeting.status} label={LABELS[meeting.status] || meeting.status} />
+              <Link to={`/chamas/${chamaId}/meetings`} className="cs-btn cs-btn--secondary">All meetings</Link>
+              {isOfficial && meeting.status !== "CANCELLED" && <Link to={`/chamas/${chamaId}/meetings/${meetingId}/minutes`} className="cs-btn cs-btn--primary">{meeting.status === "COMPLETED" ? "View minutes" : "Record minutes"}</Link>}
+            </>
+          )}
+        />
+
+        <section className="cs-card" aria-label="Meeting details" style={{ marginBottom: 16 }}>
+          <dl className="cs-kv">
+            <div><dt>Format</dt><dd>{(meeting.meeting_type || "").toLowerCase() || "—"}</dd></div>
+            <div><dt>Where</dt><dd>{meeting.location || "—"}</dd></div>
+            {meeting.meeting_link && <div><dt>Online</dt><dd><a href={meeting.meeting_link} target="_blank" rel="noopener noreferrer">Join online</a></dd></div>}
+          </dl>
+          {meeting.description && <p style={{ whiteSpace: "pre-wrap", marginBottom: 0 }}>{meeting.description}</p>}
+        </section>
+
+        {meeting.status === "COMPLETED" && (
+          <section className="cs-card" aria-label="Minutes" style={{ marginBottom: 16 }}>
+            <h2 className="cs-card-title">Minutes</h2>
+            <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{meeting.minutes || "No minutes were recorded for this meeting."}</p>
+          </section>
+        )}
+
+        {isOfficial && !locked && (
+          <form className="cs-card" onSubmit={save} noValidate style={{ maxWidth: 720 }}>
+            <h2 className="cs-card-title">Edit meeting</h2>
+            {error && <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 12 }}>{error}</div>}
+            <div className="cs-field"><label className="cs-label" htmlFor="md-title">Title</label><input id="md-title" name="title" className="cs-input" value={form.title} onChange={set} maxLength={120} /></div>
+            <div className="cs-form-grid">
+              <div className="cs-field"><label className="cs-label" htmlFor="md-date">Date</label><input id="md-date" type="date" name="date" className="cs-input" value={form.date} onChange={set} /></div>
+              <div className="cs-field"><label className="cs-label" htmlFor="md-time">Time</label><input id="md-time" type="time" name="time" className="cs-input" value={form.time} onChange={set} /></div>
+            </div>
+            <div className="cs-field">
+              <label className="cs-label" htmlFor="md-type">Format</label>
+              <select id="md-type" name="type" className="cs-select" value={form.type} onChange={set}>
+                <option value="PHYSICAL">In person</option><option value="VIRTUAL">Online</option><option value="HYBRID">In person and online</option>
+              </select>
+            </div>
+            <div className="cs-field"><label className="cs-label" htmlFor="md-loc">Location</label><input id="md-loc" name="location" className="cs-input" value={form.location} onChange={set} /></div>
+            <div className="cs-field"><label className="cs-label" htmlFor="md-link">Online link</label><input id="md-link" type="url" name="meetingLink" className="cs-input" value={form.meetingLink} onChange={set} placeholder="https://…" /></div>
+            <div className="cs-field"><label className="cs-label" htmlFor="md-agenda">Agenda</label><textarea id="md-agenda" name="description" className="cs-textarea" rows={4} value={form.description} onChange={set} /></div>
+            <div className="cs-actions">
+              <Button type="button" variant="danger" onClick={() => setConfirmCancel(true)} disabled={saving}>Cancel meeting</Button>
+              <Button type="submit" loading={saving}>Save changes</Button>
+            </div>
+          </form>
+        )}
+
+        <Dialog
+          open={confirmCancel}
+          onClose={() => setConfirmCancel(false)}
+          title="Cancel this meeting?"
+          actions={(<><Button onClick={() => setConfirmCancel(false)}>Keep it</Button><Button variant="danger" loading={saving} onClick={cancel}>Cancel meeting</Button></>)}
+        >
+          <p>Members will see it as cancelled. The record stays, and a cancelled meeting can&apos;t be edited again.</p>
+        </Dialog>
+      </main>
+    </div>
+  );
+}

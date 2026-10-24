@@ -29,6 +29,9 @@ public class LoanSummaryDto {
     private BigDecimal monthly_payment;
     private LocalDate due_date;
     private ZonedDateTime created_at;
+    private String interest_type;
+    private Boolean is_borrower;
+    private Boolean is_guarantor;
     public static LoanSummaryDto fromEntity(Loan loan) {
         BigDecimal calcBalance = loan.getTotalRepayable() != null 
                 ? loan.getTotalRepayable().subtract(loan.getAmountPaid() != null ? loan.getAmountPaid() : BigDecimal.ZERO) 
@@ -51,6 +54,7 @@ public class LoanSummaryDto {
                 .monthly_payment(loan.getMonthlyPayment())
                 .due_date(loan.getDueDate())
                 .created_at(loan.getCreatedAt())
+                .interest_type(loan.getInterestType() != null ? loan.getInterestType() : "FLAT")
                 .build();
     }
 }

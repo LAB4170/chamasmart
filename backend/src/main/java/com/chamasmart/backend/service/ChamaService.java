@@ -47,6 +47,20 @@ public class ChamaService {
     @Transactional
     public ChamaSummaryDto createChama(ChamaSummaryDto dto, Long creatorUserId) {
         log.info("Creating new chama '{}' by user ID: {}", dto.getChama_name(), creatorUserId);
+        if (dto.getChama_name() == null || dto.getChama_name().trim().length() < 3 || dto.getChama_name().trim().length() > 100) {
+            throw new IllegalArgumentException("Chama name must be between 3 and 100 characters");
+        }
+        dto.setChama_name(dto.getChama_name().trim());
+        if (dto.getChama_type() == null || !java.util.Set.of("ROSCA", "ASCA", "TABLE_BANKING", "WELFARE").contains(dto.getChama_type().toUpperCase())) {
+            throw new IllegalArgumentException("Choose a valid chama type");
+        }
+        dto.setChama_type(dto.getChama_type().toUpperCase());
+        if (dto.getContribution_amount() != null && dto.getContribution_amount().signum() < 0) {
+            throw new IllegalArgumentException("Contribution amount cannot be negative");
+        }
+        if (dto.getVisibility() != null && !java.util.Set.of("PUBLIC", "PRIVATE").contains(dto.getVisibility().toUpperCase())) {
+            throw new IllegalArgumentException("Visibility must be PUBLIC or PRIVATE");
+        }
         User creator = userRepository.findById(creatorUserId)
                 .orElseThrow(() -> new RuntimeException("Creator user not found"));
         Chama chama = Chama.builder()

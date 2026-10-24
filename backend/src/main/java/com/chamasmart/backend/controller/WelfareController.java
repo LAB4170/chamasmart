@@ -16,6 +16,7 @@ import java.util.Map;
 @Slf4j
 public class WelfareController {
     private final WelfareService welfareService;
+    private final com.chamasmart.backend.service.ContributionService contributionService;
     @PostMapping("/chamas/{chamaId}/configs")
     public ResponseEntity<ApiResponse<WelfareConfigDto>> createConfig(@PathVariable Long chamaId,
                                                                       @RequestBody WelfareConfigDto configDto,
@@ -26,35 +27,42 @@ public class WelfareController {
                 .body(ApiResponse.success(createdConfig, "Welfare configuration created successfully"));
     }
     @GetMapping("/chamas/{chamaId}/configs")
-    public ResponseEntity<ApiResponse<List<WelfareConfigDto>>> getConfigsByChamaId(@PathVariable Long chamaId) {
+    public ResponseEntity<ApiResponse<List<WelfareConfigDto>>> getConfigsByChamaId(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to get welfare configs for chama ID: {}", chamaId);
-        List<WelfareConfigDto> configs = welfareService.getConfigsByChamaId(chamaId);
+        List<WelfareConfigDto> configs = welfareService.getConfigsByChamaId(chamaId, currentUser.getUserId());
         return ResponseEntity.ok(ApiResponse.success(configs, "Welfare configurations retrieved successfully"));
     }
+    /** A member reports a welfare payment; it reaches the welfare fund only after an official verifies it. */
     @PostMapping("/chamas/{chamaId}/contributions")
-    public ResponseEntity<ApiResponse<Void>> makeContribution(@PathVariable Long chamaId, @RequestBody Map<String, Object> payload) {
-        log.info("REST request to post welfare contribution for chama ID: {}", chamaId);
-        return ResponseEntity.ok(ApiResponse.success(null, "Welfare contribution recorded successfully"));
+    public ResponseEntity<ApiResponse<com.chamasmart.backend.dto.ContributionSummaryDto>> makeContribution(@PathVariable Long chamaId, @RequestBody Map<String, Object> payload,
+                                                                                                            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        Object amt = payload.get("amount");
+        if (amt == null) throw new IllegalArgumentException("Contribution amount is required");
+        java.math.BigDecimal amount = new java.math.BigDecimal(amt.toString());
+        Object ref = payload.get("reference");
+        var saved = contributionService.submit(chamaId, currentUser.getUserId(), new com.chamasmart.backend.service.ContributionService.Entry(
+                currentUser.getUserId(), amount, ref == null ? null : ref.toString(), "WELFARE", "Welfare contribution", null));
+        return ResponseEntity.ok(ApiResponse.success(saved, "Contribution submitted. It counts once an official verifies it."));
+    }
+    private static <T> ResponseEntity<ApiResponse<T>> notAvailable(String what) {
+        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(ApiResponse.error(what + " is not available yet"));
     }
     @GetMapping("/{chamaId}/emergency-drives")
     public ResponseEntity<ApiResponse<List<Object>>> getEmergencyDrives(@PathVariable Long chamaId) {
-        log.info("REST request to get emergency drives for chama ID: {}", chamaId);
-        return ResponseEntity.ok(ApiResponse.success(new java.util.ArrayList<>(), "Emergency drives retrieved"));
+        return ResponseEntity.ok(ApiResponse.success(new java.util.ArrayList<>(), "No emergency drives"));
     }
     @PostMapping("/{chamaId}/emergency-drives")
     public ResponseEntity<ApiResponse<Object>> createEmergencyDrive(@PathVariable Long chamaId, @RequestBody Map<String, Object> payload) {
-        log.info("REST request to create emergency drive for chama ID: {}", chamaId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(null, "Emergency drive created"));
+        return notAvailable("Emergency drives");
     }
     @PostMapping("/emergency-drives/{driveId}/contribute")
     public ResponseEntity<ApiResponse<Void>> contributeToDrive(@PathVariable Long driveId, @RequestBody Map<String, Object> payload) {
-        log.info("REST request to contribute to drive ID: {}", driveId);
-        return ResponseEntity.ok(ApiResponse.success(null, "Contribution added to emergency drive"));
+        return notAvailable("Emergency drives");
     }
     @GetMapping("/{chamaId}/ledger")
-    public ResponseEntity<ApiResponse<Object>> getLedger(@PathVariable Long chamaId) {
+    public ResponseEntity<ApiResponse<Object>> getLedger(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to get welfare ledger for chama ID: {}", chamaId);
-        Object ledger = welfareService.getLedger(chamaId);
+        Object ledger = welfareService.getLedger(chamaId, currentUser.getUserId());
         return ResponseEntity.ok(ApiResponse.success(ledger, "Welfare ledger retrieved"));
     }
     @PostMapping(value = "/claims")
@@ -63,15 +71,12 @@ public class WelfareController {
                                                                          @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to file welfare claim by user ID: {}", currentUser.getUserId());
         if (proofDocument != null && !proofDocument.isEmpty()) {
-            String mockUrl = "https://chamasmart-storage.s3.amazonaws.com/claims/proof_" 
-                    + java.util.UUID.randomUUID().toString().substring(0, 8) 
-                    + "_" + proofDocument.getOriginalFilename();
-            requestDto.setProof_document_url(mockUrl);
-            log.info("Uploaded proof document '{}' to mock storage: {}", proofDocument.getOriginalFilename(), mockUrl);
+            // Document storage isn't connected yet, so the file is not kept. Say so rather than invent a link.
+            log.info("Proof document '{}' received but not stored", proofDocument.getOriginalFilename());
         }
         WelfareClaimSummaryDto filedClaim = welfareService.fileClaim(requestDto, currentUser.getUserId());
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(filedClaim, "Welfare claim submitted successfully"));
+                .body(ApiResponse.success(filedClaim, proofDocument != null && !proofDocument.isEmpty() ? "Claim submitted. Attached documents are not stored yet, so officials may ask you for proof." : "Welfare claim submitted successfully"));
     }
     @PostMapping("/claims/{claimId}/approve")
     public ResponseEntity<ApiResponse<WelfareClaimSummaryDto>> approveClaim(@PathVariable Long claimId,
@@ -84,9 +89,9 @@ public class WelfareController {
         return ResponseEntity.ok(ApiResponse.success(updatedClaim, "Welfare claim approval processed successfully"));
     }
     @GetMapping("/chamas/{chamaId}/claims")
-    public ResponseEntity<ApiResponse<List<WelfareClaimSummaryDto>>> getClaimsByChamaId(@PathVariable Long chamaId) {
+    public ResponseEntity<ApiResponse<List<WelfareClaimSummaryDto>>> getClaimsByChamaId(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails currentUser) {
         log.info("REST request to get welfare claims for chama ID: {}", chamaId);
-        List<WelfareClaimSummaryDto> claims = welfareService.getClaimsByChamaId(chamaId);
+        List<WelfareClaimSummaryDto> claims = welfareService.getClaimsByChamaId(chamaId, currentUser.getUserId());
         return ResponseEntity.ok(ApiResponse.success(claims, "Welfare claims retrieved successfully"));
     }
     @GetMapping("/claims/my")

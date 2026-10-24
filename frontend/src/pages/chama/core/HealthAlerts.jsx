@@ -1,136 +1,47 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { scoreAPI } from "../../../services/utils.service";
-import { AlertTriangle, Info, Lightbulb, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { StatusBadge } from "../../../components/ui";
 
-const SEVERITY_CONFIG = {
-    CRITICAL: {
-        icon: <AlertTriangle size={16} />,
-        color: "#ef4444",
-        bg: "rgba(239, 68, 68, 0.05)",
-        border: "rgba(239, 68, 68, 0.2)",
-        label: "Critical",
-    },
-    WARNING: {
-        icon: <Info size={16} />,
-        color: "#f59e0b",
-        bg: "rgba(245, 158, 11, 0.05)",
-        border: "rgba(245, 158, 11, 0.2)",
-        label: "Warning",
-    },
-    TIP: {
-        icon: <Lightbulb size={16} />,
-        color: "#3b82f6",
-        bg: "rgba(59, 130, 246, 0.05)",
-        border: "rgba(59, 130, 246, 0.2)",
-        label: "Insight",
-    },
-};
+const SEVERITY = { CRITICAL: { status: "DEFAULTED", label: "Critical" }, WARNING: { status: "PENDING", label: "Warning" }, TIP: { status: "DISBURSED", label: "Suggestion" } };
 
-function AlertCard({ alert }) {
-    const [open, setOpen] = useState(alert.severity === "CRITICAL");
-    const cfg = SEVERITY_CONFIG[alert.severity] || SEVERITY_CONFIG.TIP;
+/** Suggestions drawn from the chama's loan and savings totals. They are prompts to look closer, not findings. */
+export default function HealthAlerts({ chamaId }) {
+  const [alerts, setAlerts] = useState([]);
+  const [open, setOpen] = useState(null);
 
-    return (
-        <div
-            className="health-alert-card"
-        >
-            <button
-                className="health-alert-header"
-                onClick={() => setOpen((o) => !o)}
-                style={{ borderBottom: open ? `1px solid ${cfg.border}` : "none" }}
-            >
-                <span className="health-alert-icon" style={{ color: cfg.color }}>
-                    <span style={{ fontSize: "14px", marginRight: "8px", fontWeight: 800, textTransform: 'uppercase', opacity: 0.8 }}>{alert.icon}</span> 
-                    {cfg.icon}
-                </span>
-                <span className="health-alert-title" style={{ color: cfg.color }}>
-                    {alert.title}
-                </span>
-                <span
-                    className="health-alert-severity-badge"
-                    style={{ background: cfg.color + "20", color: cfg.color }}
-                >
-                    {cfg.label}
-                </span>
-                <span style={{ color: cfg.color, marginLeft: "auto" }}>
-                    {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                </span>
-            </button>
+  useEffect(() => {
+    let live = true;
+    scoreAPI.getAlerts(chamaId)
+      .then((res) => { const list = res.data?.data; if (live) setAlerts(Array.isArray(list) ? list : []); })
+      .catch(() => { if (live) setAlerts([]); });
+    return () => { live = false; };
+  }, [chamaId]);
 
-            {open && (
-                <div className="health-alert-body">
-                    <p className="health-alert-detail">{alert.detail}</p>
-                    <div className="health-alert-action">
-                        <strong style={{ color: 'var(--lux-gold)', textTransform: 'uppercase', fontSize: '0.75rem', marginRight: '8px' }}>Strategic Protocol:</strong>
-                        <span style={{ color: 'var(--lux-text-primary)', fontWeight: 600 }}> {alert.action}</span>
-                    </div>
+  if (alerts.length === 0) return null;
+
+  return (
+    <section className="cs-card" aria-label="Things to look at">
+      <h2 className="cs-card-title">Things to look at</h2>
+      <ul className="cs-list">
+        {alerts.map((a) => {
+          const sev = SEVERITY[a.severity] || SEVERITY.TIP;
+          const expanded = open === a.id;
+          return (
+            <li key={a.id} className="cs-list-item" style={{ display: "block" }}>
+              <button type="button" className="cs-btn cs-btn--tertiary" aria-expanded={expanded} onClick={() => setOpen(expanded ? null : a.id)} style={{ width: "100%", justifyContent: "space-between", textAlign: "left" }}>
+                <span className="cs-list-title">{a.title}</span>
+                <StatusBadge status={sev.status} label={sev.label} />
+              </button>
+              {expanded && (
+                <div style={{ padding: "8px 12px" }}>
+                  <p style={{ marginTop: 0 }}>{a.detail}</p>
+                  <p className="cs-list-meta" style={{ marginBottom: 0 }}><strong>Suggested step:</strong> {a.action}</p>
                 </div>
-            )}
-        </div>
-    );
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
 }
-
-const HealthAlerts = ({ chamaId }) => {
-    const [alerts, setAlerts] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    const fetchAlerts = useCallback(async () => {
-        setLoading(true);
-        try {
-            const res = await scoreAPI.getAlerts(chamaId);
-            setAlerts(res.data.data?.alerts || []);
-        } catch (err) {
-            console.error("Failed to fetch health alerts", err);
-        } finally {
-            setLoading(false);
-        }
-    }, [chamaId]);
-
-    useEffect(() => {
-        fetchAlerts();
-    }, [fetchAlerts]);
-
-    if (loading || !alerts.length) return null;
-
-    const criticalCount = alerts.filter((a) => a.severity === "CRITICAL").length;
-
-    return (
-        <div className="health-alerts-container">
-            <div className="health-alerts-header" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Lightbulb size={18} color="#10b981" />
-                <h3 className="health-alerts-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--lux-text-primary)', fontSize: '1.1rem', fontWeight: 900 }}>
-                    Intelligent Audit
-                    <span style={{ 
-                        fontSize: '10px', 
-                        padding: '3px 10px', 
-                        background: 'var(--gold-gradient)', 
-                        color: '#fff', 
-                        borderRadius: '6px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        fontWeight: '900',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.1em',
-                        boxShadow: '0 4px 10px rgba(212, 175, 55, 0.3)'
-                    }}>
-                        <Sparkles size={11} /> God Mode
-                    </span>
-                </h3>
-
-                {criticalCount > 0 && (
-                    <span className="health-alerts-critical-badge" style={{ marginLeft: 'auto' }}>
-                        {criticalCount} Critical
-                    </span>
-                )}
-            </div>
-            <div className="health-alerts-list">
-                {alerts.map((alert) => (
-                    <AlertCard key={alert.id} alert={alert} />
-                ))}
-            </div>
-        </div>
-    );
-};
-
-export default HealthAlerts;

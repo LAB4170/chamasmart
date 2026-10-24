@@ -1,273 +1,107 @@
-import { useState, useEffect } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useParams, Link } from "react-router-dom";
 import { meetingAPI, chamaAPI } from "../../../services/api";
-import { useAuth } from "../../../context/AuthContext";
-import { toast } from "react-toastify";
-import { Calendar, MapPin, Clock, Video, Users, PlusCircle, ArrowLeft, Play } from "lucide-react";
-import "./Meetings.css";
+import { Button, PageHeader, StatusBadge, EmptyState, Skeleton } from "../../../components/ui";
+import { formatDateTime } from "../../../utils/format";
 
-const MeetingList = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
-    const { user } = useAuth();
-    const [meetings, setMeetings] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [userRole, setUserRole] = useState("MEMBER");
+const OFFICIALS = ["CHAIRPERSON", "SECRETARY", "TREASURER"];
+const LABELS = { SCHEDULED: "Scheduled", IN_PROGRESS: "In progress", COMPLETED: "Held", CANCELLED: "Cancelled" };
+const FILTERS = [
+  { id: "UPCOMING", label: "Upcoming" },
+  { id: "PAST", label: "Past" },
+  { id: "ALL", label: "All" },
+];
 
-    useEffect(() => {
-        let isMounted = true;
+export default function MeetingList() {
+  const { id } = useParams();
+  const [meetings, setMeetings] = useState([]);
+  const [role, setRole] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [filter, setFilter] = useState("UPCOMING");
 
-        const fetchData = async () => {
-            try {
-                const [meetingsRes, membersRes] = await Promise.all([
-                    meetingAPI.getAll(id),
-                    chamaAPI.getMembers(id),
-                ]);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const [m, c] = await Promise.all([meetingAPI.getAll(id), chamaAPI.getById(id)]);
+      const raw = m.data?.data ?? [];
+      setMeetings(Array.isArray(raw) ? raw : []);
+      setRole((c.data?.data?.role || "").toUpperCase());
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
-                if (isMounted) {
-                    setMeetings(meetingsRes.data.data || meetingsRes.data);
+  useEffect(() => { load(); }, [load]);
 
-                    // Determine user's role in THIS chama
-                    const members = membersRes.data.data || membersRes.data;
-                    const me = members.find(m => m.user_id === user?.id || m.user_id === user?.user_id);
-                    setUserRole(me?.role || "MEMBER");
-                    setLoading(false);
-                }
-            } catch (err) {
-                console.error(err);
-                if (isMounted) {
-                    toast.error("Failed to fetch meetings");
-                    setLoading(false);
-                }
-            }
-        };
+  const isUpcoming = (m) => m.status !== "CANCELLED" && m.status !== "COMPLETED" && new Date(m.scheduled_date) >= new Date(Date.now() - 6 * 3600 * 1000);
+  const visible = useMemo(() => {
+    const list = meetings.filter((m) => (filter === "ALL" ? true : filter === "UPCOMING" ? isUpcoming(m) : !isUpcoming(m)));
+    const asc = filter === "UPCOMING";
+    return [...list].sort((a, b) => (asc ? 1 : -1) * (new Date(a.scheduled_date) - new Date(b.scheduled_date)));
+  }, [meetings, filter]);
 
-        fetchData();
+  return (
+    <div className="cs-shell">
+      <main className="cs-page">
+        <PageHeader
+          title="Meetings"
+          subtitle="When your chama meets, and what was decided."
+          actions={(
+            <>
+              <Link to={`/chamas/${id}`} className="cs-btn cs-btn--secondary">Back to chama</Link>
+              {OFFICIALS.includes(role) && <Link to={`/chamas/${id}/meetings/create`} className="cs-btn cs-btn--primary">Schedule a meeting</Link>}
+            </>
+          )}
+        />
 
-        return () => { isMounted = false; };
-    }, [id]);
+        {error && (
+          <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 16, alignItems: "center", justifyContent: "space-between" }}>
+            <span>We couldn&apos;t load the meetings.</span><Button size="sm" onClick={load}>Try again</Button>
+          </div>
+        )}
 
-    const isOfficial = ["CHAIRPERSON", "SECRETARY", "TREASURER"].includes(userRole);
-
-    const getStatusStyle = (status) => {
-        switch (status?.toLowerCase()) {
-            case 'completed': return { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Completed' };
-            case 'cancelled': return { bg: 'bg-red-50', text: 'text-red-600', label: 'Cancelled' };
-            default: return { bg: 'bg-emerald-50', text: 'text-emerald-600', label: 'Scheduled' };
-        }
-    };
-
-    const getTypeIcon = (type) => {
-        switch (type) {
-            case 'VIRTUAL': return <Video size={14} />;
-            case 'HYBRID': return <Users size={14} />;
-            default: return <MapPin size={14} />;
-        }
-    };
-
-    const formatDate = (dateString) => {
-        if (!dateString) return { day: '??', month: '???', year: '????', time: '--:--', full: 'Date not set' };
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return { day: '??', month: '???', year: '????', time: '--:--', full: 'Invalid Date' };
-        
-        return {
-            day: date.getDate(),
-            month: date.toLocaleString('default', { month: 'short' }),
-            year: date.getFullYear(),
-            time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            full: date.toLocaleDateString('en-KE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-        };
-    };
-
-    const upcomingMeetings = meetings.filter(m => m.status?.toLowerCase() === 'scheduled');
-    const pastMeetings = meetings.filter(m => m.status?.toLowerCase() !== 'scheduled');
-
-    if (loading) return (
-        <div className="meetings-loading">
-            <div className="spinner-modern"></div>
-            <p>Loading meetings...</p>
-        </div>
-    );
-
-    return (
-        <div className="page meetings-page">
-            <div className="container">
-
-                {/* Page Header */}
-                <div className="meetings-header">
-                    <div>
-                        <button onClick={() => navigate(`/chamas/${id}`)} className="back-link-premium">
-                            <ArrowLeft size={16} /> Back to Chama
-                        </button>
-                        <h1 className="meetings-title">
-                            <Calendar size={28} />
-                            Meetings
-                        </h1>
-                        <p className="meetings-subtitle">
-                            {isOfficial
-                                ? "Schedule and manage chama meetings"
-                                : "View upcoming and past chama meetings"
-                            }
-                        </p>
-                    </div>
-
-                    {/* ✅ SENIOR DEV NOTE: Only officials can schedule meetings */}
-                    {isOfficial && (
-                        <Link to={`/chamas/${id}/meetings/create`} className="btn-schedule">
-                            <PlusCircle size={18} />
-                            Schedule Meeting
-                        </Link>
-                    )}
-                </div>
-
-                {/* Role Info Banner for Members */}
-                {!isOfficial && (
-                    <div className="member-info-banner">
-                        <Calendar size={16} />
-                        <span>You're viewing as a <strong>{userRole}</strong>. Only officials can schedule meetings.</span>
-                    </div>
-                )}
-
-                {meetings.length === 0 ? (
-                    <div className="meetings-empty">
-                        <div className="empty-icon">📅</div>
-                        <h3>No Meetings Yet</h3>
-                        <p>
-                            {isOfficial
-                                ? "Schedule your chama's first meeting to get started."
-                                : "No meetings have been scheduled yet. Check back later."}
-                        </p>
-                        {isOfficial && (
-                            <Link to={`/chamas/${id}/meetings/create`} className="btn btn-primary mt-3">
-                                Schedule First Meeting
-                            </Link>
-                        )}
-                    </div>
-                ) : (
-                    <div className="meetings-content">
-
-                        {/* Upcoming Meetings */}
-                        {upcomingMeetings.length > 0 && (
-                            <div className="meetings-section">
-                                <h2 className="section-heading">
-                                    <span className="section-dot upcoming"></span>
-                                    Upcoming ({upcomingMeetings.length})
-                                </h2>
-                                <div className="meeting-cards">
-                                    {upcomingMeetings.map(meeting => {
-                                        const date = formatDate(meeting.scheduled_date || meeting.scheduledAt || meeting.date);
-                                        const status = getStatusStyle(meeting.status);
-                                        return (
-                                            <div key={meeting.meeting_id || meeting._id} className="meeting-card-modern upcoming-card">
-                                                <div className="meeting-date-block">
-                                                    <span className="meeting-day">{date.day}</span>
-                                                    <span className="meeting-month">{date.month}</span>
-                                                    <span className="meeting-year">{date.year}</span>
-                                                </div>
-                                                <div className="meeting-body">
-                                                    <div className="meeting-card-top">
-                                                        <h3 className="meeting-name">{meeting.title || "Chama Meeting"}</h3>
-                                                        <span className={`meeting-badge ${status.bg} ${status.text}`}>
-                                                            {status.label}
-                                                        </span>
-                                                    </div>
-                                                    <div className="meeting-meta-row">
-                                                        <span className="meta-item">
-                                                            <Clock size={13} /> {date.time}
-                                                        </span>
-                                                        <span className="meta-item">
-                                                            {getTypeIcon(meeting.type)}
-                                                            {meeting.location || "Online"}
-                                                        </span>
-                                                    </div>
-                                                    {meeting.description && (
-                                                        <p className="meeting-agenda">{meeting.description}</p>
-                                                    )}
-                                                    <div className="meeting-actions">
-                                                        {(meeting.type === 'VIRTUAL' || meeting.type === 'HYBRID') && meeting.meetingLink && (
-                                                            <a
-                                                                href={meeting.meetingLink}
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                className="btn-join"
-                                                            >
-                                                                <Video size={14} /> Join Meeting
-                                                            </a>
-                                                        )}
-                                                        {/* Only officials see the manage link */}
-                                                        {isOfficial && (
-                                                            <div className="flex gap-2">
-                                                                <Link
-                                                                    to={`/chamas/${id}/meetings/${meeting.meeting_id || meeting._id}`}
-                                                                    className="btn-manage"
-                                                                >
-                                                                    Manage
-                                                                </Link>
-                                                                <Link
-                                                                    to={`/chamas/${id}/meetings/${meeting.meeting_id || meeting._id}/session`}
-                                                                    className="btn-session-link"
-                                                                >
-                                                                    <Play size={12} /> Live Session
-                                                                </Link>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Past Meetings */}
-                        {pastMeetings.length > 0 && (
-                            <div className="meetings-section">
-                                <h2 className="section-heading">
-                                    <span className="section-dot past"></span>
-                                    Past Meetings ({pastMeetings.length})
-                                </h2>
-                                <div className="meeting-cards">
-                                    {pastMeetings.map(meeting => {
-                                        const date = formatDate(meeting.scheduled_date || meeting.scheduledAt || meeting.date);
-                                        const status = getStatusStyle(meeting.status);
-                                        return (
-                                            <div key={meeting.meeting_id || meeting._id} className="meeting-card-modern past-card">
-                                                <div className="meeting-date-block past">
-                                                    <span className="meeting-day">{date.day}</span>
-                                                    <span className="meeting-month">{date.month}</span>
-                                                    <span className="meeting-year">{date.year}</span>
-                                                </div>
-                                                <div className="meeting-body">
-                                                    <div className="meeting-card-top">
-                                                        <h3 className="meeting-name past">{meeting.title || "Chama Meeting"}</h3>
-                                                        <span className={`meeting-badge ${status.bg} ${status.text}`}>
-                                                            {status.label}
-                                                        </span>
-                                                    </div>
-                                                    <div className="meeting-meta-row">
-                                                        <span className="meta-item">
-                                                            <Clock size={13} /> {date.time}
-                                                        </span>
-                                                        <span className="meta-item">
-                                                            {getTypeIcon(meeting.type)}
-                                                            {meeting.location || "Online"}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                    </div>
-                )}
-
+        {loading ? (
+          <div className="cs-card" aria-busy="true" aria-label="Loading meetings"><Skeleton height={14} width="40%" /><Skeleton height={40} style={{ marginTop: 12 }} /></div>
+        ) : !error && (
+          <section aria-label="Meetings">
+            <div className="cs-chips" role="group" aria-label="Filter meetings" style={{ marginBottom: 16 }}>
+              {FILTERS.map((f) => (
+                <button key={f.id} type="button" className="cs-chip" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>{f.label}</button>
+              ))}
             </div>
-        </div>
-    );
-};
-
-export default MeetingList;
+            {visible.length === 0 ? (
+              <div className="cs-card"><EmptyState title="No meetings here" message={filter === "UPCOMING" ? "Nothing is scheduled." : "No meetings match this view."} /></div>
+            ) : (
+              <div className="cs-loan-grid">
+                {visible.map((m) => (
+                  <article key={m.meeting_id} className="cs-card cs-loan">
+                    <header className="cs-loan-head">
+                      <div className="cs-list-main">
+                        <h3 className="cs-loan-title">{m.title}</h3>
+                        <div className="cs-list-meta">{formatDateTime(m.scheduled_date)}</div>
+                      </div>
+                      <StatusBadge status={m.status} label={LABELS[m.status] || m.status} />
+                    </header>
+                    <dl className="cs-kv">
+                      <div><dt>Where</dt><dd>{m.location || "—"}</dd></div>
+                      <div><dt>Type</dt><dd>{(m.meeting_type || "").toLowerCase() || "—"}</dd></div>
+                    </dl>
+                    {m.meeting_link && <p className="cs-list-meta" style={{ margin: 0 }}><a href={m.meeting_link} target="_blank" rel="noopener noreferrer">Join online</a></p>}
+                    <footer className="cs-actions">
+                      <Link to={`/chamas/${id}/meetings/${m.meeting_id}`} className="cs-btn cs-btn--secondary cs-btn--sm">Details</Link>
+                    </footer>
+                  </article>
+                ))}
+              </div>
+            )}
+            <p className="cs-footnote">{visible.length} of {meetings.length} {meetings.length === 1 ? "meeting" : "meetings"}</p>
+          </section>
+        )}
+      </main>
+    </div>
+  );
+}

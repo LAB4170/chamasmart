@@ -1,267 +1,131 @@
-import { useState, useEffect, memo, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
 import { chamaAPI } from "../../../services/api";
-import LoadingSkeleton from "../../../components/LoadingSkeleton";
-import { Building, RefreshCw, TrendingUp, Building2, Handshake, Sparkles, MapPin, Users, ArrowRight, Bell } from 'lucide-react';
-import { motion, AnimatePresence } from "framer-motion";
-import "./MyChamas.css";
+import { Button, PageHeader, EmptyState, Skeleton } from "../../../components/ui";
+import { formatKES } from "../../../utils/format";
 
-const TYPE_IMAGES = {
-  'ROSCA': 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&q=80&w=800',
-  'MERRY_GO_ROUND': 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&q=80&w=800',
-  'ASCA': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800',
-  'INVESTMENT': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800',
-  'TABLE_BANKING': 'https://images.unsplash.com/photo-1553729459-efe14ef6055d?auto=format&fit=crop&q=80&w=800',
-  'WELFARE': 'https://images.unsplash.com/photo-1593113598332-cd288d649433?auto=format&fit=crop&q=80&w=800',
-  'DEFAULT': 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&q=80&w=800'
-};
+const TYPE_LABELS = { ROSCA: "Merry-go-round", ASCA: "Investment", TABLE_BANKING: "Table banking", WELFARE: "Welfare" };
+const FILTERS = [
+  { id: "ALL", label: "All" },
+  { id: "ROSCA", label: "Merry-go-round" },
+  { id: "ASCA", label: "Investment" },
+  { id: "TABLE_BANKING", label: "Table banking" },
+  { id: "WELFARE", label: "Welfare" },
+];
+const typeLabel = (t) => TYPE_LABELS[t] || (t ? String(t).replace(/_/g, " ").toLowerCase() : "Chama");
+const roleLabel = (r) => (r ? r.charAt(0) + r.slice(1).toLowerCase() : "Member");
 
-const getChamaCoverImage = (chama) => {
-  const type = (chama.chama_type || '').toUpperCase();
-  if (chama.logo_url && chama.logo_url.startsWith('http')) return chama.logo_url;
-  
-  if (type.includes('MERRY')) return TYPE_IMAGES['MERRY_GO_ROUND'];
-  if (type.includes('ROSCA')) return TYPE_IMAGES['ROSCA'];
-  if (type.includes('ASCA') || type.includes('INVEST')) return TYPE_IMAGES['ASCA'];
-  if (type.includes('TABLE')) return TYPE_IMAGES['TABLE_BANKING'];
-  if (type.includes('WELFARE')) return TYPE_IMAGES['WELFARE'];
-  
-  return TYPE_IMAGES['DEFAULT'];
-};
-
-const MyChamaCard = memo(({ chama, getChamaTypeLabel, formatCurrency }) => {
-  const coverImage = getChamaCoverImage(chama);
-  const type = (chama.chama_type || '').toUpperCase();
-  const getFallback = () => {
-    if (type.includes('ASCA')) return TYPE_IMAGES['ASCA'];
-    if (type.includes('TABLE')) return TYPE_IMAGES['TABLE_BANKING'];
-    if (type.includes('WELFARE')) return TYPE_IMAGES['WELFARE'];
-    return TYPE_IMAGES['ROSCA'];
-  };
-
-  return (
-    <motion.div
-      variants={{
-        hidden: { opacity: 0, y: 30 },
-        show: { opacity: 1, y: 0 }
-      }}
-    >
-      <Link
-        to={`/chamas/${chama.chama_id}`}
-        className="my-chama-card-lux"
-      >
-        <div className="chama-card-cover-lux">
-          <img 
-            src={coverImage} 
-            alt={chama.chama_name} 
-            className="chama-cover-img-lux" 
-            onError={(e) => {
-              e.target.onerror = null; 
-              e.target.src = getFallback();
-            }}
-          />
-          <div className="chama-cover-overlay-lux" />
-        </div>
-
-        <div className="chama-card-header-lux">
-          <div className="chama-type-badge-lux">
-            {getChamaTypeLabel(chama.chama_type)}
-          </div>
-          <div style={{ background: "rgba(212, 175, 55, 0.1)", padding: "8px", borderRadius: "12px" }}>
-            <Building2 size={20} color="#D4AF37" />
-          </div>
-        </div>
-
-        <h3 className="chama-name-lux">{chama.chama_name}</h3>
-
-        <div className="chama-info-lux">
-          <div className="chama-info-row-lux">
-            <span className="info-label-lux">Your Role</span>
-            <span style={{ color: "#D4AF37", fontWeight: 800, fontSize: "0.85rem" }}>{chama.role}</span>
-          </div>
-
-          <div className="chama-info-row-lux">
-            <span className="info-label-lux">Members</span>
-            <span className="info-value-lux">{chama.total_members}</span>
-          </div>
-
-          <div className="chama-info-row-lux">
-            <span className="info-label-lux">Net Worth</span>
-            <span className="info-value-lux" style={{ color: "var(--gold-text)" }}>
-              {formatCurrency(chama.total_contributions || 0)}
-            </span>
-          </div>
-        </div>
-
-        <div className="card-footer-lux">
-          View Group Details <ArrowRight size={18} />
-        </div>
-      </Link>
-    </motion.div>
-  );
-});
-
-const MyChamas = () => {
+export default function MyChamas() {
   const [chamas, setChamas] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(false);
   const [filter, setFilter] = useState("ALL");
+  const [query, setQuery] = useState("");
 
-  useEffect(() => {
-    fetchChamas();
-  }, []);
-
-  const fetchChamas = async () => {
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
     try {
-      setLoading(true);
-      const response = await chamaAPI.getMyChamas();
-      const chamasData = response.data?.data;
-      setChamas(Array.isArray(chamasData) ? chamasData : []);
-    } catch (err) {
-      setError("Failed to load your chamas");
+      const res = await chamaAPI.getMyChamas();
+      setChamas(Array.isArray(res.data?.data) ? res.data.data : []);
+    } catch {
+      setError(true);
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatCurrency = useCallback((amount) => {
-    return new Intl.NumberFormat("en-KE", {
-      style: "currency",
-      currency: "KES",
-    }).format(amount);
   }, []);
 
-  const getChamaTypeLabel = useCallback((type) => {
-    const types = {
-      ROSCA: "Merry-Go-Round",
-      ASCA: "Investment",
-      TABLE_BANKING: "Table Banking",
-      WELFARE: "Welfare",
-    };
-    return types[type] || type;
-  }, []);
+  useEffect(() => { load(); }, [load]);
 
-  const filteredChamas = useMemo(() => {
-    return filter === "ALL" ? chamas : chamas.filter((c) => c.chama_type === filter);
-  }, [chamas, filter]);
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return chamas.filter((c) => (filter === "ALL" || c.chama_type === filter) && (!q || String(c.chama_name || "").toLowerCase().includes(q)));
+  }, [chamas, filter, query]);
 
-  const categories = [
-    { id: "ALL", label: "All", Icon: Building },
-    { id: "ROSCA", label: "Merry-Go-Round", Icon: RefreshCw },
-    { id: "ASCA", label: "Investment", Icon: TrendingUp },
-    { id: "TABLE_BANKING", label: "Table Banking", Icon: Building2 },
-    { id: "WELFARE", label: "Welfare", Icon: Handshake },
-  ];
+  // Only offer filters that match something the member actually has
+  const available = useMemo(() => FILTERS.filter((f) => f.id === "ALL" || chamas.some((c) => c.chama_type === f.id)), [chamas]);
+
+  const actions = (
+    <>
+      <Link to="/join-chama" className="cs-btn cs-btn--secondary">Join with a code</Link>
+      <Link to="/chamas/create" className="cs-btn cs-btn--primary">Create a chama</Link>
+    </>
+  );
 
   return (
-    <div className="page">
-      <div className="ambient-blob blob-gold" />
-      <div className="ambient-blob blob-blue" />
+    <div className="cs-shell">
+      <main className="cs-page">
+        <PageHeader title="My chamas" subtitle="The groups you belong to." actions={actions} />
 
-      <div className="container">
-        <div className="page-frame-lux">
-          <motion.div 
-            className="my-chamas-lux-wrapper"
-            initial="hidden"
-            animate="show"
-            variants={{
-              hidden: { opacity: 0 },
-              show: {
-                opacity: 1,
-                transition: { staggerChildren: 0.15 }
-              }
-            }}
-          >
-            {/* Hero Section */}
-            <motion.div 
-              className="user-hero-lux"
-              variants={{ hidden: { opacity: 0, y: 50 }, show: { opacity: 1, y: 0 } }}
-              style={{ marginBottom: '40px' }}
-            >
-              <div className="user-hero-content">
-                <h1 className="user-hero-title">Your Chamas</h1>
-                <p className="user-hero-subtitle">
-                  Explore your active investment groups. Manage your contributions, track community growth, 
-                  and discover new opportunities for collective wealth.
-                </p>
-                <div style={{ display: 'flex', gap: '1.5rem', marginTop: '32px' }}>
-                  <Link to="/join-chama" className="btn-action-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderRadius: "16px", padding: "14px 28px", fontWeight: 700 }}>
-                    <Users size={20} /><span>Join via Code</span>
-                  </Link>
-                  <Link to="/my-join-requests" className="btn-action-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderRadius: "16px", padding: "14px 28px", fontWeight: 700 }}>
-                    <Bell size={20} /><span>Track Requests</span>
-                  </Link>
-                  <Link to="/chamas/create" className="btn-action-primary" style={{ background: "var(--gold-gradient)", border: "none", color: "white", borderRadius: "16px", padding: "14px 32px", fontWeight: 800, display: "flex", alignItems: "center", gap: "10px" }}>
-                    <Sparkles size={20} /><span>Create New Chama</span>
-                  </Link>
-                </div>
-              </div>
-              <div className="user-hero-visual">
-                 <Building2 size={180} strokeWidth={0.5} style={{ opacity: 0.1, color: 'var(--gold-text)' }} />
-              </div>
-            </motion.div>
+        {error && (
+          <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 16, alignItems: "center", justifyContent: "space-between" }}>
+            <span>We couldn&apos;t load your chamas.</span>
+            <Button size="sm" onClick={load}>Try again</Button>
+          </div>
+        )}
 
-            {error && <div className="alert alert-error">{error}</div>}
-
-            {/* Filter Bar */}
-            <div className="filter-bar-lux">
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  className={`filter-btn-lux ${filter === cat.id ? "active" : ""}`}
-                  onClick={() => setFilter(cat.id)}
-                >
-                  <cat.Icon size={18} />
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Content Section */}
-            {loading ? (
-              <div className="chamas-grid-lux">
-                <LoadingSkeleton type="card" count={3} />
-              </div>
-            ) : filteredChamas.length === 0 ? (
-              <motion.div variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }} className="report-card-lux text-center" style={{ padding: '5rem 2rem' }}>
-                <div className="mb-4" style={{ color: 'var(--gold-text)', opacity: 0.5 }}><MapPin size={64} strokeWidth={1} /></div>
-                <h2 style={{ fontWeight: 800 }}>No chamas found</h2>
-                <p className="text-muted" style={{ fontSize: '1.1rem', maxWidth: '500px', margin: '1rem auto' }}>
-                  {filter === "ALL"
-                    ? "You haven't joined any groups yet. Start your financial journey today!"
-                    : `You don't have any ${getChamaTypeLabel(filter)} chamas yet.`}
-                </p>
-                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '2rem' }}>
-                  <Link to="/chamas/create" className="btn-action-primary" style={{ background: "var(--gold-gradient)", border: "none" }}>
-                    Start a Chama
-                  </Link>
-                  <Link to="/browse-chamas" className="btn-action-secondary">
-                    Browse Public Chamas
-                  </Link>
-                  <Link to="/my-join-requests" className="btn-action-secondary">
-                    View My Requests
-                  </Link>
-                </div>
-              </motion.div>
-            ) : (
-              <div className="chamas-grid-lux">
-                <AnimatePresence>
-                  {filteredChamas.map((chama) => (
-                    <MyChamaCard
-                      key={chama.chama_id}
-                      chama={chama}
-                      getChamaTypeLabel={getChamaTypeLabel}
-                      formatCurrency={formatCurrency}
-                    />
-                  ))}
-                </AnimatePresence>
+        {loading ? (
+          <div className="cs-card cs-card--flush" aria-busy="true" aria-label="Loading your chamas">
+            {[0, 1, 2].map((i) => <div key={i} className="cs-list-item"><div style={{ flex: 1 }}><Skeleton height={16} width="45%" /><Skeleton height={12} width="70%" style={{ marginTop: 8 }} /></div></div>)}
+          </div>
+        ) : chamas.length === 0 && !error ? (
+          <div className="cs-card">
+            <EmptyState title="You're not in a chama yet" message="Create a group for your members, join one with a code, or browse public chamas."
+              action={<div className="cs-actions" style={{ justifyContent: "center" }}>
+                <Link to="/chamas/create" className="cs-btn cs-btn--primary">Create a chama</Link>
+                <Link to="/browse-chamas" className="cs-btn cs-btn--secondary">Browse chamas</Link>
+                <Link to="/my-join-requests" className="cs-btn cs-btn--tertiary">My join requests</Link>
+              </div>} />
+          </div>
+        ) : chamas.length > 0 && (
+          <>
+            {(available.length > 2 || chamas.length > 8) && (
+              <div className="cs-controls">
+                {available.length > 2 && (
+                  <div className="cs-chips" role="group" aria-label="Filter by type">
+                    {available.map((f) => (
+                      <button key={f.id} type="button" className="cs-chip" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>{f.label}</button>
+                    ))}
+                  </div>
+                )}
+                {chamas.length > 8 && (
+                  <>
+                    <label className="cs-sr-only" htmlFor="chama-search">Search your chamas</label>
+                    <input id="chama-search" type="search" className="cs-input" placeholder="Search your chamas" value={query} onChange={(e) => setQuery(e.target.value)} />
+                  </>
+                )}
               </div>
             )}
-          </motion.div>
-        </div>
-      </div>
+
+            {visible.length === 0 ? (
+              <div className="cs-card"><EmptyState title="No matches" message="No chama matches this filter."
+                action={<Button onClick={() => { setFilter("ALL"); setQuery(""); }}>Clear filters</Button>} /></div>
+            ) : (
+              <div className="cs-card cs-card--flush">
+                <ul className="cs-list">
+                  {visible.map((c) => (
+                    <li key={c.chama_id}>
+                      <Link to={`/chamas/${c.chama_id}`} className="cs-list-item">
+                        <div className="cs-list-main">
+                          <div className="cs-list-title">{c.chama_name}</div>
+                          <div className="cs-list-meta">{typeLabel(c.chama_type)} · You are {roleLabel(c.role).toLowerCase() === "member" ? "a member" : `the ${roleLabel(c.role).toLowerCase()}`} · {c.total_members ?? 0} {Number(c.total_members) === 1 ? "member" : "members"}</div>
+                        </div>
+                        <div className="cs-list-end">
+                          <div className="cs-list-amount">{formatKES(c.current_fund)}</div>
+                          <div className="cs-list-meta">Group fund</div>
+                        </div>
+                        <ChevronRight size={18} aria-hidden="true" className="cs-chevron" />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <p className="cs-footnote">{visible.length} of {chamas.length} {chamas.length === 1 ? "chama" : "chamas"}</p>
+          </>
+        )}
+      </main>
     </div>
   );
-};
-
-export default MyChamas;
+}

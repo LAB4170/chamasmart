@@ -1,363 +1,189 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import {
-    Plus, Copy, X, Trash2, Calendar,
-    ArrowLeft, User, Link as LinkIcon,
-    AlertCircle, CheckCircle2, Loader,
-    RefreshCw, Share2, Shield
-} from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { useParams, Link } from "react-router-dom";
+import { toast } from "react-toastify";
 import { chamaAPI, inviteAPI } from "../../../services/api";
+import { Button, PageHeader, StatusBadge, EmptyState, Skeleton, Dialog } from "../../../components/ui";
+import { formatDate } from "../../../utils/format";
 
-const InviteManagement = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
+const STATUS_LABELS = { ACTIVE: "Active", ACCEPTED: "Used", REVOKED: "Revoked", EXPIRED: "Expired" };
 
-    const [chama, setChama] = useState(null);
-    const [invites, setInvites] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [generating, setGenerating] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
-    const [bulkEmails, setBulkEmails] = useState('');
+const effectiveStatus = (inv) =>
+  inv.status === "ACTIVE" && inv.expires_at && new Date(inv.expires_at) < new Date() ? "EXPIRED" : inv.status;
 
-    const emailsCount = bulkEmails.split(',').map(e => e.trim()).filter(e => e).length;
+export default function InviteManagement() {
+  const { id } = useParams();
+  const [chama, setChama] = useState(null);
+  const [invites, setInvites] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({ email: "", phone_number: "", role: "MEMBER" });
+  const [creating, setCreating] = useState(false);
+  const [revoking, setRevoking] = useState(null);
+  const [busy, setBusy] = useState(false);
 
-    const fetchData = async () => {
-        try {
-            setLoading(true);
-            const [chamaRes, invitesRes] = await Promise.all([
-                chamaAPI.getById(id),
-                inviteAPI.getAll(id)
-            ]);
-            setChama(chamaRes.data.data);
-            setInvites(invitesRes.data.data);
-        } catch (err) {
-            setError('Failed to load invite data');
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchData();
-    }, [id]);
-
-    const handleGenerateInvite = async () => {
-        setError('');
-        setSuccess('');
-        setGenerating(true);
-
-        try {
-            const response = await inviteAPI.generate(id, {
-                maxUses: 1, // Default to single use for management screen
-                expiresInDays: 7
-            });
-            setSuccess(response.data.message || 'New invite code generated successfully!');
-            fetchData();
-        } catch (err) {
-            setError(err.response?.data?.message || 'Failed to generate invite');
-        } finally {
-            setGenerating(false);
-        }
-    };
-
-    const handleDeactivate = async (inviteId) => {
-        if (!window.confirm('Are you sure you want to deactivate this invite?')) return;
-
-        try {
-            await inviteAPI.deactivate(inviteId);
-            setSuccess('Invite revoked successfully');
-            fetchData();
-        } catch (err) {
-            setError('Failed to revoke invite');
-        }
-    };
-
-    const copyToClipboard = (text) => {
-        navigator.clipboard.writeText(text);
-        setSuccess(`Code ${text} copied!`);
-        setTimeout(() => setSuccess(''), 3000);
-    };
-
-    const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleDateString('en-KE', {
-            month: 'short', day: 'numeric', year: 'numeric'
-        });
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [c, i] = await Promise.all([chamaAPI.getById(id), inviteAPI.getAll(id)]);
+      setChama(c.data?.data || null);
+      const raw = i.data?.data ?? [];
+      setInvites(Array.isArray(raw) ? raw : []);
+    } catch (err) {
+      setError(err.response?.status === 403 ? "Only the officials of this chama can manage invitations." : "We couldn't load the invitations.");
+    } finally {
+      setLoading(false);
     }
+  }, [id]);
 
-    if (loading && invites.length === 0) {
-        return (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: 'var(--text-primary)' }}>
-                <Loader size={48} className="animate-spin" style={{ color: 'var(--primary)' }} />
-                <p style={{ marginTop: '1rem', color: 'var(--gray)' }}>Securing invite data...</p>
-            </div>
-        );
+  useEffect(() => { load(); }, [load]);
+
+  const isChair = (chama?.role || "").toUpperCase() === "CHAIRPERSON";
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const create = async (e) => {
+    e.preventDefault();
+    setCreating(true);
+    try {
+      const res = await inviteAPI.generate(id, {
+        email: form.email.trim() || undefined,
+        phone_number: form.phone_number.trim() || undefined,
+        role: form.role,
+      });
+      const code = res.data?.data?.invite_code;
+      toast.success(code ? `Invitation ${code} created.` : "Invitation created.");
+      setForm({ email: "", phone_number: "", role: "MEMBER" });
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "We couldn't create the invitation.");
+    } finally {
+      setCreating(false);
     }
+  };
 
-    const activeInvites = invites.filter(i => i.is_active);
-    const inactiveInvites = invites.filter(i => !i.is_active);
+  const copy = async (code) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      toast.success("Code copied.");
+    } catch {
+      toast.info(`Code: ${code}`);
+    }
+  };
 
-    return (
-        <div className="page-lux-wrapper" style={{ background: 'var(--lux-bg-soft)', minHeight: '100vh', padding: '2rem 0' }}>
-            <div className="container">
-                <div className="page-frame-lux" style={{ background: 'var(--lux-card-bg)', border: '1px solid var(--lux-border)' }}>
-                    {/* Header */}
-                    <div className="flex flex-between align-center mb-8">
-                        <div className="flex flex-col">
-                            <h1 className="flex items-center gap-3 m-0" style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--lux-text-primary)' }}>
-                                <div className="p-3 rounded-xl" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                                    <Share2 size={24} />
-                                </div>
-                                Invite Management
-                            </h1>
-                            <p className="m-0 mt-2" style={{ color: 'var(--lux-text-secondary)', fontSize: '0.95rem' }}>
-                                Access control for <strong style={{ color: 'var(--lux-text-primary)' }}>{chama?.chama_name}</strong>
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => navigate(`/chamas/${id}`, { state: { tab: 'management' } })}
-                            className="btn-lux btn-lux-outline flex items-center gap-2"
-                        >
-                            <ArrowLeft size={16} /> Back to Management
-                        </button>
-                    </div>
+  const revoke = async () => {
+    setBusy(true);
+    try {
+      await inviteAPI.deactivate(revoking.invite_id);
+      toast.success("Invitation revoked.");
+      setRevoking(null);
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "We couldn't revoke the invitation.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
-            {error && (
-                <div style={{ padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', color: 'var(--danger)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <AlertCircle size={20} /> {error}
+  return (
+    <div className="cs-shell">
+      <main className="cs-page">
+        <PageHeader
+          title="Invitations"
+          subtitle={chama ? `Invite people to ${chama.chama_name}.` : "Invite people to this chama."}
+          actions={<Link to={`/chamas/${id}`} className="cs-btn cs-btn--secondary">Back to chama</Link>}
+        />
+
+        {error && (
+          <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 16, alignItems: "center", justifyContent: "space-between" }}>
+            <span>{error}</span>
+            <Button size="sm" onClick={load}>Try again</Button>
+          </div>
+        )}
+
+        {!error && (
+          <>
+            <form className="cs-card" onSubmit={create} style={{ marginBottom: 16 }} aria-label="Create invitation">
+              <h2 className="cs-card-title">New invitation</h2>
+              <div className="cs-notice cs-notice--info" style={{ marginBottom: 12 }}>
+                <span>
+                  Invitations are not sent automatically. Create one, then share the code yourself.
+                  Each code works once and expires after 7 days. If you enter an email or phone number, only that person can use it.
+                </span>
+              </div>
+              <div className="cs-form-grid">
+                <div className="cs-field">
+                  <label className="cs-label" htmlFor="inv-email">Email (optional)</label>
+                  <input id="inv-email" type="email" className="cs-input" value={form.email} onChange={set("email")} autoComplete="off" />
                 </div>
-            )}
-            {success && (
-                <div style={{ padding: '1rem', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)', borderRadius: '8px', color: 'var(--success)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <CheckCircle2 size={20} /> {success}
+                <div className="cs-field">
+                  <label className="cs-label" htmlFor="inv-phone">Phone (optional)</label>
+                  <input id="inv-phone" type="tel" className="cs-input" value={form.phone_number} onChange={set("phone_number")} autoComplete="off" />
                 </div>
-            )}
-
-            {/* Bulk Email Invitations - NEW */}
-            <div className="dashboard-card-lux mb-8" style={{ padding: '2rem' }}>
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="p-3 rounded-xl" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                        <Plus size={24} />
-                    </div>
-                    <div>
-                        <h3 className="m-0" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--lux-text-primary)' }}>Invite via Email</h3>
-                        <p className="m-0" style={{ color: 'var(--lux-text-secondary)', fontSize: '0.9rem' }}>Direct secure invitations to specific directors</p>
-                    </div>
+                <div className="cs-field">
+                  <label className="cs-label" htmlFor="inv-role">Role</label>
+                  <select id="inv-role" className="cs-select" value={form.role} onChange={set("role")}>
+                    <option value="MEMBER">Member</option>
+                    {isChair && <option value="TREASURER">Treasurer</option>}
+                    {isChair && <option value="SECRETARY">Secretary</option>}
+                  </select>
                 </div>
+              </div>
+              <div className="cs-actions" style={{ marginTop: 12 }}>
+                <Button type="submit" variant="primary" loading={creating}>Create invitation</Button>
+              </div>
+            </form>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', width: '100%' }}>
-                    <div style={{ flex: '1 1 250px', minWidth: '200px' }}>
-                        <textarea
-                            placeholder="Enter emails separated by commas (e.g. member1@gmail.com, member2@gmail.com)"
-                            className="form-textarea"
-                            style={{
-                                width: '100%', padding: '1rem', borderRadius: '12px', border: '1px solid var(--lux-border)',
-                                background: 'var(--lux-bg-soft)', color: 'var(--lux-text-primary)', minHeight: '100px',
-                                resize: 'none', fontSize: '0.95rem'
-                            }}
-                            value={bulkEmails}
-                            onChange={(e) => setBulkEmails(e.target.value)}
-                        />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.50rem' }}>
-                      <button
-                          onClick={async () => {
-                              const emails = bulkEmails.split(',').map(e => e.trim()).filter(e => e);
-                              if (emails.length === 0) return setError('Please enter at least one email');
-                              
-                              setGenerating(true);
-                              setError('');
-                              setSuccess('');
-                              
-                              let successCount = 0;
-                              let failCount = 0;
-
-                              for (const email of emails) {
-                                  try {
-                                      await inviteAPI.send(id, email);
-                                      successCount++;
-                                  } catch (err) {
-                                      console.error(`Failed to invite ${email}`, err);
-                                      failCount++;
-                                  }
-                              }
-
-                              setGenerating(false);
-                              if (successCount > 0) {
-                                  setSuccess(`Successfully sent ${successCount} invitation(s). ${failCount > 0 ? `${failCount} failed.` : ''}`);
-                                  setBulkEmails('');
-                                  fetchData();
-                              } else if (failCount > 0) {
-                                  setError(`Failed to send invitations. Ensure emails are valid and API is connected.`);
-                              }
-                          }}
-                          disabled={generating}
-                          style={{
-                              padding: '0.75rem 1.5rem', 
-                              background: 'var(--lux-gold)',
-                              color: '#000', 
-                              border: 'none', 
-                              borderRadius: '12px',
-                              fontWeight: 900, 
-                              cursor: generating ? 'not-allowed' : 'pointer',
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: '0.5rem', 
-                              fontSize: '0.9rem',
-                              boxShadow: 'var(--lux-shadow)'
-                          }}
-                      >
-                          {generating ? <RefreshCw size={16} className="animate-spin" /> : <Plus size={16} />}
-                          {generating ? 'Sending...' : 'SEND INVITATIONS'}
-                      </button>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--lux-text-secondary)', textAlign: 'center', fontWeight: 600 }}>
-                         {emailsCount || 0} DIRECTORS DETECTED
-                      </p>
-                    </div>
+            <section aria-label="Invitations">
+              {loading ? (
+                <div className="cs-card" aria-busy="true" aria-label="Loading invitations"><Skeleton height={14} width="50%" /><Skeleton height={30} style={{ marginTop: 12 }} /></div>
+              ) : invites.length === 0 ? (
+                <div className="cs-card"><EmptyState title="No invitations yet" message="Create one above and share the code." /></div>
+              ) : (
+                <div className="cs-loan-grid">
+                  {invites.map((inv) => {
+                    const st = effectiveStatus(inv);
+                    return (
+                      <article key={inv.invite_id} className="cs-card cs-loan">
+                        <header className="cs-loan-head">
+                          <div className="cs-list-main">
+                            <h3 className="cs-loan-title" style={{ fontFamily: "monospace", letterSpacing: 1 }}>{inv.invite_code}</h3>
+                            <div className="cs-list-meta">{inv.role} · created {formatDate(inv.created_at)}</div>
+                          </div>
+                          <StatusBadge status={st} label={STATUS_LABELS[st] || st} />
+                        </header>
+                        <dl className="cs-kv">
+                          <div><dt>For</dt><dd>{inv.email || inv.phone_number || "Anyone with the code"}</dd></div>
+                          <div><dt>{st === "ACCEPTED" ? "Used by" : "Expires"}</dt><dd>{st === "ACCEPTED" ? (inv.accepted_by_name || "—") : formatDate(inv.expires_at)}</dd></div>
+                        </dl>
+                        {st === "ACTIVE" && (
+                          <footer className="cs-actions">
+                            <Button size="sm" onClick={() => copy(inv.invite_code)}>Copy code</Button>
+                            <Button variant="danger" size="sm" onClick={() => setRevoking(inv)}>Revoke</Button>
+                          </footer>
+                        )}
+                      </article>
+                    );
+                  })}
                 </div>
-            </div>
+              )}
+            </section>
+          </>
+        )}
 
-            <div className="dashboard-card-lux mb-8" style={{ background: 'var(--gold-gradient)', border: 'none', padding: '2rem' }}>
-                <div className="flex flex-between align-center flex-wrap gap-6">
-                    <div>
-                        <h2 className="m-0 mb-1" style={{ fontSize: '1.3rem', fontWeight: 800, color: 'white' }}>Generate Quick Invite Link</h2>
-                        <p className="m-0" style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.95rem', maxWidth: '450px' }}>
-                            Create a single-use code for manual sharing via WhatsApp, SMS or Signal.
-                        </p>
-                    </div>
-                    <button
-                        onClick={handleGenerateInvite}
-                        disabled={generating}
-                        className="btn-lux"
-                        style={{ background: 'white', color: 'var(--lux-bg-dark)', padding: '0.8rem 1.5rem', borderRadius: '12px' }}
-                    >
-                        {generating ? <Loader size={18} className="animate-spin" /> : <LinkIcon size={18} />}
-                        Create Code
-                    </button>
-                </div>
-            </div>
-
-            {/* Active Invites Section */}
-            <div className="dashboard-card-lux mb-8" style={{ padding: 0, overflow: 'hidden' }}>
-                <div className="flex flex-between items-center p-6 border-b" style={{ borderColor: 'var(--lux-border)' }}>
-                    <h3 className="m-0" style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--lux-text-primary)' }}>Active Invite Codes</h3>
-                    <button onClick={fetchData} className="tab-btn-lux">
-                        <RefreshCw size={18} />
-                    </button>
-                </div>
-
-                <div className="table-responsive-lux">
-                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 4px' }}>
-                        <thead>
-                            <tr style={{ textAlign: 'left', fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--lux-text-secondary)', letterSpacing: '1px' }}>
-                                <th style={{ padding: '1rem 1.5rem' }}>Code</th>
-                                <th>Created By</th>
-                                <th>Usage</th>
-                                <th>Expires</th>
-                                <th style={{ paddingRight: '1.5rem' }}>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {activeInvites.length === 0 ? (
-                                <tr>
-                                    <td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: 'var(--gray)' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-                                            <Shield size={32} style={{ opacity: 0.2 }} />
-                                            <p>No active invite codes found</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : activeInvites.map(invite => (
-                                <tr key={invite.invite_id} style={{ background: 'var(--lux-bg-soft)' }}>
-                                    <td style={{ padding: '1rem 1.5rem', borderRadius: '12px 0 0 12px' }}>
-                                        <div
-                                            onClick={() => copyToClipboard(invite.invite_code)}
-                                            style={{
-                                                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                                fontFamily: 'monospace', fontSize: '1.1rem', fontWeight: 800,
-                                                color: 'var(--lux-gold)', cursor: 'pointer', width: 'fit-content',
-                                                padding: '0.4rem 0.8rem', borderRadius: '8px',
-                                                background: 'var(--lux-gold-dim)', border: '1px solid var(--lux-gold-border)'
-                                            }}
-                                            title="Click to copy"
-                                        >
-                                            {invite.invite_code} <Copy size={12} />
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-lux-bg-soft flex items-center justify-center border border-lux-border text-lux-primary font-bold text-xs">
-                                                {invite.created_by_name?.charAt(0) || <User size={14} />}
-                                            </div>
-                                            <span style={{ color: 'var(--lux-text-primary)', fontWeight: 600 }}>{invite.created_by_name}</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span style={{ fontWeight: 800, color: 'var(--lux-text-primary)' }}>{invite.uses_count}</span>
-                                        <span style={{ color: 'var(--lux-text-secondary)', opacity: 0.6 }}> / {invite.max_uses}</span>
-                                    </td>
-                                    <td style={{ color: 'var(--lux-text-secondary)' }}>
-                                        <div className="flex items-center gap-2">
-                                            <Calendar size={14} />
-                                            {formatDate(invite.expires_at)}
-                                        </div>
-                                    </td>
-                                    <td style={{ paddingRight: '1.5rem', borderRadius: '0 12px 12px 0' }}>
-                                        <button
-                                            onClick={() => handleDeactivate(invite.invite_id)}
-                                            className="p-2 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-colors"
-                                            title="Revoke Invite"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* Inactive History */}
-            {inactiveInvites.length > 0 && (
-                <div style={{ opacity: 0.8 }}>
-                    <h4 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray)', marginBottom: '1rem', marginLeft: '0.5rem' }}>History</h4>
-                    <div style={{
-                        background: 'var(--card-bg)',
-                        borderRadius: '12px',
-                        border: '1px solid var(--border-color)',
-                        overflow: 'hidden'
-                    }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-                            <thead style={{ background: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}>
-                                <tr>
-                                    <th style={{ padding: '0.75rem 1.5rem', textAlign: 'left', fontSize: '0.85rem' }}>Code</th>
-                                    <th style={{ padding: '0.75rem 1.5rem', textAlign: 'left', fontSize: '0.85rem' }}>Status</th>
-                                    <th style={{ padding: '0.75rem 1.5rem', textAlign: 'left', fontSize: '0.85rem' }}>Expired On</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {inactiveInvites.map(invite => (
-                                    <tr key={invite.invite_id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                        <td style={{ padding: '0.75rem 1.5rem', fontFamily: 'monospace', color: 'var(--gray)' }}>{invite.invite_code}</td>
-                                        <td style={{ padding: '0.75rem 1.5rem' }}>
-                                            <span style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600 }}>
-                                                Inactive
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '0.75rem 1.5rem', color: 'var(--gray)' }}>{formatDate(invite.expires_at)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                )}
-            </div>
-        </div>
+        <Dialog
+          open={!!revoking}
+          onClose={() => { if (!busy) setRevoking(null); }}
+          title="Revoke this invitation?"
+          actions={(
+            <>
+              <Button onClick={() => setRevoking(null)} disabled={busy}>Keep it</Button>
+              <Button variant="danger" loading={busy} onClick={revoke}>Revoke</Button>
+            </>
+          )}
+        >
+          <p>Code {revoking?.invite_code} will stop working immediately.</p>
+        </Dialog>
+      </main>
     </div>
-    );
-};
-
-export default InviteManagement;
+  );
+}

@@ -13,30 +13,17 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 public class SessionController {
+    private static <T> ResponseEntity<ApiResponse<T>> notAvailable() {
+        return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_IMPLEMENTED).body(ApiResponse.error("Live meeting sessions are not available yet"));
+    }
     @PostMapping("/{chamaId}/{meetingId}/open")
-    public ResponseEntity<ApiResponse<Void>> openSession(@PathVariable Long chamaId, @PathVariable Long meetingId, @RequestBody Map<String, Object> payload) {
-        log.info("REST request to open session for meeting ID: {}", meetingId);
-        return ResponseEntity.ok(ApiResponse.success(null, "Session opened successfully"));
-    }
+    public ResponseEntity<ApiResponse<Void>> openSession(@PathVariable Long chamaId, @PathVariable Long meetingId, @RequestBody Map<String, Object> payload) { return notAvailable(); }
     @GetMapping("/{chamaId}/{meetingId}/data")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getSessionData(@PathVariable Long chamaId, @PathVariable Long meetingId) {
-        log.info("REST request to get session data for meeting ID: {}", meetingId);
-        return ResponseEntity.ok(ApiResponse.success(new HashMap<>(), "Session data retrieved successfully"));
-    }
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getSessionData(@PathVariable Long chamaId, @PathVariable Long meetingId) { return notAvailable(); }
     @PostMapping("/{chamaId}/{meetingId}/close")
-    public ResponseEntity<ApiResponse<Void>> closeSession(@PathVariable Long chamaId, @PathVariable Long meetingId, @RequestBody Map<String, Object> payload) {
-        log.info("REST request to close session for meeting ID: {}", meetingId);
-        return ResponseEntity.ok(ApiResponse.success(null, "Session closed successfully"));
-    }
+    public ResponseEntity<ApiResponse<Void>> closeSession(@PathVariable Long chamaId, @PathVariable Long meetingId, @RequestBody Map<String, Object> payload) { return notAvailable(); }
     @PostMapping("/{chamaId}/{meetingId}/penalties")
-    public ResponseEntity<ApiResponse<Void>> addPenalty(@PathVariable Long chamaId, @PathVariable Long meetingId, @RequestBody Map<String, Object> penaltyData) {
-        log.info("REST request to add penalty in meeting ID: {}", meetingId);
-        return ResponseEntity.ok(ApiResponse.success(null, "Penalty added successfully"));
-    }
+    public ResponseEntity<ApiResponse<Void>> addPenalty(@PathVariable Long chamaId, @PathVariable Long meetingId, @RequestBody Map<String, Object> penaltyData) { return notAvailable(); }
     @GetMapping("/{chamaId}/{meetingId}/penalties")
-    public ResponseEntity<ApiResponse<List<Object>>> getPenalties(@PathVariable Long chamaId, @PathVariable Long meetingId) {
-        log.info("REST request to get penalties for meeting ID: {}", meetingId);
-        return ResponseEntity.ok(ApiResponse.success(new ArrayList<>(), "Penalties retrieved successfully"));
-    }
+    public ResponseEntity<ApiResponse<List<Object>>> getPenalties(@PathVariable Long chamaId, @PathVariable Long meetingId) { return notAvailable(); }
 }
-

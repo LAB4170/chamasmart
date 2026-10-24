@@ -17,6 +17,12 @@ public class JwtUtil {
     private String jwtSecret;
     @Value("${app.security.jwt.expiration-ms}")
     private long jwtExpirationMs;
+    @jakarta.annotation.PostConstruct
+    void warnIfDefaultSecret() {
+        if (jwtSecret == null || jwtSecret.contains("placeholder") || jwtSecret.length() < 32) {
+            org.slf4j.LoggerFactory.getLogger(JwtUtil.class).error("JWT_SECRET is not set to a strong private value. Anyone who knows the default can forge logins. Set JWT_SECRET now.");
+        }
+    }
     private SecretKey getSigningKey() {
         byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);

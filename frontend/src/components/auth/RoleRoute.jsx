@@ -5,7 +5,7 @@ import { chamaAPI } from "../../services/api";
 
 const RoleRoute = ({ allowedRoles = [], children }) => {
   const { id: chamaId } = useParams();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
