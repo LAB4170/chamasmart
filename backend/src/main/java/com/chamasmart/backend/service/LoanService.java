@@ -89,6 +89,25 @@ public class LoanService {
                 .map(Contribution::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
+    /** What this member may borrow right now, for the application screen. The same rule applyForLoan enforces. */
+    @Transactional(readOnly = true)
+    public Map<String, Object> borrowingLimit(Long chamaId, Long userId) {
+        validateUserMembershipAndActiveStatus(chamaId, userId);
+        Chama chama = chamaRepository.findById(chamaId).orElseThrow(() -> new RuntimeException("Chama not found"));
+        LoanConfig cfg = configFor(chamaId);
+        BigDecimal savings = savingsOf(chamaId, userId);
+        BigDecimal gross = savings.multiply(cfg.getLoanMultiplier());
+        BigDecimal owed = outstandingPrincipal(loanRepository.findByBorrowerUserId(userId), chamaId);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("savings", savings.setScale(2, RoundingMode.HALF_UP));
+        m.put("multiplier", cfg.getLoanMultiplier());
+        m.put("gross_limit", gross.setScale(2, RoundingMode.HALF_UP));
+        m.put("outstanding", owed.setScale(2, RoundingMode.HALF_UP));
+        m.put("available", gross.subtract(owed).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP));
+        m.put("enforced", !"ASCA".equalsIgnoreCase(chama.getChamaType()));
+        return m;
+    }
+
     private static final List<String> OPEN_LOAN_STATES = List.of("PENDING", "APPROVED", "DISBURSED", "ACTIVE", "DEFAULTED");
 
     /** Principal a member still owes in this chama: each open loan's amount, scaled down by how much of it is repaid. */

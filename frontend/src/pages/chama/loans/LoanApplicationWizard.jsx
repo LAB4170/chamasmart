@@ -57,8 +57,10 @@ export default function LoanApplicationWizard() {
         st = (await ascaAPI.getMemberStanding(chamaId).catch(() => null))?.data?.data || null;
       }
       if (!st) {
-        const savings = num(me?.total_contributions);
-        st = { equityValue: savings, loanLimit: savings * num(cfg.loan_multiplier), hasActiveCycle: true };
+        // The server decides: savings only (verified regular contributions), less what is still owed on open loans.
+        const lim = (await loanAPI.getBorrowingLimit(chamaId).catch(() => null))?.data?.data;
+        if (lim) st = { equityValue: num(lim.savings), loanLimit: num(lim.available), hasActiveCycle: true };
+        else { const savings = num(me?.total_contributions); st = { equityValue: savings, loanLimit: savings * num(cfg.loan_multiplier), hasActiveCycle: true }; }
       }
       setChama(chamaData); setMembers(membersData); setConfig(cfg); setStanding(st);
     } catch {

@@ -191,6 +191,10 @@ public class LoanController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getChamaAnalytics(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails currentUser) {
         return ResponseEntity.ok(ApiResponse.success(loanService.analytics(chamaId, currentUser.getUserId()), "Analytics retrieved successfully"));
     }
+    @GetMapping("/{chamaId}/limit")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> borrowingLimit(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(loanService.borrowingLimit(chamaId, currentUser.getUserId()), "Borrowing limit retrieved"));
+    }
     @GetMapping("/{chamaId}/config")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getConfig(@PathVariable Long chamaId,
                                                                       @AuthenticationPrincipal CustomUserDetails currentUser) {
