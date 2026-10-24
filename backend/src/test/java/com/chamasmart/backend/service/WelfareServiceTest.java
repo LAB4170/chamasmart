@@ -31,6 +31,7 @@ class WelfareServiceTest {
     @Mock UserRepository userRepo;
     @Mock ChamaMemberRepository memberRepo;
     @Mock FinancialAuditLogRepository auditRepo;
+    @Mock LedgerService ledger;
 
     WelfareService service;
     Chama chama;
@@ -55,7 +56,7 @@ class WelfareServiceTest {
         when(fundRepo.findByChamaIdWithPessimisticLock(1L)).thenReturn(Optional.of(fund));
         when(approvalRepo.findByClaimClaimId(10L)).thenAnswer(i -> new ArrayList<>(approvals));
         when(approvalRepo.save(any(WelfareClaimApproval.class))).thenAnswer(i -> { approvals.add(i.getArgument(0)); return i.getArgument(0); });
-        service = new WelfareService(configRepo, fundRepo, claimRepo, approvalRepo, chamaRepo, userRepo, memberRepo, auditRepo);
+        service = new WelfareService(configRepo, fundRepo, claimRepo, approvalRepo, chamaRepo, userRepo, memberRepo, auditRepo, ledger);
     }
 
     @Test void sameOfficialCannotApproveTwice() {

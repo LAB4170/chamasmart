@@ -34,6 +34,7 @@ public class ContributionService {
     private final ChamaMemberRepository chamaMemberRepository;
     private final FinancialAuditLogRepository auditLogRepository;
     private final WelfareFundRepository welfareFundRepository;
+    private final LedgerService ledger;
 
     /** Credits at or above this need a second official; below it, an official still cannot credit their own money. */
     @org.springframework.beans.factory.annotation.Value("${app.finance.dual-approval-threshold:10000}")
@@ -92,7 +93,7 @@ public class ContributionService {
     }
 
     /** Credits the member's total and the chama (or welfare) fund. Fund rows are locked while they change. */
-    private void credit(Chama chama, Contribution c) {
+    private void credit(Chama chama, Contribution c, Long actorId) {
         Long chamaId = chama.getChamaId();
         chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, c.getUser().getUserId()).ifPresent(m -> {
             BigDecimal total = m.getTotalContributions() != null ? m.getTotalContributions() : BigDecimal.ZERO;
@@ -105,10 +106,12 @@ public class ContributionService {
                     .orElseGet(() -> welfareFundRepository.save(WelfareFund.builder().chama(chama).balance(BigDecimal.ZERO).build()));
             fund.setBalance(fund.getBalance().add(c.getAmount()));
             welfareFundRepository.save(fund);
+            ledger.post(chama, LedgerEntry.WELFARE_FUND, c.getAmount(), "CONTRIBUTION", "CONTRIBUTION", c.getContributionId(), actorId, "Welfare contribution " + c.getReference());
         } else {
             Chama locked = chamaRepository.findByIdWithPessimisticLock(chamaId).orElse(chama);
             locked.setCurrentFund(locked.getCurrentFund().add(c.getAmount()));
             chamaRepository.save(locked);
+            ledger.post(locked, LedgerEntry.CHAMA_FUND, c.getAmount(), "CONTRIBUTION", "CONTRIBUTION", c.getContributionId(), actorId, "Contribution " + c.getReference());
         }
     }
 
@@ -136,7 +139,7 @@ public class ContributionService {
         toSave.setRecordedBy(actorId);
         Contribution saved = contributionRepository.save(toSave);
         if (direct) {
-            credit(chama, saved);
+            credit(chama, saved, actorId);
             audit(actorId, chama, saved, "MANUAL_CONTRIBUTION", "Manual contribution recorded. Reference: " + saved.getReference());
         }
         return ContributionSummaryDto.fromEntity(saved);
@@ -173,7 +176,7 @@ public class ContributionService {
             toSave.setRecordedBy(actorId);
             Contribution saved = contributionRepository.save(toSave);
             if (direct) {
-                credit(chama, saved);
+                credit(chama, saved, actorId);
                 audit(actorId, chama, saved, "BULK_CONTRIBUTION", "Bulk contribution recorded. Member ID: " + e.userId() + ", Ref: " + saved.getReference());
             }
             out.add(ContributionSummaryDto.fromEntity(saved));
@@ -198,7 +201,7 @@ public class ContributionService {
         }
         if (approve) {
             c.setStatus("COMPLETED");
-            credit(c.getChama(), c);
+            credit(c.getChama(), c, actorId);
             audit(actorId, c.getChama(), c, "VERIFIED_CONTRIBUTION", "Receipt contribution approved. Ref: " + c.getReference());
         } else {
             c.setStatus("FAILED");
@@ -261,11 +264,13 @@ public class ContributionService {
                 welfareFundRepository.findByChamaIdWithPessimisticLock(chamaId).ifPresent(f -> {
                     f.setBalance(f.getBalance().subtract(c.getAmount()).max(BigDecimal.ZERO));
                     welfareFundRepository.save(f);
+                    ledger.post(c.getChama(), LedgerEntry.WELFARE_FUND, c.getAmount().negate(), "REVERSAL", "CONTRIBUTION", c.getContributionId(), actorId, "Reversed: " + reason.trim());
                 });
             } else {
                 Chama chama = chamaRepository.findByIdWithPessimisticLock(chamaId).orElse(c.getChama());
                 chama.setCurrentFund(chama.getCurrentFund().subtract(c.getAmount()).max(BigDecimal.ZERO));
                 chamaRepository.save(chama);
+                ledger.post(chama, LedgerEntry.CHAMA_FUND, c.getAmount().negate(), "REVERSAL", "CONTRIBUTION", c.getContributionId(), actorId, "Reversed: " + reason.trim());
             }
             audit(actorId, c.getChama(), c, "CONTRIBUTION_REVERSAL", "Contribution reversed by an official. Original Ref: " + c.getReference() + ". Reason: " + reason.trim());
         }

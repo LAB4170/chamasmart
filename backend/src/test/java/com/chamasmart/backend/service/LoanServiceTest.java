@@ -32,6 +32,7 @@ class LoanServiceTest {
     @Mock FinancialAuditLogRepository auditRepo;
     @Mock LoanConfigRepository configRepo;
     @Mock LoanRepaymentRepository repaymentRepo;
+    @Mock LedgerService ledger;
     @InjectMocks LoanService service;
 
     Chama chama;

@@ -33,6 +33,7 @@ class RoscaServiceTest {
     @Mock MembershipService membership;
     @Mock ContributionService contributions;
     @Mock LoanRepository loanRepo;
+    @Mock LedgerService ledger;
 
     RoscaService service;
     Chama chama;
@@ -54,7 +55,7 @@ class RoscaServiceTest {
         when(chamaRepo.findByIdWithPessimisticLock(1L)).thenReturn(Optional.of(chama));
         when(cycleRepo.findById(5L)).thenReturn(Optional.of(cycle));
         when(cycleRepo.findByIdWithPessimisticLock(5L)).thenReturn(Optional.of(cycle));
-        service = new RoscaService(cycleRepo, rosterRepo, chamaRepo, memberRepo, userRepo, contribRepo, auditRepo, membership, contributions, loanRepo);
+        service = new RoscaService(cycleRepo, rosterRepo, chamaRepo, memberRepo, userRepo, contribRepo, auditRepo, membership, contributions, loanRepo, ledger);
     }
 
     private RoscaRoster roster(long id, long userId, int pos, String status) {

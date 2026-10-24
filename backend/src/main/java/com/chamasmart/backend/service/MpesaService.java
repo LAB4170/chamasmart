@@ -34,6 +34,7 @@ public class MpesaService {
     private final ChamaMemberRepository chamaMemberRepository;
     private final FinancialAuditLogRepository auditLogRepository;
     private final ApplicationContext applicationContext;
+    private final LedgerService ledger;
 
     @Value("${app.mpesa.env:sandbox}")
     private String env;
@@ -333,6 +334,7 @@ public class MpesaService {
             Chama chama = transaction.getChama();
             chama.setCurrentFund(chama.getCurrentFund().add(transaction.getAmount()));
             chamaRepository.save(chama);
+            ledger.post(chama, LedgerEntry.CHAMA_FUND, transaction.getAmount(), "MPESA_CONTRIBUTION", "CONTRIBUTION", savedContribution.getContributionId(), null, "M-Pesa receipt " + mpesaReceipt);
             // Write immutable Financial Audit Log
             FinancialAuditLog auditLog = FinancialAuditLog.builder()
                     .user(transaction.getUser())

@@ -20,6 +20,7 @@ public class AscaService {
     private final UserRepository userRepository;
     private final ChamaMemberRepository chamaMemberRepository;
     private final FinancialAuditLogRepository auditLogRepository;
+    private final LedgerService ledger;
     private ChamaMember validateUserMembershipAndActiveStatus(Long chamaId, Long userId) {
         return chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
                 .filter(ChamaMember::getIsActive)
@@ -101,6 +102,7 @@ public class AscaService {
         // Credit the investment amount to the Chama's current fund balance
         chama.setCurrentFund(chama.getCurrentFund().add(investmentAmount));
         chamaRepository.save(chama);
+        ledger.post(chama, LedgerEntry.CHAMA_FUND, investmentAmount, "ASCA_SHARE_PURCHASE", "ASCA_CYCLE", cycle.getCycleId(), actorId, sharesToPurchase + " shares for member " + userId);
         // Record Financial Audit Log
         FinancialAuditLog auditLog = FinancialAuditLog.builder()
                 .user(user)

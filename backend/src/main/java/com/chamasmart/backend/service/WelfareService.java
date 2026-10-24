@@ -22,6 +22,7 @@ public class WelfareService {
     private final UserRepository userRepository;
     private final ChamaMemberRepository chamaMemberRepository;
     private final FinancialAuditLogRepository auditLogRepository;
+    private final LedgerService ledger;
     private ChamaMember validateUserMembershipAndActiveStatus(Long chamaId, Long userId) {
         return chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
                 .filter(ChamaMember::getIsActive)
@@ -158,6 +159,7 @@ public class WelfareService {
             } else {
                 fund.setBalance(fund.getBalance().subtract(claim.getClaimAmount()));
                 welfareFundRepository.save(fund);
+                ledger.post(claim.getChama(), LedgerEntry.WELFARE_FUND, claim.getClaimAmount().negate(), "WELFARE_PAYOUT", "WELFARE_CLAIM", claim.getClaimId(), approverUserId, "Claim " + claim.getClaimId());
                 claim.setStatus("PAID");
                 // Write Financial Audit Log
                 FinancialAuditLog auditLog = FinancialAuditLog.builder()

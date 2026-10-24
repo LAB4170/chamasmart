@@ -29,6 +29,7 @@ class ContributionServiceTest {
     @Mock ChamaMemberRepository memberRepo;
     @Mock FinancialAuditLogRepository auditRepo;
     @Mock WelfareFundRepository welfareRepo;
+    @Mock LedgerService ledger;
     @InjectMocks ContributionService service;
 
     Chama chama;
@@ -68,6 +69,7 @@ class ContributionServiceTest {
         member(7, "TREASURER", true); member(6, "MEMBER", true);
         service.record(1L, 7L, entry(6, "250", "RCP1"), true);
         assertEquals(0, new BigDecimal("1250").compareTo(chama.getCurrentFund()));
+        verify(ledger, times(1)).post(eq(chama), eq(LedgerEntry.CHAMA_FUND), argThat(a -> a.compareTo(new BigDecimal("250")) == 0), eq("CONTRIBUTION"), any(), any(), eq(7L), any());
         verify(auditRepo, times(1)).save(any());
     }
 
@@ -209,5 +211,18 @@ class ContributionServiceTest {
         chama.setCurrentFund(new BigDecimal("100")); // money was lent out; the contribution was 400
         assertThrows(IllegalStateException.class, () -> service.delete(1L, 7L, 60L, "mistake"));
         assertEquals(0, new BigDecimal("100").compareTo(chama.getCurrentFund()));
+    }
+
+    @Test void aReversalIsJournalledAsANegativeEntry() {
+        member(7, "TREASURER", true); member(6, "MEMBER", true);
+        completed(70, 6);
+        service.delete(1L, 7L, 70L, "duplicate");
+        verify(ledger).post(eq(chama), eq(LedgerEntry.CHAMA_FUND), argThat(a -> a.compareTo(new BigDecimal("-400")) == 0), eq("REVERSAL"), any(), any(), eq(7L), any());
+    }
+
+    @Test void aHeldPaymentWritesNothingToTheJournal() {
+        member(7, "TREASURER", true);
+        service.record(1L, 7L, entry(7, "250", "SELF2"), true);
+        verify(ledger, never()).post(any(), any(), any(), any(), any(), any(), any(), any());
     }
 }

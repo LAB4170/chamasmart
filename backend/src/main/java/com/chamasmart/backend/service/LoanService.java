@@ -25,6 +25,7 @@ public class LoanService {
     private final FinancialAuditLogRepository auditLogRepository;
     private final LoanConfigRepository loanConfigRepository;
     private final LoanRepaymentRepository loanRepaymentRepository;
+    private final LedgerService ledger;
     private ChamaMember validateUserMembershipAndActiveStatus(Long chamaId, Long userId) {
         return chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
                 .filter(ChamaMember::getIsActive)
@@ -383,6 +384,7 @@ public class LoanService {
         // Deduct from chama funds
         chama.setCurrentFund(chama.getCurrentFund().subtract(amount));
         chamaRepository.save(chama);
+        ledger.post(chama, LedgerEntry.CHAMA_FUND, amount.negate(), "LOAN_DISBURSEMENT", "LOAN", loan.getLoanId(), officerUserId, "Loan to member " + loan.getBorrower().getUserId());
         loan.setStatus("APPROVED");
         loan.setApprovedAt(ZonedDateTime.now());
         loan.setApprovedBy(userRepository.getReferenceById(officerUserId));
@@ -489,6 +491,7 @@ public class LoanService {
         loan.setLastPaymentDate(ZonedDateTime.now());
         chama.setCurrentFund(chama.getCurrentFund().add(rep.getAmount()));
         chamaRepository.save(chama);
+        ledger.post(chama, LedgerEntry.CHAMA_FUND, rep.getAmount(), "LOAN_REPAYMENT", "LOAN", loan.getLoanId(), officialUserId, "Repayment verified, payer " + rep.getPayer().getUserId());
         if (loan.getAmountPaid().compareTo(loan.getTotalRepayable()) >= 0) {
             loan.setStatus("COMPLETED");
         }

@@ -28,6 +28,7 @@ class AscaServiceTest {
     @Mock UserRepository userRepo;
     @Mock ChamaMemberRepository chamaMemberRepo;
     @Mock FinancialAuditLogRepository auditRepo;
+    @Mock LedgerService ledger;
     @InjectMocks AscaService service;
 
     Chama chama;

@@ -32,6 +32,7 @@ class MpesaServiceCallbackTest {
     @Mock ChamaMemberRepository memberRepo;
     @Mock FinancialAuditLogRepository auditRepo;
     @Mock org.springframework.context.ApplicationContext ctx;
+    @Mock LedgerService ledger;
     @InjectMocks MpesaService service;
 
     Chama chama;

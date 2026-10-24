@@ -25,6 +25,7 @@ public class RoscaService {
     private final MembershipService membershipService;
     private final ContributionService contributionService;
     private final LoanRepository loanRepository;
+    private final LedgerService ledger;
     @org.springframework.beans.factory.annotation.Value("${app.finance.dual-approval-threshold:10000}")
     private BigDecimal dualApprovalThreshold = BigDecimal.valueOf(10000);
     @Transactional
@@ -166,6 +167,7 @@ public class RoscaService {
         // Deduct from Chama treasury
         chama.setCurrentFund(chama.getCurrentFund().subtract(potAmount));
         chamaRepository.save(chama);
+        ledger.post(chama, LedgerEntry.CHAMA_FUND, potAmount.negate(), "ROSCA_POT_PAYOUT", "ROSCA_CYCLE", cycleId, officerUserId, "Pot to roster position " + recipientRow.getPosition());
         // Update roster entry to PAID
         nextRecipient.setStatus("PAID");
         roscaRosterRepository.save(nextRecipient);
