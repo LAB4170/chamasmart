@@ -73,6 +73,8 @@ app:
     consumer-key: ${MPESA_CONSUMER_KEY:}
     consumer-secret: ${MPESA_CONSUMER_SECRET:YOUR_DARAJA_SANDBOX_CONSUMER_SECRET}
     callback-secret: ${MPESA_CALLBACK_SECRET:}
+    c2b-secret: ${MPESA_C2B_SECRET:}
+    pooled-shortcode: ${MPESA_POOLED_SHORTCODE:}
     shortcode: ${MPESA_SHORTCODE:174379}
     # Official Safaricom Sandbox Passkey (public for sandbox use)
     passkey: ${MPESA_PASSKEY:}

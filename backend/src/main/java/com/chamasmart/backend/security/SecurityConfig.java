@@ -62,7 +62,7 @@ public class SecurityConfig {
                 .requestMatchers("/public/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
-                .requestMatchers("/mpesa/callback", "/payments/mpesa/callback", "/payments/paystack/webhook").permitAll()
+                .requestMatchers("/mpesa/callback", "/payments/mpesa/callback", "/payments/paystack/webhook", "/payments/mpesa/c2b/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/socket.io/**").permitAll()
                 .requestMatchers("/notifications/**", "/chamas/**", "/loans/**", "/finance/**").authenticated()

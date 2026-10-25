@@ -11,4 +11,6 @@ import java.util.Optional;
 public interface PaymentEventRepository extends JpaRepository<PaymentEvent, Long> {
     Optional<PaymentEvent> findByProviderAndProviderEventId(String provider, String providerEventId);
     List<PaymentEvent> findTop100ByStatusOrderByReceivedAtDesc(String status);
+    List<PaymentEvent> findByChamaIdAndStatusOrderByReceivedAtDesc(Long chamaId, String status);
+    List<PaymentEvent> findByChamaIdIsNullAndStatusOrderByReceivedAtDesc(String status);
 }
