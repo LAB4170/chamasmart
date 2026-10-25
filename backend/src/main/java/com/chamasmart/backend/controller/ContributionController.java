@@ -130,6 +130,15 @@ public class ContributionController {
         return ResponseEntity.ok(ApiResponse.success(contributionService.list(chamaId, currentUser.getUserId(), startDate, endDate), "All contributions retrieved successfully"));
     }
 
+    /** Paged ledger: ?page=0&size=25&startDate=&endDate=&userId=&status= . Page size is capped at 100. */
+    @GetMapping("/{chamaId}/page")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> getContributionPage(@PathVariable Long chamaId, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "25") int size,
+                                                                                     @RequestParam(required = false) String startDate, @RequestParam(required = false) String endDate,
+                                                                                     @RequestParam(required = false) Long userId, @RequestParam(required = false) String status,
+                                                                                     @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(contributionService.listPage(chamaId, currentUser.getUserId(), startDate, endDate, userId, status, page, size), "Contributions retrieved successfully"));
+    }
+
     @DeleteMapping("/{chamaId}/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteContribution(@PathVariable Long chamaId, @PathVariable Long id, @RequestParam(required = false) String reason, @AuthenticationPrincipal CustomUserDetails currentUser) {
         contributionService.delete(chamaId, currentUser.getUserId(), id, reason);

@@ -18,6 +18,7 @@ export const contributionAPI = {
         api.get(`/payments/mpesa/transactions/${encodeURIComponent(checkoutRequestId)}`),
     delete: (chamaId, id) => api.delete(`/contributions/${chamaId}/${id}`),
     getAll: (chamaId, params) => api.get(`/contributions/${chamaId}`, { params }),
+    getPage: (chamaId, params) => api.get(`/contributions/${chamaId}/page`, { params }),
 };
 
 // Loan API calls

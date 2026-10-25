@@ -1,3 +1,4 @@
+import { Pager } from "../../../components/ui";
 import { useState, useEffect, memo, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -290,6 +291,7 @@ const ChamaDetails = () => {
   const [chama, setChama] = useState(null);
   const [members, setMembers] = useState([]);
   const [contributions, setContributions] = useState([]);
+  const [ledger, setLedger] = useState({ items: [], page: 0, size: 25, total: 0, totalPages: 0, completedTotal: 0 });
   const [stats, setStats] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
@@ -546,7 +548,7 @@ const ChamaDetails = () => {
       const isMember = membersArray.some(m => String(m.user_id) === String(myId));
 
       if (isMember) {
-        await fetchContributions();
+        await Promise.all([fetchContributions(), fetchLedger(0)]);
       } else {
         setContributions([]);
       }
@@ -648,6 +650,18 @@ const ChamaDetails = () => {
     }
   };
 
+  const fetchLedger = async (page = 0, f = filters) => {
+    try {
+      const params = Object.fromEntries(Object.entries({ ...f, page, size: 25 }).filter(([, v]) => v != null && v !== ""));
+      const res = await contributionAPI.getPage(id, params);
+      const d = res.data.data;
+      setLedger({ items: d.items || [], page: d.page, size: d.size, total: d.total, totalPages: d.total_pages, completedTotal: Number(d.completed_total || 0) });
+    } catch (err) {
+      console.error("Failed to fetch ledger page:", err);
+      toast.error("Failed to load the ledger");
+    }
+  };
+
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({ ...prev, [name]: value }));
@@ -659,12 +673,14 @@ const ChamaDetails = () => {
       return;
     }
     fetchContributions();
+    fetchLedger(0);
   };
 
   const resetFilters = () => {
     const defaultFilters = { startDate: "", endDate: "", userId: "" };
     setFilters(defaultFilters);
     fetchContributions(defaultFilters);
+    fetchLedger(0, defaultFilters);
   };
 
   const formatCurrency = useCallback((amount) => {
@@ -1211,7 +1227,7 @@ const ChamaDetails = () => {
               <div className="dashboard-card-lux" style={{ minHeight: '700px' }}>
                 <div className="card-header pb-4 mb-6 border-b border-white/5 flex justify-between items-center">
                   <h3 className="card-title-lux m-0">
-                    <CreditCard size={20} /> Financial Ledger ({contributions.length})
+                    <CreditCard size={20} /> Financial Ledger ({ledger.total})
                   </h3>
                   <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                     {officialStatus && chama.custody_type === "SELF_MANAGED" && (
@@ -1245,7 +1261,7 @@ const ChamaDetails = () => {
                   <div className="stat-card-lux">
                     <span className="stat-label-lux">Total Collections</span>
                     <div className="stat-value-lux" style={{ color: '#10b981' }}>
-                      {formatCurrency(contributions.reduce((sum, c) => sum + parseFloat(c.amount), 0))}
+                      {formatCurrency(ledger.completedTotal)}
                     </div>
                   </div>
                   <div className="stat-card-lux">
@@ -1253,7 +1269,7 @@ const ChamaDetails = () => {
                     <div className="stat-value-lux">
                       {formatCurrency(
                         contributions
-                          .filter(c => new Date(c.contribution_date).getMonth() === new Date().getMonth())
+                          .filter(c => String(c.status).toUpperCase() === 'COMPLETED' && new Date(c.contribution_date).getMonth() === new Date().getMonth() && new Date(c.contribution_date).getFullYear() === new Date().getFullYear())
                           .reduce((sum, c) => sum + parseFloat(c.amount), 0)
                       )}
                     </div>
@@ -1312,7 +1328,7 @@ const ChamaDetails = () => {
                   </div>
                 </div>
 
-                {contributions.length === 0 ? (
+                {ledger.items.length === 0 ? (
                   <div className="text-center py-20 opacity-30">
                     <CreditCard size={48} style={{ marginBottom: '1rem' }} />
                     <p>No transaction history found.</p>
@@ -1331,7 +1347,7 @@ const ChamaDetails = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {contributions.slice(0, 100).map((c) => {
+                        {ledger.items.map((c) => {
                           const verStatus = c.verification_status || c.status || 'PENDING';
                           const isVerified = verStatus === 'VERIFIED' || verStatus === 'COMPLETED';
                           const isRejected = verStatus === 'REJECTED';
@@ -1367,11 +1383,7 @@ const ChamaDetails = () => {
                         })}
                       </tbody>
                     </table>
-                    {contributions.length > 100 && (
-                      <div className="text-center py-4 opacity-50 text-xs italic">
-                        Showing last 100 transactions. Export for full history.
-                      </div>
-                    )}
+                    <Pager page={ledger.page} totalPages={ledger.totalPages} total={ledger.total} size={ledger.size} onPage={(p) => fetchLedger(p)} label="transactions" />
                   </div>
                 )}
               </div>

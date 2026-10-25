@@ -6,4 +6,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface UserMfaRepository extends JpaRepository<UserMfa, Long> {
+    /** Checks the flag without loading (and decrypting) the secret. */
+    boolean existsByUserIdAndEnabledTrue(Long userId);
 }

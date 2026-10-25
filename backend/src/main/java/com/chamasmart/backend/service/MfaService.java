@@ -44,7 +44,7 @@ public class MfaService {
     private String issuer = "ChamaSmart";
 
     public boolean isEnabled(Long userId) {
-        return mfaRepository.findById(userId).map(UserMfa::isEnabled).orElse(false);
+        return mfaRepository.existsByUserIdAndEnabledTrue(userId);
     }
 
     public boolean enforcesOfficials() { return enforceForOfficials; }
@@ -94,7 +94,14 @@ public class MfaService {
     /** Accepts an authenticator code or an unused recovery code. */
     @Transactional
     public boolean verify(Long userId, String code) {
-        UserMfa mfa = mfaRepository.findById(userId).filter(UserMfa::isEnabled).orElse(null);
+        UserMfa mfa;
+        try {
+            mfa = mfaRepository.findById(userId).filter(UserMfa::isEnabled).orElse(null);
+        } catch (RuntimeException e) {
+            // The stored secret cannot be read (for example the encryption key changed). Refuse rather than let anyone in.
+            org.slf4j.LoggerFactory.getLogger(MfaService.class).error("Two-factor secret for user {} could not be read; an admin reset is needed", userId);
+            return false;
+        }
         if (mfa == null || code == null) return false;
         String trimmed = code.trim().replace(" ", "");
         if (trimmed.matches("\\d{6}")) {

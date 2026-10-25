@@ -30,6 +30,7 @@ class MfaServiceTest {
     void setUp() {
         service = new MfaService(mfaRepo, recoveryRepo, jwt);
         when(mfaRepo.findById(anyLong())).thenAnswer(i -> Optional.ofNullable(store.get(i.getArgument(0))));
+        when(mfaRepo.existsByUserIdAndEnabledTrue(anyLong())).thenAnswer(i -> store.containsKey(i.getArgument(0)) && store.get(i.getArgument(0)).isEnabled());
         when(mfaRepo.save(any())).thenAnswer(i -> { UserMfa m = i.getArgument(0); store.put(m.getUserId(), m); return m; });
         doAnswer(i -> store.remove(i.getArgument(0))).when(mfaRepo).deleteById(anyLong());
         when(recoveryRepo.save(any())).thenAnswer(i -> { MfaRecoveryCode c = i.getArgument(0); codes.add(c); return c; });

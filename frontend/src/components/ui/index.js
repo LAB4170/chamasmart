@@ -6,3 +6,4 @@ export { default as EmptyState } from './EmptyState';
 export { default as Skeleton } from './Skeleton';
 export { default as DataTable } from './DataTable';
 export { default as Dialog } from './Dialog';
+export { default as Pager } from './Pager';

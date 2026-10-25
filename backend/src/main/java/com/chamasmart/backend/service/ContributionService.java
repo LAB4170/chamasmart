@@ -271,6 +271,28 @@ public class ContributionService {
                 .map(ContributionSummaryDto::fromEntity).collect(Collectors.toList());
     }
 
+    /** A page of the ledger, filtered in the database. Same visibility rules as {@link #list}. */
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Object> listPage(Long chamaId, Long actorId, String startDate, String endDate, Long userId, String status, int page, int size) {
+        boolean isOfficial = official(activeMember(chamaId, actorId));
+        ZoneId zone = ZoneId.of("Africa/Nairobi");
+        java.time.ZonedDateTime from = startDate == null || startDate.isBlank() ? java.time.ZonedDateTime.of(1970, 1, 1, 0, 0, 0, 0, zone) : LocalDate.parse(startDate).atStartOfDay(zone);
+        java.time.ZonedDateTime to = endDate == null || endDate.isBlank() ? java.time.ZonedDateTime.of(2999, 1, 1, 0, 0, 0, 0, zone) : LocalDate.parse(endDate).plusDays(1).atStartOfDay(zone);
+        Long uid = userId == null ? -1L : userId;
+        String st = status == null ? "" : status.trim().toUpperCase();
+        int safeSize = Math.max(1, Math.min(size, 100));
+        var result = contributionRepository.page(chamaId, isOfficial, actorId, from, to, uid, st, org.springframework.data.domain.PageRequest.of(Math.max(0, page), safeSize));
+        java.math.BigDecimal total = contributionRepository.completedTotal(chamaId, isOfficial, actorId, from, to, uid);
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("items", result.getContent().stream().map(ContributionSummaryDto::fromEntity).collect(Collectors.toList()));
+        out.put("page", result.getNumber());
+        out.put("size", result.getSize());
+        out.put("total", result.getTotalElements());
+        out.put("total_pages", result.getTotalPages());
+        out.put("completed_total", total);
+        return out;
+    }
+
     @Transactional
     public void delete(Long chamaId, Long actorId, Long id, String reason) {
         activeOfficial(chamaId, actorId);
