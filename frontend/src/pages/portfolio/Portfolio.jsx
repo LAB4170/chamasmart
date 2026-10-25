@@ -68,7 +68,7 @@ export default function Portfolio() {
       </div>
       {loading && !data ? <Skeleton /> : data && data.items.length === 0 ? (
         <EmptyState title={t?.chamas ? "No chamas match" : "You do not run any chamas yet"}
-          description={t?.chamas ? "Try a different search." : "This page lists the chamas where you are the chairperson, treasurer or secretary."} />
+          message={t?.chamas ? "Try a different search." : "This page lists the chamas where you are the chairperson, treasurer or secretary."} />
       ) : (
         <div style={{ display: "grid", gap: 10 }}>
           {data?.items.map((c) => (
