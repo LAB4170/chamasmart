@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import { chamaAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import { Button, PageHeader, Skeleton, Dialog } from "../../../components/ui";
+import { currentUserId } from "../../../utils/format";
 
 const FREQUENCIES = [["DAILY", "Daily"], ["WEEKLY", "Weekly"], ["BIWEEKLY", "Every 2 weeks"], ["MONTHLY", "Monthly"]];
 const PAY_TYPES = [["PAYBILL", "M-Pesa Paybill"], ["TILL", "M-Pesa Till"], ["POCHI", "Pochi la Biashara"], ["SEND_MONEY", "Send money to a phone"], ["BANK", "Bank transfer"]];
@@ -128,7 +129,7 @@ export default function ManageChama() {
   );
 
   const requestedBy = chama?.deletion_requested_by;
-  const mine = requestedBy && String(requestedBy) === String(user?.user_id);
+  const mine = requestedBy && String(requestedBy) === String(currentUserId(user));
 
   return (
     <div className="cs-shell">

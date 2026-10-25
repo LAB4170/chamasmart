@@ -58,3 +58,6 @@ export const statusInfo = (status) => {
   const label = key.charAt(0) + key.slice(1).toLowerCase().replace(/_/g, ' ');
   return [label, 'neutral'];
 };
+
+/** The signed-in person's id, whichever shape the user object has (login returns userId, profile returns user_id). */
+export const currentUserId = (user) => user?.userId ?? user?.user_id ?? user?.id ?? null;

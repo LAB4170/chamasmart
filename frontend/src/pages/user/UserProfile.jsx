@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import { userAPI, chamaAPI, authAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { getImageUrl } from "../../utils/imageUtils";
-import { Button, PageHeader, Skeleton, Dialog } from "../../components/ui";
+import { Button, Skeleton, Dialog } from "../../components/ui";
 import { formatDate } from "../../utils/format";
 
 const maskId = (v) => (!v ? "" : v.length <= 7 ? v : `${v.slice(0, 3)}***${v.slice(-2)}`);
@@ -179,16 +179,23 @@ export default function UserProfile() {
   return (
     <div className="cs-shell">
       <main className="cs-page">
-        <PageHeader title="Your profile" subtitle={`${groups} ${groups === 1 ? "chama" : "chamas"}${since ? ` · member since ${formatDate(since)}` : ""}`} />
-
-        <section className="cs-card" aria-label="Personal details" style={{ marginBottom: 16, maxWidth: 720 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
-            {pic ? <img src={pic} alt="Your profile" width={72} height={72} style={{ borderRadius: "50%", objectFit: "cover" }} /> : <div aria-hidden="true" style={{ width: 72, height: 72, borderRadius: "50%", display: "grid", placeItems: "center", background: "var(--cs-surface-2)", fontWeight: 700, fontSize: "1.5rem" }}>{initials || "?"}</div>}
-            <div>
-              <Button size="sm" loading={uploading} onClick={() => fileRef.current?.click()}>Change photo</Button>
-              <input ref={fileRef} type="file" accept="image/*" onChange={upload} hidden aria-label="Choose a profile photo" />
+        <section className="cs-hero cs-hero--profile" aria-label="Your profile">
+          {pic ? <img className="cs-profile-pic" src={pic} alt="Your profile" width={88} height={88} /> : <div className="cs-profile-pic" aria-hidden="true">{initials || "?"}</div>}
+          <div className="cs-profile-id">
+            <h1 className="cs-hub-title" style={{ margin: 0 }}>{`${profile.first_name} ${profile.last_name}`.trim() || "Your profile"}</h1>
+            <p className="cs-hero-note" style={{ margin: "4px 0 10px" }}>{profile.email}</p>
+            <div className="cs-hub-meta">
+              <span className="cs-hero-pill">{groups} {groups === 1 ? "chama" : "chamas"}</span>
+              {since && <span className="cs-hero-pill">Member since {formatDate(since)}</span>}
             </div>
           </div>
+          <div className="cs-profile-photo-action">
+            <Button className="cs-btn--glass" loading={uploading} onClick={() => fileRef.current?.click()}>Change photo</Button>
+            <input ref={fileRef} type="file" accept="image/*" onChange={upload} hidden aria-label="Choose a profile photo" />
+          </div>
+        </section>
+
+        <section className="cs-card" aria-label="Personal details" style={{ marginBottom: 16, maxWidth: 720 }}>
           <form onSubmit={saveProfile} noValidate>
             <div className="cs-form-grid">
               <div className="cs-field"><label className="cs-label" htmlFor="up-first">First name</label><input className="cs-input" autoComplete="given-name" {...aria("first_name", "up-first")} value={profile.first_name} onChange={setP} />{err("first_name", "up-first")}</div>

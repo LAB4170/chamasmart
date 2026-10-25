@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { ascaAPI, chamaAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import { Button, PageHeader, StatCard, EmptyState, Skeleton, DataTable } from "../../../components/ui";
-import { formatKES, formatDate } from "../../../utils/format";
+import { formatKES, formatDate, currentUserId } from "../../../utils/format";
 import { StartCycle, PendingShares, ShareOut } from "./AscaOfficialPanels";
 
 const OFFICIALS = ["CHAIRPERSON", "TREASURER"];
@@ -37,7 +37,7 @@ export default function AscaDashboard() {
   const isOfficial = OFFICIALS.includes(role);
   const running = cycle && (cycle.status === "ACTIVE" || cycle.status === "CLOSING");
   const members = cycle?.members ?? [];
-  const mine = members.find((m) => String(m.user_id) === String(user?.user_id));
+  const mine = members.find((m) => String(m.user_id) === String(currentUserId(user)));
   const totalOwned = members.reduce((s, m) => s + (m.shares_owned || 0), 0);
   const myShares = mine?.shares_owned || 0;
   const price = Number(cycle?.share_price || 0);

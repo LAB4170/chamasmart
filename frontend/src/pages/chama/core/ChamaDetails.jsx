@@ -37,6 +37,7 @@ import ChamaChat from "../../../components/chat/ChamaChat";
 import InvestmentProposals from "../asca/InvestmentProposals";
 import "./ChamaDetailsLux.css";
 import "./ChamaHub.css";
+import { currentUserId } from "../../../utils/format";
 
 // --- Memoized Sub-components ---
 
@@ -385,8 +386,8 @@ const ChamaDetails = () => {
 
       const handleNewChatMessage = (msg) => {
         // Increment unread count if we are NOT on the chat tab and it's not our own message
-        const currentUserId = user?.user_id || user?.id;
-        if (activeTab !== "chat" && msg.user_id !== currentUserId) {
+        const myId = currentUserId(user);
+        if (activeTab !== "chat" && String(msg.user_id) !== String(myId)) {
           setUnreadChatCount(prev => prev + 1);
         }
       };
@@ -541,8 +542,8 @@ const ChamaDetails = () => {
       }
 
       // Check membership
-      const currentUserId = user?.user_id || user?.id;
-      const isMember = membersArray.some(m => m.user_id === currentUserId);
+      const myId = currentUserId(user);
+      const isMember = membersArray.some(m => String(m.user_id) === String(myId));
 
       if (isMember) {
         await fetchContributions();
@@ -698,8 +699,8 @@ const ChamaDetails = () => {
     
     // Fallback just in case
     if (!Array.isArray(members)) return "MEMBER";
-    const currentUserId = user?.user_id || user?.id;
-    const member = members.find((m) => m.user_id === currentUserId);
+    const myId = currentUserId(user);
+    const member = members.find((m) => String(m.user_id) === String(myId));
     return member?.role ? member.role.toUpperCase() : "MEMBER";
   }, [chama, members, user]);
 
@@ -1342,14 +1343,14 @@ const ChamaDetails = () => {
                                 <div style={{ fontSize: '0.7rem', opacity: 0.5 }}>{new Date(c.contribution_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                               </td>
                               <td>
-                                <div style={{ fontWeight: 700, color: '#fff' }}>{c.contributor_name}</div>
-                                <div style={{ fontSize: '0.7rem', color: 'var(--gold-text)', opacity: 0.8 }}>Member</div>
+                                <div style={{ fontWeight: 700, color: 'var(--cs-text, #101828)' }}>{c.member_name || c.contributor_name || 'Member'}</div>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--cs-text-3, #7a8499)' }}>Member</div>
                               </td>
                               <td style={{ fontWeight: 900, color: '#10b981' }}>{formatCurrency(c.amount)}</td>
                               <td>
-                                <span className="status-pill-lux" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                                <span className="status-pill-lux" style={{ background: 'rgba(16,24,40,0.06)', color: 'var(--cs-text-2, #475467)' }}>
                                   {c.payment_method === 'MPESA' ? <Smartphone size={10} /> : <CreditCard size={10} />}
-                                  {c.payment_method}
+                                  {c.payment_method || c.contribution_type || 'Manual'}
                                 </span>
                               </td>
                               <td>
@@ -1359,7 +1360,7 @@ const ChamaDetails = () => {
                                 </span>
                               </td>
                               <td style={{ fontSize: '0.75rem', opacity: 0.6, fontFamily: 'monospace' }}>
-                                {c.transaction_reference || 'MANUAL-REF'}
+                                {c.reference || c.transaction_reference || 'MANUAL-REF'}
                               </td>
                             </tr>
                           );
@@ -2272,7 +2273,7 @@ const ChamaDetails = () => {
       {showManualPaymentModal && (
         <ManualPaymentModal
           chamaId={chama.chama_id}
-          userId={user?.user_id || user?.id}
+          userId={currentUserId(user)}
           expectedAmount={chama.contribution_amount}
           onClose={() => setShowManualPaymentModal(false)}
           onSuccess={() => {

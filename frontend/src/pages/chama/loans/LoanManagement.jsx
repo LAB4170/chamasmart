@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import { loanAPI, chamaAPI } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext";
 import { Button, PageHeader, StatCard, StatusBadge, DataTable, Dialog, Skeleton } from "../../../components/ui";
-import { formatKES, formatDate } from "../../../utils/format";
+import { formatKES, formatDate, currentUserId } from "../../../utils/format";
 import LoanAnalyticsDashboard from "./LoanAnalyticsDashboard";
 import PendingRepayments from "./PendingRepayments";
 import LoanOfficialActions from "./LoanOfficialActions";
@@ -63,7 +63,7 @@ export default function LoanManagement() {
     setLoans(toList(res.data?.data));
   };
 
-  const myRole = members.find((m) => m.user_id === user?.id)?.role || "MEMBER";
+  const myRole = members.find((m) => String(m.user_id) === String(currentUserId(user)))?.role || "MEMBER";
   const isOfficial = ["CHAIRPERSON", "SECRETARY", "TREASURER"].includes(myRole);
 
   const approve = async () => {

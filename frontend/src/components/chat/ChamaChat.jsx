@@ -6,6 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 import { uploadMediaToFirebase } from "../../services/firebaseStorage";
 import { getImageUrl } from "../../utils/imageUtils";
 import "./ChamaChat.css";
+import { currentUserId } from "../../utils/format";
 
 export default function ChamaChat({ chamaId }) {
   const { user } = useAuth();
@@ -142,7 +143,7 @@ export default function ChamaChat({ chamaId }) {
           </div>
         ) : (
           messages.map((msg, index) => {
-            const isMe = msg.user_id === user?.user_id;
+            const isMe = String(msg.user_id) === String(currentUserId(user));
             const isSystem = msg.user_id === null || msg.message_type === "system";
 
             if (isSystem) {
