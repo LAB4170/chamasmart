@@ -560,9 +560,9 @@ function Audit({ can }) {
       {loading ? <Skeleton /> : error ? <p role="alert">{error}</p> : !data?.length ? (
         <EmptyState title="Nothing recorded yet" message="Every action, refusal and view of personal data in this console is listed here and cannot be changed." />
       ) : (
-        <div style={{ display: "grid", gap: 6 }}>
+        <div style={{ display: "grid", gap: 6, minWidth: 0 }}>
           {data.map((a) => (
-            <div key={a.action_id} className="cs-card" style={{ padding: 10, fontSize: 14 }}>
+            <div key={a.action_id} className="cs-card" style={{ padding: 10, fontSize: 14, overflowWrap: "anywhere", minWidth: 0 }}>
               <strong>{String(a.action).replace(/_/g, " ").toLowerCase()}</strong>{a.outcome !== "ALLOWED" ? ` · ${a.outcome === "DENIED" ? "refused" : a.outcome.toLowerCase()}` : ""}
               {a.chama_id ? ` · chama ${a.chama_id}` : ""} · {formatDate(a.at)}
               <div style={{ opacity: 0.8 }}>
