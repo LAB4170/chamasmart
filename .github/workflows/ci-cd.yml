@@ -24,6 +24,47 @@ jobs:
         working-directory: backend
         run: mvn -B test
 
+  migrations:
+    name: Fresh database matches entities
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Build jar
+        working-directory: backend
+        run: mvn -B -q -DskipTests package
+      - name: Boot on an empty database with schema validation
+        working-directory: backend
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://127.0.0.1:5432/ci
+          SPRING_DATASOURCE_USERNAME: postgres
+          SPRING_DATASOURCE_PASSWORD: ci
+          SPRING_JPA_DDL_AUTO: validate
+          SERVER_PORT: '8089'
+        run: |
+          export JWT_SECRET=$(head -c 48 /dev/urandom | base64)
+          export DATA_ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64)
+          java -jar target/chamasmart-backend-1.0.0-SNAPSHOT.jar > boot.log 2>&1 &
+          for i in $(seq 1 40); do
+            if grep -q "Started ChamaSmartApplication" boot.log; then echo "booted"; exit 0; fi
+            if grep -q "Application run failed" boot.log; then tail -60 boot.log; exit 1; fi
+            sleep 3
+          done
+          tail -60 boot.log; exit 1
+
   frontend:
     name: Frontend build
     runs-on: ubuntu-latest
@@ -39,9 +80,10 @@ jobs:
         run: npm ci
       - name: Lint
         working-directory: frontend
-        # Two older screens still carry lint errors that predate this pipeline; they are listed in the audit and do not block the build.
         run: npm run lint
-        continue-on-error: true
+      - name: Unit tests
+        working-directory: frontend
+        run: npm test
       - name: Build
         working-directory: frontend
         run: npm run build

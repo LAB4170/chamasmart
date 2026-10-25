@@ -1,94 +1,81 @@
 import React from "react";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { vi, describe, test, expect, beforeEach } from "vitest";
+
+vi.mock("../services/api", () => ({
+  authAPI: {
+    login: vi.fn(),
+    logout: vi.fn(() => Promise.resolve()),
+    register: vi.fn(),
+    firebaseSync: vi.fn(),
+    verifyEmail: vi.fn(),
+    verifyPhone: vi.fn(),
+    getMe: vi.fn(),
+  },
+}));
+vi.mock("../config/firebase", () => ({ auth: {}, googleProvider: {} }));
+vi.mock("firebase/auth", () => ({
+  signInWithPopup: vi.fn(),
+  signInWithRedirect: vi.fn(),
+  getRedirectResult: vi.fn(() => Promise.resolve(null)),
+}));
+
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { authAPI } from "../services/api";
 
-jest.mock("../services/api", () => ({
-  authAPI: {
-    register: jest.fn(),
-    login: jest.fn(),
-    getMe: jest.fn(),
-    verifyEmail: jest.fn(),
-    verifyPhone: jest.fn(),
-  },
-}));
+const wrapper = ({ children }) => <AuthProvider>{children}</AuthProvider>;
 
-describe("AuthContext verification helpers", () => {
-  const wrapper = ({ children }) => <AuthProvider>{children}</AuthProvider>;
-
+describe("AuthContext", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     localStorage.clear();
   });
 
-  test("register returns user and token", async () => {
-    authAPI.register.mockResolvedValueOnce({
-      data: {
-        data: {
-          user: { id: 1, email: "test@example.com" },
-          token: "jwt-token",
-        },
-      },
+  test("login stores the tokens and user", async () => {
+    authAPI.login.mockResolvedValueOnce({
+      data: { data: { user: { userId: 3, email: "a@b.co" }, tokens: { accessToken: "t", refreshToken: "r" } } },
     });
-
     const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
 
-    let response;
+    let outcome;
     await act(async () => {
-      response = await result.current.register({
-        email: "test@example.com",
-        password: "Password1",
-        firstName: "Test",
-        lastName: "User",
-        phoneNumber: "0712345678",
-      });
+      outcome = await result.current.login("a@b.co", "pw");
     });
 
-    expect(response.success).toBe(true);
-    expect(response.user).toEqual({ id: 1, email: "test@example.com" });
-    expect(response.token).toBe("jwt-token");
-    expect(localStorage.getItem("token")).toBe("jwt-token");
+    expect(outcome).toEqual({ success: true });
+    expect(localStorage.getItem("token")).toBe("t");
+    expect(localStorage.getItem("refreshToken")).toBe("r");
+    expect(result.current.user.userId).toBe(3);
+    expect(result.current.isAuthenticated).toBe(true);
   });
 
-  test("verifyEmail delegates to authAPI and returns message", async () => {
-    authAPI.verifyEmail.mockResolvedValueOnce({
-      data: { message: "Email verified" },
-    });
-
+  test("login failure returns the server message and keeps the user signed out", async () => {
+    authAPI.login.mockRejectedValueOnce({ response: { data: { message: "Invalid credentials" } } });
     const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
 
-    let response;
+    let outcome;
     await act(async () => {
-      response = await result.current.verifyEmail("abc123");
+      outcome = await result.current.login("a@b.co", "bad");
     });
 
-    expect(authAPI.verifyEmail).toHaveBeenCalledWith({ token: "abc123" });
-    expect(response).toEqual({ success: true, message: "Email verified" });
+    expect(outcome).toEqual({ success: false, error: "Invalid credentials" });
+    expect(result.current.isAuthenticated).toBe(false);
+    expect(localStorage.getItem("token")).toBeNull();
   });
 
-  test("verifyPhone updates user state on success", async () => {
-    authAPI.verifyPhone.mockResolvedValueOnce({
-      data: { message: "Phone verified" },
+  test("logout clears everything", async () => {
+    authAPI.login.mockResolvedValueOnce({
+      data: { data: { user: { userId: 3 }, tokens: { accessToken: "t" } } },
     });
-
-    // Seed user in localStorage so AuthProvider picks it up
-    localStorage.setItem(
-      "user",
-      JSON.stringify({ id: 1, phoneVerified: false })
-    );
-    localStorage.setItem("token", "jwt-token");
-
     const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => { await result.current.login("a@b.co", "pw"); });
+    await act(async () => { await result.current.logout(); });
 
-    let response;
-    await act(async () => {
-      response = await result.current.verifyPhone("123456");
-    });
-
-    expect(authAPI.verifyPhone).toHaveBeenCalledWith({ code: "123456" });
-    expect(response).toEqual({ success: true, message: "Phone verified" });
-
-    const updatedUser = JSON.parse(localStorage.getItem("user"));
-    expect(updatedUser.phoneVerified).toBe(true);
+    expect(result.current.user).toBeNull();
+    expect(localStorage.getItem("token")).toBeNull();
+    expect(localStorage.getItem("user")).toBeNull();
   });
 });

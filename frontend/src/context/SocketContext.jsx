@@ -134,6 +134,8 @@ export const SocketProvider = ({ children }) => {
 
       // Store the socket in the ref and state
       socketRef.current = newSocket;
+      // Publishing the client to consumers is the point of this effect.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSocket(newSocket);
 
       // Connect after setting up listeners

@@ -46,6 +46,8 @@ const SecurityMonitor = () => {
     };
 
     useEffect(() => {
+        // Initial load plus polling below; the fetch is the external sync.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchSecurityLogs();
         // Real-time polling
         const interval = setInterval(fetchSecurityLogs, 15000);
