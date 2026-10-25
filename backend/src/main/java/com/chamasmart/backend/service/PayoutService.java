@@ -37,6 +37,8 @@ public class PayoutService {
     private final EnforcementService enforcement;
     private final VerificationService verification;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SubscriptionService subscriptions;
     @Value("${app.payouts.daily-cap:500000}") BigDecimal dailyCap = new BigDecimal("500000");
     @Value("${app.payouts.large-threshold:100000}") BigDecimal largeThreshold = new BigDecimal("100000");
     @Value("${app.payouts.hold-hours:24}") int holdHours = 24;
@@ -50,6 +52,7 @@ public class PayoutService {
     public Map<String, Object> request(Long chamaId, Long actorId, BigDecimal amount, String payeeName, String payeePhone, String reason, String key) {
         membership.activeOfficial(chamaId, actorId);
         if (enforcement.frozen(chamaId)) throw new IllegalStateException("Payouts are paused on this chama because of an open notice from ChamaSmart. See the notice on the chama page");
+        if (subscriptions != null && !subscriptions.allowsNewActivity(chamaId)) throw new IllegalStateException(SubscriptionService.SUSPENDED_MESSAGE);
         if (key == null || key.isBlank() || key.length() > 64) throw new IllegalArgumentException("A request key of 1 to 64 characters is required");
         Optional<Payout> again = payouts.findByRequestedByAndIdempotencyKey(actorId, key);
         if (again.isPresent()) return view(again.get());

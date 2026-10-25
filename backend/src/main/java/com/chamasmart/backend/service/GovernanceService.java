@@ -15,6 +15,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class GovernanceService {
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SubscriptionService subscriptions;
+
     private final MeetingRepository meetingRepository;
     private final NotificationRepository notificationRepository;
     private final InviteRepository inviteRepository;
@@ -184,6 +187,7 @@ public class GovernanceService {
         String verdict = decision == null ? "" : decision.trim().toUpperCase();
         if (!verdict.equals("APPROVED") && !verdict.equals("REJECTED")) throw new IllegalArgumentException("Decision must be APPROVED or REJECTED");
         if (!"PENDING".equals(request.getStatus())) throw new IllegalStateException("This request has already been reviewed");
+        if (verdict.equals("APPROVED") && subscriptions != null && !subscriptions.allowsNewActivity(chamaId)) throw new IllegalStateException(SubscriptionService.SUSPENDED_MESSAGE);
         User reviewer = userRepository.findById(reviewerUserId).orElseThrow(() -> new IllegalArgumentException("Reviewer user not found"));
         request.setStatus(verdict);
         request.setReviewedAt(ZonedDateTime.now());

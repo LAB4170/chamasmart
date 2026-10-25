@@ -27,6 +27,7 @@ public class AdminController {
     private final StaffService staff;
     private final AdminAuditService trail;
     private final DocumentService documents;
+    private final AuditFingerprintService fingerprints;
 
     private static <T> ResponseEntity<ApiResponse<T>> ok(T t, String m) { return ResponseEntity.ok(ApiResponse.success(t, m)); }
     private static String s(Map<String, Object> b, String k) { Object v = b.get(k); return v == null ? null : v.toString(); }
@@ -167,5 +168,11 @@ public class AdminController {
     }
 
     @GetMapping("/audit/verify")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> verifyAudit(@AuthenticationPrincipal CustomUserDetails me) { guard.require(me, AUDIT_VIEW, "AUDIT_CHECK"); return ok(trail.verify(), "Trail checked"); }
+    public ResponseEntity<ApiResponse<Map<String, Object>>> verifyAudit(@AuthenticationPrincipal CustomUserDetails me) { guard.require(me, AUDIT_VIEW, "AUDIT_CHECK"); return ok(fingerprints.verifyAll(), "Trail checked"); }
+
+    @GetMapping("/audit/fingerprints")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> fingerprintList(@AuthenticationPrincipal CustomUserDetails me) { guard.require(me, AUDIT_VIEW, "FINGERPRINTS"); return ok(fingerprints.list(), "Fingerprints"); }
+
+    @PostMapping("/audit/fingerprints")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> fingerprintNow(@AuthenticationPrincipal CustomUserDetails me) { var a = guard.require(me, SETTINGS_MANAGE); return ok(fingerprints.record(a.userId(), java.time.LocalDate.now().toString()), "Fingerprint recorded"); }
 }

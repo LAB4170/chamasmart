@@ -114,6 +114,8 @@ export const adminAPI = {
   publishAgreement: (id, counsel) => api.post(`/admin/agreements/${id}/publish`, { counsel }),
   audit: (params = { limit: 100 }) => api.get("/admin/audit", { params }),
   verifyAudit: () => api.get("/admin/audit/verify"),
+  fingerprints: () => api.get("/admin/audit/fingerprints"),
+  recordFingerprint: () => api.post("/admin/audit/fingerprints"),
   me: () => api.get("/admin/me"),
   staff: () => api.get("/admin/staff"),
   roles: () => api.get("/admin/roles"),

@@ -39,19 +39,19 @@ public class MpesaService {
     @Value("${app.mpesa.env:sandbox}")
     private String env;
 
-    @Value("${app.mpesa.consumer-key:cpQnnxLsrtEU7WQ94G5XwfBGG11yUckjQAnAJPQXM9JkHycV}")
+    @Value("${app.mpesa.consumer-key:}")
     private String consumerKey;
 
-    @Value("${app.mpesa.consumer-secret:YOUR_DARAJA_SANDBOX_CONSUMER_SECRET}")
+    @Value("${app.mpesa.consumer-secret:}")
     private String consumerSecret;
 
     @Value("${app.mpesa.shortcode:174379}")
     private String shortcode;
 
-    @Value("${app.mpesa.passkey:bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919}")
+    @Value("${app.mpesa.passkey:}")
     private String passkey;
 
-    @Value("${app.mpesa.callback-url:https://chamasmart-xcym.onrender.com/api/v1/mpesa/callback}")
+    @Value("${app.mpesa.callback-url:}")
     private String callbackUrl;
 
     @Value("${app.mpesa.callback-secret:}")
@@ -116,7 +116,7 @@ public class MpesaService {
             throw new org.springframework.security.access.AccessDeniedException("You are not an active member of this chama");
         }
         // Mock payments are allowed only outside production. A placeholder secret in production must fail loudly.
-        if (consumerSecret.contains("YOUR_DARAJA")) {
+        if (consumerSecret == null || consumerSecret.isBlank() || consumerSecret.contains("YOUR_DARAJA")) {
             if ("production".equalsIgnoreCase(env)) {
                 throw new IllegalStateException("M-Pesa is not configured: set MPESA_CONSUMER_SECRET");
             }

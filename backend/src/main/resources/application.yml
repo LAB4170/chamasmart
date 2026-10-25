@@ -47,10 +47,13 @@ spring:
 
 
 app:
+  environment: ${APP_ENV:development} # set to production on the live host: startup then refuses unsafe or missing settings
   billing:
     vat-registered: ${BILLING_VAT_REGISTERED:false} # only true once ChamaSmart is registered for VAT; the CPA confirms
     vat-rate: ${BILLING_VAT_RATE:0.16}
     vat-inclusive: ${BILLING_VAT_INCLUSIVE:true} # plan prices already include VAT
+  admin:
+    require-mfa: ${ADMIN_REQUIRE_MFA:true} # super admin and staff must have two-factor on
   documents:
     key: ${DOCUMENT_ENCRYPTION_KEY:} # 32 bytes, base64. Without it, derived from DATA_ENCRYPTION_KEY; without both, uploads are refused
     retention-years: ${DOCUMENT_RETENTION_YEARS:7} # confirm the right period with your advocate
@@ -78,7 +81,7 @@ app:
   mpesa:
     env: ${MPESA_ENV:sandbox}
     consumer-key: ${MPESA_CONSUMER_KEY:}
-    consumer-secret: ${MPESA_CONSUMER_SECRET:YOUR_DARAJA_SANDBOX_CONSUMER_SECRET}
+    consumer-secret: ${MPESA_CONSUMER_SECRET:}
     callback-secret: ${MPESA_CALLBACK_SECRET:}
     c2b-secret: ${MPESA_C2B_SECRET:}
     pooled-shortcode: ${MPESA_POOLED_SHORTCODE:}
@@ -88,7 +91,7 @@ app:
     callback-url: ${MPESA_CALLBACK_URL:https://chamasmart-khrb.onrender.com/api/v1/mpesa/callback}
   firebase:
     project-id: ${FIREBASE_PROJECT_ID:chamasmart-1c600}
-    client-email: ${FIREBASE_CLIENT_EMAIL:firebase-adminsdk-fbsvc@chamasmart-1c600.iam.gserviceaccount.com}
+    client-email: ${FIREBASE_CLIENT_EMAIL:}
     private-key: ${FIREBASE_PRIVATE_KEY:}
   ai:
     gemini-key: ${GEMINI_API_KEY:}

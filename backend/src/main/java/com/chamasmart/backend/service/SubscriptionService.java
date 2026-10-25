@@ -23,6 +23,7 @@ import java.util.*;
 @Slf4j
 public class SubscriptionService {
     public static final int TRIAL_DAYS = 30, GRACE_DAYS = 7;
+    public static final String SUSPENDED_MESSAGE = "This chama's ChamaSmart plan is overdue, so new payout requests and new members are paused. Contributions and all records still work. The chairperson can pay from the Plan page to continue.";
 
     private final SubscriptionPlanRepository plans;
     private final ChamaSubscriptionRepository subs;

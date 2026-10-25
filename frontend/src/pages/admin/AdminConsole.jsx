@@ -68,7 +68,7 @@ export default function AdminConsole() {
       {tab === "legal" && <LegalDesk key={legalCase || "register"} can={can} caseId={legalCase} onBackToCases={() => { setLegalCase(null); setTab("cases"); }} />}
       {tab === "agreements" && <Agreements />}
       {tab === "staff" && <Staff meId={me.user_id} />}
-      {tab === "audit" && <Audit />}
+      {tab === "audit" && <Audit can={can} />}
     </div>
   );
 }
@@ -517,11 +517,16 @@ function Agreements() {
   );
 }
 
-function Audit() {
+function Audit({ can }) {
   const [f, setF] = useState({ action: "", outcome: "" });
   const [applied, setApplied] = useState({ action: "", outcome: "" });
   const [chain, setChain] = useState(null);
   const { data, error, loading } = useLoad(() => adminAPI.audit({ limit: 200, action: applied.action || undefined, outcome: applied.outcome || undefined }), [applied]);
+  const prints = useLoad(() => adminAPI.fingerprints());
+  const record = async () => {
+    try { const r = await adminAPI.recordFingerprint(); toast.success(`Recorded and emailed to ${r.data.data.emailed_to} of ${r.data.data.super_admins} super admins`); prints.reload(); }
+    catch (e) { toast.error(errText(e, "Could not record a fingerprint.")); }
+  };
   const check = async () => {
     try { const r = await adminAPI.verifyAudit(); setChain(r.data.data); }
     catch (e) { toast.error(errText(e, "Could not check the log.")); }
@@ -538,9 +543,19 @@ function Audit() {
       </div>
       {chain && (
         <p role="status" className="cs-card" style={{ padding: 12 }}>
-          {chain.ok ? `The log is intact. ${chain.checked} entries checked.` : `The log has been altered. The first problem is entry ${chain.first_break_seq}: ${chain.reason}.`}
+          {chain.ok ? `The log is intact. ${chain.checked} entries checked against ${chain.fingerprints_checked || 0} saved fingerprints.` : `The log has been altered. ${chain.first_break_seq ? `The first problem is entry ${chain.first_break_seq}: ` : ""}${chain.reason}.`}
         </p>
       )}
+      <details style={{ marginBottom: 12 }}>
+        <summary>Fingerprints ({prints.data?.length || 0})</summary>
+        <p style={{ fontSize: 13, opacity: 0.8 }}>A fingerprint is the last entry number and its hash. One is recorded each month and emailed to every super admin. Keep those emails: if the log is ever rewritten, it will no longer match them.</p>
+        {can("SETTINGS_MANAGE") && <Button variant="secondary" onClick={record}>Record one now</Button>}
+        {(prints.data || []).map((p) => (
+          <p key={p.fingerprint_id} style={{ margin: "6px 0", fontSize: 13, wordBreak: "break-all" }}>
+            {p.label} · entry {p.head_seq} · {p.chain_ok ? "intact" : "BROKEN"} · emailed to {p.emailed_to}<br /><code>{p.head_hash}</code>
+          </p>
+        ))}
+      </details>
       {loading ? <Skeleton /> : error ? <p role="alert">{error}</p> : !data?.length ? (
         <EmptyState title="Nothing recorded yet" message="Every action, refusal and view of personal data in this console is listed here and cannot be changed." />
       ) : (

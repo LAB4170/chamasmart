@@ -131,4 +131,15 @@ class PayoutServiceTest {
         assertEquals("CANCELLED", service.cancel(3L, 1L, id).get("status"));
         assertThrows(IllegalStateException.class, () -> service.approve(3L, 2L, id));
     }
+
+    @Test
+    void anOverduePlanPausesNewPayoutRequestsOnly() {
+        SubscriptionService subs = mock(SubscriptionService.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "subscriptions", subs);
+        when(subs.allowsNewActivity(3L)).thenReturn(false);
+        IllegalStateException e = assertThrows(IllegalStateException.class, () -> ask("5000"));
+        assertTrue(e.getMessage().contains("plan is overdue"));
+        when(subs.allowsNewActivity(3L)).thenReturn(true);
+        assertNotNull(ask("5000"));
+    }
 }
