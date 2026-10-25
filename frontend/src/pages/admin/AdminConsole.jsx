@@ -151,6 +151,79 @@ function Queue({ onOpen }) {
   );
 }
 
+const DOC_LABEL = {
+  REGISTRATION_CERTIFICATE: "Registration certificate",
+  CONSTITUTION: "Constitution",
+  OFFICIALS_RESOLUTION: "Officials' resolution",
+  PAYBILL_PROOF: "Paybill proof",
+  OFFICIAL_ID: "National ID",
+};
+
+/** Stored documents for one chama. Opening a file is recorded against your name. */
+function Documents({ chamaId, can, isSuper }) {
+  const { data, error, loading, reload } = useLoad(() => adminAPI.documents(chamaId), [chamaId]);
+  const [busy, setBusy] = useState(false);
+  const [reason, setReason] = useState("");
+
+  const open = async (d) => {
+    setBusy(true);
+    try {
+      const res = await adminAPI.openDocument(d.doc_id);
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url; a.download = d.original_name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      toast.success("Opened. This was recorded against your name.");
+    } catch (e) { toast.error(errText(e, "Could not open this file.")); }
+    finally { setBusy(false); }
+  };
+  const act = async (fn, ok) => {
+    if (reason.trim().length < 10) { toast.error("Write the reason first (at least 10 characters)."); return; }
+    setBusy(true);
+    try { await fn(); toast.success(ok); setReason(""); await reload(); }
+    catch (e) { toast.error(errText(e, "That did not work.")); }
+    finally { setBusy(false); }
+  };
+
+  if (loading && !data) return <Skeleton />;
+  if (error) return <p role="alert">{error}</p>;
+  const docs = data || [];
+  return (
+    <section className="cs-card" style={{ padding: 14, marginTop: 12 }}>
+      <h3 style={{ marginTop: 0 }}>Documents</h3>
+      {docs.length === 0 && <p style={{ margin: 0 }}>Nothing uploaded yet.</p>}
+      {docs.map((d) => (
+        <div key={d.doc_id} style={{ padding: "6px 0", borderTop: "1px solid rgba(128,128,128,.25)", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ flex: 1, minWidth: 220 }}>
+            {DOC_LABEL[d.doc_type] || d.doc_type}{d.subject_user_id ? ` (official ${d.subject_user_id})` : ""} · {d.original_name}
+            <br /><span style={{ fontSize: 12, opacity: 0.7 }}>
+              {String(d.status).toLowerCase()} · uploaded by {d.uploaded_by_name} on {formatDate(d.uploaded_at)}
+              {d.legal_hold ? ` · on legal hold: ${d.hold_reason}` : ""}
+              {d.status !== "DELETED" && d.retention_until ? ` · kept until ${formatDate(d.retention_until)}` : ""}
+            </span>
+          </span>
+          {d.status !== "DELETED" && can("DOCUMENT_VIEW") && <Button variant="secondary" disabled={busy} onClick={() => open(d)}>Open</Button>}
+          {d.status !== "DELETED" && can("LEGAL_HOLD") && (
+            <Button variant="secondary" disabled={busy} onClick={() => act(() => adminAPI.holdDocument(d.doc_id, !d.legal_hold, reason), d.legal_hold ? "Hold released" : "Hold placed")}>
+              {d.legal_hold ? "Release hold" : "Place hold"}
+            </Button>
+          )}
+          {d.status !== "DELETED" && isSuper && (
+            <Button variant="secondary" disabled={busy} onClick={() => act(() => adminAPI.deleteDocument(d.doc_id, reason), "Contents erased")}>Erase</Button>
+          )}
+        </div>
+      ))}
+      {docs.length > 0 && (can("LEGAL_HOLD") || isSuper) && (
+        <div style={{ marginTop: 10 }}>
+          <input className="cs-input" style={{ width: "100%" }} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason for a hold or erasure (recorded in the activity log)" aria-label="Reason" />
+          {can("LEGAL_HOLD") && <Button variant="secondary" disabled={busy} onClick={() => act(() => adminAPI.holdAllDocuments(chamaId, reason), "All documents held")}>Hold every document for this chama</Button>}
+          <p style={{ fontSize: 12, opacity: 0.7 }}>Held files cannot be erased. Erasing removes the file contents for good; the record that it existed stays.</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function Review({ chamaId, can, twoPerson, onBack }) {
   const { data, error, loading, reload } = useLoad(() => adminAPI.detail(chamaId), [chamaId]);
   const [note, setNote] = useState("");
@@ -196,8 +269,10 @@ function Review({ chamaId, can, twoPerson, onBack }) {
             <strong>{o.first_name} {o.last_name}</strong> ({String(o.role).toLowerCase()}) · {o.email} · {o.phone_number || "no phone"} · email {o.email_verified ? "confirmed" : "not confirmed"}
           </p>
         ))}
-        <p style={{ fontSize: 13, opacity: 0.7, marginBottom: 0 }}>Check identity documents against the person on a call, using the numbers above. Documents are received outside the platform and are not stored here.</p>
+        <p style={{ fontSize: 13, opacity: 0.7, marginBottom: 0 }}>Check each ID against the person on a call, using the numbers above.</p>
       </section>
+
+      {(can("DOCUMENT_VIEW") || can("LEGAL_HOLD")) && <Documents chamaId={chamaId} can={can} isSuper={can("DOCUMENT_DELETE")} />}
 
       <section className="cs-card" style={{ padding: 14, marginTop: 12 }}>
         <h3 style={{ marginTop: 0 }}>Checkpoints</h3>

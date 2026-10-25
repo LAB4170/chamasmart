@@ -16,6 +16,14 @@ const STATUS_TEXT = {
   REVOKED: "Removed from the listing",
 };
 const LEVEL_TEXT = { 1: "Warning", 2: "Listing suspended", 3: "Payouts paused", 4: "Account closed" };
+const DOC_TYPES = [
+  ["REGISTRATION_CERTIFICATE", "Registration certificate"],
+  ["CONSTITUTION", "Constitution"],
+  ["OFFICIALS_RESOLUTION", "Resolution naming the officials"],
+  ["PAYBILL_PROOF", "Proof the paybill is in the chama's name"],
+  ["OFFICIAL_ID", "National ID of an official"],
+];
+const DOC_NAME = Object.fromEntries(DOC_TYPES);
 const err = (e, f) => e.response?.data?.message || f;
 
 /** Public listing for officials: read and accept the agreements, apply, and answer any notice from ChamaSmart. */
@@ -26,12 +34,17 @@ const ListingModal = ({ chamaId, isChair, currentUserId, onClose }) => {
   const [reading, setReading] = useState(null);
   const [replies, setReplies] = useState({});
   const [busy, setBusy] = useState(false);
+  const [docs, setDocs] = useState([]);
+  const [docType, setDocType] = useState("REGISTRATION_CERTIFICATE");
+  const [docSubject, setDocSubject] = useState("");
+  const [docFile, setDocFile] = useState(null);
   const [form, setForm] = useState({ registration_body: "", registration_number: "", registered_name: "", collection_summary: "", public_blurb: "", contact_phone: "" });
 
   const load = useCallback(async () => {
     try {
       const [s, a, n] = await Promise.all([listingAPI.status(chamaId), listingAPI.agreements(), listingAPI.notices(chamaId)]);
       setStatus(s.data.data); setAgreements(a.data.data || []); setNotices(n.data.data || []);
+      try { setDocs((await listingAPI.documents(chamaId)).data.data || []); } catch { setDocs([]); }
     } catch (e) { toast.error(err(e, "Could not load the listing page")); }
   }, [chamaId]);
   useEffect(() => { load(); }, [load]);
@@ -49,6 +62,18 @@ const ListingModal = ({ chamaId, isChair, currentUserId, onClose }) => {
     ev.preventDefault(); setBusy(true);
     try { await listingAPI.apply(chamaId, form); toast.success("Application sent"); await load(); }
     catch (e) { toast.error(err(e, "Could not send the application")); }
+    finally { setBusy(false); }
+  };
+  const upload = async (ev) => {
+    ev.preventDefault();
+    if (!docFile) { toast.error("Choose a PDF, JPEG or PNG file first"); return; }
+    if (docType === "OFFICIAL_ID" && !docSubject) { toast.error("Choose which official this ID belongs to"); return; }
+    setBusy(true);
+    try {
+      await listingAPI.upload(chamaId, docType, docFile, docType === "OFFICIAL_ID" ? docSubject : undefined);
+      toast.success("Uploaded and stored encrypted");
+      setDocFile(null); ev.target.reset(); await load();
+    } catch (e2) { toast.error(err(e2, "Could not upload this file")); }
     finally { setBusy(false); }
   };
   const respond = async (caseId) => {
@@ -130,6 +155,39 @@ const ListingModal = ({ chamaId, isChair, currentUserId, onClose }) => {
               <p style={{ fontSize: 13, opacity: 0.75 }}>The chairperson, treasurer and secretary must each accept all three. Your acceptance is recorded with the time and the exact text.</p>
             </section>
 
+            {(isChair || docs.length > 0) && (
+              <section>
+                <h3 style={{ margin: "0 0 6px" }}>Documents</h3>
+                <p style={{ fontSize: 13, opacity: 0.75, margin: "0 0 8px" }}>
+                  Files are stored encrypted. Only ChamaSmart's verification and legal staff can open them, and each opening is recorded. You can see what you uploaded but cannot download it again. PDF, JPEG or PNG, up to 5 MB.
+                </p>
+                {docs.filter((d) => d.status === "ACTIVE").map((d) => (
+                  <div key={d.doc_id} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "3px 0", flexWrap: "wrap" }}>
+                    <span>{DOC_NAME[d.doc_type] || d.doc_type}{d.subject_user_id ? ` (official ${d.subject_user_id})` : ""}</span>
+                    <span style={{ fontSize: 13, opacity: 0.75 }}>{d.original_name}</span>
+                  </div>
+                ))}
+                {(status.readiness || []).filter((r) => r.code === "DOCUMENTS_UPLOADED" && !r.passed).map((r) => (
+                  <p key={r.code} style={{ fontSize: 14, margin: "6px 0" }}>{r.label}</p>
+                ))}
+                {isChair && (
+                  <form onSubmit={upload} style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                    <select className="cs-input" value={docType} onChange={(e) => setDocType(e.target.value)} aria-label="Document type">
+                      {DOC_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                    {docType === "OFFICIAL_ID" && (
+                      <select className="cs-input" value={docSubject} onChange={(e) => setDocSubject(e.target.value)} aria-label="Whose ID">
+                        <option value="">Whose ID is this?</option>
+                        {(status.officials || []).map((o) => <option key={o.user_id} value={o.user_id}>{o.first_name} {o.last_name} ({String(o.role).toLowerCase()})</option>)}
+                      </select>
+                    )}
+                    <input className="cs-input" type="file" accept="application/pdf,image/jpeg,image/png" onChange={(e) => setDocFile(e.target.files?.[0] || null)} aria-label="File" />
+                    <button className="btn-lux btn-lux-outline" type="submit" disabled={busy}>Upload</button>
+                  </form>
+                )}
+              </section>
+            )}
+
             {canApply && (
               <form onSubmit={apply} style={{ display: "grid", gap: 8 }}>
                 <h3 style={{ margin: 0 }}>Apply</h3>
@@ -139,7 +197,7 @@ const ListingModal = ({ chamaId, isChair, currentUserId, onClose }) => {
                 <input className="cs-input" required placeholder="Where you collect money, and in whose name (for example Paybill 123456, Ver Group)" value={form.collection_summary} onChange={set("collection_summary")} aria-label="Where you collect money" />
                 <textarea className="cs-input" required rows={3} placeholder="What people will read in the public listing" value={form.public_blurb} onChange={set("public_blurb")} aria-label="Public description" />
                 <input className="cs-input" placeholder="Phone number we can call" value={form.contact_phone} onChange={set("contact_phone")} aria-label="Phone number" />
-                <p style={{ fontSize: 13, opacity: 0.75, margin: 0 }}>After you apply, ChamaSmart will ask for your registration certificate, constitution and officials' ID by a secure route, and will call each official.</p>
+                <p style={{ fontSize: 13, opacity: 0.75, margin: 0 }}>After you apply, ChamaSmart will review the documents above and call each official.</p>
                 <button className="btn-lux btn-lux-primary" type="submit" disabled={busy}>Send application</button>
               </form>
             )}

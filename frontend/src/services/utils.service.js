@@ -126,6 +126,11 @@ export const adminAPI = {
   confirmCase: (caseId) => api.post(`/admin/cases/${caseId}/confirm`),
   withdrawCase: (caseId, note) => api.post(`/admin/cases/${caseId}/withdraw`, { note }),
   unrouted: () => api.get("/admin/payments/held"),
+  documents: (chamaId) => api.get(`/admin/verifications/${chamaId}/documents`),
+  openDocument: (docId) => api.get(`/admin/documents/${docId}/content`, { responseType: "blob" }),
+  holdDocument: (docId, on, reason) => api.post(`/admin/documents/${docId}/hold`, { on, reason }),
+  holdAllDocuments: (chamaId, reason) => api.post(`/admin/chamas/${chamaId}/documents/hold`, { reason }),
+  deleteDocument: (docId, reason) => api.post(`/admin/documents/${docId}/delete`, { reason }),
 };
 
 // A chama's side of the public-listing review: ListingController
@@ -136,4 +141,12 @@ export const listingAPI = {
   apply: (chamaId, body) => api.post(`/chamas/${chamaId}/listing/apply`, body),
   notices: (chamaId) => api.get(`/chamas/${chamaId}/notices`),
   respond: (chamaId, caseId, text) => api.post(`/chamas/${chamaId}/notices/${caseId}/respond`, { text }),
+  documents: (chamaId) => api.get(`/chamas/${chamaId}/documents`),
+  upload: (chamaId, type, file, subjectUserId) => {
+    const f = new FormData();
+    f.append("type", type);
+    if (subjectUserId) f.append("subject_user_id", String(subjectUserId));
+    f.append("file", file);
+    return api.post(`/chamas/${chamaId}/documents`, f, { headers: { "Content-Type": "multipart/form-data" } });
+  },
 };

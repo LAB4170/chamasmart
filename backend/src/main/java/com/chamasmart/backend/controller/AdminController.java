@@ -26,6 +26,7 @@ public class AdminController {
     private final AgreementService agreements;
     private final StaffService staff;
     private final AdminAuditService trail;
+    private final DocumentService documents;
 
     private static <T> ResponseEntity<ApiResponse<T>> ok(T t, String m) { return ResponseEntity.ok(ApiResponse.success(t, m)); }
     private static String s(Map<String, Object> b, String k) { Object v = b.get(k); return v == null ? null : v.toString(); }
@@ -67,6 +68,33 @@ public class AdminController {
 
     @PostMapping("/verifications/{chamaId}/delist")
     public ResponseEntity<ApiResponse<Map<String, Object>>> delist(@PathVariable Long chamaId, @RequestBody Map<String, Object> b, @AuthenticationPrincipal CustomUserDetails me) { guard.require(me, LISTING_APPROVE, null, chamaId); return ok(verification.delist(me.getUserId(), chamaId, s(b, "note")), "Removed from listing"); }
+
+    // ---------- documents ----------
+    @GetMapping("/verifications/{chamaId}/documents")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> docs(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails me) { guard.require(me, DOCUMENT_VIEW, "DOCUMENT_LIST", chamaId); return ok(documents.staffList(chamaId), "Documents"); }
+
+    @GetMapping("/documents/{docId}/content")
+    public ResponseEntity<byte[]> openDoc(@PathVariable Long docId, @AuthenticationPrincipal CustomUserDetails me) {
+        guard.require(me, DOCUMENT_VIEW);
+        var f = documents.open(me.getUserId(), docId);
+        return ResponseEntity.ok().contentType(org.springframework.http.MediaType.parseMediaType(f.contentType()))
+                .header("Content-Disposition", "attachment; filename=\"" + f.name() + "\"")
+                .header("X-Content-Type-Options", "nosniff").header("Cache-Control", "no-store").body(f.bytes());
+    }
+
+    @PostMapping("/documents/{docId}/hold")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> hold(@PathVariable Long docId, @RequestBody Map<String, Object> b, @AuthenticationPrincipal CustomUserDetails me) { guard.require(me, LEGAL_HOLD); return ok(documents.hold(me.getUserId(), docId, Boolean.parseBoolean(String.valueOf(b.get("on"))), s(b, "reason")), "Saved"); }
+
+    @PostMapping("/chamas/{chamaId}/documents/hold")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> holdAll(@PathVariable Long chamaId, @RequestBody Map<String, Object> b, @AuthenticationPrincipal CustomUserDetails me) {
+        guard.require(me, LEGAL_HOLD, null, chamaId);
+        String reason = s(b, "reason");
+        if (reason == null || reason.trim().length() < 5) throw new IllegalArgumentException("Say why");
+        return ok(Map.of("held", documents.holdAll(me.getUserId(), chamaId, reason.trim())), "Held");
+    }
+
+    @PostMapping("/documents/{docId}/delete")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> deleteDoc(@PathVariable Long docId, @RequestBody Map<String, Object> b, @AuthenticationPrincipal CustomUserDetails me) { guard.require(me, DOCUMENT_DELETE); return ok(documents.delete(me.getUserId(), docId, s(b, "reason")), "Deleted"); }
 
     // ---------- cases ----------
     @GetMapping("/cases")

@@ -29,6 +29,7 @@ public class EnforcementService {
     private final MembershipService membership;
     private final VerificationService verification;
     private final AdminGuard audit;
+    private final DocumentService documents;
 
     @Value("${app.enforcement.response-days:7}") int responseDays = 7;
 
@@ -50,13 +51,14 @@ public class EnforcementService {
             audit.log(adminId, "CASE_PROPOSED_L" + level, chamaId, "case " + id + (urgent ? " [urgent] " : " ") + reason);
             return get(id);
         }
-        takeEffect(chamaId, level, reason.trim());
+        takeEffect(adminId, chamaId, level, reason.trim());
         audit.log(adminId, "CASE_OPENED_L" + level, chamaId, "case " + id + (audit.twoPerson() || level < 3 ? " " : " [single operator] ") + (urgent ? "[urgent] " : "") + reason);
         return get(id);
     }
 
-    private void takeEffect(Long chamaId, int level, String reason) {
+    private void takeEffect(Long adminId, Long chamaId, int level, String reason) {
         if (level >= 2) verification.suspendListing(chamaId);
+        if (level >= 3) documents.holdAll(adminId, chamaId, "Level " + level + " notice");
         verification.tell(chamaId, "Notice from ChamaSmart: " + LEVELS.get(level).replace('_', ' ').toLowerCase(),
                 reason + " You can answer this notice in your chama's page. You have the right to respond and to ask for a review.");
     }
@@ -71,7 +73,7 @@ public class EnforcementService {
         if (adminId.equals(((Number) r.get("opened_by")).longValue())) throw new IllegalStateException("A different person must confirm this notice");
         Long chamaId = ((Number) r.get("chama_id")).longValue(); int level = ((Number) r.get("level")).intValue();
         jdbc.update("UPDATE enforcement_cases SET status = 'OPEN', confirmed_by = ?, confirmed_at = now(), opened_at = now() WHERE case_id = ?", adminId, caseId);
-        takeEffect(chamaId, level, (String) r.get("reason"));
+        takeEffect(adminId, chamaId, level, (String) r.get("reason"));
         audit.log(adminId, "CASE_CONFIRMED_L" + level, chamaId, "case " + caseId);
         return get(caseId);
     }

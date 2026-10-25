@@ -47,6 +47,9 @@ spring:
 
 
 app:
+  documents:
+    key: ${DOCUMENT_ENCRYPTION_KEY:} # 32 bytes, base64. Without it, derived from DATA_ENCRYPTION_KEY; without both, uploads are refused
+    retention-years: ${DOCUMENT_RETENTION_YEARS:7} # confirm the right period with your advocate
   security:
     data-key: ${DATA_ENCRYPTION_KEY:}
     mfa:

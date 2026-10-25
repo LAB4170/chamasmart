@@ -21,8 +21,8 @@ public class VerificationService {
     /** Checks the administrator ticks after looking at documents or calling the officials. */
     public static final Map<String, String> MANUAL = new LinkedHashMap<>();
     static {
-        MANUAL.put("DOCS_RECEIVED", "Registration certificate, constitution and officials' resolution received");
-        MANUAL.put("OFFICIALS_ID_VERIFIED", "National ID of the chairperson, treasurer and secretary checked against the person");
+        MANUAL.put("DOCS_RECEIVED", "Opened and read the registration certificate, constitution, officials' resolution and paybill proof");
+        MANUAL.put("OFFICIALS_ID_VERIFIED", "National ID documents opened and matched to each official on a video call");
         MANUAL.put("REGISTRATION_VERIFIED", "Registration number confirmed with the issuing body");
         MANUAL.put("PAYBILL_OWNERSHIP", "The chama owns the paybill, till or bank account it collects into");
         MANUAL.put("CALLBACK_DONE", "Called the officials back on the numbers they gave");
@@ -32,6 +32,7 @@ public class VerificationService {
     private final JdbcTemplate jdbc;
     private final MembershipService membership;
     private final AgreementService agreements;
+    private final DocumentService documents;
     private final MfaService mfa;
     private final AdminGuard audit;
     private final NotificationRepository notifications;
@@ -85,6 +86,8 @@ public class VerificationService {
         add(out, "MIN_MEMBERS", "At least " + MIN_MEMBERS + " active members", true, ms != null && ms >= MIN_MEMBERS);
         Boolean books = jdbc.query("SELECT all_ok FROM ledger_check_results WHERE chama_id = ?", rs -> rs.next() ? rs.getBoolean(1) : Boolean.TRUE, chamaId);
         add(out, "BOOKS_CLEAN", "The latest books check passed", true, Boolean.TRUE.equals(books));
+        List<String> lacking = documents.missing(chamaId);
+        add(out, "DOCUMENTS_UPLOADED", lacking.isEmpty() ? "All required documents are uploaded" : "Documents still to upload: " + String.join("; ", lacking), true, lacking.isEmpty());
         add(out, "AGREEMENTS", "All three officials accepted the Terms of Use, Operator Agreement and Fraud and Enforcement Policy", true, agreements.allAccepted(chamaId));
         Integer open = jdbc.queryForObject("SELECT count(*) FROM enforcement_cases WHERE chama_id = ? AND status = 'OPEN'", Integer.class, chamaId);
         add(out, "NO_OPEN_CASE", "No open enforcement case", true, open != null && open == 0);
@@ -251,6 +254,10 @@ public class VerificationService {
         m.put("listed", isListed(chamaId));
         m.put("readiness", readiness(chamaId));
         m.put("agreements", agreements.status(chamaId));
+        m.put("officials", jdbc.queryForList("""
+                SELECT m.user_id, m.role, u.first_name, u.last_name
+                FROM chama_members m JOIN users u ON u.user_id = m.user_id
+                WHERE m.chama_id = ? AND m.is_active = true AND upper(m.role) IN ('CHAIRPERSON','TREASURER','SECRETARY')""", chamaId));
         return m;
     }
 

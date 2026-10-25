@@ -141,3 +141,14 @@ The container is tuned to start inside Render's port-scan window: serial garbage
 - Suspending or removing a person ends their access at once (the guard checks every request) and invalidates their tokens.
 - Two-person rule (Staff tab): off by default; can only be switched on with at least two approvers and two people who can confirm level 3/4 notices.
 - `admin_actions` is a hash chain (seq, prev_hash, row_hash). Writes happen in the same transaction as the action; refusals and reads of personal data are logged too. `GET /admin/audit/verify` recomputes it; a nightly job does the same (`app.audit.verify-cron`) and writes the result. Never disable the immutability triggers except in tests.
+
+## Document storage (identity and registration papers)
+
+Officials upload five kinds of paper for a listing application: registration certificate, constitution, officials' resolution, paybill proof, and a national ID for each of the chairperson, treasurer and secretary. An application cannot be sent until all are present.
+
+- **Encryption.** Files are stored in `document_blobs` as AES-256-GCM ciphertext. Set `DOCUMENT_ENCRYPTION_KEY` to 32 random bytes, base64 encoded (`openssl rand -base64 32`). Keep it in the host's secret store, separate from database backups. If it is not set a key is derived from the data key; if neither exists uploads are refused. **Losing the key makes every stored file unreadable.** Rotating it needs a re-encryption job (not built yet).
+- **Limits.** PDF, JPEG or PNG only, checked by file content, not name. 5 MB each. 30 active documents per chama. 20 uploads per user per day. A new upload of the same kind replaces the old one, which stays on record as superseded.
+- **Who can open.** Officials can upload and see what was uploaded, never download. Staff with `DOCUMENT_VIEW` (verification reviewer, legal, super admin) can open. Every opening is written to the activity log (`DOCUMENT_OPENED`) in the same transaction as the read; a refused attempt is logged as denied. Accounting cannot open files.
+- **Legal hold.** Staff with `LEGAL_HOLD` (legal, super admin) can hold one document or all of a chama's. A level 3 or 4 notice taking effect holds every document automatically. A held file cannot be erased, by the app or directly in the database.
+- **Erasure.** Super admin only, with a written reason. Blocked while held and until `retention_until` (default 7 years from upload, `DOCUMENT_RETENTION_YEARS`). **The 7 years is a placeholder: confirm the period with the advocate and the Data Protection Act position before launch.** Erasing removes the encrypted bytes; the metadata row stays for good.
+- **Not built.** Virus scanning of uploads; key rotation.
