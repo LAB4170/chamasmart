@@ -172,6 +172,17 @@ public class ChamaController {
         stats.put("chama_id", id);
         stats.put("total_members", members.size());
         stats.put("current_fund", chama.getCurrent_fund());
+        stats.put("total_fund", chama.getCurrent_fund());
+        // Money members have paid in for good: completed, positive savings and fines (refunds and loan repayments are not counted twice)
+        java.math.BigDecimal paidIn = contributionRepository.findByChamaChamaIdAndIsDeletedFalse(id).stream()
+                .filter(c -> "COMPLETED".equalsIgnoreCase(c.getStatus()) && c.getAmount() != null && c.getAmount().signum() > 0)
+                .map(com.chamasmart.backend.domain.Contribution::getAmount).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        stats.put("total_contributions", paidIn);
+        java.math.BigDecimal lent = loanRepository.findByChamaChamaId(id).stream()
+                .filter(l -> List.of("DISBURSED", "ACTIVE", "COMPLETED", "REPAID", "DEFAULTED").contains(String.valueOf(l.getStatus()).toUpperCase()))
+                .map(l -> l.getApprovedAmount() != null ? l.getApprovedAmount() : l.getLoanAmount())
+                .filter(java.util.Objects::nonNull).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        stats.put("total_loans_disbursed", lent);
         stats.put("contribution_amount", chama.getContribution_amount());
         stats.put("chama_type", chama.getChama_type());
         return ResponseEntity.ok(ApiResponse.success(stats, "Stats retrieved successfully"));

@@ -23,3 +23,32 @@
   .cs-hub-actions { width: 100%; }
   .cs-hub-actions .cs-btn { flex: 1; }
 }
+
+/* v2: hero header, tighter top spacing, icon stats */
+.chama-details-lux-root { background: transparent !important; }
+.chama-details-lux-root .container { padding-top: 84px; }
+.chama-details-lux-root .page, .chama-details-lux-root .page-frame-lux { margin-top: 0 !important; padding-top: 0 !important; }
+.cs-hero--chama { padding: var(--cs-6) var(--cs-6) var(--cs-5); margin-bottom: var(--cs-5); }
+.cs-hero--chama .cs-hub-back { color: rgba(255,255,255,0.78); min-height: 36px; margin-bottom: 10px; font-weight: 600; font-size: 0.9375rem; }
+.cs-hero--chama .cs-hub-back:hover { color: #fff; }
+.cs-hero--chama .cs-hub-title { color: #fff; font-size: clamp(1.75rem, 4.5vw, 2.5rem); font-weight: 750; letter-spacing: -0.035em; }
+.cs-hero-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-size: 0.8125rem; font-weight: 650; color: #fff; background: rgba(255,255,255,0.14); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.16); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.cs-btn--glass { background: rgba(255,255,255,0.14); color: #fff; border-color: rgba(255,255,255,0.22); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.cs-btn--glass:hover:not(:disabled) { background: rgba(255,255,255,0.22); }
+.cs-btn--light { background: #fff; color: #172036; box-shadow: 0 8px 20px -8px rgba(0,0,0,0.5); }
+.cs-btn--light:hover:not(:disabled) { transform: translateY(-1px); }
+.cs-hub-stats .cs-stat-value { white-space: normal; }
+@media (max-width: 768px) {
+  .chama-details-lux-root .container { padding-top: 64px; }
+  .cs-hero--chama { padding: var(--cs-5); }
+}
+.chama-details-lux-root .cs-hero--chama .cs-hub-title { color: #fff !important; }
+.chama-details-lux-root .cs-hero--chama .cs-hub-back { color: rgba(255,255,255,0.8) !important; }
+.chama-details-lux-root .dashboard-card-lux, .chama-details-lux-root .overview-dashboard > .dashboard-main > .dashboard-card-lux {
+  border: 1px solid rgba(255,255,255,0.65) !important; border-left-width: 1px !important; border-radius: 22px !important;
+  background: color-mix(in srgb, var(--cs-surface) 94%, transparent) !important; box-shadow: var(--cs-shadow-1), 0 0 0 1px rgba(16,24,40,0.04) !important;
+}
+.chama-details-lux-root .tab-content-area > div { border-radius: 24px; }
+.chama-details-lux-root .health-hub-lux, .chama-details-lux-root .dashboard-card-lux { border-left: 1px solid rgba(255,255,255,0.65) !important; }
+.chama-details-lux-root .overview-dashboard { max-width: none; }
+.chama-details-lux-root .stat-card-lux, .chama-details-lux-root .member-card-lux { border-left-width: 1px !important; border-radius: 18px !important; box-shadow: var(--cs-shadow-1); }

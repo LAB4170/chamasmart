@@ -4,12 +4,12 @@ import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import { useSocket } from "../../context/SocketContext";
 import { chamaAPI, loanAPI, authAPI } from "../../services/api";
-import { Button, PageHeader, StatCard, StatusBadge, DataTable, Skeleton } from "../../components/ui";
+import ChamaCard from "../../components/ChamaCard";
+import { Button, PageHeader, StatCard, StatusBadge, Skeleton, EmptyState } from "../../components/ui";
 import { formatKES, formatDate, sumAmounts } from "../../utils/format";
 
-const TYPE_LABELS = { ROSCA: "Merry-go-round", ASCA: "Investment", TABLE_BANKING: "Table banking", WELFARE: "Welfare" };
-const typeLabel = (t) => TYPE_LABELS[t] || (t ? t.replace(/_/g, " ").toLowerCase() : "—");
 const FREQ_LABELS = { WEEKLY: "week", MONTHLY: "month", DAILY: "day", BIWEEKLY: "2 weeks", QUARTERLY: "quarter" };
+const SHARE_COLORS = ["#8aa0ff", "#5eead4", "#ffd166", "#ff9ec0", "#c3b5ff"];
 const PLACEHOLDER_NAMES = ["antigravityagent", "antigravity agent", "user", "chamasmarter"];
 
 function VerifyEmailBanner({ user }) {
@@ -23,10 +23,10 @@ function VerifyEmailBanner({ user }) {
   };
   return (
     <div className="cs-notice" role="status" style={{ marginBottom: 16, alignItems: "center", justifyContent: "space-between" }}>
-      <span>
-        {state === "sent" ? `We sent a link to ${user.email}. Check your inbox and spam folder.`
-          : `Please confirm ${user.email}. You'll need this to be appointed treasurer or secretary and to recover your password.`}
-        {state !== "idle" && state !== "sent" && state !== "sending" && <> {state}</>}
+      <span className="cs-verify-text">
+        <b>{state === "sent" ? "Check your inbox" : "Confirm your email"}</b>
+        <span>{state === "sent" ? `We sent a link to ${user.email}. Look in spam too.` : `${user.email}. Needed to recover your password and to serve as treasurer or secretary.`}
+          {state !== "idle" && state !== "sent" && state !== "sending" && <> {state}</>}</span>
       </span>
       {state !== "sent" && <Button size="sm" onClick={resend} loading={state === "sending"}>Send confirmation link</Button>}
     </div>
@@ -92,16 +92,6 @@ export default function Dashboard() {
     return items;
   }, [loans]);
 
-  const columns = useMemo(() => [
-    { key: "chama_name", header: "Chama", render: (c) => <Link className="cs-link" to={`/chamas/${c.chama_id}`}>{c.chama_name}</Link> },
-    { key: "chama_type", header: "Type", render: (c) => typeLabel(c.chama_type), sortValue: (c) => typeLabel(c.chama_type) },
-    { key: "role", header: "Your role", render: (c) => (c.role ? c.role.charAt(0) + c.role.slice(1).toLowerCase() : "Member") },
-    { key: "total_members", header: "Members", align: "num" },
-    { key: "contribution_amount", header: "Contribution", align: "num", sortValue: (c) => Number(c.contribution_amount) || 0,
-      render: (c) => `${formatKES(c.contribution_amount, { whole: true })}${FREQ_LABELS[String(c.contribution_frequency).toUpperCase()] ? ` / ${FREQ_LABELS[String(c.contribution_frequency).toUpperCase()]}` : ""}` },
-    { key: "current_fund", header: "Group fund", align: "num", sortValue: (c) => Number(c.current_fund) || 0, render: (c) => formatKES(c.current_fund) },
-  ], []);
-
   const actions = (
     <>
       <Link to="/join-chama" className="cs-btn cs-btn--secondary">Join a chama</Link>
@@ -129,12 +119,25 @@ export default function Dashboard() {
           </div>
         ) : (
           <>
-            <div className="cs-grid">
-              <StatCard label="Your chamas" value={chamas.length} />
-              <StatCard label="Combined group funds" value={formatKES(sumAmounts(chamas, (c) => c.current_fund))} note="Money held by your groups, not only yours" />
-              <StatCard label="You owe" value={formatKES(loans.summary.totalBorrowed)} note={`${loans.borrowed.length} loan${loans.borrowed.length === 1 ? "" : "s"}`} />
-              <StatCard label="You guarantee" value={formatKES(loans.summary.totalGuaranteed)} note={`${loans.guaranteed.length} guarantee${loans.guaranteed.length === 1 ? "" : "s"}`} />
-            </div>
+            <section className="cs-hero" aria-label="Your money across chamas">
+              <p className="cs-hero-label">Held across your chamas</p>
+              <p className="cs-hero-amount"><small>KES</small>{formatKES(sumAmounts(chamas, (c) => c.current_fund)).replace(/^KES\s/, "")}</p>
+              <p className="cs-hero-note">Group money, not only yours. {chamas.length} chama{chamas.length === 1 ? "" : "s"}.</p>
+              {chamas.length > 1 && Number(sumAmounts(chamas, (c) => c.current_fund)) > 0 && (
+                <div className="cs-hero-split" role="img" aria-label={"Share of money by chama: " + chamas.map((c) => `${c.chama_name} ${formatKES(c.current_fund, { whole: true })}`).join(", ")}>
+                  <div className="cs-hero-bar">
+                    {chamas.map((c, i) => <span key={c.chama_id} style={{ flexGrow: Math.max(Number(c.current_fund) || 0, 0.0001), background: SHARE_COLORS[i % SHARE_COLORS.length] }} />)}
+                  </div>
+                  <ul className="cs-hero-legend">
+                    {chamas.slice(0, 4).map((c, i) => <li key={c.chama_id}><i style={{ background: SHARE_COLORS[i % SHARE_COLORS.length] }} />{c.chama_name}</li>)}
+                  </ul>
+                </div>
+              )}
+              <div className="cs-hero-row">
+                <div className="cs-hero-chip"><span>You owe</span><b>{formatKES(loans.summary.totalBorrowed)}</b></div>
+                <div className="cs-hero-chip"><span>You guarantee</span><b>{formatKES(loans.summary.totalGuaranteed)}</b></div>
+              </div>
+            </section>
 
             {attention.length > 0 && (
               <section className="cs-section" aria-labelledby="attn">
@@ -156,18 +159,11 @@ export default function Dashboard() {
 
             <section className="cs-section" aria-labelledby="mine">
               <h2 id="mine" className="cs-section-title">Your chamas</h2>
-              <DataTable
-                columns={columns}
-                rows={chamas}
-                rowKey={(c) => c.chama_id}
-                caption="Your chamas"
-                searchPlaceholder="Search your chamas"
-                pageSize={8}
-                searchable={chamas.length > 8}
-                emptyTitle="You're not in a chama yet"
-                emptyMessage="Create a group for your members, or join one you've been invited to."
-                emptyAction={<Link to="/join-chama" className="cs-btn cs-btn--primary">Join a chama</Link>}
-              />
+              {chamas.length === 0 ? (
+                <div className="cs-card"><EmptyState title="You're not in a chama yet" message="Create a group for your members, or join one you've been invited to." action={<Link to="/join-chama" className="cs-btn cs-btn--primary">Join a chama</Link>} /></div>
+              ) : (
+                <div className="cs-chama-grid">{chamas.map((c) => <ChamaCard key={c.chama_id} c={c} />)}</div>
+              )}
             </section>
           </>
         )}

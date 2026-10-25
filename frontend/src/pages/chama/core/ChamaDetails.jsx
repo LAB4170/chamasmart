@@ -28,7 +28,7 @@ import {
   Settings, CreditCard, Users, User, DollarSign, Handshake, FileText, Download,
   Target, Bell, Trash2, Filter, RotateCcw, CheckCircle2, Clock, MapPin,
   Shield, Landmark, ArrowRight, TrendingDown, Wallet, Smartphone, AlertTriangle,
-  MessageCircle, ArrowRightLeft, Sparkles
+  MessageCircle, ArrowRightLeft, Sparkles, Banknote
 } from 'lucide-react';
 import ContributionMatrix from "../../../components/rosca/ContributionMatrix";
 import ChamaCreditScore from "./ChamaCreditScore";
@@ -41,7 +41,7 @@ import "./ChamaHub.css";
 // --- Memoized Sub-components ---
 
 const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavigate, isOfficial }) => (
-  <header className="cs-hub-header">
+  <header className="cs-hub-header cs-hero cs-hero--chama">
     <button type="button" className="cs-hub-back" onClick={() => onNavigate('/chamas')} aria-label="Back to my chamas">
       <ArrowRight size={18} aria-hidden="true" style={{ transform: 'rotate(180deg)' }} />
       <span>My chamas</span>
@@ -50,19 +50,19 @@ const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavig
       <div className="cs-hub-titles">
         <h1 className="cs-hub-title">{chama.chama_name}</h1>
         <div className="cs-hub-meta">
-          <span className="cs-status cs-status--info">
+          <span className="cs-hero-pill">
             {isROSCA ? <RefreshCw size={12} aria-hidden="true" /> : <DollarSign size={12} aria-hidden="true" />}
             {getChamaTypeLabel(chama.chama_type)}
           </span>
-          <span className="cs-status cs-status--neutral">Your role: {userRole}</span>
+          <span className="cs-hero-pill">{userRole ? userRole.charAt(0) + userRole.slice(1).toLowerCase() : "Member"}</span>
         </div>
       </div>
       {isOfficial && (
         <div className="cs-hub-actions">
-          <button type="button" className="cs-btn cs-btn--secondary" onClick={() => onNavigate(`/chamas/${chama.chama_id}/manage`)}>
+          <button type="button" className="cs-btn cs-btn--glass" onClick={() => onNavigate(`/chamas/${chama.chama_id}/manage`)}>
             <Settings size={16} aria-hidden="true" /> Manage
           </button>
-          <button type="button" className="cs-btn cs-btn--primary" onClick={() => onNavigate(`/chamas/${chama.chama_id}/record-contribution`)}>
+          <button type="button" className="cs-btn cs-btn--light" onClick={() => onNavigate(`/chamas/${chama.chama_id}/record-contribution`)}>
             <CreditCard size={16} aria-hidden="true" /> Record payment
           </button>
         </div>
@@ -74,21 +74,25 @@ const ChamaHeader = memo(({ chama, userRole, isROSCA, getChamaTypeLabel, onNavig
 const StatsSection = memo(({ stats, isROSCA, chama, members, formatCurrency }) => (
   <section className="cs-hub-stats" aria-label="Chama summary">
     <div className="cs-card cs-stat">
+      <span className="cs-stat-icon" data-tone="indigo" aria-hidden="true"><Users size={20} /></span>
       <span className="cs-stat-label">Members</span>
       <span className="cs-stat-value">{stats.total_members ?? members.length}</span>
       <span className="cs-stat-note">{members.length} listed</span>
     </div>
     <div className="cs-card cs-stat">
+      <span className="cs-stat-icon" data-tone="teal" aria-hidden="true"><TrendingUp size={20} /></span>
       <span className="cs-stat-label">Total contributed</span>
       <span className="cs-stat-value">{formatCurrency(stats.total_contributions || 0)}</span>
       <span className="cs-stat-note">All time</span>
     </div>
     <div className="cs-card cs-stat">
+      <span className="cs-stat-icon" data-tone="amber" aria-hidden="true"><Wallet size={20} /></span>
       <span className="cs-stat-label">Group fund</span>
       <span className="cs-stat-value">{formatCurrency(stats.total_fund || 0)}</span>
       <span className="cs-stat-note">Current balance on record</span>
     </div>
     <div className="cs-card cs-stat">
+      <span className="cs-stat-icon" data-tone="rose" aria-hidden="true"><Banknote size={20} /></span>
       <span className="cs-stat-label">{isROSCA ? 'Pot per round' : 'Loans disbursed'}</span>
       <span className="cs-stat-value">
         {isROSCA

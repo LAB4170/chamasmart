@@ -1,11 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
+import ChamaCard from "../../../components/ChamaCard";
 import { chamaAPI } from "../../../services/api";
 import { Button, PageHeader, EmptyState, Skeleton } from "../../../components/ui";
-import { formatKES } from "../../../utils/format";
 
-const TYPE_LABELS = { ROSCA: "Merry-go-round", ASCA: "Investment", TABLE_BANKING: "Table banking", WELFARE: "Welfare" };
 const FILTERS = [
   { id: "ALL", label: "All" },
   { id: "ROSCA", label: "Merry-go-round" },
@@ -13,8 +11,6 @@ const FILTERS = [
   { id: "TABLE_BANKING", label: "Table banking" },
   { id: "WELFARE", label: "Welfare" },
 ];
-const typeLabel = (t) => TYPE_LABELS[t] || (t ? String(t).replace(/_/g, " ").toLowerCase() : "Chama");
-const roleLabel = (r) => (r ? r.charAt(0) + r.slice(1).toLowerCase() : "Member");
 
 export default function MyChamas() {
   const [chamas, setChamas] = useState([]);
@@ -102,25 +98,7 @@ export default function MyChamas() {
               <div className="cs-card"><EmptyState title="No matches" message="No chama matches this filter."
                 action={<Button onClick={() => { setFilter("ALL"); setQuery(""); }}>Clear filters</Button>} /></div>
             ) : (
-              <div className="cs-card cs-card--flush">
-                <ul className="cs-list">
-                  {visible.map((c) => (
-                    <li key={c.chama_id}>
-                      <Link to={`/chamas/${c.chama_id}`} className="cs-list-item">
-                        <div className="cs-list-main">
-                          <div className="cs-list-title">{c.chama_name}</div>
-                          <div className="cs-list-meta">{typeLabel(c.chama_type)} · You are {roleLabel(c.role).toLowerCase() === "member" ? "a member" : `the ${roleLabel(c.role).toLowerCase()}`} · {c.total_members ?? 0} {Number(c.total_members) === 1 ? "member" : "members"}</div>
-                        </div>
-                        <div className="cs-list-end">
-                          <div className="cs-list-amount">{formatKES(c.current_fund)}</div>
-                          <div className="cs-list-meta">Group fund</div>
-                        </div>
-                        <ChevronRight size={18} aria-hidden="true" className="cs-chevron" />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <div className="cs-chama-grid">{visible.map((c) => <ChamaCard key={c.chama_id} c={c} />)}</div>
             )}
             <p className="cs-footnote">{visible.length} of {chamas.length} {chamas.length === 1 ? "chama" : "chamas"}</p>
           </>
