@@ -50,4 +50,10 @@ public class PaymentIntentController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> cancel(@PathVariable Long chamaId, @PathVariable Long intentId, @AuthenticationPrincipal CustomUserDetails me) {
         return ResponseEntity.ok(ApiResponse.success(payments.cancel(chamaId, me.getUserId(), intentId), "Payment cancelled"));
     }
+
+    /** Starts the hosted card / M-Pesa checkout for a payment and returns the address to send the member to. */
+    @PostMapping("/{intentId}/checkout")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> checkout(@PathVariable Long chamaId, @PathVariable Long intentId, @AuthenticationPrincipal CustomUserDetails me) {
+        return ResponseEntity.ok(ApiResponse.success(payments.checkout(chamaId, me.getUserId(), intentId, me.getEmail()), "Checkout ready"));
+    }
 }

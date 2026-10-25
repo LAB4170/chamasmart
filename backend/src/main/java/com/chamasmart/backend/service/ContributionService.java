@@ -181,6 +181,22 @@ public class ContributionService {
         return ContributionSummaryDto.fromEntity(saved);
     }
 
+    /**
+     * Credits a payment that a provider has already confirmed (signature checked, amount and currency matched by the caller).
+     * No official is involved because no one is vouching for the money: the provider's reference is the proof.
+     */
+    @Transactional
+    public ContributionSummaryDto creditProviderPayment(Long chamaId, Long userId, Entry e, String providerReference) {
+        activeMember(chamaId, userId);
+        Chama chama = chamaRepository.findById(chamaId).orElseThrow(() -> new IllegalArgumentException("Chama not found"));
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("Member not found"));
+        Contribution saved = contributionRepository.save(build(chama, user, new Entry(userId, e.amount(), providerReference, e.type(), e.notes(), null), "COMPLETED", "PAY"));
+        saved.setRecordedBy(userId);
+        credit(chama, saved, userId);
+        audit(userId, chama, saved, "PROVIDER_CONTRIBUTION", "Payment confirmed by the provider. Reference: " + saved.getReference());
+        return ContributionSummaryDto.fromEntity(saved);
+    }
+
     /** A member submits a receipt; nothing is credited until an official verifies it. */
     @Transactional
     public ContributionSummaryDto submit(Long chamaId, Long actorId, Entry e) {

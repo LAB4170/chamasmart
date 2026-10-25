@@ -63,6 +63,11 @@ app:
     from-name: ${MAIL_FROM_NAME:ChamaSmart}
   cors:
     allowed-origins: ${CORS_ORIGIN:http://localhost:5173,http://localhost:3000,https://chamasmart.netlify.app}
+  payments:
+    paystack:
+      enabled: ${PAYSTACK_ENABLED:false}
+      secret-key: ${PAYSTACK_SECRET_KEY:}
+      callback-url: ${PAYSTACK_CALLBACK_URL:}
   mpesa:
     env: ${MPESA_ENV:sandbox}
     consumer-key: ${MPESA_CONSUMER_KEY:}

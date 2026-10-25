@@ -62,6 +62,22 @@ public class PaymentIntentService {
         return view(saved, provider.instructions(chama.getChamaName(), saved.getAmount()));
     }
 
+    /** Opens the hosted checkout for an intent and returns where to send the member. Only providers that confirm by themselves can do this. */
+    @Transactional
+    public Map<String, Object> checkout(Long chamaId, Long userId, Long intentId, String email) {
+        PaymentIntent i = mine(chamaId, userId, intentId);
+        refreshExpiry(i);
+        if (!"AWAITING_PAYMENT".equals(i.getStatus())) throw new IllegalStateException("This payment is " + i.getStatus().toLowerCase().replace('_', ' ') + " and cannot be paid");
+        com.chamasmart.backend.payments.PaystackProvider paystack = providers.get("PAYSTACK") instanceof com.chamasmart.backend.payments.PaystackProvider pp ? pp : null;
+        if (!"PAYSTACK".equals(i.getProvider()) || paystack == null || !paystack.isConfigured()) throw new IllegalStateException("This payment does not use online checkout");
+        Chama chama = chamas.findById(chamaId).orElseThrow(() -> new IllegalArgumentException("Chama not found"));
+        String reference = "CS-" + i.getIntentId() + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        String url = paystack.initialize(email, i.getAmount(), chama.getCurrency(), reference, i.getIntentId(), chamaId);
+        Map<String, Object> m = view(i, null);
+        m.put("checkout_url", url);
+        return m;
+    }
+
     /** The member reports they paid. This only creates a pending contribution; an official still has to verify it. */
     @Transactional
     public Map<String, Object> submit(Long chamaId, Long userId, Long intentId, String reference, String proof) {

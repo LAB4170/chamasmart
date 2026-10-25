@@ -20,6 +20,10 @@ public class Chama {
     private Long chamaId;
     @Column(name = "chama_name", nullable = false)
     private String chamaName;
+    /** ISO 4217 code. A chama keeps its books in this one currency; other currencies are converted at the door. */
+    @Column(nullable = false, length = 3)
+    @Builder.Default
+    private String currency = "KES";
     @Column(name = "chama_type", nullable = false, length = 50)
     private String chamaType;
     @Column(columnDefinition = "TEXT")
