@@ -125,3 +125,11 @@ The container is tuned to start inside Render's port-scan window: serial garbage
 - A chama collecting on its own paybill needs `chama_account_codes.shortcode` set to that paybill; payments to any other shortcode are held, not credited.
 - Plan prices live in `subscription_plans`; change one with a single UPDATE. The daily sweep (`app.subscriptions.sweep-cron`) moves unpaid plans to PAST_DUE and then SUSPENDED after 7 days.
 - Held payments (unmatched, wrong amount or currency, wrong paybill) are shown to each chama's officials; money no chama could claim is at `GET /admin/payments/held`.
+
+## Admin console and public listing
+
+- Make an operator: register, turn on two-factor sign-in, then `UPDATE users SET role = 'ADMIN' WHERE email = '<lower-case email>';` and sign in again. `APP_ADMIN_REQUIRE_MFA=false` disables the two-factor requirement (tests only).
+- Public listing needs an APPROVED review (`chama_verifications`), valid for one year, and no open enforcement case of level 2 or higher. Existing PUBLIC chamas are hidden until approved.
+- The three agreements (`agreement_versions`) load as DRAFT. Publishing requires a reviewing lawyer's name; nothing can be accepted before that.
+- Settings: `app.payouts.new-listing-days` (30), `new-listing-hold-hours` (72), `new-listing-daily-cap` (100000), `app.enforcement.response-days` (7).
+- `agreement_acceptances` and `admin_actions` are append-only (database triggers).
