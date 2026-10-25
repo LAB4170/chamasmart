@@ -24,6 +24,8 @@ class PayoutServiceTest {
     FinancialAuditLogRepository audit = mock(FinancialAuditLogRepository.class);
     NotificationRepository notes = mock(NotificationRepository.class);
     ChamaMemberRepository members = mock(ChamaMemberRepository.class);
+    EnforcementService enforcement = mock(EnforcementService.class);
+    VerificationService verification = mock(VerificationService.class);
     PayoutService service;
     Chama chama;
     Map<Long, Payout> store = new HashMap<>();
@@ -32,7 +34,7 @@ class PayoutServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new PayoutService(payouts, approvals, chamas, membership, users, ledger, audit, notes, members);
+        service = new PayoutService(payouts, approvals, chamas, membership, users, ledger, audit, notes, members, enforcement, verification);
         chama = Chama.builder().chamaId(3L).chamaName("T").currentFund(new BigDecimal("300000")).build();
         when(chamas.findById(3L)).thenReturn(Optional.of(chama));
         when(chamas.findByIdWithPessimisticLock(3L)).thenReturn(Optional.of(chama));
@@ -87,6 +89,26 @@ class PayoutServiceTest {
         Long id = ask("2000");
         service.approve(3L, 2L, id);
         assertFalse(store.get(id).getReleaseAt().isAfter(ZonedDateTime.now().plusSeconds(5)));
+    }
+
+    @Test
+    void anOpenFreezeStopsRequestsApprovalsAndPayments() {
+        Long id = ask("2000");
+        when(enforcement.frozen(3L)).thenReturn(true);
+        assertThrows(IllegalStateException.class, () -> ask("1000"));
+        assertThrows(IllegalStateException.class, () -> service.approve(3L, 2L, id));
+        assertThrows(IllegalStateException.class, () -> service.markPaid(3L, 2L, id, "SJK1ABC000"));
+    }
+
+    @Test
+    void aNewlyListedChamaHoldsEvenSmallPayoutsLongerAndHasALowerDailyCap() {
+        when(payouts.existsByChamaIdAndStatus(3L, "PAID")).thenReturn(true);
+        when(verification.recentlyListed(eq(3L), anyInt())).thenReturn(true);
+        Long id = ask("2000");
+        service.approve(3L, 2L, id);
+        assertTrue(store.get(id).getReleaseAt().isAfter(ZonedDateTime.now().plusHours(70)));
+        when(payouts.committedSince(anyLong(), any())).thenReturn(new BigDecimal("99000"));
+        assertThrows(IllegalStateException.class, () -> ask("2000"));
     }
 
     @Test

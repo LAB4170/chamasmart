@@ -38,6 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class ChamaController {
+    private final com.chamasmart.backend.service.VerificationService verificationService;
     private final ChamaService chamaService;
     private final com.chamasmart.backend.service.MembershipService membershipService;
     private final com.chamasmart.backend.service.ExitService exitService;
@@ -92,8 +93,9 @@ public class ChamaController {
     public ResponseEntity<ApiResponse<List<ChamaSummaryDto>>> getAllChamas(@AuthenticationPrincipal CustomUserDetails currentUser) {
         java.util.Set<Long> mine = chamaMemberRepository.findActiveMembershipsByUserId(currentUser.getUserId()).stream()
                 .map(m -> m.getChama().getChamaId()).collect(Collectors.toSet());
+        java.util.Set<Long> listed = verificationService.listedIds();
         List<ChamaSummaryDto> chamas = chamaRepository.findByIsActiveTrue().stream()
-                .filter(c -> "PUBLIC".equalsIgnoreCase(c.getVisibility()) || mine.contains(c.getChamaId()))
+                .filter(c -> ("PUBLIC".equalsIgnoreCase(c.getVisibility()) && listed.contains(c.getChamaId())) || mine.contains(c.getChamaId()))
                 .map(ChamaSummaryDto::fromEntity)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(chamas, "Chamas retrieved successfully"));
@@ -105,7 +107,9 @@ public class ChamaController {
             @RequestParam(required = false) String chamaType) {
         log.info("REST request to get public chamas");
         String q = search == null ? "" : search.trim().toLowerCase();
+        java.util.Set<Long> listed = verificationService.listedIds();
         List<ChamaSummaryDto> chamas = chamaRepository.findByVisibilityAndIsActiveTrue("PUBLIC").stream()
+                .filter(c -> listed.contains(c.getChamaId()))
                 .map(ChamaSummaryDto::fromEntity)
                 .filter(c -> chamaType == null || chamaType.isBlank() || chamaType.equalsIgnoreCase(c.getChama_type()))
                 .filter(c -> q.isEmpty()
@@ -124,7 +128,7 @@ public class ChamaController {
         ChamaMember membership = currentUser == null ? null
                 : chamaMemberRepository.findByChamaChamaIdAndUserUserId(id, currentUser.getUserId()).filter(ChamaMember::getIsActive).orElse(null);
         if (membership == null) {
-            if (!"PUBLIC".equalsIgnoreCase(chama.getVisibility())) {
+            if (!"PUBLIC".equalsIgnoreCase(chama.getVisibility()) || !verificationService.isListed(id)) {
                 throw new org.springframework.security.access.AccessDeniedException("This chama is private");
             }
             // Outsiders see the public profile only, never payment details.
@@ -214,7 +218,10 @@ public class ChamaController {
         if (chamaDto.getVisibility() != null) {
             if (!java.util.Set.of("PUBLIC", "PRIVATE").contains(chamaDto.getVisibility().toUpperCase()))
                 throw new IllegalArgumentException("Visibility must be PUBLIC or PRIVATE");
-            chama.setVisibility(chamaDto.getVisibility().toUpperCase());
+            String wanted = chamaDto.getVisibility().toUpperCase();
+            if ("PUBLIC".equals(wanted) && !verificationService.isListed(id))
+                throw new IllegalStateException("A chama can only be made public after ChamaSmart has reviewed and approved it. Apply for listing from the chama page");
+            chama.setVisibility(wanted);
         }
         if (chamaDto.getMeeting_day() != null)
             chama.setMeetingDay(chamaDto.getMeeting_day());

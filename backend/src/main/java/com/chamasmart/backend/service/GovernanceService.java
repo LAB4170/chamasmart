@@ -23,6 +23,7 @@ public class GovernanceService {
     private final UserRepository userRepository;
     private final ChamaMemberRepository chamaMemberRepository;
     private final MembershipService membershipService;
+    private final VerificationService verification;
     // Ã¢â€â‚¬Ã¢â€â‚¬ Role guard Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     /** Asserts that userId is an active CHAIRPERSON, SECRETARY, or TREASURER of chamaId. */
     private void validateIsOfficial(Long chamaId, Long userId) {
@@ -153,7 +154,7 @@ public class GovernanceService {
         log.info("Creating join request for chama ID: {} by user ID: {}", chamaId, requestingUserId);
         Chama chama = chamaRepository.findById(chamaId).filter(c -> Boolean.TRUE.equals(c.getIsActive()))
                 .orElseThrow(() -> new IllegalArgumentException("Chama not found"));
-        if (!"PUBLIC".equalsIgnoreCase(chama.getVisibility())) {
+        if (!"PUBLIC".equalsIgnoreCase(chama.getVisibility()) || (verification != null && !verification.isListed(chamaId))) {
             throw new org.springframework.security.access.AccessDeniedException("This chama is private. You need an invitation to join");
         }
         User user = userRepository.findById(requestingUserId)

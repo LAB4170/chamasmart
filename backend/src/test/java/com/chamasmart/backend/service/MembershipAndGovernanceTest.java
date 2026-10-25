@@ -25,6 +25,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class MembershipAndGovernanceTest {
+    @Mock VerificationService verification;
     @Mock ChamaRepository chamaRepo;
     @Mock ChamaMemberRepository memberRepo;
     @Mock UserRepository userRepo;
@@ -56,7 +57,8 @@ class MembershipAndGovernanceTest {
         when(inviteRepo.save(any(Invite.class))).thenAnswer(i -> i.getArgument(0));
         when(joinRepo.save(any(JoinRequest.class))).thenAnswer(i -> i.getArgument(0));
         membership = new MembershipService(chamaRepo, memberRepo, userRepo, loanRepo, guarantorRepo, mock(com.chamasmart.backend.repository.ContributionRepository.class), mock(com.chamasmart.backend.repository.RoscaCycleRepository.class), mock(com.chamasmart.backend.repository.RoscaRosterRepository.class));
-        governance = new GovernanceService(meetingRepo, notifRepo, inviteRepo, joinRepo, chamaRepo, userRepo, memberRepo, membership);
+        governance = new GovernanceService(meetingRepo, notifRepo, inviteRepo, joinRepo, chamaRepo, userRepo, memberRepo, membership, verification);
+        when(verification.isListed(any())).thenReturn(true);
     }
 
     // ---- join requests ----

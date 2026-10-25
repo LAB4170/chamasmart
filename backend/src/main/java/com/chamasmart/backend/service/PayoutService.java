@@ -34,15 +34,22 @@ public class PayoutService {
     private final FinancialAuditLogRepository auditRepo;
     private final NotificationRepository notifications;
     private final ChamaMemberRepository members;
+    private final EnforcementService enforcement;
+    private final VerificationService verification;
 
     @Value("${app.payouts.daily-cap:500000}") BigDecimal dailyCap = new BigDecimal("500000");
     @Value("${app.payouts.large-threshold:100000}") BigDecimal largeThreshold = new BigDecimal("100000");
     @Value("${app.payouts.hold-hours:24}") int holdHours = 24;
     @Value("${app.payouts.expiry-days:7}") int expiryDays = 7;
+    /** For this many days after a chama is listed publicly, payouts are held longer and capped lower. */
+    @Value("${app.payouts.new-listing-days:30}") int newListingDays = 30;
+    @Value("${app.payouts.new-listing-hold-hours:72}") int newListingHoldHours = 72;
+    @Value("${app.payouts.new-listing-daily-cap:100000}") BigDecimal newListingDailyCap = new BigDecimal("100000");
 
     @Transactional
     public Map<String, Object> request(Long chamaId, Long actorId, BigDecimal amount, String payeeName, String payeePhone, String reason, String key) {
         membership.activeOfficial(chamaId, actorId);
+        if (enforcement.frozen(chamaId)) throw new IllegalStateException("Payouts are paused on this chama because of an open notice from ChamaSmart. See the notice on the chama page");
         if (key == null || key.isBlank() || key.length() > 64) throw new IllegalArgumentException("A request key of 1 to 64 characters is required");
         Optional<Payout> again = payouts.findByRequestedByAndIdempotencyKey(actorId, key);
         if (again.isPresent()) return view(again.get());
@@ -55,8 +62,9 @@ public class PayoutService {
         if (amount.compareTo(chama.getCurrentFund()) > 0) throw new IllegalStateException("The chama fund holds KES " + chama.getCurrentFund().toPlainString() + ", less than this payout");
         if (phone != null && phoneBelongsToOfficial(chamaId, phone)) throw new AccessDeniedException("An official cannot pay themselves or another official through this route");
         BigDecimal today = payouts.committedSince(chamaId, ZonedDateTime.now(ZoneId.of("Africa/Nairobi")).toLocalDate().atStartOfDay(ZoneId.of("Africa/Nairobi")));
-        if (today.add(amount).compareTo(dailyCap) > 0)
-            throw new IllegalStateException("This would take today's payouts above the daily limit of KES " + dailyCap.toPlainString() + " (already asked for: KES " + today.toPlainString() + ")");
+        BigDecimal cap = verification.recentlyListed(chamaId, newListingDays) ? newListingDailyCap.min(dailyCap) : dailyCap;
+        if (today.add(amount).compareTo(cap) > 0)
+            throw new IllegalStateException("This would take today's payouts above the daily limit of KES " + cap.toPlainString() + " (already asked for: KES " + today.toPlainString() + ")");
         boolean large = amount.compareTo(largeThreshold) >= 0;
         Payout p = payouts.save(Payout.builder().chamaId(chamaId).amount(amount).payeeName(payeeName.trim()).payeePhone(phone).reason(reason.trim())
                 .status("REQUESTED").requiredApprovals(large ? 2 : 1).requestedBy(actorId).idempotencyKey(key).build());
@@ -68,6 +76,7 @@ public class PayoutService {
     @Transactional
     public Map<String, Object> approve(Long chamaId, Long actorId, Long payoutId) {
         membership.activeOfficial(chamaId, actorId);
+        if (enforcement.frozen(chamaId)) throw new IllegalStateException("Payouts are paused on this chama because of an open notice from ChamaSmart. See the notice on the chama page");
         Payout p = loadLocked(chamaId, payoutId);
         if (!"REQUESTED".equals(p.getStatus())) throw new IllegalStateException("This payout is " + p.getStatus().toLowerCase() + " and cannot be approved");
         if (p.getRequestedBy().equals(actorId)) throw new AccessDeniedException("You asked for this payout, so someone else must approve it");
@@ -82,7 +91,8 @@ public class PayoutService {
             boolean first = !payouts.existsByChamaIdAndStatus(chamaId, "PAID");
             boolean large = p.getRequiredApprovals() > 1;
             p.setStatus("APPROVED");
-            p.setReleaseAt(first || large ? ZonedDateTime.now().plusHours(holdHours) : ZonedDateTime.now());
+            boolean fresh = verification.recentlyListed(chamaId, newListingDays);
+            p.setReleaseAt(fresh ? ZonedDateTime.now().plusHours(Math.max(holdHours, newListingHoldHours)) : first || large ? ZonedDateTime.now().plusHours(holdHours) : ZonedDateTime.now());
             payouts.save(p);
             notifyOfficials(chama, actorId, "Payout approved", "KES " + p.getAmount().toPlainString() + " to " + p.getPayeeName()
                     + (p.getReleaseAt().isAfter(ZonedDateTime.now()) ? ". It can be sent after " + p.getReleaseAt().withZoneSameInstant(ZoneId.of("Africa/Nairobi")).toLocalDateTime().toString().replace('T', ' ') + "." : ". It can be sent now."), payoutId);
@@ -118,6 +128,7 @@ public class PayoutService {
     /** After the money has really been sent (for example by M-Pesa), record the code. This is the moment the fund and the journal move. */
     @Transactional
     public Map<String, Object> markPaid(Long chamaId, Long actorId, Long payoutId, String reference) {
+        if (enforcement.frozen(chamaId)) throw new IllegalStateException("Payouts are paused on this chama because of an open notice from ChamaSmart. See the notice on the chama page");
         membership.activeOfficial(chamaId, actorId);
         String ref = reference == null ? "" : reference.replaceAll("\\s+", "").toUpperCase();
         if (!ref.matches("[A-Z0-9]{8,14}")) throw new IllegalArgumentException("Enter the payment reference, such as the M-Pesa code");
