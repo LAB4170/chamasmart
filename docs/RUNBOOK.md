@@ -99,3 +99,7 @@ Render's free plan blocks outgoing SMTP, so ChamaSmart sends mail through Brevo'
 Never use `MAIL_PROVIDER=log` in production: it prints the links, which are secrets, into the logs. It exists for local testing only.
 
 Behaviour: links are single-use and stored only as hashes; reset links last 1 hour, confirmation links 48 hours; at most 3 emails per hour per person and purpose. A password reset signs the person out everywhere. Google-only accounts who ask for a reset are told to use Continue with Google. A treasurer or secretary can only be appointed once their email is confirmed.
+
+## Render free plan (512 MB, shared CPU)
+
+The container is tuned to start inside Render's port-scan window: serial garbage collector, C1-only JIT, smaller thread stacks, 65% of RAM for the heap, and a database pool of 8 (`DB_POOL_SIZE`). The first start after a deploy can still take several minutes on free CPU. If the log ends at "Starting ChamaSmartApplication" and Render reports "no open ports detected", check Events for an out-of-memory kill; if it recurs, the Starter plan is the fix.

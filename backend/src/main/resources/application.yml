@@ -28,7 +28,7 @@ spring:
     driver-class-name: org.postgresql.Driver
     hikari:
       minimum-idle: 1
-      maximum-pool-size: 15
+      maximum-pool-size: ${DB_POOL_SIZE:8}
       idle-timeout: 30000
       connection-timeout: 10000
       max-lifetime: 1800000 # 30 minutes max lifetime to prevent Neon serverless connection drops
