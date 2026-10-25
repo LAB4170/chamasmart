@@ -92,7 +92,12 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       const response = await authAPI.login({ email, password });
       
-      const { user: userData, tokens } = response.data.data;
+      const payload = response.data.data;
+      if (payload?.mfa_required) {
+        // Password was right; the person still has to give their authenticator code.
+        return { success: false, mfaRequired: true, mfaToken: payload.mfa_token };
+      }
+      const { user: userData, tokens } = payload;
 
       localStorage.setItem("token", tokens.accessToken);
       if (tokens.refreshToken) localStorage.setItem("refreshToken", tokens.refreshToken);
@@ -109,6 +114,23 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Standard Register (Name/Email/Phone/Password)
+  const completeMfaLogin = async (mfaToken, code) => {
+    try {
+      setError(null);
+      const response = await authAPI.mfaLogin(mfaToken, code);
+      const { user: userData, tokens } = response.data.data;
+      localStorage.setItem("token", tokens.accessToken);
+      if (tokens.refreshToken) localStorage.setItem("refreshToken", tokens.refreshToken);
+      localStorage.setItem("user", JSON.stringify(userData));
+      setUser(userData);
+      return { success: true };
+    } catch (err) {
+      const message = err.response?.data?.message || err.message || "That code didn't work";
+      setError(message);
+      return { success: false, error: message, expired: err.response?.status === 401 && /expired/i.test(message) };
+    }
+  };
+
   const register = async (userData) => {
     try {
       setError(null);
@@ -260,6 +282,7 @@ export const AuthProvider = ({ children }) => {
     register,
     loginWithGoogle,
     logout,
+    completeMfaLogin,
     verifyEmail,
     verifyPhone,
     resendEmailVerification,

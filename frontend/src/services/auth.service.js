@@ -18,6 +18,14 @@ export const authAPI = {
             password: credentials.password,
         }),
 
+    // Two-factor sign-in
+    mfaLogin: (mfaToken, code) => api.post("/auth/mfa/login", { mfa_token: mfaToken, code }),
+    mfaStatus: () => api.get("/auth/mfa/status"),
+    mfaSetup: () => api.post("/auth/mfa/setup", {}),
+    mfaEnable: (code) => api.post("/auth/mfa/enable", { code }),
+    mfaDisable: (code) => api.post("/auth/mfa/disable", { code }),
+    mfaRecoveryCodes: (code) => api.post("/auth/mfa/recovery-codes", { code }),
+
     // Sign out of every device
     logoutAll: () => api.post("/auth/logout-all"),
 

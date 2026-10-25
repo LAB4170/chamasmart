@@ -103,3 +103,15 @@ Behaviour: links are single-use and stored only as hashes; reset links last 1 ho
 ## Render free plan (512 MB, shared CPU)
 
 The container is tuned to start inside Render's port-scan window: serial garbage collector, C1-only JIT, smaller thread stacks, 65% of RAM for the heap, and a database pool of 8 (`DB_POOL_SIZE`). The first start after a deploy can still take several minutes on free CPU. If the log ends at "Starting ChamaSmartApplication" and Render reports "no open ports detected", check Events for an out-of-memory kill; if it recurs, the Starter plan is the fix.
+
+## Database migrations (Flyway)
+
+- `V0__schema.sql` is the complete schema for a brand-new database. Databases that already hold data were adopted at `V1` and skip it (the `*:ignored` pattern in `application.yml` allows this).
+- `V1__baseline.sql` must never change; its checksum is recorded in every existing database.
+- Every schema change from now on is a new numbered file (`V3__...`). CI builds an empty database from the files and starts the app with schema validation, so a change that does not match the entity classes fails the build.
+
+## Two-factor sign-in
+
+- People turn it on in Profile, using any authenticator app. They get ten single-use recovery codes, shown once.
+- `MFA_ENFORCE_OFFICIALS=true` makes officials (chairperson, treasurer, secretary) turn it on before they can act as an official. Leave it `false` until officials have enrolled, then switch it on.
+- A lost phone with no recovery codes needs an admin reset: delete the person's rows from `user_mfa` and `mfa_recovery_codes` after verifying who they are by another route.

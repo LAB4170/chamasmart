@@ -6,6 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 import { getImageUrl } from "../../utils/imageUtils";
 import { Button, Skeleton, Dialog } from "../../components/ui";
 import { formatDate } from "../../utils/format";
+import TwoFactorCard from "../../components/security/TwoFactorCard";
 
 const maskId = (v) => (!v ? "" : v.length <= 7 ? v : `${v.slice(0, 3)}***${v.slice(-2)}`);
 
@@ -210,6 +211,8 @@ export default function UserProfile() {
             <div className="cs-actions"><Button type="submit" loading={saving}>Save changes</Button></div>
           </form>
         </section>
+
+        <TwoFactorCard />
 
         <form className="cs-card" onSubmit={changePassword} noValidate aria-label="Change password" style={{ marginBottom: 16, maxWidth: 720 }}>
           <h2 className="cs-card-title">Change password</h2>

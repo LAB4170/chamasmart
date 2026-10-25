@@ -11,7 +11,9 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [slow, setSlow] = useState(false);
-  const { login, loginWithGoogle, isAuthenticated } = useAuth();
+  const { login, loginWithGoogle, completeMfaLogin, isAuthenticated } = useAuth();
+  const [mfaToken, setMfaToken] = useState(null);
+  const [code, setCode] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => { if (isAuthenticated) navigate("/dashboard"); }, [isAuthenticated, navigate]);
@@ -31,12 +33,25 @@ export default function Login() {
     try {
       const result = await login(email.trim(), password);
       if (result.success) navigate("/dashboard");
+      else if (result.mfaRequired) { setMfaToken(result.mfaToken); setCode(""); }
       else setError(result.error || "That email or password isn't right.");
     } catch {
       setError("We couldn't reach the server. It may be waking up, so please try again in a moment.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const submitCode = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!code.trim()) { setError("Enter the 6-digit code from your authenticator app."); return; }
+    setLoading(true);
+    const result = await completeMfaLogin(mfaToken, code.trim());
+    setLoading(false);
+    if (result.success) navigate("/dashboard");
+    else if (result.expired) { setMfaToken(null); setPassword(""); setError("That sign-in expired. Please start again."); }
+    else setError(result.error || "That code didn't work.");
   };
 
   const google = async () => {
@@ -59,6 +74,19 @@ export default function Login() {
           <h1>Welcome back</h1>
           <p>Sign in to ChamaSmart</p>
         </div>
+        {mfaToken ? (
+          <form className="cs-card" onSubmit={submitCode} noValidate>
+            {error && <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 12 }}><span>{error}</span></div>}
+            <h2 className="cs-card-title">Two-factor sign-in</h2>
+            <p className="cs-help">Open your authenticator app and enter the 6-digit code for ChamaSmart. Lost your phone? Use one of your recovery codes instead.</p>
+            <div className="cs-field">
+              <label className="cs-label" htmlFor="login-code">Code</label>
+              <input id="login-code" className="cs-input" autoFocus autoComplete="one-time-code" inputMode="text" value={code} onChange={(e) => { setError(""); setCode(e.target.value); }} />
+            </div>
+            <Button type="submit" variant="primary" className="cs-btn--block" loading={loading}>Verify and sign in</Button>
+            <p className="cs-help" style={{ textAlign: "center", marginTop: 12 }}><button type="button" className="cs-link-btn" onClick={() => { setMfaToken(null); setCode(""); setError(""); }}>Use a different account</button></p>
+          </form>
+        ) : (
         <form className="cs-card" onSubmit={submit} noValidate>
           {slow && !error && <div className="cs-notice" role="status" style={{ marginBottom: 12 }}><span>The server is waking up after being idle. This can take up to a minute, please keep this page open.</span></div>}
           {error && <div className="cs-notice cs-notice--danger" role="alert" style={{ marginBottom: 12 }}><span>{error}</span></div>}
@@ -81,6 +109,7 @@ export default function Login() {
           </button>
           <p className="cs-help" style={{ textAlign: "center" }}>New here? Continuing with Google creates your account and means you accept the <Link to="/terms">terms</Link> and <Link to="/privacy">privacy notice</Link>.</p>
         </form>
+        )}
         <p className="cs-footnote" style={{ textAlign: "center", marginTop: 16 }}>New to ChamaSmart? <Link to="/register">Create an account</Link></p>
       </main>
     </div>

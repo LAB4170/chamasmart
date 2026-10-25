@@ -65,6 +65,28 @@ describe("AuthContext", () => {
     expect(localStorage.getItem("token")).toBeNull();
   });
 
+  test("login asks for the authenticator code and only signs in after it", async () => {
+    authAPI.login.mockResolvedValueOnce({ data: { data: { mfa_required: true, mfa_token: "challenge" } } });
+    authAPI.mfaLogin = vi.fn().mockResolvedValueOnce({
+      data: { data: { user: { userId: 3 }, tokens: { accessToken: "t", refreshToken: "r" } } },
+    });
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let step1;
+    await act(async () => { step1 = await result.current.login("a@b.co", "pw"); });
+    expect(step1).toEqual({ success: false, mfaRequired: true, mfaToken: "challenge" });
+    expect(localStorage.getItem("token")).toBeNull();
+    expect(result.current.isAuthenticated).toBe(false);
+
+    let step2;
+    await act(async () => { step2 = await result.current.completeMfaLogin("challenge", "123456"); });
+    expect(step2).toEqual({ success: true });
+    expect(authAPI.mfaLogin).toHaveBeenCalledWith("challenge", "123456");
+    expect(localStorage.getItem("token")).toBe("t");
+    expect(result.current.isAuthenticated).toBe(true);
+  });
+
   test("logout clears everything", async () => {
     authAPI.login.mockResolvedValueOnce({
       data: { data: { user: { userId: 3 }, tokens: { accessToken: "t" } } },
