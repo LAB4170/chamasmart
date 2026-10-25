@@ -178,3 +178,19 @@ The Legal tab (role `LEGAL`; super admin also) holds the register of court order
 - **Daraja defaults removed.** No consumer key, secret or passkey is built into the code any more. Without `MPESA_CONSUMER_SECRET` the app uses the mocked STK push outside production and refuses in production. **If the old sandbox consumer key was ever a real Daraja app of yours, rotate it in the Daraja portal: it was in earlier commits.**
 - **Plan suspension.** A chama whose plan is suspended (after the 7-day grace) cannot create new payout requests or approve new members. Contributions, repayments, approvals already given, and every record continue to work. Paying the plan lifts it at once.
 - **Log fingerprints.** On the 1st of each month at 03:00 the app records the activity log's last entry number and hash and emails them to every active super admin; you can also record one from the Activity log tab. **Keep those emails in a folder.** "Check the log has not been altered" now compares the log with every saved fingerprint, and a nightly job raises an alert if one stops matching, so rewriting history is caught even by someone with full database access. Needs a working `MAIL_PROVIDER`.
+
+## Starting again from empty
+
+Use this to wipe every user and all data and begin again (for example before real chamas join). It cannot be undone, so it is a manual step and never runs by itself.
+
+1. Take a backup first (Render: the database's Backups page, or `pg_dump`).
+2. Stop sign-ins from continuing: change `JWT_SECRET` on the backend to a new random value. This is required. A new person who gets user number 1 would otherwise be accepted on an old session token for user number 1.
+3. Run the reset against the database, passing its name so the script can check you are in the right place. `SELECT current_database();` shows the name.
+   `psql "<external connection string>" -v confirm_db=<database name> -f scripts/reset-database.sql`
+   The script refuses to run, and stops with an error, if the name does not match.
+4. Restart the backend. It rebuilds every table, the three plans, the roles and their permissions on its own.
+5. Register your own account on the site, confirm the email, then promote it: `UPDATE users SET role = 'ADMIN' WHERE email = '<your email>';`
+6. Sign in again and open the admin console. The first administrator becomes super admin automatically (recorded as `SUPER_ADMIN_BOOTSTRAPPED`). Turn on two-factor sign-in when asked: the console stays closed without it while `ADMIN_REQUIRE_MFA` is on.
+7. Add your accounting, legal and reviewer staff from the Staff tab. They register normally first.
+
+What goes with the wipe: the activity log and the monthly fingerprints, so fingerprint emails sent before the wipe will not match the new log. Keep them as the record of the old system. Uploaded documents are stored in the database, so they are gone too. Nothing is kept outside the database, so there is nothing else to clean.
