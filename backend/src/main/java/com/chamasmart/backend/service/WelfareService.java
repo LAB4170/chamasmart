@@ -255,20 +255,15 @@ public class WelfareService {
     public java.util.Map<String, Object> getLedger(Long chamaId, Long actorId) {
         validateUserMembershipAndActiveStatus(chamaId, actorId);
         log.info("Fetching welfare ledger for chama ID: {}", chamaId);
-        Chama chama = chamaRepository.findById(chamaId)
+        chamaRepository.findById(chamaId)
                 .orElseThrow(() -> new RuntimeException("Chama not found"));
-        WelfareFund fund = welfareFundRepository.findByChamaChamaId(chamaId)
-                .orElseGet(() -> {
-                    WelfareFund newFund = WelfareFund.builder()
-                            .chama(chama)
-                            .balance(BigDecimal.ZERO)
-                            .build();
-                    return welfareFundRepository.save(newFund);
-                });
+        // Read-only: a chama with no welfare activity yet simply has a zero balance (the fund row is created on first write).
+        BigDecimal balance = welfareFundRepository.findByChamaChamaId(chamaId)
+                .map(WelfareFund::getBalance).orElse(BigDecimal.ZERO);
         return java.util.Map.of(
                 "chama_id", chamaId,
-                "welfare_balance", fund.getBalance(),
-                "balance", fund.getBalance()
+                "welfare_balance", balance,
+                "balance", balance
         );
     }
 }

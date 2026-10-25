@@ -80,7 +80,7 @@ export default function Navbar() {
 
           {isAuthenticated && (
             <nav aria-label="Main" className="cs-nav-links">
-              {NAV_ITEMS.map((item) => {
+              {(user?.role === "ADMIN" ? [{ to: "/admin", label: "Admin console", Icon: Shield }, ...NAV_ITEMS.filter((i) => ["/dashboard", "/chamas", "/loans", "/browse-chamas"].includes(i.to))] : NAV_ITEMS).map((item) => {
                 const Icon = item.Icon;
                 return (
                   <NavLink key={item.to} to={item.to} className={({ isActive }) => `cs-nav-link${isActive ? " is-active" : ""}`}>
@@ -146,7 +146,7 @@ export default function Navbar() {
 
       {isAuthenticated && (
         <nav className="cs-tabbar" aria-label="Main">
-          {TAB_ITEMS.map((item) => {
+          {(user?.role === "ADMIN" ? [{ to: "/admin", label: "Admin", Icon: Shield }, ...TAB_ITEMS.slice(0, 3)] : TAB_ITEMS).map((item) => {
             const Icon = item.Icon;
             return (
               <NavLink key={item.to} to={item.to} className={({ isActive }) => `cs-tab${isActive ? " is-active" : ""}`}>
