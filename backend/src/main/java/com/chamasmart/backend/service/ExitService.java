@@ -162,6 +162,7 @@ public class ExitService {
             contributionRepo.save(Contribution.builder().chama(chama).user(e.getUser()).amount(fineCut).contributionType("FINE")
                     .status("COMPLETED").reference("EXITFINE-" + e.getExitId()).recordedBy(officialId).notes("Unpaid fines settled from the exit refund").isDeleted(false).build());
         }
+        ledger.postFinesFromSavings(chama, fineCut, e.getExitId(), officialId);
         if (refund.signum() > 0) {
             if (reference == null || reference.isBlank()) throw new IllegalArgumentException("Enter the payment reference (for example the M-Pesa code) of the refund");
             if (chama.getCurrentFund().compareTo(refund) < 0)

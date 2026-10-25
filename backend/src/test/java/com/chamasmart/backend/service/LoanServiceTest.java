@@ -221,7 +221,8 @@ class LoanServiceTest {
         assertEquals("RECOVERED:300.00", service.callGuarantees(1L, 10L, 6L));
         assertEquals(0, new BigDecimal("500").compareTo(mine.getAmountPaid()));
         assertEquals("DEFAULTED", mine.getStatus());
-        assertEquals(0, new BigDecimal("5300").compareTo(chama.getCurrentFund()));
+        // The guarantor's savings were already in the fund; applying them to the loan moves no cash.
+        assertEquals(0, new BigDecimal("5000").compareTo(chama.getCurrentFund()));
         verify(contribRepo).save(argThat((Contribution c) -> c.getAmount().compareTo(new BigDecimal("-300.00")) == 0 && c.getUser().getUserId() == 8L));
     }
 

@@ -31,6 +31,9 @@ public class LoanCoverService {
     private final FinancialAuditLogRepository auditLogRepository;
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
+    /** Optional so unit tests that build this class by hand keep working. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private LedgerService ledger;
 
     /** Premium for a new loan; zero when the chama has no cover. */
     public static BigDecimal premium(BigDecimal loanAmount, BigDecimal percent) {
@@ -111,6 +114,7 @@ public class LoanCoverService {
         BigDecimal pay = owed.min(reserve).max(BigDecimal.ZERO).setScale(2, RoundingMode.DOWN);
         if (pay.signum() <= 0) throw new IllegalStateException("The cover reserve is empty, so nothing can be paid. Use the guarantors or a write-off instead");
         schedule.apply(loan, loan.getChama(), pay, officialId);
+        if (ledger != null) ledger.postCoverApplied(loan.getChama(), pay, loan.getLoanId(), officialId);
         loan.setAmountPaid(paid.add(pay));
         loan.setCoverPaid((loan.getCoverPaid() == null ? BigDecimal.ZERO : loan.getCoverPaid()).add(pay));
         loan.setLastPaymentDate(ZonedDateTime.now());

@@ -457,6 +457,7 @@ public class LoanService {
         chamaRepository.save(chama);
         ledger.post(chama, LedgerEntry.CHAMA_FUND, leaving.negate(), "LOAN_DISBURSEMENT", "LOAN", loan.getLoanId(), officerUserId,
                 "Loan to member " + loan.getBorrower().getUserId() + (premium.signum() > 0 ? " (KES " + premium + " kept as cover premium)" : ""));
+        ledger.postCoverPremium(chama, premium, loan.getLoanId(), officerUserId);
         loan.setStatus("APPROVED");
         loan.setApprovedAt(ZonedDateTime.now());
         loan.setApprovedBy(userRepository.getReferenceById(officerUserId));
@@ -596,9 +597,9 @@ public class LoanService {
         loan.setAmountPaid(paid.add(recovered));
         loan.setLastPaymentDate(ZonedDateTime.now());
         loan.setGuaranteeCallRequestedBy(null);
-        chama.setCurrentFund(chama.getCurrentFund().add(recovered));
-        chamaRepository.save(chama);
-        ledger.post(chama, LedgerEntry.CHAMA_FUND, recovered, "GUARANTEE_CALL", "LOAN", loanId, officialId, "Guarantors' savings applied to defaulted loan");
+        // The guarantors' savings were already in the fund. Applying them to the loan lowers what the chama owes them and what the
+        // borrower owes, and moves no cash, so the fund balance must not change (it used to rise by this amount, overstating cash).
+        ledger.postSavingsAppliedToLoan(chama, recovered, loanId, officialId);
         if (loan.getAmountPaid().compareTo(loan.getTotalRepayable()) >= 0) loan.setStatus("COMPLETED");
         loanRepository.save(loan);
         return "RECOVERED:" + recovered.toPlainString();
