@@ -19,5 +19,6 @@ public final class Accounts {
     // Income (normal balance: credit)
     public static final String INTEREST_INCOME = "INTEREST_INCOME";
     public static final String FEE_INCOME = "FEE_INCOME";
+    public static final String EXPENSES = "EXPENSES";                // money the chama spent on its running costs
     public static final String FINES_INCOME = "FINES_INCOME";      // unpaid fines taken from a departing member's savings
 }

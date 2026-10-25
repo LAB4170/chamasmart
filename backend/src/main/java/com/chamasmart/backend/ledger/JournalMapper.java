@@ -34,6 +34,7 @@ public final class JournalMapper {
         String other = switch (entryType == null ? "" : entryType) {
             case "CONTRIBUTION", "MPESA_CONTRIBUTION", "REVERSAL", "MEMBER_EXIT_REFUND", "ROSCA_POT_PAYOUT" -> Accounts.MEMBER_SAVINGS;
             case "LOAN_DISBURSEMENT", "LOAN_REPAYMENT" -> Accounts.LOANS_RECEIVABLE;
+            case "EXPENSE_PAYOUT" -> Accounts.EXPENSES;
             case "ASCA_SHARE_PURCHASE", "ASCA_SHARE_OUT" -> Accounts.ASCA_EQUITY;
             default -> Accounts.SUSPENSE;
         };

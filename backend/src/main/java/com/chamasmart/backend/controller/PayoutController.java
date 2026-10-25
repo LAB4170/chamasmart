@@ -1,32 +1,56 @@
 package com.chamasmart.backend.controller;
-import lombok.extern.slf4j.Slf4j;
+
 import com.chamasmart.backend.dto.ApiResponse;
+import com.chamasmart.backend.security.CustomUserDetails;
+import com.chamasmart.backend.service.PayoutService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import java.util.ArrayList;
-import java.util.HashMap;
+
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+
 @RestController
-@RequestMapping("/payouts")
+@RequestMapping("/chamas/{chamaId}/payouts")
 @RequiredArgsConstructor
-@Slf4j
 public class PayoutController {
-    // Payouts are recorded through /rosca/cycles/{id}/payout. Real money transfer arrives with the payments phase;
-    // until then these generic endpoints must not pretend to move money.
-    @GetMapping("/{chamaId}")
-    public ResponseEntity<ApiResponse<List<Object>>> getPayouts(@PathVariable Long chamaId) {
-        return ResponseEntity.ok(ApiResponse.success(new ArrayList<>(), "No payouts recorded"));
+    private final PayoutService payouts;
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> list(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails me) {
+        return ResponseEntity.ok(ApiResponse.success(payouts.list(chamaId, me.getUserId()), "Payouts"));
     }
-    @GetMapping("/{chamaId}/eligible")
-    public ResponseEntity<ApiResponse<List<Object>>> getEligiblePayouts(@PathVariable Long chamaId) {
-        return ResponseEntity.ok(ApiResponse.success(new ArrayList<>(), "No eligible payouts"));
+
+    @PostMapping
+    public ResponseEntity<ApiResponse<Map<String, Object>>> request(@PathVariable Long chamaId, @RequestBody Map<String, Object> b,
+            @RequestHeader(value = "Idempotency-Key", required = false) String key, @AuthenticationPrincipal CustomUserDetails me) {
+        Object amt = b.get("amount");
+        if (amt == null) throw new IllegalArgumentException("Enter an amount above zero");
+        return ResponseEntity.ok(ApiResponse.success(payouts.request(chamaId, me.getUserId(), new BigDecimal(amt.toString()),
+                str(b, "payee_name"), str(b, "payee_phone"), str(b, "reason"), key), "Payout requested. Another official must approve it."));
     }
-    @PostMapping("/{chamaId}/process")
-    public ResponseEntity<ApiResponse<Void>> processPayout(@PathVariable Long chamaId, @RequestBody Map<String, Object> payload) {
-        log.warn("Rejected generic payout request for chama {}", chamaId);
-        return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_IMPLEMENTED)
-                .body(ApiResponse.error("Payouts can't be processed here yet. Record a merry-go-round payout from its cycle."));
+
+    @PostMapping("/{payoutId}/approve")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> approve(@PathVariable Long chamaId, @PathVariable Long payoutId, @AuthenticationPrincipal CustomUserDetails me) {
+        return ResponseEntity.ok(ApiResponse.success(payouts.approve(chamaId, me.getUserId(), payoutId), "Approved"));
     }
+
+    @PostMapping("/{payoutId}/reject")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> reject(@PathVariable Long chamaId, @PathVariable Long payoutId, @RequestBody Map<String, Object> b, @AuthenticationPrincipal CustomUserDetails me) {
+        return ResponseEntity.ok(ApiResponse.success(payouts.reject(chamaId, me.getUserId(), payoutId, str(b, "note")), "Rejected"));
+    }
+
+    @PostMapping("/{payoutId}/cancel")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> cancel(@PathVariable Long chamaId, @PathVariable Long payoutId, @AuthenticationPrincipal CustomUserDetails me) {
+        return ResponseEntity.ok(ApiResponse.success(payouts.cancel(chamaId, me.getUserId(), payoutId), "Cancelled"));
+    }
+
+    @PostMapping("/{payoutId}/paid")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> paid(@PathVariable Long chamaId, @PathVariable Long payoutId, @RequestBody Map<String, Object> b, @AuthenticationPrincipal CustomUserDetails me) {
+        return ResponseEntity.ok(ApiResponse.success(payouts.markPaid(chamaId, me.getUserId(), payoutId, str(b, "reference")), "Recorded as paid"));
+    }
+
+    private static String str(Map<String, Object> b, String k) { return b.get(k) == null ? null : b.get(k).toString(); }
 }

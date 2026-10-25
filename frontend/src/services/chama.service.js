@@ -89,3 +89,13 @@ export const subscriptionAPI = {
   choose: (chamaId, planCode) => api.post(`/chamas/${chamaId}/subscription/choose`, { plan_code: planCode }),
   checkout: (chamaId) => api.post(`/chamas/${chamaId}/subscription/checkout`),
 };
+
+// Spending chama money with approvals: PayoutController /chamas/{id}/payouts
+export const payoutAPI = {
+  list: (chamaId) => api.get(`/chamas/${chamaId}/payouts`),
+  request: (chamaId, body, key) => api.post(`/chamas/${chamaId}/payouts`, body, { headers: { "Idempotency-Key": key } }),
+  approve: (chamaId, id) => api.post(`/chamas/${chamaId}/payouts/${id}/approve`),
+  reject: (chamaId, id, note) => api.post(`/chamas/${chamaId}/payouts/${id}/reject`, { note }),
+  cancel: (chamaId, id) => api.post(`/chamas/${chamaId}/payouts/${id}/cancel`),
+  paid: (chamaId, id, reference) => api.post(`/chamas/${chamaId}/payouts/${id}/paid`, { reference }),
+};

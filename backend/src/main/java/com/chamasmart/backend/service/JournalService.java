@@ -237,5 +237,5 @@ public class JournalService {
 
     /** Names used in reports, in the order an accountant expects. */
     public static final List<String> ACCOUNT_ORDER = List.of(Accounts.CASH, Accounts.WELFARE_CASH, Accounts.LOANS_RECEIVABLE, Accounts.SUSPENSE,
-            Accounts.MEMBER_SAVINGS, Accounts.WELFARE_RESERVE, Accounts.COVER_RESERVE, Accounts.ASCA_EQUITY, Accounts.INTEREST_INCOME, Accounts.FEE_INCOME);
+            Accounts.MEMBER_SAVINGS, Accounts.WELFARE_RESERVE, Accounts.COVER_RESERVE, Accounts.ASCA_EQUITY, Accounts.INTEREST_INCOME, Accounts.FEE_INCOME, Accounts.FINES_INCOME, Accounts.EXPENSES);
 }
