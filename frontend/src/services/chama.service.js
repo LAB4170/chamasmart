@@ -91,7 +91,7 @@ export const subscriptionAPI = {
 };
 
 // Spending chama money with approvals: PayoutController /chamas/{id}/payouts
-export const payoutAPI = {
+export const spendAPI = {
   list: (chamaId) => api.get(`/chamas/${chamaId}/payouts`),
   request: (chamaId, body, key) => api.post(`/chamas/${chamaId}/payouts`, body, { headers: { "Idempotency-Key": key } }),
   approve: (chamaId, id) => api.post(`/chamas/${chamaId}/payouts/${id}/approve`),

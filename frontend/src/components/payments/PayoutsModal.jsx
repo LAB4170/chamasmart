@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { X } from "lucide-react";
 import { toast } from "react-toastify";
-import { payoutAPI } from "../../services/api";
+import { spendAPI } from "../../services/api";
 import "./PendingContributions.css";
 
 const LABEL = { REQUESTED: "Waiting for approval", APPROVED: "Approved", PAID: "Paid", REJECTED: "Rejected", CANCELLED: "Cancelled", EXPIRED: "Expired" };
@@ -16,7 +16,7 @@ const PayoutsModal = ({ chamaId, currentUserId, onClose, onChanged }) => {
   const keyRef = useRef(crypto.randomUUID().slice(0, 32));
 
   const load = useCallback(async () => {
-    try { setRows((await payoutAPI.list(chamaId)).data.data || []); }
+    try { setRows((await spendAPI.list(chamaId)).data.data || []); }
     catch (e) { toast.error(e.response?.data?.message || "Could not load payouts"); }
   }, [chamaId]);
   useEffect(() => { load(); }, [load]);
@@ -31,7 +31,7 @@ const PayoutsModal = ({ chamaId, currentUserId, onClose, onChanged }) => {
   const submit = (e) => {
     e.preventDefault();
     run(async () => {
-      await payoutAPI.request(chamaId, { ...form, amount: Number(form.amount) }, keyRef.current);
+      await spendAPI.request(chamaId, { ...form, amount: Number(form.amount) }, keyRef.current);
       keyRef.current = crypto.randomUUID().slice(0, 32);
       setForm({ amount: "", payee_name: "", payee_phone: "", reason: "" });
     }, "Requested. Another official must approve it.");
@@ -69,15 +69,15 @@ const PayoutsModal = ({ chamaId, currentUserId, onClose, onChanged }) => {
             </div>
             {r.status === "REQUESTED" && (
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {!mine(r) && <button className="btn-lux btn-lux-primary" disabled={busy} onClick={() => run(() => payoutAPI.approve(chamaId, r.payout_id), "Approved")}>Approve</button>}
-                {!mine(r) && <button className="btn-lux btn-lux-outline" disabled={busy} onClick={() => { const n = window.prompt("Why are you rejecting this?"); if (n && n.trim()) run(() => payoutAPI.reject(chamaId, r.payout_id, n.trim()), "Rejected"); }}>Reject</button>}
-                {mine(r) && <button className="btn-lux btn-lux-outline" disabled={busy} onClick={() => run(() => payoutAPI.cancel(chamaId, r.payout_id), "Cancelled")}>Cancel my request</button>}
+                {!mine(r) && <button className="btn-lux btn-lux-primary" disabled={busy} onClick={() => run(() => spendAPI.approve(chamaId, r.payout_id), "Approved")}>Approve</button>}
+                {!mine(r) && <button className="btn-lux btn-lux-outline" disabled={busy} onClick={() => { const n = window.prompt("Why are you rejecting this?"); if (n && n.trim()) run(() => spendAPI.reject(chamaId, r.payout_id, n.trim()), "Rejected"); }}>Reject</button>}
+                {mine(r) && <button className="btn-lux btn-lux-outline" disabled={busy} onClick={() => run(() => spendAPI.cancel(chamaId, r.payout_id), "Cancelled")}>Cancel my request</button>}
               </div>
             )}
             {r.status === "APPROVED" && (paying === r.payout_id ? (
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <input className="cs-input" placeholder="M-Pesa code of the payment you sent" value={ref} onChange={(e) => setRef(e.target.value)} />
-                <button className="btn-lux btn-lux-primary" disabled={busy} onClick={() => run(async () => { await payoutAPI.paid(chamaId, r.payout_id, ref); setPaying(null); setRef(""); }, "Recorded as paid")}>Record as paid</button>
+                <button className="btn-lux btn-lux-primary" disabled={busy} onClick={() => run(async () => { await spendAPI.paid(chamaId, r.payout_id, ref); setPaying(null); setRef(""); }, "Recorded as paid")}>Record as paid</button>
               </div>
             ) : (
               <button className="btn-lux btn-lux-primary" disabled={busy || held(r)} onClick={() => setPaying(r.payout_id)}>I have sent the money</button>
