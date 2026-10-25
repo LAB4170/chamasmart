@@ -152,3 +152,13 @@ Officials upload five kinds of paper for a listing application: registration cer
 - **Legal hold.** Staff with `LEGAL_HOLD` (legal, super admin) can hold one document or all of a chama's. A level 3 or 4 notice taking effect holds every document automatically. A held file cannot be erased, by the app or directly in the database.
 - **Erasure.** Super admin only, with a written reason. Blocked while held and until `retention_until` (default 7 years from upload, `DOCUMENT_RETENTION_YEARS`). **The 7 years is a placeholder: confirm the period with the advocate and the Data Protection Act position before launch.** Erasing removes the encrypted bytes; the metadata row stays for good.
 - **Not built.** Virus scanning of uploads; key rotation.
+
+## Finance desk
+
+The Finance tab of the admin console is for the accountant (role `ACCOUNTING`: view and propose) and the super admin (approve).
+
+- **Unclaimed payments.** Paybill money that no chama could claim. The accountant proposes either giving it to a named member of a chama (with a reason) or returning it to the sender. The super admin approves; for a give, the contribution is credited at that moment. A return is approved, then sent from the M-Pesa portal, then its reference is recorded to close it.
+- **Refunds.** Proposed against an invoice, capped at what was paid across all requests. Approved by the super admin, sent from the Paystack dashboard, then the reference is recorded. ChamaSmart never sends money by itself.
+- **Approval rule.** Only `FINANCE_APPROVE` (super admin) can decide. With the two-person rule on, you cannot decide a request you proposed. Finished requests cannot be edited or deleted, even in the database.
+- **Invoices and VAT.** An invoice is issued when a verified plan payment arrives; invoices cannot be changed. **No VAT is charged until `BILLING_VAT_REGISTERED=true`.** Set that, and confirm the rate (`BILLING_VAT_RATE`, 0.16) and whether plan prices include VAT (`BILLING_VAT_INCLUSIVE`, true), with your accountant before the first filing. The VAT file lists invoices, then refunds as credit notes, then totals for the period.
+- **Every step** (propose, approve, reject, send, export) is on the activity log.

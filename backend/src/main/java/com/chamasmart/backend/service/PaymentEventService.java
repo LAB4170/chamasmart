@@ -36,6 +36,8 @@ public class PaymentEventService {
     private final ContributionService contributions;
     private final TransactionTemplate tx;
     private final SubscriptionService subscriptions;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private BillingService billing;
     private final ObjectMapper json = new ObjectMapper();
 
     public Result handlePaystack(String rawBody, String signature) {
@@ -99,6 +101,7 @@ public class PaymentEventService {
         ev.setChamaId(chamaId);
         String problem = subscriptions.activateFromPayment(chamaId, plan, ev.getAmount(), ev.getCurrency(), ref);
         if (problem != null) { park(ev, problem); return; }
+        if (billing != null) billing.recordInvoice(chamaId, plan, ev.getAmount(), ev.getCurrency(), ref);
         ev.setStatus("CREDITED"); ev.setNote("Plan " + plan + " paid");
         events.save(ev);
     }

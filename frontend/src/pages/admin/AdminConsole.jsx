@@ -4,13 +4,14 @@ import { toast } from "react-toastify";
 import { adminAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { Button, PageHeader, EmptyState, Skeleton } from "../../components/ui";
-import { formatDate, formatKES } from "../../utils/format";
+import { formatDate } from "../../utils/format";
+import FinanceDesk from "./FinanceDesk";
 
 const TABS = [
   ["overview", "Overview", "OVERVIEW_VIEW"],
   ["applications", "Applications", "VERIFY_VIEW"],
   ["cases", "Cases", "CASE_VIEW"],
-  ["payments", "Unclaimed payments", "FINANCE_VIEW"],
+  ["payments", "Finance", "FINANCE_VIEW"],
   ["agreements", "Agreements", "AGREEMENT_MANAGE"],
   ["staff", "Staff", "STAFF_MANAGE"],
   ["audit", "Activity log", "AUDIT_VIEW"],
@@ -60,7 +61,7 @@ export default function AdminConsole() {
       {tab === "overview" && <Overview go={(t) => setTab(t)} />}
       {tab === "applications" && (open ? <Review chamaId={open} can={can} twoPerson={me.two_person_rule} onBack={() => setOpen(null)} /> : <Queue onOpen={setOpen} />)}
       {tab === "cases" && <Cases can={can} meId={me.user_id} onOpenChama={(id) => { if (can("VERIFY_VIEW")) { setTab("applications"); setOpen(id); } }} />}
-      {tab === "payments" && <Unclaimed />}
+      {tab === "payments" && <FinanceDesk can={can} />}
       {tab === "agreements" && <Agreements />}
       {tab === "staff" && <Staff meId={me.user_id} />}
       {tab === "audit" && <Audit />}
@@ -377,23 +378,6 @@ function Cases({ can, meId, onOpenChama }) {
             {c.status === "PROPOSED" && can("CASE_ESCALATE") && <Button variant="secondary" onClick={() => act(() => adminAPI.withdrawCase(c.case_id, notes[c.case_id] || ""), "Withdrawn")}>Withdraw</Button>}
             {c.status === "OPEN" && can("CASE_RESOLVE") && <Button onClick={() => act(() => adminAPI.resolveCase(c.case_id, notes[c.case_id] || ""), "Case closed")}>Close case</Button>}
           </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Unclaimed() {
-  const { data, error, loading } = useLoad(() => adminAPI.unrouted());
-  if (loading) return <Skeleton />;
-  if (error) return <p role="alert">{error}</p>;
-  if (!data?.length) return <EmptyState title="Nothing unclaimed" message="Payments that no chama could claim appear here." />;
-  return (
-    <div style={{ display: "grid", gap: 8 }}>
-      {data.map((p, i) => (
-        <div key={p.event_id || i} className="cs-card" style={{ padding: 12, fontSize: 14 }}>
-          <strong>{formatKES(p.amount)}</strong> · {p.provider} · {p.reference || p.provider_ref || ""}
-          <div style={{ opacity: 0.8 }}>{p.reason || p.status} · {p.received_at ? formatDate(p.received_at) : ""}</div>
         </div>
       ))}
     </div>

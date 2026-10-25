@@ -47,6 +47,10 @@ spring:
 
 
 app:
+  billing:
+    vat-registered: ${BILLING_VAT_REGISTERED:false} # only true once ChamaSmart is registered for VAT; the CPA confirms
+    vat-rate: ${BILLING_VAT_RATE:0.16}
+    vat-inclusive: ${BILLING_VAT_INCLUSIVE:true} # plan prices already include VAT
   documents:
     key: ${DOCUMENT_ENCRYPTION_KEY:} # 32 bytes, base64. Without it, derived from DATA_ENCRYPTION_KEY; without both, uploads are refused
     retention-years: ${DOCUMENT_RETENTION_YEARS:7} # confirm the right period with your advocate

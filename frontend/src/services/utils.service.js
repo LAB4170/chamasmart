@@ -133,6 +133,23 @@ export const adminAPI = {
   deleteDocument: (docId, reason) => api.post(`/admin/documents/${docId}/delete`, { reason }),
 };
 
+// Finance desk of the admin console: FinanceController /admin/finance
+export const financeAPI = {
+  overview: () => api.get("/admin/finance/overview"),
+  unrouted: () => api.get("/admin/payments/held"),
+  subscriptions: () => api.get("/admin/finance/subscriptions"),
+  invoices: (from, to) => api.get("/admin/finance/invoices", { params: { from, to } }),
+  requests: (status) => api.get("/admin/finance/requests", { params: { status } }),
+  assign: (b) => api.post("/admin/finance/requests/assign", b),
+  returnPayment: (b) => api.post("/admin/finance/requests/return", b),
+  refund: (b) => api.post("/admin/finance/requests/refund", b),
+  approve: (id) => api.post(`/admin/finance/requests/${id}/approve`),
+  reject: (id, note) => api.post(`/admin/finance/requests/${id}/reject`, { note }),
+  cancel: (id) => api.post(`/admin/finance/requests/${id}/cancel`),
+  complete: (id, external_ref) => api.post(`/admin/finance/requests/${id}/complete`, { external_ref }),
+  vatExport: (from, to) => api.get("/admin/finance/vat-export", { params: { from, to }, responseType: "blob" }),
+};
+
 // A chama's side of the public-listing review: ListingController
 export const listingAPI = {
   agreements: () => api.get("/agreements/current"),
