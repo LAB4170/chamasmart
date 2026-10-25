@@ -95,3 +95,33 @@ export const portfolioAPI = {
   page: (params) => api.get("/portfolio", { params }),
   exportCsv: () => api.get("/portfolio/export.csv", { responseType: "blob" }),
 };
+
+// Platform operator console: AdminController /admin (administrators with two-factor sign-in only)
+export const adminAPI = {
+  overview: () => api.get("/admin/overview"),
+  queue: (status) => api.get("/admin/verifications", { params: { status } }),
+  detail: (chamaId) => api.get(`/admin/verifications/${chamaId}`),
+  setCheck: (chamaId, item, passed, note) => api.post(`/admin/verifications/${chamaId}/checks`, { item, passed, note }),
+  requestChanges: (chamaId, note) => api.post(`/admin/verifications/${chamaId}/request-changes`, { note }),
+  reject: (chamaId, note) => api.post(`/admin/verifications/${chamaId}/reject`, { note }),
+  approve: (chamaId, note) => api.post(`/admin/verifications/${chamaId}/approve`, { note }),
+  delist: (chamaId, note) => api.post(`/admin/verifications/${chamaId}/delist`, { note }),
+  cases: () => api.get("/admin/cases"),
+  openCase: (chamaId, level, reason, urgent) => api.post(`/admin/chamas/${chamaId}/cases`, { level, reason, urgent }),
+  resolveCase: (caseId, note) => api.post(`/admin/cases/${caseId}/resolve`, { note }),
+  agreements: () => api.get("/admin/agreements"),
+  agreement: (id) => api.get(`/admin/agreements/${id}`),
+  publishAgreement: (id, counsel) => api.post(`/admin/agreements/${id}/publish`, { counsel }),
+  audit: (limit = 100) => api.get("/admin/audit", { params: { limit } }),
+  unrouted: () => api.get("/admin/payments/held"),
+};
+
+// A chama's side of the public-listing review: ListingController
+export const listingAPI = {
+  agreements: () => api.get("/agreements/current"),
+  accept: (chamaId, agreementId) => api.post(`/chamas/${chamaId}/agreements/${agreementId}/accept`),
+  status: (chamaId) => api.get(`/chamas/${chamaId}/listing`),
+  apply: (chamaId, body) => api.post(`/chamas/${chamaId}/listing/apply`, body),
+  notices: (chamaId) => api.get(`/chamas/${chamaId}/notices`),
+  respond: (chamaId, caseId, text) => api.post(`/chamas/${chamaId}/notices/${caseId}/respond`, { text }),
+};

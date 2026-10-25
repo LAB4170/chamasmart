@@ -134,6 +134,7 @@ export default function Navbar() {
           <Link to="/profile" role="menuitem" className="cs-menu-item"><User size={18} aria-hidden="true" />My profile</Link>
           <Link to="/my-guarantees" role="menuitem" className="cs-menu-item cs-only-mobile"><Shield size={18} aria-hidden="true" />My guarantees</Link>
           <Link to="/my-join-requests" role="menuitem" className="cs-menu-item"><Bell size={18} aria-hidden="true" />My join requests</Link>
+          {user?.role === "ADMIN" && <Link to="/admin" role="menuitem" className="cs-menu-item"><Shield size={18} aria-hidden="true" />Admin console</Link>}
         </div>
         <div className="cs-menu-group">
           <button type="button" role="menuitem" className="cs-menu-item is-danger" onClick={handleLogout}><LogOut size={18} aria-hidden="true" />Sign out</button>

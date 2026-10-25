@@ -21,6 +21,7 @@ import PendingContributions from "../../../components/payments/PendingContributi
 import HeldPayments from "../../../components/payments/HeldPayments";
 import MyPaymentAccount from "../../../components/payments/MyPaymentAccount";
 import PlanModal from "../../../components/payments/PlanModal";
+import ListingModal from "../../../components/payments/ListingModal";
 import PayoutsModal from "../../../components/payments/PayoutsModal";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -315,6 +316,7 @@ const ChamaDetails = () => {
   const [showHeldPayments, setShowHeldPayments] = useState(false);
   const [showMyAccount, setShowMyAccount] = useState(false);
   const [showPlan, setShowPlan] = useState(false);
+  const [showListing, setShowListing] = useState(false);
   const [showPayouts, setShowPayouts] = useState(false);
   // Constitution State
   const [constitutionForm, setConstitutionForm] = useState({
@@ -1254,6 +1256,11 @@ const ChamaDetails = () => {
                     {officialStatus && (
                       <button className="btn-lux btn-lux-outline" onClick={() => setShowPayouts(true)}>
                         <FileText size={16} /> Payouts
+                      </button>
+                    )}
+                    {officialStatus && (
+                      <button className="btn-lux btn-lux-outline" onClick={() => setShowListing(true)}>
+                        <Shield size={16} /> Public listing
                       </button>
                     )}
                     {officialStatus && (
@@ -2327,6 +2334,8 @@ const ChamaDetails = () => {
       )}
 
       {showPayouts && <PayoutsModal chamaId={chama.chama_id} currentUserId={currentUserId(user)} onClose={() => setShowPayouts(false)} onChanged={() => { fetchContributions(); if (stats) fetchChamaData(); }} />}
+
+      {showListing && <ListingModal chamaId={chama.chama_id} isChair={userRole === "CHAIRPERSON"} currentUserId={currentUserId(user)} onClose={() => setShowListing(false)} />}
 
       {showPlan && <PlanModal chamaId={chama.chama_id} canManage={userRole === "CHAIRPERSON"} onClose={() => setShowPlan(false)} />}
 
