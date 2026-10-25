@@ -20,6 +20,7 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final com.chamasmart.backend.security.LoginAttemptService loginAttempts;
+    private final com.chamasmart.backend.service.MfaService mfa;
     private final com.chamasmart.backend.security.FirebaseTokenVerifier firebaseTokenVerifier;
     private final com.chamasmart.backend.security.RefreshTokenService refreshTokens;
     private final com.chamasmart.backend.service.AuditTrailService audit;
@@ -73,7 +74,7 @@ public class AuthController {
                 .body(ApiResponse.success(authResponse, "User registered successfully"));
     }
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody LoginRequest request, jakarta.servlet.http.HttpServletRequest httpRequest) {
+    public ResponseEntity<ApiResponse<?>> login(@RequestBody LoginRequest request, jakarta.servlet.http.HttpServletRequest httpRequest) {
         String loginEmail = request.getEmail() == null ? "" : request.getEmail().trim().toLowerCase();
         String clientIp = com.chamasmart.backend.security.ClientIp.of(httpRequest);
         if (loginAttempts.isBlocked(clientIp, loginEmail)) {
@@ -95,9 +96,86 @@ public class AuthController {
         if (Boolean.FALSE.equals(user.getIsActive())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("This account has been deactivated"));
         }
+        if (mfa.isEnabled(user.getUserId())) {
+            // Password was right; the session is only issued after the second step.
+            audit.record(user.getUserId(), "LOGIN_MFA_CHALLENGE", "USER", user.getUserId(), clientIp, null);
+            return ResponseEntity.ok(ApiResponse.success(Map.of("mfa_required", true, "mfa_token", mfa.challengeFor(user.getUserId())), "Enter your authenticator code"));
+        }
         loginAttempts.reset(clientIp, loginEmail);
         audit.record(user.getUserId(), "LOGIN", "USER", user.getUserId(), clientIp, null);
         return ResponseEntity.ok(ApiResponse.success(sessionFor(user, httpRequest), "Login successful"));
+    }
+
+    /** Second step of sign-in for people who turned on two-factor: the challenge from login plus a 6-digit or recovery code. */
+    @PostMapping("/mfa/login")
+    public ResponseEntity<ApiResponse<?>> mfaLogin(@RequestBody Map<String, String> body, jakarta.servlet.http.HttpServletRequest httpRequest) {
+        String clientIp = com.chamasmart.backend.security.ClientIp.of(httpRequest);
+        Long userId = mfa.userFromChallenge(body.get("mfa_token"));
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("That sign-in has expired. Please start again."));
+        }
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null || Boolean.FALSE.equals(user.getIsActive())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("That sign-in has expired. Please start again."));
+        }
+        String key = "mfa:" + user.getEmail();
+        if (loginAttempts.isBlocked(clientIp, key)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(ApiResponse.error("Too many wrong codes. Please try again later."));
+        }
+        if (!mfa.verify(userId, body.get("code"))) {
+            loginAttempts.recordFailure(clientIp, key);
+            audit.record(userId, "LOGIN_MFA_FAILED", "USER", userId, clientIp, null);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("That code is not right."));
+        }
+        loginAttempts.reset(clientIp, key);
+        audit.record(userId, "LOGIN", "USER", userId, clientIp, "two-factor");
+        return ResponseEntity.ok(ApiResponse.success(sessionFor(user, httpRequest), "Login successful"));
+    }
+
+    @GetMapping("/mfa/status")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> mfaStatus(@org.springframework.security.core.annotation.AuthenticationPrincipal CustomUserDetails me) {
+        return ResponseEntity.ok(ApiResponse.success(mfa.status(me.getUserId()), "OK"));
+    }
+
+    @PostMapping("/mfa/setup")
+    public ResponseEntity<ApiResponse<Map<String, String>>> mfaSetup(@org.springframework.security.core.annotation.AuthenticationPrincipal CustomUserDetails me) {
+        try {
+            User user = userRepository.findById(me.getUserId()).orElseThrow();
+            return ResponseEntity.ok(ApiResponse.success(mfa.beginSetup(user), "Scan the code with your authenticator app"));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/mfa/enable")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> mfaEnable(@org.springframework.security.core.annotation.AuthenticationPrincipal CustomUserDetails me, @RequestBody Map<String, String> body, jakarta.servlet.http.HttpServletRequest httpRequest) {
+        try {
+            var codes = mfa.enable(me.getUserId(), body.get("code"));
+            audit.record(me.getUserId(), "MFA_ENABLED", "USER", me.getUserId(), com.chamasmart.backend.security.ClientIp.of(httpRequest), null);
+            return ResponseEntity.ok(ApiResponse.success(Map.of("recovery_codes", codes), "Two-factor sign-in is on. Save your recovery codes now."));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/mfa/disable")
+    public ResponseEntity<ApiResponse<Void>> mfaDisable(@org.springframework.security.core.annotation.AuthenticationPrincipal CustomUserDetails me, @RequestBody Map<String, String> body, jakarta.servlet.http.HttpServletRequest httpRequest) {
+        try {
+            mfa.disable(me.getUserId(), body.get("code"));
+            audit.record(me.getUserId(), "MFA_DISABLED", "USER", me.getUserId(), com.chamasmart.backend.security.ClientIp.of(httpRequest), null);
+            return ResponseEntity.ok(ApiResponse.success(null, "Two-factor sign-in is off"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/mfa/recovery-codes")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> mfaNewRecoveryCodes(@org.springframework.security.core.annotation.AuthenticationPrincipal CustomUserDetails me, @RequestBody Map<String, String> body) {
+        try {
+            return ResponseEntity.ok(ApiResponse.success(Map.of("recovery_codes", mfa.regenerateRecoveryCodes(me.getUserId(), body.get("code"))), "New recovery codes. The old ones no longer work."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
     }
 
     /** Swaps a refresh token for a new access token and a new refresh token. Each refresh token works once. */

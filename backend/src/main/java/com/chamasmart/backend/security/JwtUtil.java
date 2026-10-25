@@ -89,6 +89,16 @@ public class JwtUtil {
                 .signWith(getSigningKey())
                 .compact();
     }
+    /** HMAC over a purpose-bound value, using a key derived from the JWT secret. Used for the short sign-in challenge. */
+    public String sign(String purpose, String value) {
+        try {
+            javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+            mac.init(new javax.crypto.spec.SecretKeySpec((purpose + "|" + jwtSecret).getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(mac.doFinal(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (java.security.GeneralSecurityException e) {
+            throw new IllegalStateException(e);
+        }
+    }
     public Boolean validateToken(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));

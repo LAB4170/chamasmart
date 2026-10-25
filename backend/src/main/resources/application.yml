@@ -16,6 +16,8 @@ spring:
     enabled: true
     baseline-on-migrate: true
     baseline-version: "1"
+    # V0 is the full schema for brand-new databases; databases adopted at V1 never run it.
+    ignore-migration-patterns: "*:ignored"
     locations: classpath:db/migration
   jackson:
     deserialization:
@@ -47,6 +49,8 @@ spring:
 app:
   security:
     data-key: ${DATA_ENCRYPTION_KEY:}
+    mfa:
+      enforce-for-officials: ${MFA_ENFORCE_OFFICIALS:false} # set true once officials have enrolled
     jwt:
       secret: ${JWT_SECRET:}
       expiration-ms: ${JWT_ACCESS_MS:1800000} # access token: 30 minutes; the refresh token renews it

@@ -220,4 +220,20 @@ class MembershipAndGovernanceTest {
         org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> MembershipService.requireVerifiedForOffice(u, "TREASURER"));
         MembershipService.requireVerifiedForOffice(u, "MEMBER");
     }
+
+    @org.junit.jupiter.api.Test
+    void officialsNeedTwoFactorWhenTheSwitchIsOn() throws Exception {
+        MfaService mfa = mock(MfaService.class);
+        when(mfa.enforcesOfficials()).thenReturn(true);
+        var field = MembershipService.class.getDeclaredField("mfaService");
+        field.setAccessible(true);
+        field.set(membership, mfa);
+        member(6, "TREASURER", true);
+
+        when(mfa.isEnabled(6L)).thenReturn(false);
+        org.junit.jupiter.api.Assertions.assertThrows(org.springframework.security.access.AccessDeniedException.class, () -> membership.activeOfficial(1L, 6L));
+
+        when(mfa.isEnabled(6L)).thenReturn(true);
+        org.junit.jupiter.api.Assertions.assertNotNull(membership.activeOfficial(1L, 6L));
+    }
 }

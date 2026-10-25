@@ -30,6 +30,10 @@ public class MembershipService {
     private final com.chamasmart.backend.repository.RoscaCycleRepository roscaCycleRepository;
     private final com.chamasmart.backend.repository.RoscaRosterRepository roscaRosterRepository;
 
+    /** Optional so unit tests that build this class by hand are unaffected. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private MfaService mfaService;
+
     public ChamaMember activeMember(Long chamaId, Long userId) {
         return chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, userId)
                 .filter(ChamaMember::getIsActive)
@@ -48,12 +52,20 @@ public class MembershipService {
     public ChamaMember activeOfficial(Long chamaId, Long userId) {
         ChamaMember m = activeMember(chamaId, userId);
         if (!isOfficial(m)) throw new AccessDeniedException("Only chama officials can do this");
+        requireMfa(userId);
         return m;
+    }
+
+    private void requireMfa(Long userId) {
+        if (mfaService != null && mfaService.enforcesOfficials() && !mfaService.isEnabled(userId)) {
+            throw new AccessDeniedException("Turn on two-factor sign-in in your profile to act as an official");
+        }
     }
 
     public ChamaMember chairperson(Long chamaId, Long userId) {
         ChamaMember m = activeMember(chamaId, userId);
         if (!role(m).equals("CHAIRPERSON")) throw new AccessDeniedException("Only the chairperson can do this");
+        requireMfa(userId);
         return m;
     }
 
