@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-toastify";
 import { financeAPI } from "../../services/api";
 import { Button, EmptyState, Skeleton } from "../../components/ui";
-import { formatDate, formatKES } from "../../utils/format";
+import { formatDate, formatKES, downloadError } from "../../utils/format";
 
 const errText = (e, fallback) => e.response?.data?.message || fallback;
 const KIND = { ASSIGN_PAYMENT: "Give to a member", RETURN_PAYMENT: "Return to sender", REFUND: "Refund" };
@@ -79,8 +79,8 @@ function Unclaimed({ can, changed }) {
             {can("FINANCE_MANAGE") && (
               <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  <input className="cs-input" inputMode="numeric" placeholder="Chama number" aria-label="Chama number" value={f.chama || ""} onChange={(e) => set(p.event_id, "chama", e.target.value)} style={{ width: 130 }} />
-                  <input className="cs-input" inputMode="numeric" placeholder="Member's user number" aria-label="Member user number" value={f.user || ""} onChange={(e) => set(p.event_id, "user", e.target.value)} style={{ width: 170 }} />
+                  <input className="cs-input" inputMode="numeric" placeholder="Chama number" aria-label="Chama number" value={f.chama || ""} onChange={(e) => set(p.event_id, "chama", e.target.value)} style={{ width: 170 }} />
+                  <input className="cs-input" inputMode="numeric" placeholder="Member's user number" aria-label="Member user number" value={f.user || ""} onChange={(e) => set(p.event_id, "user", e.target.value)} style={{ width: 230 }} />
                 </div>
                 <input className="cs-input" placeholder="Why this is right, or why it goes back (at least 10 characters)" aria-label="Reason" value={f.reason || ""} onChange={(e) => set(p.event_id, "reason", e.target.value)} />
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -179,7 +179,7 @@ function Invoices({ can, changed }) {
       const a = document.createElement("a");
       a.href = url; a.download = `chamasmart-vat-${from}-to-${to}.csv`; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
-    } catch (e) { toast.error(errText(e, "Could not export.")); }
+    } catch (e) { toast.error(await downloadError(e, "Could not export.")); }
   };
   return (
     <>

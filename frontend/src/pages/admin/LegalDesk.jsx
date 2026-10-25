@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-toastify";
 import { legalAPI } from "../../services/api";
 import { Button, EmptyState, Skeleton } from "../../components/ui";
-import { formatDate } from "../../utils/format";
+import { formatDate, downloadError } from "../../utils/format";
 
 const errText = (e, fallback) => e.response?.data?.message || fallback;
 const KINDS = [
@@ -30,7 +30,7 @@ function useRun() {
   const run = async (fn, ok, after) => {
     setBusy(true);
     try { await fn(); toast.success(ok); if (after) await after(); }
-    catch (e) { toast.error(errText(e, "That did not work.")); }
+    catch (e) { toast.error(await downloadError(e, "That did not work.")); }
     finally { setBusy(false); }
   };
   return [busy, run];
@@ -98,7 +98,10 @@ function CaseFile({ caseId, can }) {
         {data.evidence.map((e) => <p key={e.evidence_id} style={{ margin: "4px 0", fontSize: 14 }}>{e.doc_type} · {e.original_name}{e.note ? ` · ${e.note}` : ""} · held</p>)}
         {can("CASE_OPEN") && can("LEGAL_HOLD") && (
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-            <input className="cs-input" inputMode="numeric" placeholder="Document number" aria-label="Document number" style={{ width: 150 }} value={doc.id} onChange={(e) => setDoc({ ...doc, id: e.target.value })} />
+            <select className="cs-input" aria-label="Document" value={doc.id} onChange={(e) => setDoc({ ...doc, id: e.target.value })}>
+              <option value="">Choose a document</option>
+              {(data.documents || []).map((d) => <option key={d.doc_id} value={d.doc_id}>{d.doc_type.replace(/_/g, " ").toLowerCase()}{d.subject_user_id ? ` (official ${d.subject_user_id})` : ""} · {d.original_name}</option>)}
+            </select>
             <input className="cs-input" placeholder="Why it matters" aria-label="Why it matters" value={doc.note} onChange={(e) => setDoc({ ...doc, note: e.target.value })} />
             <Button variant="secondary" disabled={busy} onClick={() => run(() => legalAPI.attachEvidence(caseId, doc.id, doc.note), "Attached and placed on hold", () => { setDoc({ id: "", note: "" }); return reload(); })}>Attach and hold</Button>
           </div>

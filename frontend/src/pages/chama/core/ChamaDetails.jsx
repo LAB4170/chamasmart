@@ -2148,7 +2148,7 @@ const ChamaDetails = () => {
                       path:`/chamas/${id}/loan-config`,
                       show: ['TABLE_BANKING','ASCA'].includes(chama?.chama_type)
                     },
-                  ].filter(c => c.show).map(({ color, bg, border, title, sub, path }) => (
+                  ].filter(c => c.show).map(({ icon: Icon, color, bg, border, title, sub, path }) => (
                     <div
                       key={title}
                       onClick={() => navigate(path)}

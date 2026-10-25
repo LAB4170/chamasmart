@@ -61,3 +61,12 @@ export const statusInfo = (status) => {
 
 /** The signed-in person's id, whichever shape the user object has (login returns userId, profile returns user_id). */
 export const currentUserId = (user) => user?.userId ?? user?.user_id ?? user?.id ?? null;
+
+/** The server's message for a failed download. Blob responses hide the JSON error body, so read it out. */
+export async function downloadError(e, fallback) {
+  try {
+    const d = e.response?.data;
+    if (d instanceof Blob) { const j = JSON.parse(await d.text()); return j.message || fallback; }
+    return d?.message || fallback;
+  } catch { return fallback; }
+}

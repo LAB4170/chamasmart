@@ -40,6 +40,7 @@ public class LegalService {
         m.put("chama", jdbc.queryForList("SELECT chama_id, chama_name, currency, created_at FROM chamas WHERE chama_id = ?", chamaId).stream().findFirst().orElse(Map.of()));
         m.put("officials", officials(chamaId));
         m.put("notes", jdbc.queryForList("SELECT n.note_id, n.body, n.created_at, u.first_name || ' ' || u.last_name AS author FROM case_notes n JOIN users u ON u.user_id = n.author_id WHERE n.case_id = ? ORDER BY n.note_id", caseId));
+        m.put("documents", jdbc.queryForList("SELECT doc_id, doc_type, original_name, subject_user_id FROM chama_documents WHERE chama_id = ? AND status = 'ACTIVE' ORDER BY doc_id DESC", chamaId));
         m.put("evidence", jdbc.queryForList("""
                 SELECT e.evidence_id, e.doc_id, e.note, e.added_at, d.doc_type, d.original_name, d.sha256, d.status, d.legal_hold
                 FROM case_evidence e JOIN chama_documents d ON d.doc_id = e.doc_id WHERE e.case_id = ? ORDER BY e.evidence_id""", caseId));

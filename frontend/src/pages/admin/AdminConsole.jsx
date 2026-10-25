@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import { adminAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { Button, PageHeader, EmptyState, Skeleton } from "../../components/ui";
-import { formatDate } from "../../utils/format";
+import { formatDate, downloadError } from "../../utils/format";
 import FinanceDesk from "./FinanceDesk";
 import LegalDesk from "./LegalDesk";
 
@@ -48,13 +48,13 @@ export default function AdminConsole() {
   }, [user]);
 
   if (user && user.role !== "ADMIN") return <Navigate to="/dashboard" replace />;
-  if (error) return <div className="cs-page"><p role="alert">{error}</p></div>;
-  if (!me) return <div className="cs-page"><Skeleton /></div>;
+  if (error) return <div className="cs-shell"><div className="cs-page"><p role="alert">{error}</p></div></div>;
+  if (!me) return <div className="cs-shell"><div className="cs-page"><Skeleton /></div></div>;
   const can = (p) => me.permissions.includes(p);
   const visible = TABS.filter(([, , p]) => can(p));
 
   return (
-    <div className="cs-page">
+    <div className="cs-shell"><div className="cs-page">
       <PageHeader title="Admin console" subtitle={`Signed in as ${me.roles.map((r) => r.replace(/_/g, " ").toLowerCase()).join(", ")}.${me.two_person_rule ? " Two-person rule is on." : ""}`} />
       <div role="tablist" style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "8px 0 16px" }}>
         {visible.map(([k, label]) => (
@@ -69,7 +69,7 @@ export default function AdminConsole() {
       {tab === "agreements" && <Agreements />}
       {tab === "staff" && <Staff meId={me.user_id} />}
       {tab === "audit" && <Audit can={can} />}
-    </div>
+    </div></div>
   );
 }
 
@@ -88,12 +88,13 @@ function useLoad(fn, deps = []) {
 }
 
 function Stat({ label, value, warn, onClick }) {
+  const Tag = onClick ? "button" : "div";
   return (
-    <button type="button" className="cs-card" onClick={onClick} disabled={!onClick}
-      style={{ padding: 14, textAlign: "left", cursor: onClick ? "pointer" : "default", border: warn ? "1px solid currentColor" : undefined }}>
-      <div style={{ fontSize: 13, opacity: 0.7 }}>{label}</div>
+    <Tag type={onClick ? "button" : undefined} className="cs-card" onClick={onClick}
+      style={{ padding: 14, textAlign: "left", cursor: onClick ? "pointer" : "default", border: warn ? "1px solid currentColor" : undefined, color: "inherit", font: "inherit" }}>
+      <div style={{ fontSize: 13, opacity: 0.8 }}>{label}</div>
       <strong style={{ fontSize: 22 }}>{value}</strong>
-    </button>
+    </Tag>
   );
 }
 
@@ -179,7 +180,7 @@ function Documents({ chamaId, can, isSuper }) {
       a.href = url; a.download = d.original_name; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
       toast.success("Opened. This was recorded against your name.");
-    } catch (e) { toast.error(errText(e, "Could not open this file.")); }
+    } catch (e) { toast.error(await downloadError(e, "Could not open this file.")); }
     finally { setBusy(false); }
   };
   const act = async (fn, ok) => {
