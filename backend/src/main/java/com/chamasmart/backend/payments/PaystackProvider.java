@@ -47,6 +47,10 @@ public class PaystackProvider implements PaymentProvider {
     /** Starts a hosted checkout and returns its address. Amount is in the currency's major unit; Paystack takes minor units. */
     @SuppressWarnings("unchecked")
     public String initialize(String email, BigDecimal amount, String currency, String reference, long intentId, long chamaId) {
+        return initialize(email, amount, currency, reference, Map.of("intent_id", intentId, "chama_id", chamaId));
+    }
+
+    public String initialize(String email, BigDecimal amount, String currency, String reference, Map<String, Object> metadata) {
         if (!isConfigured()) throw new IllegalStateException("Card checkout is not switched on");
         HttpHeaders h = new HttpHeaders();
         h.setBearerAuth(secretKey);
@@ -57,7 +61,7 @@ public class PaystackProvider implements PaymentProvider {
         body.put("currency", currency);
         body.put("reference", reference);
         if (callbackUrl != null && !callbackUrl.isBlank()) body.put("callback_url", callbackUrl);
-        body.put("metadata", Map.of("intent_id", intentId, "chama_id", chamaId));
+        body.put("metadata", metadata);
         ResponseEntity<Map> r = http.exchange(baseUrl + "/transaction/initialize", HttpMethod.POST, new HttpEntity<>(body, h), Map.class);
         Map<String, Object> data = r.getBody() == null ? null : (Map<String, Object>) r.getBody().get("data");
         if (data == null || data.get("authorization_url") == null) throw new IllegalStateException("The payment provider did not return a checkout address");

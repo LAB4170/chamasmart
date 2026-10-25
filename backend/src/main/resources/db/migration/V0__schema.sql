@@ -2152,3 +2152,7 @@ ALTER TABLE ONLY public.financial_audit_logs
 --
 
 
+
+-- A database built from these migrations has never held the old Base64 data, so the one-time S-18 conversion must not run on it
+-- (it would wrongly decode seed values such as the currency code KES).
+INSERT INTO public.data_migrations (name, note) VALUES ('s18_base64_to_plain', 'fresh database built from migrations; no legacy data') ON CONFLICT DO NOTHING;

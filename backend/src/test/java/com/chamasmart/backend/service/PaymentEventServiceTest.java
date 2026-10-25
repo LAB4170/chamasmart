@@ -34,6 +34,7 @@ class PaymentEventServiceTest {
     ChamaRepository chamas = mock(ChamaRepository.class);
     ContributionService contributions = mock(ContributionService.class);
     TransactionTemplate tx = mock(TransactionTemplate.class);
+    SubscriptionService subscriptions = mock(SubscriptionService.class);
     PaymentEventService service;
     PaymentEvent stored;
     PaymentIntent intent;
@@ -42,7 +43,7 @@ class PaymentEventServiceTest {
     void setUp() {
         ReflectionTestUtils.setField(paystack, "secretKey", KEY);
         ReflectionTestUtils.setField(paystack, "enabled", true);
-        service = new PaymentEventService(paystack, events, intents, chamas, contributions, tx);
+        service = new PaymentEventService(paystack, events, intents, chamas, contributions, tx, subscriptions);
         doAnswer(i -> { @SuppressWarnings("unchecked") java.util.function.Consumer<Object> c = i.getArgument(0); c.accept(null); return null; }).when(tx).executeWithoutResult(any());
         when(events.saveAndFlush(any())).thenAnswer(i -> { stored = i.getArgument(0); ReflectionTestUtils.setField(stored, "eventId", 1L); return stored; });
         when(events.findById(1L)).thenAnswer(i -> Optional.of(stored));

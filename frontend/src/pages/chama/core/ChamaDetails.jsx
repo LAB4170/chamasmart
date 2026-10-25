@@ -18,6 +18,9 @@ import ConfirmDialog from "../../../components/ConfirmDialog";
 import LoanConfigCard from "../../../components/LoanConfigCard";
 import ManualPaymentModal from "../../../components/payments/ManualPaymentModal";
 import PendingContributions from "../../../components/payments/PendingContributions";
+import HeldPayments from "../../../components/payments/HeldPayments";
+import MyPaymentAccount from "../../../components/payments/MyPaymentAccount";
+import PlanModal from "../../../components/payments/PlanModal";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -308,6 +311,9 @@ const ChamaDetails = () => {
   const [payoutRecipient, setPayoutRecipient] = useState(null);
   const [showManualPaymentModal, setShowManualPaymentModal] = useState(false);
   const [showPendingContributionsModal, setShowPendingContributionsModal] = useState(false);
+  const [showHeldPayments, setShowHeldPayments] = useState(false);
+  const [showMyAccount, setShowMyAccount] = useState(false);
+  const [showPlan, setShowPlan] = useState(false);
   // Constitution State
   const [constitutionForm, setConstitutionForm] = useState({
     late_payment: { enabled: false, amount: 0, grace_period_days: 1 }
@@ -1238,6 +1244,19 @@ const ChamaDetails = () => {
                         <Shield size={16} /> Verify Payments
                       </button>
                     )}
+                    {officialStatus && (
+                      <button className="btn-lux btn-lux-outline" onClick={() => setShowHeldPayments(true)}>
+                        <Shield size={16} /> Held payments
+                      </button>
+                    )}
+                    {officialStatus && (
+                      <button className="btn-lux btn-lux-outline" onClick={() => setShowPlan(true)}>
+                        <CreditCard size={16} /> Plan
+                      </button>
+                    )}
+                    <button className="btn-lux btn-lux-outline" onClick={() => setShowMyAccount(true)}>
+                      <Smartphone size={16} /> My account number
+                    </button>
                     {chama.custody_type === "MANAGED" ? (
                       <button 
                         className="btn-lux btn-lux-primary" 
@@ -2294,6 +2313,15 @@ const ChamaDetails = () => {
           }}
         />
       )}
+
+      {showHeldPayments && (
+        <HeldPayments chamaId={chama.chama_id} members={members} currentUserId={currentUserId(user)}
+          onClose={() => setShowHeldPayments(false)} onChanged={() => { fetchContributions(); if (stats) fetchChamaData(); }} />
+      )}
+
+      {showPlan && <PlanModal chamaId={chama.chama_id} canManage={userRole === "CHAIRPERSON"} onClose={() => setShowPlan(false)} />}
+
+      {showMyAccount && <MyPaymentAccount chamaId={chama.chama_id} onClose={() => setShowMyAccount(false)} />}
 
       {showPendingContributionsModal && (
         <PendingContributions

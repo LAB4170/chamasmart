@@ -73,4 +73,19 @@ export const paymentAPI = {
   create: (chamaId, body, key) => api.post(`/chamas/${chamaId}/payments`, body, { headers: { "Idempotency-Key": key } }),
   submit: (chamaId, intentId, body) => api.post(`/chamas/${chamaId}/payments/${intentId}/submit`, body),
   cancel: (chamaId, intentId) => api.post(`/chamas/${chamaId}/payments/${intentId}/cancel`),
+  checkout: (chamaId, intentId) => api.post(`/chamas/${chamaId}/payments/${intentId}/checkout`),
+  myAccount: (chamaId) => api.get(`/chamas/${chamaId}/payments/my-account`),
+  held: (chamaId) => api.get(`/chamas/${chamaId}/payments/held`),
+  assignHeld: (chamaId, eventId, userId) => api.post(`/chamas/${chamaId}/payments/held/${eventId}/assign`, { user_id: userId }),
+  reconcile: (chamaId, csvText) => api.post(`/chamas/${chamaId}/payments/reconcile`, csvText, { headers: { "Content-Type": "text/plain" }, transformRequest: [(d) => d] }),
+  latestReconcile: (chamaId) => api.get(`/chamas/${chamaId}/payments/reconcile/latest`),
+  resolveHeld: (chamaId, eventId, reason) => api.post(`/chamas/${chamaId}/payments/held/${eventId}/resolve`, { reason }),
+};
+
+// Platform plan of a chama: SubscriptionController /chamas/{id}/subscription
+export const subscriptionAPI = {
+  plans: (chamaId) => api.get(`/chamas/${chamaId}/subscription/plans`),
+  current: (chamaId) => api.get(`/chamas/${chamaId}/subscription`),
+  choose: (chamaId, planCode) => api.post(`/chamas/${chamaId}/subscription/choose`, { plan_code: planCode }),
+  checkout: (chamaId) => api.post(`/chamas/${chamaId}/subscription/checkout`),
 };

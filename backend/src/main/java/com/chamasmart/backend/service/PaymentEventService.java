@@ -35,6 +35,7 @@ public class PaymentEventService {
     private final ChamaRepository chamas;
     private final ContributionService contributions;
     private final TransactionTemplate tx;
+    private final SubscriptionService subscriptions;
     private final ObjectMapper json = new ObjectMapper();
 
     public Result handlePaystack(String rawBody, String signature) {
@@ -68,6 +69,7 @@ public class PaymentEventService {
         PaymentEvent ev = events.findById(eventDbId).orElseThrow();
         Long intentId = ev.getIntentId();
         String ref = data.path("reference").asText("");
+        if (ref.startsWith("SUB-")) { settleSubscription(ev, data, ref); return; }
         if (intentId == null || !ref.startsWith("CS-" + intentId + "-")) { park(ev, "Payment does not point at one of our intents"); return; }
         PaymentIntent i = intents.findById(intentId).orElse(null);
         if (i == null) { park(ev, "Intent " + intentId + " not found"); return; }
@@ -85,6 +87,19 @@ public class PaymentEventService {
         i.setStatus("SUBMITTED");
         intents.save(i);
         ev.setStatus("CREDITED"); ev.setNote("Credited as contribution " + saved.getContribution_id());
+        events.save(ev);
+    }
+
+    /** A chama paying its platform plan. This is ChamaSmart's own revenue: it is never posted to a chama's journal. */
+    private void settleSubscription(PaymentEvent ev, JsonNode data, String ref) {
+        JsonNode md = data.path("metadata");
+        Long chamaId = md.path("chama_id").isNumber() ? md.path("chama_id").asLong() : null;
+        String plan = md.path("plan_code").asText("");
+        if (chamaId == null || plan.isBlank() || !ref.startsWith("SUB-" + chamaId + "-")) { park(ev, "Subscription payment does not point at a chama and plan"); return; }
+        ev.setChamaId(chamaId);
+        String problem = subscriptions.activateFromPayment(chamaId, plan, ev.getAmount(), ev.getCurrency(), ref);
+        if (problem != null) { park(ev, problem); return; }
+        ev.setStatus("CREDITED"); ev.setNote("Plan " + plan + " paid");
         events.save(ev);
     }
 

@@ -115,3 +115,13 @@ The container is tuned to start inside Render's port-scan window: serial garbage
 - People turn it on in Profile, using any authenticator app. They get ten single-use recovery codes, shown once.
 - `MFA_ENFORCE_OFFICIALS=true` makes officials (chairperson, treasurer, secretary) turn it on before they can act as an official. Leave it `false` until officials have enrolled, then switch it on.
 - A lost phone with no recovery codes needs an admin reset: delete the person's rows from `user_mfa` and `mfa_recovery_codes` after verifying who they are by another route.
+
+## Payments (environment variables)
+
+- `PAYSTACK_ENABLED=true` and `PAYSTACK_SECRET_KEY` switch on card and M-Pesa checkout. Point Paystack's webhook at `/api/v1/payments/paystack/webhook`.
+- `MPESA_C2B_SECRET` is the secret segment in the paybill URLs. Register with Daraja:
+  `https://<host>/api/v1/payments/mpesa/c2b/<secret>/validation` and `.../confirmation`.
+- `MPESA_POOLED_SHORTCODE` is only for the shared-paybill model, which stays off until counsel approves it.
+- A chama collecting on its own paybill needs `chama_account_codes.shortcode` set to that paybill; payments to any other shortcode are held, not credited.
+- Plan prices live in `subscription_plans`; change one with a single UPDATE. The daily sweep (`app.subscriptions.sweep-cron`) moves unpaid plans to PAST_DUE and then SUSPENDED after 7 days.
+- Held payments (unmatched, wrong amount or currency, wrong paybill) are shown to each chama's officials; money no chama could claim is at `GET /admin/payments/held`.

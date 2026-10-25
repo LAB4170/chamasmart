@@ -18,6 +18,7 @@ import java.util.*;
 public class HeldPaymentController {
     private final HeldPaymentService held;
     private final AccountNumberService accounts;
+    private final com.chamasmart.backend.service.ReconciliationService reconciliation;
     private final com.chamasmart.backend.repository.ChamaMemberRepository members;
 
     /** The signed-in member's account number in this chama, and how to pay. */
@@ -56,5 +57,16 @@ public class HeldPaymentController {
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> unrouted(@AuthenticationPrincipal CustomUserDetails me) {
         if (me.getAuthorities().stream().noneMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()))) throw new AccessDeniedException("Platform administrators only");
         return ResponseEntity.ok(ApiResponse.success(held.listUnrouted(), "Unrouted payments"));
+    }
+
+    /** Officials upload the paybill's M-Pesa statement (CSV text in the body); every line is checked against the books. */
+    @PostMapping(value = "/chamas/{chamaId}/payments/reconcile", consumes = {"text/plain", "text/csv", "application/octet-stream"})
+    public ResponseEntity<ApiResponse<Map<String, Object>>> reconcile(@PathVariable Long chamaId, @RequestBody String csv, @AuthenticationPrincipal CustomUserDetails me) {
+        return ResponseEntity.ok(ApiResponse.success(reconciliation.reconcile(chamaId, me.getUserId(), csv), "Statement checked"));
+    }
+
+    @GetMapping("/chamas/{chamaId}/payments/reconcile/latest")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> latestReconciliation(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails me) {
+        return ResponseEntity.ok(ApiResponse.success(reconciliation.latest(chamaId, me.getUserId()), "Latest check"));
     }
 }

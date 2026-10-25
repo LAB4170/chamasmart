@@ -38,6 +38,9 @@ public interface ContributionRepository extends JpaRepository<Contribution, Long
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM Contribution c WHERE c.contributionId = :id")
     Optional<Contribution> findByIdWithPessimisticLock(@Param("id") Long id);
+    /** Contributions of one chama whose reference is any of the given upper-case codes. */
+    @Query("SELECT c FROM Contribution c WHERE c.chama.chamaId = :chamaId AND c.isDeleted = false AND UPPER(c.reference) IN :refs")
+    List<Contribution> findByReferences(@Param("chamaId") Long chamaId, @Param("refs") java.util.Collection<String> refs);
     boolean existsByReference(String reference);
     boolean existsByReferenceIgnoreCase(String reference);
 }
