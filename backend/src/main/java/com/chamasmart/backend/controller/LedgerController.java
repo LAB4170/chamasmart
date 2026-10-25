@@ -21,4 +21,17 @@ public class LedgerController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> report(@PathVariable Long chamaId, @AuthenticationPrincipal CustomUserDetails currentUser) {
         return ResponseEntity.ok(ApiResponse.success(ledgerService.report(chamaId, currentUser.getUserId()), "Ledger retrieved"));
     }
+
+    /** Trial balance as a CSV file for the accountant. */
+    @GetMapping(value = "/{chamaId}/trial-balance.csv", produces = "text/csv")
+    public ResponseEntity<String> trialBalance(@PathVariable Long chamaId, @RequestParam(required = false) String asOf, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        String csv = ledgerService.trialBalanceCsv(chamaId, currentUser.getUserId(), asOf == null ? null : java.time.LocalDate.parse(asOf));
+        return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=trial-balance-" + chamaId + ".csv").body(csv);
+    }
+
+    /** Closes the books up to a day that has ended. */
+    @PostMapping("/{chamaId}/close-period")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> close(@PathVariable Long chamaId, @RequestBody Map<String, String> body, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(ApiResponse.success(ledgerService.closePeriod(chamaId, currentUser.getUserId(), java.time.LocalDate.parse(body.get("date"))), "Books closed"));
+    }
 }

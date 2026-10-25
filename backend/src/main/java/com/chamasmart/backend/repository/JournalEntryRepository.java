@@ -14,6 +14,7 @@ public interface JournalEntryRepository extends JpaRepository<JournalEntry, Long
     Optional<JournalEntry> findFirstByChamaIdOrderByEntryIdDesc(Long chamaId);
     List<JournalEntry> findByChamaIdOrderByEntryIdAsc(Long chamaId);
     boolean existsByLegacyEntryId(Long legacyEntryId);
+    boolean existsByReversesEntryId(Long reversesEntryId);
 
     @Query("SELECT DISTINCT e.chamaId FROM JournalEntry e")
     List<Long> chamaIdsWithEntries();

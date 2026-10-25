@@ -94,6 +94,26 @@ public class LedgerService {
     }
 
     @Transactional(readOnly = true)
+    private String officialRole(Long chamaId, Long actorId) {
+        ChamaMember m = chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, actorId).filter(ChamaMember::getIsActive)
+                .orElseThrow(() -> new AccessDeniedException("You are not an active member of this chama"));
+        String role = m.getRole() == null ? "" : m.getRole().toUpperCase();
+        if (!List.of("CHAIRPERSON", "TREASURER", "SECRETARY").contains(role)) throw new AccessDeniedException("Only chama officials can see the ledger");
+        return role;
+    }
+
+    public String trialBalanceCsv(Long chamaId, Long actorId, java.time.LocalDate asOf) {
+        officialRole(chamaId, actorId);
+        return journal.trialBalanceCsv(chamaId, asOf == null ? java.time.LocalDate.now() : asOf);
+    }
+
+    /** Only the chairperson or treasurer closes the books. */
+    public Map<String, Object> closePeriod(Long chamaId, Long actorId, java.time.LocalDate end) {
+        String role = officialRole(chamaId, actorId);
+        if (!List.of("CHAIRPERSON", "TREASURER").contains(role)) throw new AccessDeniedException("Only the chairperson or treasurer can close the books");
+        return journal.closePeriod(chamaId, end, actorId);
+    }
+
     public Map<String, Object> report(Long chamaId, Long actorId) {
         ChamaMember m = chamaMemberRepository.findByChamaChamaIdAndUserUserId(chamaId, actorId).filter(ChamaMember::getIsActive)
                 .orElseThrow(() -> new AccessDeniedException("You are not an active member of this chama"));

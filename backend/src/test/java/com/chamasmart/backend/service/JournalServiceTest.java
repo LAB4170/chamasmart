@@ -32,7 +32,7 @@ class JournalServiceTest {
         when(entries.save(any())).thenAnswer(i -> {
             JournalEntry e = i.getArgument(0);
             JournalEntry withId = JournalEntry.builder().entryId(nextId++).chamaId(e.getChamaId()).postedAt(e.getPostedAt()).entryType(e.getEntryType()).referenceType(e.getReferenceType())
-                    .referenceId(e.getReferenceId()).actorId(e.getActorId()).memo(e.getMemo()).legacyEntryId(e.getLegacyEntryId()).prevHash(e.getPrevHash()).entryHash(e.getEntryHash()).build();
+                    .referenceId(e.getReferenceId()).actorId(e.getActorId()).memo(e.getMemo()).legacyEntryId(e.getLegacyEntryId()).reversesEntryId(e.getReversesEntryId()).prevHash(e.getPrevHash()).entryHash(e.getEntryHash()).build();
             savedEntries.add(withId);
             return withId;
         });
@@ -98,5 +98,20 @@ class JournalServiceTest {
         assertEquals(true, service.trialBalance(1L).get("balanced"));
         when(lines.trialBalance(2L)).thenReturn(List.<Object[]>of(new Object[]{"CASH", new BigDecimal("700"), new BigDecimal("0")}));
         assertEquals(false, service.trialBalance(2L).get("balanced"));
+    }
+
+    @Test
+    void reversalMirrorsTheLinesLinksBackAndHappensOnce() {
+        JournalEntry first = service.post(1L, "CONTRIBUTION", "CONTRIBUTION", 5L, 9L, "m", null,
+                List.of(JournalMapper.Line.debit(Accounts.CASH, new BigDecimal("500")), JournalMapper.Line.credit(Accounts.MEMBER_SAVINGS, new BigDecimal("500"))));
+        when(entries.findById(first.getEntryId())).thenReturn(Optional.of(first));
+        when(lines.findByEntryId(first.getEntryId())).thenReturn(new ArrayList<>(savedLines));
+        JournalEntry rev = service.reverse(1L, first.getEntryId(), 9L, "wrong member");
+        assertEquals(first.getEntryId(), rev.getReversesEntryId());
+        JournalLine cash = savedLines.stream().filter(l -> l.getEntryId().equals(rev.getEntryId()) && l.getAccount().equals(Accounts.CASH)).findFirst().orElseThrow();
+        assertEquals(0, cash.getCredit().compareTo(new BigDecimal("500")));
+        when(entries.existsByReversesEntryId(first.getEntryId())).thenReturn(true);
+        assertThrows(IllegalStateException.class, () -> service.reverse(1L, first.getEntryId(), 9L, "again"));
+        assertThrows(IllegalArgumentException.class, () -> service.reverse(1L, first.getEntryId(), 9L, " "));
     }
 }
