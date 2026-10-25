@@ -40,16 +40,51 @@ public class EnforcementService {
         Integer exists = jdbc.queryForObject("SELECT count(*) FROM chamas WHERE chama_id = ?", Integer.class, chamaId);
         if (exists == null || exists == 0) throw new IllegalArgumentException("Chama not found");
         if (level > 1 && !urgent) {
-            Integer ripe = jdbc.queryForObject("SELECT count(*) FROM enforcement_cases WHERE chama_id = ? AND opened_at <= now() - (? * interval '1 day')", Integer.class, chamaId, responseDays);
+            Integer ripe = jdbc.queryForObject("SELECT count(*) FROM enforcement_cases WHERE chama_id = ? AND status IN ('OPEN','RESOLVED') AND opened_at <= now() - (? * interval '1 day')", Integer.class, chamaId, responseDays);
             if (ripe == null || ripe == 0) throw new IllegalStateException("The chama must first be warned and given " + responseDays + " days to respond. If members' money is at immediate risk, mark the case urgent and say why");
         }
-        Long id = jdbc.queryForObject("INSERT INTO enforcement_cases (chama_id, level, urgent, reason, opened_by) VALUES (?,?,?,?,?) RETURNING case_id",
-                Long.class, chamaId, level, urgent, reason.trim(), adminId);
+        boolean propose = level >= 3 && audit.twoPerson();
+        Long id = jdbc.queryForObject("INSERT INTO enforcement_cases (chama_id, level, urgent, reason, opened_by, status) VALUES (?,?,?,?,?,?) RETURNING case_id",
+                Long.class, chamaId, level, urgent, reason.trim(), adminId, propose ? "PROPOSED" : "OPEN");
+        if (propose) {
+            audit.log(adminId, "CASE_PROPOSED_L" + level, chamaId, "case " + id + (urgent ? " [urgent] " : " ") + reason);
+            return get(id);
+        }
+        takeEffect(chamaId, level, reason.trim());
+        audit.log(adminId, "CASE_OPENED_L" + level, chamaId, "case " + id + (audit.twoPerson() || level < 3 ? " " : " [single operator] ") + (urgent ? "[urgent] " : "") + reason);
+        return get(id);
+    }
+
+    private void takeEffect(Long chamaId, int level, String reason) {
         if (level >= 2) verification.suspendListing(chamaId);
         verification.tell(chamaId, "Notice from ChamaSmart: " + LEVELS.get(level).replace('_', ' ').toLowerCase(),
-                reason.trim() + " You can answer this notice in your chama's page. You have the right to respond and to ask for a review.");
-        audit.log(adminId, "CASE_OPENED_L" + level, chamaId, (urgent ? "[urgent] " : "") + reason);
-        return get(id);
+                reason + " You can answer this notice in your chama's page. You have the right to respond and to ask for a review.");
+    }
+
+    /** A second person confirms a proposed level 3 or 4 notice. Only then does it take effect and does the chama hear of it. */
+    @Transactional
+    public Map<String, Object> confirm(Long adminId, Long caseId) {
+        var c = jdbc.queryForList("SELECT chama_id, level, reason, opened_by, status FROM enforcement_cases WHERE case_id = ? FOR UPDATE", caseId);
+        if (c.isEmpty()) throw new IllegalArgumentException("Case not found");
+        Map<String, Object> r = c.get(0);
+        if (!"PROPOSED".equals(r.get("status"))) throw new IllegalStateException("This case is not waiting for confirmation");
+        if (adminId.equals(((Number) r.get("opened_by")).longValue())) throw new IllegalStateException("A different person must confirm this notice");
+        Long chamaId = ((Number) r.get("chama_id")).longValue(); int level = ((Number) r.get("level")).intValue();
+        jdbc.update("UPDATE enforcement_cases SET status = 'OPEN', confirmed_by = ?, confirmed_at = now(), opened_at = now() WHERE case_id = ?", adminId, caseId);
+        takeEffect(chamaId, level, (String) r.get("reason"));
+        audit.log(adminId, "CASE_CONFIRMED_L" + level, chamaId, "case " + caseId);
+        return get(caseId);
+    }
+
+    @Transactional
+    public Map<String, Object> cancelProposal(Long adminId, Long caseId, String note) {
+        if (note == null || note.trim().length() < 5) throw new IllegalArgumentException("Say why you are withdrawing it");
+        var c = jdbc.queryForList("SELECT chama_id, status FROM enforcement_cases WHERE case_id = ? FOR UPDATE", caseId);
+        if (c.isEmpty()) throw new IllegalArgumentException("Case not found");
+        if (!"PROPOSED".equals(c.get(0).get("status"))) throw new IllegalStateException("This case is not waiting for confirmation");
+        jdbc.update("UPDATE enforcement_cases SET status = 'CANCELLED', resolved_by = ?, resolved_at = now(), resolution_note = ? WHERE case_id = ?", adminId, note.trim(), caseId);
+        audit.log(adminId, "CASE_PROPOSAL_WITHDRAWN", ((Number) c.get(0).get("chama_id")).longValue(), "case " + caseId + ": " + note.trim());
+        return get(caseId);
     }
 
     /** The chairperson (or another official) answers a notice. */
@@ -85,13 +120,13 @@ public class EnforcementService {
 
     public List<Map<String, Object>> forChama(Long chamaId, Long userId) {
         membership.activeOfficial(chamaId, userId);
-        return jdbc.queryForList("SELECT case_id, level, status, urgent, reason, opened_at, response_text, responded_at, resolved_at, resolution_note FROM enforcement_cases WHERE chama_id = ? ORDER BY opened_at DESC", chamaId);
+        return jdbc.queryForList("SELECT case_id, level, status, urgent, reason, opened_at, response_text, responded_at, resolved_at, resolution_note FROM enforcement_cases WHERE chama_id = ? AND status IN ('OPEN','RESOLVED') ORDER BY opened_at DESC", chamaId);
     }
 
     public List<Map<String, Object>> openCases() {
         return jdbc.queryForList("""
-                SELECT e.case_id, e.chama_id, c.chama_name, e.level, e.urgent, e.reason, e.opened_at, e.response_text IS NOT NULL AS responded
-                FROM enforcement_cases e JOIN chamas c ON c.chama_id = e.chama_id WHERE e.status = 'OPEN' ORDER BY e.level DESC, e.opened_at""");
+                SELECT e.case_id, e.chama_id, c.chama_name, e.level, e.status, e.urgent, e.reason, e.opened_by, e.opened_at, e.response_text IS NOT NULL AS responded
+                FROM enforcement_cases e JOIN chamas c ON c.chama_id = e.chama_id WHERE e.status IN ('OPEN','PROPOSED') ORDER BY e.status DESC, e.level DESC, e.opened_at""");
     }
 
     public Map<String, Object> get(Long caseId) {

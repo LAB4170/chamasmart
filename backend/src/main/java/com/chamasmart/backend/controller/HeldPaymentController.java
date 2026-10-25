@@ -18,6 +18,7 @@ import java.util.*;
 public class HeldPaymentController {
     private final HeldPaymentService held;
     private final AccountNumberService accounts;
+    private final com.chamasmart.backend.service.AdminGuard adminGuard;
     private final com.chamasmart.backend.service.ReconciliationService reconciliation;
     private final com.chamasmart.backend.repository.ChamaMemberRepository members;
 
@@ -55,7 +56,7 @@ public class HeldPaymentController {
     /** Platform operator only: money that no chama could claim. */
     @GetMapping("/admin/payments/held")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> unrouted(@AuthenticationPrincipal CustomUserDetails me) {
-        if (me.getAuthorities().stream().noneMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()))) throw new AccessDeniedException("Platform administrators only");
+        adminGuard.require(me, com.chamasmart.backend.service.Permission.FINANCE_VIEW, "UNROUTED_PAYMENTS");
         return ResponseEntity.ok(ApiResponse.success(held.listUnrouted(), "Unrouted payments"));
     }
 

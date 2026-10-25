@@ -133,3 +133,11 @@ The container is tuned to start inside Render's port-scan window: serial garbage
 - The three agreements (`agreement_versions`) load as DRAFT. Publishing requires a reviewing lawyer's name; nothing can be accepted before that.
 - Settings: `app.payouts.new-listing-days` (30), `new-listing-hold-hours` (72), `new-listing-daily-cap` (100000), `app.enforcement.response-days` (7).
 - `agreement_acceptances` and `admin_actions` are append-only (database triggers).
+
+## Staff roles and the activity log
+
+- Roles: SUPER_ADMIN, VERIFICATION_REVIEWER, LEGAL, ACCOUNTING (built in), plus custom roles made of permissions. STAFF_MANAGE and SETTINGS_MANAGE belong to SUPER_ADMIN only.
+- The first user promoted with `UPDATE users SET role = 'ADMIN'` becomes SUPER_ADMIN automatically; after that all staff are added from Admin console > Staff. Staff cannot be active members of any chama.
+- Suspending or removing a person ends their access at once (the guard checks every request) and invalidates their tokens.
+- Two-person rule (Staff tab): off by default; can only be switched on with at least two approvers and two people who can confirm level 3/4 notices.
+- `admin_actions` is a hash chain (seq, prev_hash, row_hash). Writes happen in the same transaction as the action; refusals and reads of personal data are logged too. `GET /admin/audit/verify` recomputes it; a nightly job does the same (`app.audit.verify-cron`) and writes the result. Never disable the immutability triggers except in tests.

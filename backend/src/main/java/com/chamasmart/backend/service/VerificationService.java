@@ -158,13 +158,18 @@ public class VerificationService {
     @Transactional
     public Map<String, Object> approve(Long adminId, Long chamaId, String note) {
         requireStatus(chamaId, "SUBMITTED", "IN_REVIEW");
+        boolean two = audit.twoPerson();
+        if (two) {
+            Integer mine = jdbc.queryForObject("SELECT count(*) FROM verification_checks WHERE chama_id = ? AND checked_by = ?", Integer.class, chamaId, adminId);
+            if (mine != null && mine > 0) throw new IllegalStateException("You recorded checks on this application, so a different person must approve it");
+        }
         var blockers = readiness(chamaId).stream().filter(r -> !Boolean.TRUE.equals(r.get("passed"))).map(r -> (String) r.get("label")).toList();
         if (!blockers.isEmpty()) throw new IllegalStateException("Cannot approve yet: " + blockers.get(0) + (blockers.size() > 1 ? " (and " + (blockers.size() - 1) + " more)" : ""));
         jdbc.update("UPDATE chama_verifications SET status = 'APPROVED', reviewed_by = ?, reviewed_at = now(), review_note = ?, listed_at = now(), next_review_at = now() + interval '1 year', updated_at = now() WHERE chama_id = ?",
                 adminId, cut(note), chamaId);
         jdbc.update("UPDATE chamas SET visibility = 'PUBLIC' WHERE chama_id = ?", chamaId);
         tell(chamaId, "Your chama is now listed", "Your chama passed review and appears in the public listing. It will be reviewed again within a year.");
-        audit.log(adminId, "APPROVED", chamaId, note);
+        audit.log(adminId, "APPROVED", chamaId, (two ? "" : "[single operator] ") + (note == null ? "" : note));
         return view(chamaId);
     }
 
@@ -206,12 +211,26 @@ public class VerificationService {
         return n != null && n > 0;
     }
 
+    public Map<String, Object> overview(java.util.Set<Permission> has) {
+        Map<String, Object> all = overview();
+        Map<String, Permission> need = Map.ofEntries(
+                Map.entry("chamas", Permission.OVERVIEW_VIEW), Map.entry("listed", Permission.OVERVIEW_VIEW),
+                Map.entry("awaiting_review", Permission.VERIFY_VIEW), Map.entry("reviews_due_30_days", Permission.VERIFY_VIEW),
+                Map.entry("open_cases", Permission.CASE_VIEW), Map.entry("cases_awaiting_response", Permission.CASE_VIEW), Map.entry("proposals_to_confirm", Permission.CASE_VIEW),
+                Map.entry("unrouted_payments", Permission.FINANCE_VIEW), Map.entry("failed_books_checks", Permission.FINANCE_VIEW), Map.entry("past_due_plans", Permission.FINANCE_VIEW),
+                Map.entry("agreements_unpublished", Permission.AGREEMENT_MANAGE));
+        Map<String, Object> out = new LinkedHashMap<>();
+        all.forEach((k, v) -> { Permission p = need.get(k); if (p == null || has.contains(p)) out.put(k, v); });
+        return out;
+    }
+
     public Map<String, Object> overview() {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("chamas", q("SELECT count(*) FROM chamas WHERE is_active = true"));
         m.put("listed", q("SELECT count(*) FROM chama_verifications WHERE status = 'APPROVED'"));
         m.put("awaiting_review", q("SELECT count(*) FROM chama_verifications WHERE status IN ('SUBMITTED','IN_REVIEW')"));
         m.put("open_cases", q("SELECT count(*) FROM enforcement_cases WHERE status = 'OPEN'"));
+        m.put("proposals_to_confirm", q("SELECT count(*) FROM enforcement_cases WHERE status = 'PROPOSED'"));
         m.put("cases_awaiting_response", q("SELECT count(*) FROM enforcement_cases WHERE status = 'OPEN' AND response_text IS NULL"));
         m.put("unrouted_payments", q("SELECT count(*) FROM payment_events WHERE chama_id IS NULL AND status = 'UNMATCHED'"));
         m.put("failed_books_checks", q("SELECT count(*) FROM ledger_check_results WHERE all_ok = false"));
@@ -221,9 +240,6 @@ public class VerificationService {
         return m;
     }
 
-    public List<Map<String, Object>> trail(int limit) {
-        return jdbc.queryForList("SELECT a.action_id, a.admin_id, a.action, a.chama_id, a.detail, a.ip_address, a.at FROM admin_actions a ORDER BY a.at DESC LIMIT ?", Math.min(Math.max(limit, 1), 500));
-    }
 
     // ---------- helpers ----------
 

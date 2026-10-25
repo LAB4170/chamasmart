@@ -4,14 +4,16 @@ import { toast } from "react-toastify";
 import { adminAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { Button, PageHeader, EmptyState, Skeleton } from "../../components/ui";
-import { formatDate } from "../../utils/format";
+import { formatDate, formatKES } from "../../utils/format";
 
 const TABS = [
-  ["overview", "Overview"],
-  ["applications", "Applications"],
-  ["cases", "Cases"],
-  ["agreements", "Agreements"],
-  ["audit", "Activity log"],
+  ["overview", "Overview", "OVERVIEW_VIEW"],
+  ["applications", "Applications", "VERIFY_VIEW"],
+  ["cases", "Cases", "CASE_VIEW"],
+  ["payments", "Unclaimed payments", "FINANCE_VIEW"],
+  ["agreements", "Agreements", "AGREEMENT_MANAGE"],
+  ["staff", "Staff", "STAFF_MANAGE"],
+  ["audit", "Activity log", "AUDIT_VIEW"],
 ];
 
 const LEVELS = {
@@ -23,25 +25,44 @@ const LEVELS = {
 
 const errText = (e, fallback) => e.response?.data?.message || fallback;
 
-/** The platform operator's console. Reviewing a chama for the public listing, handling notices, and publishing the agreements officials must accept. */
+/** The platform operator's console. What you see depends on your role. */
 export default function AdminConsole() {
   const { user } = useAuth();
   const [tab, setTab] = useState("overview");
   const [open, setOpen] = useState(null);
+  const [me, setMe] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!user || user.role !== "ADMIN") return;
+    adminAPI.me().then((r) => {
+      const m = r.data?.data;
+      setMe(m);
+      const first = TABS.find(([, , p]) => m.permissions.includes(p));
+      if (first) setTab(first[0]);
+    }).catch((e) => setError(errText(e, "You do not have access to the admin console.")));
+  }, [user]);
+
   if (user && user.role !== "ADMIN") return <Navigate to="/dashboard" replace />;
+  if (error) return <div className="cs-page"><p role="alert">{error}</p></div>;
+  if (!me) return <div className="cs-page"><Skeleton /></div>;
+  const can = (p) => me.permissions.includes(p);
+  const visible = TABS.filter(([, , p]) => can(p));
 
   return (
     <div className="cs-page">
-      <PageHeader title="Admin console" subtitle="Review chamas before they are listed, handle notices, and keep the agreements current." />
+      <PageHeader title="Admin console" subtitle={`Signed in as ${me.roles.map((r) => r.replace(/_/g, " ").toLowerCase()).join(", ")}.${me.two_person_rule ? " Two-person rule is on." : ""}`} />
       <div role="tablist" style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "8px 0 16px" }}>
-        {TABS.map(([k, label]) => (
+        {visible.map(([k, label]) => (
           <Button key={k} variant={tab === k ? "primary" : "secondary"} role="tab" aria-selected={tab === k} onClick={() => { setTab(k); setOpen(null); }}>{label}</Button>
         ))}
       </div>
       {tab === "overview" && <Overview go={(t) => setTab(t)} />}
-      {tab === "applications" && (open ? <Review chamaId={open} onBack={() => setOpen(null)} /> : <Queue onOpen={setOpen} />)}
-      {tab === "cases" && <Cases onOpenChama={(id) => { setTab("applications"); setOpen(id); }} />}
+      {tab === "applications" && (open ? <Review chamaId={open} can={can} twoPerson={me.two_person_rule} onBack={() => setOpen(null)} /> : <Queue onOpen={setOpen} />)}
+      {tab === "cases" && <Cases can={can} meId={me.user_id} onOpenChama={(id) => { if (can("VERIFY_VIEW")) { setTab("applications"); setOpen(id); } }} />}
+      {tab === "payments" && <Unclaimed />}
       {tab === "agreements" && <Agreements />}
+      {tab === "staff" && <Staff meId={me.user_id} />}
       {tab === "audit" && <Audit />}
     </div>
   );
@@ -84,15 +105,16 @@ function Overview({ go }) {
         </p>
       )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 12 }}>
-        <Stat label="Active chamas" value={d.chamas} />
-        <Stat label="Publicly listed" value={d.listed} />
-        <Stat label="Applications to review" value={d.awaiting_review} warn={d.awaiting_review > 0} onClick={() => go("applications")} />
-        <Stat label="Open cases" value={d.open_cases} warn={d.open_cases > 0} onClick={() => go("cases")} />
-        <Stat label="Cases waiting for the chama" value={d.cases_awaiting_response} />
-        <Stat label="Reviews due in 30 days" value={d.reviews_due_30_days} warn={d.reviews_due_30_days > 0} />
-        <Stat label="Payments no chama claimed" value={d.unrouted_payments} warn={d.unrouted_payments > 0} />
-        <Stat label="Chamas whose books failed a check" value={d.failed_books_checks} warn={d.failed_books_checks > 0} />
-        <Stat label="Plans overdue or paused" value={d.past_due_plans} warn={d.past_due_plans > 0} />
+        {d.chamas !== undefined && <Stat label="Active chamas" value={d.chamas} />}
+        {d.listed !== undefined && <Stat label="Publicly listed" value={d.listed} />}
+        {d.awaiting_review !== undefined && <Stat label="Applications to review" value={d.awaiting_review} warn={d.awaiting_review > 0} onClick={() => go("applications")} />}
+        {d.open_cases !== undefined && <Stat label="Open cases" value={d.open_cases} warn={d.open_cases > 0} onClick={() => go("cases")} />}
+        {d.proposals_to_confirm !== undefined && <Stat label="Notices waiting for a second person" value={d.proposals_to_confirm} warn={d.proposals_to_confirm > 0} onClick={() => go("cases")} />}
+        {d.cases_awaiting_response !== undefined && <Stat label="Cases waiting for the chama" value={d.cases_awaiting_response} />}
+        {d.reviews_due_30_days !== undefined && <Stat label="Reviews due in 30 days" value={d.reviews_due_30_days} warn={d.reviews_due_30_days > 0} />}
+        {d.unrouted_payments !== undefined && <Stat label="Payments no chama claimed" value={d.unrouted_payments} warn={d.unrouted_payments > 0} onClick={() => go("payments")} />}
+        {d.failed_books_checks !== undefined && <Stat label="Chamas whose books failed a check" value={d.failed_books_checks} warn={d.failed_books_checks > 0} />}
+        {d.past_due_plans !== undefined && <Stat label="Plans overdue or paused" value={d.past_due_plans} warn={d.past_due_plans > 0} />}
       </div>
     </>
   );
@@ -129,7 +151,7 @@ function Queue({ onOpen }) {
   );
 }
 
-function Review({ chamaId, onBack }) {
+function Review({ chamaId, can, twoPerson, onBack }) {
   const { data, error, loading, reload } = useLoad(() => adminAPI.detail(chamaId), [chamaId]);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -184,7 +206,7 @@ function Review({ chamaId, onBack }) {
             <span aria-hidden="true">{r.passed ? "✔" : "○"}</span>
             <span style={{ flex: 1, minWidth: 200 }}>{r.label}{r.auto ? "" : " (you confirm)"}</span>
             <span style={{ fontSize: 12, opacity: 0.7 }}>{r.passed ? "Done" : "Not done"}</span>
-            {!r.auto && reviewing && (
+            {!r.auto && reviewing && can("VERIFY_REVIEW") && (
               <Button variant="secondary" disabled={busy}
                 onClick={() => run(() => adminAPI.setCheck(chamaId, r.code, !r.passed, note || undefined), r.passed ? "Check cleared" : "Check recorded")}>
                 {r.passed ? "Clear" : "Mark done"}
@@ -201,15 +223,17 @@ function Review({ chamaId, onBack }) {
           <textarea className="cs-input" rows={3} style={{ width: "100%" }} value={note} onChange={(e) => setNote(e.target.value)}
             placeholder="Note. Shown to the chama if you ask for changes or decline." aria-label="Decision note" />
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-            <Button disabled={busy || blockers.length > 0} onClick={() => run(() => adminAPI.approve(chamaId, note), "Approved and listed")}>Approve and list</Button>
-            <Button variant="secondary" disabled={busy} onClick={() => run(() => adminAPI.requestChanges(chamaId, note), "Sent back to the chama")}>Ask for changes</Button>
-            <Button variant="secondary" disabled={busy} onClick={() => run(() => adminAPI.reject(chamaId, note), "Declined")}>Decline</Button>
+            {can("LISTING_APPROVE") && <Button disabled={busy || blockers.length > 0} onClick={() => run(() => adminAPI.approve(chamaId, note), "Approved and listed")}>Approve and list</Button>}
+            {can("VERIFY_REVIEW") && <Button variant="secondary" disabled={busy} onClick={() => run(() => adminAPI.requestChanges(chamaId, note), "Sent back to the chama")}>Ask for changes</Button>}
+            {can("VERIFY_REVIEW") && <Button variant="secondary" disabled={busy} onClick={() => run(() => adminAPI.reject(chamaId, note), "Declined")}>Decline</Button>}
           </div>
+          {twoPerson && <p style={{ fontSize: 13 }}>The two-person rule is on: whoever recorded checks on this application cannot be the one who approves it.</p>}
+          {!can("LISTING_APPROVE") && <p style={{ fontSize: 13 }}>Your role can review but not approve. When the checkpoints are done, a super admin approves.</p>}
           {blockers.length > 0 && <p style={{ fontSize: 13 }}>{blockers.length} checkpoint{blockers.length > 1 ? "s" : ""} still open: {blockers[0].label}{blockers.length > 1 ? " and others." : "."}</p>}
         </section>
       )}
 
-      {v.status === "APPROVED" && (
+      {v.status === "APPROVED" && can("LISTING_APPROVE") && (
         <section className="cs-card" style={{ padding: 14, marginTop: 12 }}>
           <h3 style={{ marginTop: 0 }}>Listed until {v.next_review_at ? formatDate(v.next_review_at) : "reviewed"}</h3>
           <textarea className="cs-input" rows={2} style={{ width: "100%" }} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reason for removing the listing" aria-label="Reason" />
@@ -228,53 +252,153 @@ function Review({ chamaId, onBack }) {
             {c.resolution_note && <div style={{ opacity: 0.85 }}>Outcome: {c.resolution_note}</div>}
           </div>
         ))}
-        <h4 style={{ marginBottom: 4 }}>Send a notice</h4>
+        {can("CASE_OPEN") && <><h4 style={{ marginBottom: 4 }}>Send a notice</h4>
         <p style={{ fontSize: 13, opacity: 0.75, marginTop: 0 }}>
           A warning comes first and gives the chama 7 days to answer. Levels 2 to 4 need that warning to have run its time, unless members' money is at immediate risk and you mark the notice urgent. ChamaSmart does not hold the chama's money: these steps only stop what the platform controls.
         </p>
         <select className="cs-input" value={caseLevel} onChange={(e) => setCaseLevel(Number(e.target.value))} aria-label="Level">
-          {Object.entries(LEVELS).map(([k, l]) => <option key={k} value={k}>{k}. {l}</option>)}
+          {Object.entries(LEVELS).filter(([k]) => Number(k) < 3 || can("CASE_ESCALATE")).map(([k, l]) => <option key={k} value={k}>{k}. {l}</option>)}
         </select>
         <textarea className="cs-input" rows={3} style={{ width: "100%", marginTop: 8 }} value={caseReason} onChange={(e) => setCaseReason(e.target.value)}
           placeholder="What was found. The chama will read this word for word." aria-label="What was found" />
         <label style={{ display: "flex", gap: 6, alignItems: "center", margin: "6px 0" }}>
           <input type="checkbox" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} /> Urgent: members' money is at immediate risk
         </label>
-        <Button variant="secondary" disabled={busy} onClick={() => run(async () => { await adminAPI.openCase(chamaId, caseLevel, caseReason, urgent); setCaseReason(""); setUrgent(false); }, "Notice sent")}>Send notice</Button>
+        <Button variant="secondary" disabled={busy} onClick={() => run(async () => { await adminAPI.openCase(chamaId, caseLevel, caseReason, urgent); setCaseReason(""); setUrgent(false); }, "Notice recorded")}>Send notice</Button>
+        {twoPerson && <p style={{ fontSize: 13 }}>Levels 3 and 4 wait for a second person to confirm before the chama is told or anything changes.</p>}</>}
       </section>
     </>
   );
 }
 
-function Cases({ onOpenChama }) {
+function Cases({ can, meId, onOpenChama }) {
   const { data, error, loading, reload } = useLoad(() => adminAPI.cases());
   const [notes, setNotes] = useState({});
-  const close = async (id) => {
-    try { await adminAPI.resolveCase(id, notes[id] || ""); toast.success("Case closed"); reload(); }
+  const act = async (fn, ok) => {
+    try { await fn(); toast.success(ok); reload(); }
     catch (e) { toast.error(errText(e, "That did not work.")); }
   };
   if (loading) return <Skeleton />;
   if (error) return <p role="alert">{error}</p>;
-  if (!data?.length) return <EmptyState title="No open cases" message="Notices you send to chamas appear here until you close them." />;
+  if (!data?.length) return <EmptyState title="No open cases" message="Notices sent to chamas appear here until they are closed." />;
   return (
     <div style={{ display: "grid", gap: 10 }}>
       {data.map((c) => (
         <div key={c.case_id} className="cs-card" style={{ padding: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
             <strong>{c.chama_name}</strong>
-            <span>{LEVELS[c.level]}{c.urgent ? " · urgent" : ""}</span>
+            <span>{LEVELS[c.level]}{c.urgent ? " · urgent" : ""}{c.status === "PROPOSED" ? " · waiting for a second person" : ""}</span>
           </div>
           <p style={{ margin: "6px 0" }}>{c.reason}</p>
-          <p style={{ fontSize: 13, opacity: 0.75, margin: "0 0 8px" }}>Opened {formatDate(c.opened_at)} · {c.responded ? "the chama has responded" : "no response yet"}</p>
-          <textarea className="cs-input" rows={2} style={{ width: "100%" }} placeholder="Outcome and why the case is closed"
-            value={notes[c.case_id] || ""} onChange={(e) => setNotes({ ...notes, [c.case_id]: e.target.value })} aria-label="Outcome" />
-          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <Button variant="secondary" onClick={() => onOpenChama(c.chama_id)}>Open chama</Button>
-            <Button onClick={() => close(c.case_id)}>Close case</Button>
+          <p style={{ fontSize: 13, opacity: 0.75, margin: "0 0 8px" }}>
+            Opened {formatDate(c.opened_at)} · {c.status === "PROPOSED" ? "the chama has not been told yet" : c.responded ? "the chama has responded" : "no response yet"}
+          </p>
+          <textarea className="cs-input" rows={2} style={{ width: "100%" }} placeholder={c.status === "PROPOSED" ? "Reason, if you withdraw it" : "Outcome and why the case is closed"}
+            value={notes[c.case_id] || ""} onChange={(e) => setNotes({ ...notes, [c.case_id]: e.target.value })} aria-label="Note" />
+          <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+            {can("VERIFY_VIEW") && <Button variant="secondary" onClick={() => onOpenChama(c.chama_id)}>Open chama</Button>}
+            {c.status === "PROPOSED" && can("CASE_ESCALATE") && c.opened_by !== meId && <Button onClick={() => act(() => adminAPI.confirmCase(c.case_id), "Confirmed and sent")}>Confirm and send</Button>}
+            {c.status === "PROPOSED" && c.opened_by === meId && <span style={{ fontSize: 13, alignSelf: "center" }}>You proposed this; someone else must confirm.</span>}
+            {c.status === "PROPOSED" && can("CASE_ESCALATE") && <Button variant="secondary" onClick={() => act(() => adminAPI.withdrawCase(c.case_id, notes[c.case_id] || ""), "Withdrawn")}>Withdraw</Button>}
+            {c.status === "OPEN" && can("CASE_RESOLVE") && <Button onClick={() => act(() => adminAPI.resolveCase(c.case_id, notes[c.case_id] || ""), "Case closed")}>Close case</Button>}
           </div>
         </div>
       ))}
     </div>
+  );
+}
+
+function Unclaimed() {
+  const { data, error, loading } = useLoad(() => adminAPI.unrouted());
+  if (loading) return <Skeleton />;
+  if (error) return <p role="alert">{error}</p>;
+  if (!data?.length) return <EmptyState title="Nothing unclaimed" message="Payments that no chama could claim appear here." />;
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      {data.map((p, i) => (
+        <div key={p.event_id || i} className="cs-card" style={{ padding: 12, fontSize: 14 }}>
+          <strong>{formatKES(p.amount)}</strong> · {p.provider} · {p.reference || p.provider_ref || ""}
+          <div style={{ opacity: 0.8 }}>{p.reason || p.status} · {p.received_at ? formatDate(p.received_at) : ""}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Staff({ meId }) {
+  const staff = useLoad(() => adminAPI.staff());
+  const roles = useLoad(() => adminAPI.roles());
+  const settings = useLoad(() => adminAPI.settings());
+  const [email, setEmail] = useState("");
+  const [picked, setPicked] = useState(["VERIFICATION_REVIEWER"]);
+  const [busy, setBusy] = useState(false);
+  const refresh = () => { staff.reload(); settings.reload(); };
+  const run = async (fn, ok) => {
+    setBusy(true);
+    try { await fn(); toast.success(ok); refresh(); }
+    catch (e) { toast.error(errText(e, "That did not work.")); }
+    finally { setBusy(false); }
+  };
+  if (staff.loading || roles.loading) return <Skeleton />;
+  if (staff.error) return <p role="alert">{staff.error}</p>;
+  const st = settings.data;
+  const toggle = (code) => setPicked((p) => (p.includes(code) ? p.filter((x) => x !== code) : [...p, code]));
+  return (
+    <>
+      <section className="cs-card" style={{ padding: 14 }}>
+        <h3 style={{ marginTop: 0 }}>Two-person rule</h3>
+        <p style={{ margin: "4px 0" }}>
+          {st?.two_person_rule ? "On." : "Off."} When on, the person who recorded checks on an application cannot approve it, and level 3 and 4 notices wait for a second person to confirm.
+        </p>
+        <p style={{ fontSize: 13, opacity: 0.75 }}>People who can approve listings: {st?.approvers ?? 0}. People who can confirm serious notices: {st?.escalators ?? 0}. It can be switched on once there are at least two of each.</p>
+        <Button variant="secondary" disabled={busy} onClick={() => run(() => adminAPI.setTwoPerson(!st?.two_person_rule), st?.two_person_rule ? "Switched off" : "Switched on")}>
+          {st?.two_person_rule ? "Switch off" : "Switch on"}
+        </Button>
+        {st?.audit_chain_last && <p style={{ fontSize: 13, opacity: 0.75 }}>Last nightly check of the activity log: {st.audit_chain_last}</p>}
+      </section>
+
+      <section style={{ marginTop: 14 }}>
+        <h3>People</h3>
+        <div style={{ display: "grid", gap: 10 }}>
+          {(staff.data || []).map((p) => (
+            <div key={p.user_id} className="cs-card" style={{ padding: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                <strong>{p.first_name} {p.last_name}{p.user_id === meId ? " (you)" : ""}</strong>
+                <span>{String(p.status).toLowerCase()}</span>
+              </div>
+              <div style={{ fontSize: 13, opacity: 0.8 }}>{p.email} · {p.roles.map((r) => r.replace(/_/g, " ").toLowerCase()).join(", ")} · two-factor {p.mfa_on ? "on" : "OFF"}{p.last_action_at ? ` · last active ${formatDate(p.last_action_at)}` : ""}</div>
+              {p.user_id !== meId && p.status !== "REMOVED" && (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                  {p.status === "ACTIVE" && <Button variant="secondary" disabled={busy} onClick={() => run(() => adminAPI.staffAction(p.user_id, "suspend"), "Suspended")}>Suspend</Button>}
+                  {p.status === "SUSPENDED" && <Button variant="secondary" disabled={busy} onClick={() => run(() => adminAPI.staffAction(p.user_id, "reinstate"), "Reinstated")}>Reinstate</Button>}
+                  <Button variant="secondary" disabled={busy} onClick={() => { if (window.confirm(`Remove ${p.first_name} from the staff?`)) run(() => adminAPI.staffAction(p.user_id, "remove"), "Removed"); }}>Remove</Button>
+                  {(roles.data || []).map((r) => (
+                    <label key={r.role_code} style={{ fontSize: 13, display: "flex", gap: 4, alignItems: "center" }}>
+                      <input type="checkbox" checked={p.roles.includes(r.role_code)} disabled={busy}
+                        onChange={() => { const next = p.roles.includes(r.role_code) ? p.roles.filter((x) => x !== r.role_code) : [...p.roles, r.role_code]; if (next.length) run(() => adminAPI.setStaffRoles(p.user_id, next), "Roles changed"); }} /> {r.label}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="cs-card" style={{ padding: 14, marginTop: 14 }}>
+        <h3 style={{ marginTop: 0 }}>Add a person</h3>
+        <p style={{ fontSize: 13, opacity: 0.75, marginTop: 0 }}>They need a ChamaSmart account with a confirmed email, and must not be a member of any chama. Ask them to turn on two-factor sign-in before they open the console.</p>
+        <input className="cs-input" style={{ width: "100%" }} type="email" placeholder="Their account email" value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Account email" />
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", margin: "8px 0" }}>
+          {(roles.data || []).map((r) => (
+            <label key={r.role_code} style={{ display: "flex", gap: 4, alignItems: "center" }} title={r.permissions.join(", ")}>
+              <input type="checkbox" checked={picked.includes(r.role_code)} onChange={() => toggle(r.role_code)} /> {r.label}
+            </label>
+          ))}
+        </div>
+        <Button disabled={busy || !email || picked.length === 0} onClick={() => run(async () => { await adminAPI.addStaff(email, picked); setEmail(""); }, "Added")}>Add to staff</Button>
+      </section>
+    </>
   );
 }
 
@@ -330,18 +454,45 @@ function Agreements() {
 }
 
 function Audit() {
-  const { data, error, loading } = useLoad(() => adminAPI.audit(200));
-  if (loading) return <Skeleton />;
-  if (error) return <p role="alert">{error}</p>;
-  if (!data?.length) return <EmptyState title="Nothing recorded yet" message="Every action taken in this console is listed here and cannot be changed." />;
+  const [f, setF] = useState({ action: "", outcome: "" });
+  const [applied, setApplied] = useState({ action: "", outcome: "" });
+  const [chain, setChain] = useState(null);
+  const { data, error, loading } = useLoad(() => adminAPI.audit({ limit: 200, action: applied.action || undefined, outcome: applied.outcome || undefined }), [applied]);
+  const check = async () => {
+    try { const r = await adminAPI.verifyAudit(); setChain(r.data.data); }
+    catch (e) { toast.error(errText(e, "Could not check the log.")); }
+  };
   return (
-    <div style={{ display: "grid", gap: 6 }}>
-      {data.map((a) => (
-        <div key={a.action_id} className="cs-card" style={{ padding: 10, fontSize: 14 }}>
-          <strong>{String(a.action).replace(/_/g, " ").toLowerCase()}</strong>{a.chama_id ? ` · chama ${a.chama_id}` : ""} · {formatDate(a.at)}
-          <div style={{ opacity: 0.8 }}>{a.detail}</div>
+    <>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        <input className="cs-input" placeholder="Search by action" value={f.action} onChange={(e) => setF({ ...f, action: e.target.value })} aria-label="Action" />
+        <select className="cs-input" value={f.outcome} onChange={(e) => setF({ ...f, outcome: e.target.value })} aria-label="Outcome">
+          <option value="">All outcomes</option><option value="ALLOWED">Allowed</option><option value="DENIED">Refused</option><option value="ALERT">Alerts</option>
+        </select>
+        <Button variant="secondary" onClick={() => setApplied(f)}>Filter</Button>
+        <Button variant="secondary" onClick={check}>Check the log has not been altered</Button>
+      </div>
+      {chain && (
+        <p role="status" className="cs-card" style={{ padding: 12 }}>
+          {chain.ok ? `The log is intact. ${chain.checked} entries checked.` : `The log has been altered. The first problem is entry ${chain.first_break_seq}: ${chain.reason}.`}
+        </p>
+      )}
+      {loading ? <Skeleton /> : error ? <p role="alert">{error}</p> : !data?.length ? (
+        <EmptyState title="Nothing recorded yet" message="Every action, refusal and view of personal data in this console is listed here and cannot be changed." />
+      ) : (
+        <div style={{ display: "grid", gap: 6 }}>
+          {data.map((a) => (
+            <div key={a.action_id} className="cs-card" style={{ padding: 10, fontSize: 14 }}>
+              <strong>{String(a.action).replace(/_/g, " ").toLowerCase()}</strong>{a.outcome !== "ALLOWED" ? ` · ${a.outcome === "DENIED" ? "refused" : a.outcome.toLowerCase()}` : ""}
+              {a.chama_id ? ` · chama ${a.chama_id}` : ""} · {formatDate(a.at)}
+              <div style={{ opacity: 0.8 }}>
+                {a.first_name ? `${a.first_name} ${a.last_name}` : a.admin_id ? `user ${a.admin_id}` : "system"}{a.roles ? ` (${a.roles.replace(/_/g, " ").toLowerCase()})` : ""} · {a.ip_address}
+              </div>
+              {a.detail && <div style={{ opacity: 0.8 }}>{a.detail}</div>}
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
+      )}
+    </>
   );
 }
