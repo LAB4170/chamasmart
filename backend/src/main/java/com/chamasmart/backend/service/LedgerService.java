@@ -26,6 +26,8 @@ public class LedgerService {
     /** Optional so older unit tests that build this class by hand keep working. */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private JournalService journal;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private LedgerCheckResultRepository checkResults;
 
     /** Called in the same transaction as the balance change it records. */
     public void post(Chama chama, String account, BigDecimal signedAmount, String entryType, String referenceType, Long referenceId, Long actorId, String memo) {
@@ -180,6 +182,16 @@ public class LedgerService {
         return m;
     }
 
+    private void recordCheck(Long chamaId, boolean ok, Map<String, Object> result) {
+        if (checkResults == null) return;
+        try {
+            int failed = 0;
+            Object cs = result.get("checks");
+            if (cs instanceof List<?> list) for (Object o : list) if (o instanceof Map<?, ?> m && Boolean.FALSE.equals(m.get("ok"))) failed++;
+            checkResults.save(LedgerCheckResult.builder().chamaId(chamaId).allOk(ok).failed(failed).checkedAt(java.time.ZonedDateTime.now()).build());
+        } catch (Exception e) { log.warn("Could not store the books check for chama {}: {}", chamaId, e.getMessage()); }
+    }
+
     /** Every night: compare each chama's stored balances with its journal and shout if they differ. */
     @Scheduled(cron = "0 30 2 * * *")
     @Transactional(readOnly = true)
@@ -196,10 +208,12 @@ public class LedgerService {
         if (journal != null) {
             for (Chama c : chamaRepository.findAll()) {
                 Map<String, Object> result = journalChecks(c.getChamaId());
-                if (!Boolean.TRUE.equals(result.get("all_ok"))) {
+                boolean ok = Boolean.TRUE.equals(result.get("all_ok"));
+                if (!ok) {
                     bad++;
                     log.error("JOURNAL CHECK FAILED chama={} checks={}", c.getChamaId(), result.get("checks"));
                 }
+                recordCheck(c.getChamaId(), ok, result);
             }
         }
         if (bad == 0) log.info("Ledger reconciliation: every fund agrees with its journal");

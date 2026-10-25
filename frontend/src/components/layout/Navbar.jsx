@@ -9,6 +9,7 @@ import "./Navbar.css";
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
   { to: "/chamas", label: "My chamas", Icon: Users },
+  { to: "/portfolio", label: "Portfolio", Icon: LayoutDashboard },
   { to: "/loans", label: "Loans", Icon: Banknote },
   { to: "/my-guarantees", label: "Guarantees", Icon: Shield },
   { to: "/browse-chamas", label: "Browse chamas", Icon: Search },

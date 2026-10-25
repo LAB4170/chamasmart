@@ -89,3 +89,9 @@ export const scoreAPI = {
     getHistory: (chamaId) => api.get(`/chamas/${chamaId}/score/history`),
     getAlerts: (chamaId) => api.get(`/chamas/${chamaId}/health-alerts`),
 };
+
+// Every chama the signed-in person runs, together: PortfolioController /portfolio
+export const portfolioAPI = {
+  page: (params) => api.get("/portfolio", { params }),
+  exportCsv: () => api.get("/portfolio/export.csv", { responseType: "blob" }),
+};
