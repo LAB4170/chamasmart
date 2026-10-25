@@ -6,12 +6,14 @@ import { useAuth } from "../../context/AuthContext";
 import { Button, PageHeader, EmptyState, Skeleton } from "../../components/ui";
 import { formatDate } from "../../utils/format";
 import FinanceDesk from "./FinanceDesk";
+import LegalDesk from "./LegalDesk";
 
 const TABS = [
   ["overview", "Overview", "OVERVIEW_VIEW"],
   ["applications", "Applications", "VERIFY_VIEW"],
   ["cases", "Cases", "CASE_VIEW"],
   ["payments", "Finance", "FINANCE_VIEW"],
+  ["legal", "Legal", "LEGAL_ORDERS"],
   ["agreements", "Agreements", "AGREEMENT_MANAGE"],
   ["staff", "Staff", "STAFF_MANAGE"],
   ["audit", "Activity log", "AUDIT_VIEW"],
@@ -31,6 +33,7 @@ export default function AdminConsole() {
   const { user } = useAuth();
   const [tab, setTab] = useState("overview");
   const [open, setOpen] = useState(null);
+  const [legalCase, setLegalCase] = useState(null);
   const [me, setMe] = useState(null);
   const [error, setError] = useState("");
 
@@ -55,13 +58,14 @@ export default function AdminConsole() {
       <PageHeader title="Admin console" subtitle={`Signed in as ${me.roles.map((r) => r.replace(/_/g, " ").toLowerCase()).join(", ")}.${me.two_person_rule ? " Two-person rule is on." : ""}`} />
       <div role="tablist" style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "8px 0 16px" }}>
         {visible.map(([k, label]) => (
-          <Button key={k} variant={tab === k ? "primary" : "secondary"} role="tab" aria-selected={tab === k} onClick={() => { setTab(k); setOpen(null); }}>{label}</Button>
+          <Button key={k} variant={tab === k ? "primary" : "secondary"} role="tab" aria-selected={tab === k} onClick={() => { setTab(k); setOpen(null); setLegalCase(null); }}>{label}</Button>
         ))}
       </div>
       {tab === "overview" && <Overview go={(t) => setTab(t)} />}
       {tab === "applications" && (open ? <Review chamaId={open} can={can} twoPerson={me.two_person_rule} onBack={() => setOpen(null)} /> : <Queue onOpen={setOpen} />)}
-      {tab === "cases" && <Cases can={can} meId={me.user_id} onOpenChama={(id) => { if (can("VERIFY_VIEW")) { setTab("applications"); setOpen(id); } }} />}
+      {tab === "cases" && <Cases can={can} meId={me.user_id} onOpenFile={(id) => { setLegalCase(id); setTab("legal"); }} onOpenChama={(id) => { if (can("VERIFY_VIEW")) { setTab("applications"); setOpen(id); } }} />}
       {tab === "payments" && <FinanceDesk can={can} />}
+      {tab === "legal" && <LegalDesk key={legalCase || "register"} can={can} caseId={legalCase} onBackToCases={() => { setLegalCase(null); setTab("cases"); }} />}
       {tab === "agreements" && <Agreements />}
       {tab === "staff" && <Staff meId={me.user_id} />}
       {tab === "audit" && <Audit />}
@@ -347,7 +351,7 @@ function Review({ chamaId, can, twoPerson, onBack }) {
   );
 }
 
-function Cases({ can, meId, onOpenChama }) {
+function Cases({ can, meId, onOpenChama, onOpenFile }) {
   const { data, error, loading, reload } = useLoad(() => adminAPI.cases());
   const [notes, setNotes] = useState({});
   const act = async (fn, ok) => {
@@ -373,6 +377,7 @@ function Cases({ can, meId, onOpenChama }) {
             value={notes[c.case_id] || ""} onChange={(e) => setNotes({ ...notes, [c.case_id]: e.target.value })} aria-label="Note" />
           <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
             {can("VERIFY_VIEW") && <Button variant="secondary" onClick={() => onOpenChama(c.chama_id)}>Open chama</Button>}
+            <Button variant="secondary" onClick={() => onOpenFile(c.case_id)}>Case file</Button>
             {c.status === "PROPOSED" && can("CASE_ESCALATE") && c.opened_by !== meId && <Button onClick={() => act(() => adminAPI.confirmCase(c.case_id), "Confirmed and sent")}>Confirm and send</Button>}
             {c.status === "PROPOSED" && c.opened_by === meId && <span style={{ fontSize: 13, alignSelf: "center" }}>You proposed this; someone else must confirm.</span>}
             {c.status === "PROPOSED" && can("CASE_ESCALATE") && <Button variant="secondary" onClick={() => act(() => adminAPI.withdrawCase(c.case_id, notes[c.case_id] || ""), "Withdrawn")}>Withdraw</Button>}

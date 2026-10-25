@@ -162,3 +162,12 @@ The Finance tab of the admin console is for the accountant (role `ACCOUNTING`: v
 - **Approval rule.** Only `FINANCE_APPROVE` (super admin) can decide. With the two-person rule on, you cannot decide a request you proposed. Finished requests cannot be edited or deleted, even in the database.
 - **Invoices and VAT.** An invoice is issued when a verified plan payment arrives; invoices cannot be changed. **No VAT is charged until `BILLING_VAT_REGISTERED=true`.** Set that, and confirm the rate (`BILLING_VAT_RATE`, 0.16) and whether plan prices include VAT (`BILLING_VAT_INCLUSIVE`, true), with your accountant before the first filing. The VAT file lists invoices, then refunds as credit notes, then totals for the period.
 - **Every step** (propose, approve, reject, send, export) is on the activity log.
+
+## Legal desk
+
+The Legal tab (role `LEGAL`; super admin also) holds the register of court orders and official requests. The case file opens from the Cases tab.
+
+- **Case file.** One page per enforcement case: the notice and the chama's reply, the officials, agreements accepted (with the exact-text fingerprint, time and address), attached evidence, notes, linked orders, and the activity log for that chama. Notes and evidence links cannot be edited or removed. Attaching a document as evidence places it on legal hold.
+- **Register of orders and requests.** Court orders, preservation orders, disclosure, police and regulator requests, with a response date. Overdue ones are flagged and sorted first. A preservation order holds every stored document of that chama at once. What an order says cannot be changed after registering; progress is recorded as dated status entries (received, under review, complied with, contested, closed).
+- **Referral pack.** A ZIP built on demand: summary, officials, agreements accepted, case notes, the chama's activity log with its hashes, contributions totals, payouts, payment events, and the document list. It can include the stored documents; each one opened is logged as a document opening. `00_MANIFEST.txt` carries the SHA-256 of every file and whether the activity log chain verified at that moment. **Before any pack is built the recipient and the legal basis (at least 20 characters, for example the order number) are recorded** in a permanent disclosure list.
+- **Not built.** Redacting third-party members from a pack; ask counsel whether member-level contribution data should be included for each request type. Appeals handling beyond the admin.

@@ -150,6 +150,18 @@ export const financeAPI = {
   vatExport: (from, to) => api.get("/admin/finance/vat-export", { params: { from, to }, responseType: "blob" }),
 };
 
+// Legal desk of the admin console: LegalController /admin/legal
+export const legalAPI = {
+  caseFile: (id) => api.get(`/admin/legal/cases/${id}`),
+  addNote: (id, body) => api.post(`/admin/legal/cases/${id}/notes`, { body }),
+  attachEvidence: (id, doc_id, note) => api.post(`/admin/legal/cases/${id}/evidence`, { doc_id, note }),
+  orders: (status) => api.get("/admin/legal/orders", { params: { status } }),
+  order: (id) => api.get(`/admin/legal/orders/${id}`),
+  registerOrder: (b) => api.post("/admin/legal/orders", b),
+  moveOrder: (id, status, note) => api.post(`/admin/legal/orders/${id}/status`, { status, note }),
+  referralPack: (id, b) => api.post(`/admin/legal/cases/${id}/referral-pack`, b, { responseType: "blob" }),
+};
+
 // A chama's side of the public-listing review: ListingController
 export const listingAPI = {
   agreements: () => api.get("/agreements/current"),
